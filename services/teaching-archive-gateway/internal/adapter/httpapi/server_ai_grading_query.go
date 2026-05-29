@@ -6,11 +6,6 @@ import (
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 )
 
-type aiGradingRequestListResponse struct {
-	Data     []aiGradingRequestResponse `json:"data"`
-	PageInfo pageInfoResponse           `json:"pageInfo"`
-}
-
 func (s *Server) aiGradingRequests(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -47,19 +42,4 @@ func (s *Server) listAIGradingRequestMetadata(w http.ResponseWriter, r *http.Req
 	}
 
 	writeJSON(w, http.StatusOK, toAIGradingRequestListResponse(page))
-}
-
-func toAIGradingRequestListResponse(page domain.AIGradingRequestPage) aiGradingRequestListResponse {
-	requests := make([]aiGradingRequestResponse, 0, len(page.Items))
-	for _, request := range page.Items {
-		requests = append(requests, toAIGradingRequestResponse(request))
-	}
-	return aiGradingRequestListResponse{
-		Data: requests,
-		PageInfo: pageInfoResponse{
-			PageSize:   page.PageInfo.PageSize,
-			HasMore:    page.PageInfo.HasMore,
-			NextCursor: optionalString(page.PageInfo.NextCursor),
-		},
-	}
 }

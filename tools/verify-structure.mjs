@@ -47,6 +47,7 @@ const required = [
   "docs/sdd/0039-teaching-archive-ai-grading-query-view.md",
   "docs/sdd/0040-teaching-archive-ai-grading-worker-claim.md",
   "docs/sdd/0041-teaching-archive-quality-headroom-split.md",
+  "docs/sdd/0042-teaching-archive-http-runtime-headroom-split.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -135,6 +136,11 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_claim_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test_helpers_test.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_requests.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_responses.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_paths.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_codec.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_presenters.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_query.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_query_test.go",
@@ -570,9 +576,21 @@ for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance 
   }
 }
 
+const teachingArchiveHTTPRuntimeHeadroomSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0042-teaching-archive-http-runtime-headroom-split.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveHTTPRuntimeHeadroomSdd.includes(heading)) {
+    console.error(`SDD 0042 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
 const lineCount = (file) => fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/).length;
 const qualityHeadroomLimits = [
   ["contracts/openapi/teaching-archive.yaml", 700],
+  ["services/teaching-archive-gateway/internal/adapter/httpapi/server.go", 500],
   ["services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go", 500],
 ];
 for (const [file, maxLines] of qualityHeadroomLimits) {
