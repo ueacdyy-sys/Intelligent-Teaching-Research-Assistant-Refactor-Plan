@@ -161,6 +161,8 @@ paths:
     $ref: './teaching-archive.ai-grading-requests.path.yaml'
   /v1/teaching/ai-grading-requests/worker-claims:
     $ref: './teaching-archive.ai-grading-worker-claims.path.yaml'
+  /v1/teaching/ai-grading-requests/{requestId}/worker-result:
+    $ref: './teaching-archive.ai-grading-worker-result.path.yaml'
   /v1/teaching/tutoring-analysis-requests:
     $ref: './teaching-archive.tutoring-analysis-requests.path.yaml'
   /v1/teaching/tutoring-analysis-requests/worker-claims:
@@ -504,6 +506,10 @@ components:
         sourceArchiveOcrStatus:
           type: string
           enum: [RESERVED, NOT_REQUIRED]
+        scoreSummary: { type: [string, 'null'] }
+        resultRef: { type: [string, 'null'] }
+        errorCode: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
         claimedByWorkerId:
           type:
             - string
@@ -516,6 +522,7 @@ components:
         createdAt:
           type: string
           format: date-time
+        completedAt: { type: [string, 'null'], format: date-time }
         updatedAt:
           type: string
           format: date-time
@@ -654,7 +661,7 @@ components:
       enum: [NONE, GENERATE_PERSONALIZED_CHECK]
     AIGradingStatus:
       type: string
-      enum: [QUEUED, IN_PROGRESS]
+      enum: [QUEUED, IN_PROGRESS, SUCCEEDED, FAILED]
     TutoringAnalysisStatus:
       type: string
       enum: [QUEUED, IN_PROGRESS, SUCCEEDED, FAILED]

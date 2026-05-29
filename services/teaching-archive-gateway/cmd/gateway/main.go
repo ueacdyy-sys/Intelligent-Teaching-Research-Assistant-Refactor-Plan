@@ -44,6 +44,10 @@ func main() {
 		archiveRepository,
 		platform.Clock{},
 	)
+	recordAIGradingResult := usecase.NewRecordAIGradingResult(
+		archiveRepository,
+		platform.Clock{},
+	)
 	createTutoringAnalysisRequest := usecase.NewCreateTutoringAnalysisRequest(
 		archiveRepository,
 		platform.TutoringRequestIDGenerator{},
@@ -67,6 +71,7 @@ func main() {
 			createAIGradingRequest,
 			listAIGradingRequests,
 			claimAIGradingRequest,
+			recordAIGradingResult,
 			createTutoringAnalysisRequest,
 			listTutoringAnalysisRequests,
 			claimTutoringAnalysisRequest,

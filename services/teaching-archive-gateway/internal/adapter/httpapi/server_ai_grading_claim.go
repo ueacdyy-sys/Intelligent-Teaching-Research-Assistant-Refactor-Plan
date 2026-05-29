@@ -7,7 +7,17 @@ import (
 )
 
 func (s *Server) aiGradingRequestSubresources(w http.ResponseWriter, r *http.Request) {
-	if !parseAIGradingWorkerClaimPath(r.URL.Path) {
+	if parseAIGradingWorkerClaimPath(r.URL.Path) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.claimAIGradingRequestMetadata(w, r)
+		return
+	}
+
+	requestID, ok := parseAIGradingWorkerResultPath(r.URL.Path)
+	if !ok {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "ai grading request subresource not found")
 		return
 	}
@@ -15,7 +25,7 @@ func (s *Server) aiGradingRequestSubresources(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	s.claimAIGradingRequestMetadata(w, r)
+	s.recordAIGradingResultMetadata(w, r, requestID)
 }
 
 func (s *Server) claimAIGradingRequestMetadata(w http.ResponseWriter, r *http.Request) {
@@ -54,4 +64,40 @@ func (s *Server) claimAIGradingRequestMetadata(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, http.StatusOK, toAIGradingWorkerClaimResponse(claimed))
+}
+
+func (s *Server) recordAIGradingResultMetadata(w http.ResponseWriter, r *http.Request, requestID string) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request recordAIGradingResultRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if s.recordAIGradingResult == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "ai grading result use case is not configured")
+		return
+	}
+
+	updated, err := s.recordAIGradingResult.Execute(r.Context(), domain.RecordAIGradingResultInput{
+		Principal:    principal,
+		RequestID:    requestID,
+		WorkerID:     request.WorkerID,
+		Status:       request.Status,
+		ScoreSummary: request.ScoreSummary,
+		ResultRef:    request.ResultRef,
+		ErrorCode:    request.ErrorCode,
+		ErrorMessage: request.ErrorMessage,
+	})
+	if handleArchiveError(w, err, "failed to record ai grading result") {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toAIGradingRequestResponse(updated))
 }

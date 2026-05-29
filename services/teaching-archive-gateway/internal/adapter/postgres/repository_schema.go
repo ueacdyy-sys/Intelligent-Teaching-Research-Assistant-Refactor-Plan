@@ -52,15 +52,30 @@ var schemaStatements = []string{
 		source_archive_student_id TEXT,
 			source_archive_material TEXT NOT NULL,
 			source_archive_ocr_status TEXT NOT NULL,
+			score_summary TEXT,
+			result_ref TEXT,
+			error_code TEXT,
+			error_message TEXT,
 			claimed_by_worker_id TEXT,
 			claim_expires_at TIMESTAMPTZ,
 			created_at TIMESTAMPTZ NOT NULL,
+			completed_at TIMESTAMPTZ,
 			updated_at TIMESTAMPTZ NOT NULL
 	)`,
+	`ALTER TABLE teaching_ai_grading_requests
+		ADD COLUMN IF NOT EXISTS score_summary TEXT`,
+	`ALTER TABLE teaching_ai_grading_requests
+		ADD COLUMN IF NOT EXISTS result_ref TEXT`,
+	`ALTER TABLE teaching_ai_grading_requests
+		ADD COLUMN IF NOT EXISTS error_code TEXT`,
+	`ALTER TABLE teaching_ai_grading_requests
+		ADD COLUMN IF NOT EXISTS error_message TEXT`,
 	`ALTER TABLE teaching_ai_grading_requests
 		ADD COLUMN IF NOT EXISTS claimed_by_worker_id TEXT`,
 	`ALTER TABLE teaching_ai_grading_requests
 		ADD COLUMN IF NOT EXISTS claim_expires_at TIMESTAMPTZ`,
+	`ALTER TABLE teaching_ai_grading_requests
+		ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_archive_created
 		ON teaching_ai_grading_requests (archive_item_id, created_at DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_archive_page

@@ -109,6 +109,7 @@ func newTestHandlerWithAIGradingRequests(requests []domain.AIGradingRequest) htt
 		createAIGradingRequest,
 		listAIGradingRequests,
 		nil,
+		nil,
 		createTutoringRequest,
 		listTutoringRequests,
 		claimTutoringRequest,

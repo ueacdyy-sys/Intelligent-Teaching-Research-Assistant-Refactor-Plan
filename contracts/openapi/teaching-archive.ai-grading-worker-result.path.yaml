@@ -1,0 +1,55 @@
+post:
+  operationId: recordTeachingAIGradingWorkerResult
+  summary: Record metadata-only worker result for an AI grading request.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^grading_req_[A-Za-z0-9_-]+$'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [status, workerId, scoreSummary, resultRef]
+              properties:
+                status: { type: string, const: SUCCEEDED }
+                workerId: { type: string, minLength: 1, maxLength: 128 }
+                scoreSummary: { type: string, minLength: 1, maxLength: 2000 }
+                resultRef: { type: string, minLength: 1, maxLength: 1000 }
+            - type: object
+              additionalProperties: false
+              required: [status, workerId, errorMessage]
+              properties:
+                status: { type: string, const: FAILED }
+                workerId: { type: string, minLength: 1, maxLength: 128 }
+                errorCode: { type: string, minLength: 1, maxLength: 64 }
+                errorMessage: { type: string, minLength: 1, maxLength: 1000 }
+          discriminator:
+            propertyName: status
+  responses:
+    '200':
+      description: AI grading request result metadata recorded.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/AIGradingRequestResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '409':
+      $ref: './teaching-archive.yaml#/components/responses/Conflict'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

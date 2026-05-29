@@ -64,9 +64,14 @@ func toAIGradingRequestResponse(request domain.AIGradingRequest) aiGradingReques
 		SourceArchiveStudentID: optionalString(request.SourceArchiveStudentID),
 		SourceArchiveMaterial:  request.SourceArchiveMaterial,
 		SourceArchiveOCRStatus: request.SourceArchiveOCRStatus,
+		ScoreSummary:           optionalString(request.ScoreSummary),
+		ResultRef:              optionalString(request.ResultRef),
+		ErrorCode:              optionalString(request.ErrorCode),
+		ErrorMessage:           optionalString(request.ErrorMessage),
 		ClaimedByWorkerID:      optionalString(request.ClaimedByWorkerID),
 		ClaimExpiresAt:         optionalTime(request.ClaimExpiresAt),
 		CreatedAt:              formatTime(request.CreatedAt),
+		CompletedAt:            optionalTime(request.CompletedAt),
 		UpdatedAt:              formatTime(request.UpdatedAt),
 	}
 }

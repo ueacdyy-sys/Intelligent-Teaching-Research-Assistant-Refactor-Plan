@@ -42,9 +42,14 @@ type aiGradingRequestResponse struct {
 	SourceArchiveStudentID *string                `json:"sourceArchiveStudentId,omitempty"`
 	SourceArchiveMaterial  domain.MaterialType    `json:"sourceArchiveMaterial"`
 	SourceArchiveOCRStatus domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
+	ScoreSummary           *string                `json:"scoreSummary,omitempty"`
+	ResultRef              *string                `json:"resultRef,omitempty"`
+	ErrorCode              *string                `json:"errorCode,omitempty"`
+	ErrorMessage           *string                `json:"errorMessage,omitempty"`
 	ClaimedByWorkerID      *string                `json:"claimedByWorkerId,omitempty"`
 	ClaimExpiresAt         *string                `json:"claimExpiresAt,omitempty"`
 	CreatedAt              string                 `json:"createdAt"`
+	CompletedAt            *string                `json:"completedAt,omitempty"`
 	UpdatedAt              string                 `json:"updatedAt"`
 }
 

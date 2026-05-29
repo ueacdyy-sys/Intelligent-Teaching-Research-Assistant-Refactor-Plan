@@ -85,10 +85,15 @@ func (r *singleAIGradingRequestRow) Scan(dest ...any) error {
 	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
 	*(dest[8].(*string)) = string(domain.MaterialTypeQuiz)
 	*(dest[9].(*string)) = string(domain.OCRStatusReserved)
-	*(dest[10].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
-	*(dest[11].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
-	*(dest[12].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[13].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[10].(*sql.NullString)) = sql.NullString{}
+	*(dest[11].(*sql.NullString)) = sql.NullString{}
+	*(dest[12].(*sql.NullString)) = sql.NullString{}
+	*(dest[13].(*sql.NullString)) = sql.NullString{}
+	*(dest[14].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
+	*(dest[15].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
+	*(dest[16].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[17].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[18].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
 	return nil
 }
 

@@ -17,6 +17,8 @@ type AIGradingStatus string
 const (
 	AIGradingStatusQueued     AIGradingStatus = "QUEUED"
 	AIGradingStatusInProgress AIGradingStatus = "IN_PROGRESS"
+	AIGradingStatusSucceeded  AIGradingStatus = "SUCCEEDED"
+	AIGradingStatusFailed     AIGradingStatus = "FAILED"
 )
 
 type AIGradingRequest struct {
@@ -30,9 +32,14 @@ type AIGradingRequest struct {
 	SourceArchiveStudentID string
 	SourceArchiveMaterial  MaterialType
 	SourceArchiveOCRStatus OCRStatus
+	ScoreSummary           string
+	ResultRef              string
+	ErrorCode              string
+	ErrorMessage           string
 	ClaimedByWorkerID      string
 	ClaimExpiresAt         time.Time
 	CreatedAt              time.Time
+	CompletedAt            time.Time
 	UpdatedAt              time.Time
 }
 

@@ -32,6 +32,19 @@ func parseAIGradingWorkerClaimPath(path string) bool {
 	return path == "/v1/teaching/ai-grading-requests/worker-claims"
 }
 
+func parseAIGradingWorkerResultPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/ai-grading-requests/"
+	const suffix = "/worker-result"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	requestID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if requestID == "" || strings.Contains(requestID, "/") {
+		return "", false
+	}
+	return requestID, true
+}
+
 func parseTutoringAnalysisWorkerClaimPath(path string) bool {
 	return path == "/v1/teaching/tutoring-analysis-requests/worker-claims"
 }

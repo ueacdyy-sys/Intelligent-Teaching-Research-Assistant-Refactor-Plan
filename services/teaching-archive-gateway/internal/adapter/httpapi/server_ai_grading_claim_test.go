@@ -77,6 +77,7 @@ func newTestHandlerWithAIGradingClaimRequests(requests []domain.AIGradingRequest
 		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
 		usecase.NewListAIGradingRequests(store),
 		usecase.NewClaimAIGradingRequest(store, fixedClock{now: time.Date(2026, 5, 29, 18, 0, 0, 0, time.UTC)}),
+		usecase.NewRecordAIGradingResult(store, fixedClock{now: time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)}),
 		usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
 		usecase.NewListTutoringAnalysisRequests(store),
 		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),

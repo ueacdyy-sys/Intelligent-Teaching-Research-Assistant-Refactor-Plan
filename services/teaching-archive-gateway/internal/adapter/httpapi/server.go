@@ -13,6 +13,7 @@ type Server struct {
 	createAIGradingRequest        *usecase.CreateAIGradingRequest
 	listAIGradingRequests         *usecase.ListAIGradingRequests
 	claimAIGradingRequest         *usecase.ClaimAIGradingRequest
+	recordAIGradingResult         *usecase.RecordAIGradingResult
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
 	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
 	claimTutoringAnalysisRequest  *usecase.ClaimTutoringAnalysisRequest
@@ -26,6 +27,7 @@ func NewServer(
 	createAIGradingRequest *usecase.CreateAIGradingRequest,
 	listAIGradingRequests *usecase.ListAIGradingRequests,
 	claimAIGradingRequest *usecase.ClaimAIGradingRequest,
+	recordAIGradingResult *usecase.RecordAIGradingResult,
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
 	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
 	claimTutoringAnalysisRequest *usecase.ClaimTutoringAnalysisRequest,
@@ -38,6 +40,7 @@ func NewServer(
 		createAIGradingRequest:        createAIGradingRequest,
 		listAIGradingRequests:         listAIGradingRequests,
 		claimAIGradingRequest:         claimAIGradingRequest,
+		recordAIGradingResult:         recordAIGradingResult,
 		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
 		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
 		claimTutoringAnalysisRequest:  claimTutoringAnalysisRequest,

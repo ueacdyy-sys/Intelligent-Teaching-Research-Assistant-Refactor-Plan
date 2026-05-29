@@ -50,9 +50,14 @@ func (r *ArchiveRepository) ListAIGradingRequests(
 			source_archive_student_id,
 			source_archive_material,
 			source_archive_ocr_status,
+			score_summary,
+			result_ref,
+			error_code,
+			error_message,
 			claimed_by_worker_id,
 			claim_expires_at,
 			created_at,
+			completed_at,
 			updated_at
 		FROM teaching_ai_grading_requests
 		WHERE `+strings.Join(clauses, " AND ")+`
@@ -88,8 +93,13 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		student  sql.NullString
 		material string
 		ocr      string
+		score    sql.NullString
+		result   sql.NullString
+		errCode  sql.NullString
+		errMsg   sql.NullString
 		workerID sql.NullString
 		claim    sql.NullTime
+		done     sql.NullTime
 	)
 	if err := rows.Scan(
 		&request.ID,
@@ -102,9 +112,14 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		&student,
 		&material,
 		&ocr,
+		&score,
+		&result,
+		&errCode,
+		&errMsg,
 		&workerID,
 		&claim,
 		&request.CreatedAt,
+		&done,
 		&request.UpdatedAt,
 	); err != nil {
 		return domain.AIGradingRequest{}, err
@@ -119,11 +134,26 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 	}
 	request.SourceArchiveMaterial = domain.MaterialType(material)
 	request.SourceArchiveOCRStatus = domain.OCRStatus(ocr)
+	if score.Valid {
+		request.ScoreSummary = score.String
+	}
+	if result.Valid {
+		request.ResultRef = result.String
+	}
+	if errCode.Valid {
+		request.ErrorCode = errCode.String
+	}
+	if errMsg.Valid {
+		request.ErrorMessage = errMsg.String
+	}
 	if workerID.Valid {
 		request.ClaimedByWorkerID = workerID.String
 	}
 	if claim.Valid {
 		request.ClaimExpiresAt = claim.Time
+	}
+	if done.Valid {
+		request.CompletedAt = done.Time
 	}
 	return request, nil
 }

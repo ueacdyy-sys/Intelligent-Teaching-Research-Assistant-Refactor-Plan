@@ -49,6 +49,7 @@ const required = [
   "docs/sdd/0041-teaching-archive-quality-headroom-split.md",
   "docs/sdd/0042-teaching-archive-http-runtime-headroom-split.md",
   "docs/sdd/0043-teaching-archive-postgres-repository-headroom-split.md",
+  "docs/sdd/0044-teaching-archive-ai-grading-worker-result.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -56,6 +57,7 @@ const required = [
   "contracts/openapi/teaching-archive.yaml",
   "contracts/openapi/teaching-archive.ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-worker-claims.path.yaml",
+  "contracts/openapi/teaching-archive.ai-grading-worker-result.path.yaml",
   "contracts/openapi/teaching-archive.tutoring-analysis-requests.path.yaml",
   "contracts/openapi/teaching-archive.tutoring-analysis-worker-claims.path.yaml",
   "contracts/openapi/teaching-archive.tutoring-analysis-worker-result.path.yaml",
@@ -103,6 +105,8 @@ const required = [
   "services/teaching-archive-gateway/internal/domain/ai_grading_query.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_claim.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_claim_test.go",
+  "services/teaching-archive-gateway/internal/domain/ai_grading_result.go",
+  "services/teaching-archive-gateway/internal/domain/ai_grading_result_test.go",
   "services/teaching-archive-gateway/internal/domain/archive_query.go",
   "services/teaching-archive-gateway/internal/domain/principal.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_query.go",
@@ -119,6 +123,8 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests_test.go",
   "services/teaching-archive-gateway/internal/usecase/claim_ai_grading_request.go",
   "services/teaching-archive-gateway/internal/usecase/claim_ai_grading_request_test.go",
+  "services/teaching-archive-gateway/internal/usecase/record_ai_grading_result.go",
+  "services/teaching-archive-gateway/internal/usecase/record_ai_grading_result_test.go",
   "services/teaching-archive-gateway/internal/usecase/create_tutoring_analysis_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_archive_items.go",
   "services/teaching-archive-gateway/internal/usecase/list_archive_items_test.go",
@@ -135,6 +141,7 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_claim.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_claim_test.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_result_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test_helpers_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_requests.go",
@@ -153,6 +160,7 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_query_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_claim.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_claim_test.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_result.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/pool_db.go",
   "services/teaching-archive-gateway/internal/platform/runtime.go",
@@ -601,6 +609,17 @@ const teachingArchivePostgresHeadroomSdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchivePostgresHeadroomSdd.includes(heading)) {
     console.error(`SDD 0043 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveAIGradingWorkerResultSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0044-teaching-archive-ai-grading-worker-result.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveAIGradingWorkerResultSdd.includes(heading)) {
+    console.error(`SDD 0044 missing heading: ${heading}`);
     process.exit(1);
   }
 }

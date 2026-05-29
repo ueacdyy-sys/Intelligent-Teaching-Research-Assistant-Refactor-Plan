@@ -34,6 +34,15 @@ type recordTutoringAnalysisResultRequest struct {
 	ErrorMessage         string                        `json:"errorMessage,omitempty"`
 }
 
+type recordAIGradingResultRequest struct {
+	Status       domain.AIGradingStatus `json:"status"`
+	WorkerID     string                 `json:"workerId"`
+	ScoreSummary string                 `json:"scoreSummary,omitempty"`
+	ResultRef    string                 `json:"resultRef,omitempty"`
+	ErrorCode    string                 `json:"errorCode,omitempty"`
+	ErrorMessage string                 `json:"errorMessage,omitempty"`
+}
+
 type claimTutoringAnalysisRequestRequest struct {
 	WorkerID     string `json:"workerId"`
 	LeaseSeconds int    `json:"leaseSeconds,omitempty"`

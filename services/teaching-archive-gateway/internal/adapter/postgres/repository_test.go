@@ -197,6 +197,61 @@ func TestCreateAIGradingRequestInsertsMetadataOnly(t *testing.T) {
 	}
 }
 
+func TestRecordAIGradingResultUpdatesMetadataOnly(t *testing.T) {
+	db := &recordingDB{tag: commandTag{rowsAffected: 1}}
+	repository := postgres.NewArchiveRepository(db)
+
+	err := repository.RecordAIGradingResult(context.Background(), domain.AIGradingRequest{
+		ID:                "grading_req_row",
+		Status:            domain.AIGradingStatusSucceeded,
+		ScoreSummary:      "score 93",
+		ResultRef:         "local://grading/grading_req_row/result.json",
+		ClaimedByWorkerID: "worker_ai_grading_01",
+		ClaimExpiresAt:    time.Date(2026, 5, 30, 9, 5, 0, 0, time.UTC),
+		CompletedAt:       time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC),
+		UpdatedAt:         time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RecordAIGradingResult returned error: %v", err)
+	}
+
+	for _, fragment := range []string{
+		"UPDATE teaching_ai_grading_requests",
+		"status = $1",
+		"score_summary = NULLIF($2, '')",
+		"result_ref = NULLIF($3, '')",
+		"completed_at = $6",
+		"updated_at = $7",
+		"WHERE id = $8",
+		"status = $9",
+		"claimed_by_worker_id = $10",
+		"claim_expires_at > $11",
+	} {
+		if !strings.Contains(db.lastExecSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastExecSQL)
+		}
+	}
+	if len(db.execArgs) != 11 {
+		t.Fatalf("args = %d, want 11", len(db.execArgs))
+	}
+}
+
+func TestRecordAIGradingResultRejectsAtomicFinalOverwrite(t *testing.T) {
+	db := &recordingDB{tag: commandTag{rowsAffected: 0}}
+	repository := postgres.NewArchiveRepository(db)
+
+	err := repository.RecordAIGradingResult(context.Background(), domain.AIGradingRequest{
+		ID:           "grading_req_row",
+		Status:       domain.AIGradingStatusFailed,
+		ErrorMessage: "worker failed",
+		CompletedAt:  time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC),
+		UpdatedAt:    time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC),
+	})
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("error = %v, want ErrConflict", err)
+	}
+}
+
 type recordingDB struct {
 	lastSQL     string
 	lastExecSQL string

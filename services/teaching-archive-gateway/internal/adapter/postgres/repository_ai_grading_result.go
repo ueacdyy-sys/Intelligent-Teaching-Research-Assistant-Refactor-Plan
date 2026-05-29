@@ -2,39 +2,16 @@ package postgres
 
 import (
 	"context"
-	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 )
 
-func (r *ArchiveRepository) ClaimNextAIGradingRequest(
+func (r *ArchiveRepository) GetAIGradingRequestByID(
 	ctx context.Context,
-	input domain.ClaimAIGradingRequestInput,
-	now time.Time,
+	id string,
 ) (domain.AIGradingRequest, bool, error) {
-	normalized, claimExpiresAt, err := domain.BuildAIGradingClaimLease(input, now)
-	if err != nil {
-		return domain.AIGradingRequest{}, false, err
-	}
-	claimedAt := now.UTC()
-
 	rows, err := r.db.Query(ctx, `
-		UPDATE teaching_ai_grading_requests
-		SET
-			status = $1,
-			claimed_by_worker_id = $2,
-			claim_expires_at = $3,
-			updated_at = $4
-		WHERE id = (
-			SELECT id
-			FROM teaching_ai_grading_requests
-			WHERE status = $5
-				OR (status = $6 AND claim_expires_at <= $4)
-			ORDER BY created_at ASC, id ASC
-			LIMIT 1
-			FOR UPDATE SKIP LOCKED
-		)
-		RETURNING
+		SELECT
 			id,
 			archive_item_id,
 			requested_by_principal_id,
@@ -54,14 +31,10 @@ func (r *ArchiveRepository) ClaimNextAIGradingRequest(
 			created_at,
 			completed_at,
 			updated_at
-	`,
-		domain.AIGradingStatusInProgress,
-		normalized.WorkerID,
-		claimExpiresAt,
-		claimedAt,
-		domain.AIGradingStatusQueued,
-		domain.AIGradingStatusInProgress,
-	)
+		FROM teaching_ai_grading_requests
+		WHERE id = $1
+		LIMIT 1
+	`, id)
 	if err != nil {
 		return domain.AIGradingRequest{}, false, err
 	}
@@ -81,4 +54,44 @@ func (r *ArchiveRepository) ClaimNextAIGradingRequest(
 		return domain.AIGradingRequest{}, false, err
 	}
 	return request, true, nil
+}
+
+func (r *ArchiveRepository) RecordAIGradingResult(
+	ctx context.Context,
+	request domain.AIGradingRequest,
+) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE teaching_ai_grading_requests
+		SET
+			status = $1,
+			score_summary = NULLIF($2, ''),
+			result_ref = NULLIF($3, ''),
+			error_code = NULLIF($4, ''),
+			error_message = NULLIF($5, ''),
+			completed_at = $6,
+			updated_at = $7
+		WHERE id = $8
+			AND status = $9
+			AND claimed_by_worker_id = $10
+			AND claim_expires_at > $11
+	`,
+		request.Status,
+		request.ScoreSummary,
+		request.ResultRef,
+		request.ErrorCode,
+		request.ErrorMessage,
+		request.CompletedAt,
+		request.UpdatedAt,
+		request.ID,
+		domain.AIGradingStatusInProgress,
+		request.ClaimedByWorkerID,
+		request.CompletedAt,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrConflict
+	}
+	return nil
 }
