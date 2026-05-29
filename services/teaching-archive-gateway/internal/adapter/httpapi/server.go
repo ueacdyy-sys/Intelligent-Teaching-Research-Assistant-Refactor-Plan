@@ -14,9 +14,10 @@ import (
 )
 
 type Server struct {
-	createArchiveItem *usecase.CreateArchiveItem
-	listArchiveItems  *usecase.ListArchiveItems
-	agentAPIKey       string
+	createArchiveItem             *usecase.CreateArchiveItem
+	listArchiveItems              *usecase.ListArchiveItems
+	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
+	agentAPIKey                   string
 }
 
 type createArchiveItemRequest struct {
@@ -29,6 +30,11 @@ type createArchiveItemRequest struct {
 	Tags            []string                `json:"tags,omitempty"`
 	AnalysisIntents []domain.AnalysisIntent `json:"analysisIntents"`
 	OCRReserved     bool                    `json:"ocrReserved,omitempty"`
+}
+
+type createTutoringAnalysisRequestRequest struct {
+	AnalysisGoal       string                    `json:"analysisGoal"`
+	QuestionBankIntent domain.QuestionBankIntent `json:"questionBankIntent,omitempty"`
 }
 
 type archiveItemResponse struct {
@@ -50,6 +56,19 @@ type archiveItemListResponse struct {
 	PageInfo pageInfoResponse      `json:"pageInfo"`
 }
 
+type tutoringAnalysisRequestResponse struct {
+	ID                     string                        `json:"id"`
+	ArchiveItemID          string                        `json:"archiveItemId"`
+	RequestedByPrincipalID string                        `json:"requestedByPrincipalId"`
+	AnalysisGoal           string                        `json:"analysisGoal"`
+	QuestionBankIntent     domain.QuestionBankIntent     `json:"questionBankIntent"`
+	Status                 domain.TutoringAnalysisStatus `json:"status"`
+	SourceArchiveOwnerType domain.OwnerType              `json:"sourceArchiveOwnerType"`
+	SourceArchiveStudentID *string                       `json:"sourceArchiveStudentId,omitempty"`
+	SourceArchiveMaterial  domain.MaterialType           `json:"sourceArchiveMaterial"`
+	CreatedAt              string                        `json:"createdAt"`
+}
+
 type pageInfoResponse struct {
 	PageSize   int     `json:"pageSize"`
 	HasMore    bool    `json:"hasMore"`
@@ -68,12 +87,14 @@ type apiError struct {
 func NewServer(
 	createArchiveItem *usecase.CreateArchiveItem,
 	listArchiveItems *usecase.ListArchiveItems,
+	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
 	agentAPIKey string,
 ) *Server {
 	return &Server{
-		createArchiveItem: createArchiveItem,
-		listArchiveItems:  listArchiveItems,
-		agentAPIKey:       agentAPIKey,
+		createArchiveItem:             createArchiveItem,
+		listArchiveItems:              listArchiveItems,
+		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
+		agentAPIKey:                   agentAPIKey,
 	}
 }
 
@@ -81,6 +102,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/v1/teaching/archive-items", s.archiveItems)
+	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	return mux
 }
 
@@ -101,6 +123,19 @@ func (s *Server) archiveItems(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 	}
+}
+
+func (s *Server) archiveItemSubresources(w http.ResponseWriter, r *http.Request) {
+	archiveItemID, ok := parseArchiveItemTutoringAnalysisRequestPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "archive item subresource not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	s.createTutoringRequest(w, r, archiveItemID)
 }
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
@@ -166,11 +201,55 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toListResponse(page))
 }
 
+func (s *Server) createTutoringRequest(w http.ResponseWriter, r *http.Request, archiveItemID string) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request createTutoringAnalysisRequestRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+
+	created, err := s.createTutoringAnalysisRequest.Execute(
+		r.Context(),
+		domain.CreateTutoringAnalysisRequestInput{
+			Principal:          principal,
+			ArchiveItemID:      archiveItemID,
+			AnalysisGoal:       request.AnalysisGoal,
+			QuestionBankIntent: request.QuestionBankIntent,
+		},
+	)
+	if handleArchiveError(w, err, "failed to create tutoring analysis request") {
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, toTutoringAnalysisRequestResponse(created))
+}
+
 func (s *Server) authorized(r *http.Request) bool {
 	if s.agentAPIKey == "" {
 		return true
 	}
 	return r.Header.Get("X-Agent-Api-Key") == s.agentAPIKey
+}
+
+func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/archive-items/"
+	const suffix = "/tutoring-analysis-requests"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	archiveItemID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if archiveItemID == "" || strings.Contains(archiveItemID, "/") {
+		return "", false
+	}
+	return archiveItemID, true
 }
 
 func parsePrincipalContext(w http.ResponseWriter, r *http.Request) (domain.PrincipalContext, bool) {
@@ -214,6 +293,8 @@ func handleArchiveError(w http.ResponseWriter, err error, internalMessage string
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid principal context")
 	case errors.Is(err, domain.ErrForbidden):
 		writeError(w, http.StatusForbidden, "FORBIDDEN", err.Error())
+	case errors.Is(err, domain.ErrNotFound):
+		writeError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
 	default:
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", internalMessage)
 	}
@@ -270,6 +351,21 @@ func toResponse(item domain.ArchiveItem) archiveItemResponse {
 		AnalysisIntents: item.AnalysisIntents,
 		OCRStatus:       item.OCRStatus,
 		CreatedAt:       formatTime(item.CreatedAt),
+	}
+}
+
+func toTutoringAnalysisRequestResponse(request domain.TutoringAnalysisRequest) tutoringAnalysisRequestResponse {
+	return tutoringAnalysisRequestResponse{
+		ID:                     request.ID,
+		ArchiveItemID:          request.ArchiveItemID,
+		RequestedByPrincipalID: request.RequestedByPrincipalID,
+		AnalysisGoal:           request.AnalysisGoal,
+		QuestionBankIntent:     request.QuestionBankIntent,
+		Status:                 request.Status,
+		SourceArchiveOwnerType: request.SourceArchiveOwnerType,
+		SourceArchiveStudentID: optionalString(request.SourceArchiveStudentID),
+		SourceArchiveMaterial:  request.SourceArchiveMaterial,
+		CreatedAt:              formatTime(request.CreatedAt),
 	}
 }
 

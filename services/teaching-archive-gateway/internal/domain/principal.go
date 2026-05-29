@@ -162,6 +162,20 @@ func AuthorizeListArchiveItems(principal PrincipalContext, query ArchiveItemQuer
 	return err
 }
 
+func AuthorizeReadArchiveItem(principal PrincipalContext, item ArchiveItem) error {
+	switch item.OwnerType {
+	case OwnerTypeTeaching:
+		return AuthorizeListArchiveItems(principal, ArchiveItemQuery{OwnerType: OwnerTypeTeaching})
+	case OwnerTypeStudent:
+		return AuthorizeListArchiveItems(principal, ArchiveItemQuery{
+			OwnerType: OwnerTypeStudent,
+			StudentID: item.StudentID,
+		})
+	default:
+		return ErrForbidden
+	}
+}
+
 func ScopeListArchiveItems(principal PrincipalContext, query ArchiveItemQuery) (ArchiveItemQuery, error) {
 	if err := ValidatePrincipalContext(principal); err != nil {
 		return ArchiveItemQuery{}, err

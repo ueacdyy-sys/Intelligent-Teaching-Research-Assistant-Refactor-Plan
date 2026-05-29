@@ -34,3 +34,22 @@ CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_page
 
 CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
     ON teaching_archive_items (material_type, created_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
+    id TEXT PRIMARY KEY,
+    archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+    requested_by_principal_id TEXT NOT NULL,
+    analysis_goal TEXT NOT NULL,
+    question_bank_intent TEXT NOT NULL,
+    status TEXT NOT NULL,
+    source_archive_owner_type TEXT NOT NULL,
+    source_archive_student_id TEXT,
+    source_archive_material TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_archive_created
+    ON teaching_tutoring_analysis_requests (archive_item_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_principal_created
+    ON teaching_tutoring_analysis_requests (requested_by_principal_id, created_at DESC);

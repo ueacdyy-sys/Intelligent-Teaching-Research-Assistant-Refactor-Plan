@@ -34,10 +34,20 @@ func main() {
 		platform.Clock{},
 	)
 	listArchiveItems := usecase.NewListArchiveItems(archiveRepository)
+	createTutoringAnalysisRequest := usecase.NewCreateTutoringAnalysisRequest(
+		archiveRepository,
+		platform.TutoringRequestIDGenerator{},
+		platform.Clock{},
+	)
 
 	server := &http.Server{
-		Addr:              ":" + getenv("PORT", "18120"),
-		Handler:           httpapi.NewServer(createArchiveItem, listArchiveItems, getenv("AGENT_API_KEY", "ueacd")).Handler(),
+		Addr: ":" + getenv("PORT", "18120"),
+		Handler: httpapi.NewServer(
+			createArchiveItem,
+			listArchiveItems,
+			createTutoringAnalysisRequest,
+			getenv("AGENT_API_KEY", "ueacd"),
+		).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

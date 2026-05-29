@@ -85,6 +85,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /v1/teaching/archive-items/{archiveItemId}/tutoring-analysis-requests:
+    post:
+      operationId: createTeachingTutoringAnalysisRequest
+      summary: Queue a metadata-only tutoring analysis request for an archive item.
+      tags: [teaching-archive]
+      security:
+        - AgentApiKey: []
+          PrincipalContextHeader: []
+      parameters:
+        - name: archiveItemId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^tarch_[A-Za-z0-9_-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTutoringAnalysisRequest'
+      responses:
+        '201':
+          description: Tutoring analysis request queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutoringAnalysisRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 components:
   securitySchemes:
     AgentApiKey:
@@ -104,6 +140,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Forbidden:
       description: Principal is not allowed to access the requested archive data.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Requested archive item was not found.
       content:
         application/json:
           schema:
@@ -162,6 +204,19 @@ components:
         ocrReserved:
           type: boolean
           default: false
+    CreateTutoringAnalysisRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - analysisGoal
+      properties:
+        analysisGoal:
+          type: string
+          minLength: 1
+          maxLength: 500
+        questionBankIntent:
+          $ref: '#/components/schemas/QuestionBankIntent'
+          default: NONE
     ArchiveItemResponse:
       type: object
       additionalProperties: false
@@ -239,6 +294,47 @@ components:
           type:
             - string
             - 'null'
+    TutoringAnalysisRequestResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - archiveItemId
+        - requestedByPrincipalId
+        - analysisGoal
+        - questionBankIntent
+        - status
+        - sourceArchiveOwnerType
+        - sourceArchiveMaterial
+        - createdAt
+      properties:
+        id:
+          type: string
+          pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+        archiveItemId:
+          type: string
+          pattern: '^tarch_[A-Za-z0-9_-]+$'
+        requestedByPrincipalId:
+          type: string
+          minLength: 1
+        analysisGoal:
+          type: string
+        questionBankIntent:
+          $ref: '#/components/schemas/QuestionBankIntent'
+        status:
+          type: string
+          enum: [QUEUED]
+        sourceArchiveOwnerType:
+          $ref: '#/components/schemas/ArchiveOwnerType'
+        sourceArchiveStudentId:
+          type:
+            - string
+            - 'null'
+        sourceArchiveMaterial:
+          $ref: '#/components/schemas/ArchiveMaterialType'
+        createdAt:
+          type: string
+          format: date-time
     ArchiveOwnerType:
       type: string
       enum: [STUDENT, TEACHING]
@@ -251,6 +347,9 @@ components:
     ArchiveAnalysisIntent:
       type: string
       enum: [TUTORING, AI_GRADING, ARCHIVE_ONLY]
+    QuestionBankIntent:
+      type: string
+      enum: [NONE, GENERATE_PERSONALIZED_CHECK]
     ErrorResponse:
       type: object
       additionalProperties: false

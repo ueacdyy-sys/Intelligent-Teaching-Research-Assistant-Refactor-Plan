@@ -230,6 +230,48 @@ func TestListArchiveItemsReturnsValidationError(t *testing.T) {
 	}
 }
 
+func TestCreateTutoringAnalysisRequestReturnsCreatedResponse(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/archive-items/tarch_http_3/tutoring-analysis-requests",
+		bytes.NewBufferString(`{"analysisGoal":" find weak skills ","questionBankIntent":"GENERATE_PERSONALIZED_CHECK"}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"id":"tutor_req_http"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"status":"QUEUED"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+}
+
+func TestCreateTutoringAnalysisRequestRejectsForbiddenPrincipal(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/archive-items/tarch_http_other/tutoring-analysis-requests",
+		bytes.NewBufferString(`{"analysisGoal":" find weak skills ","questionBankIntent":"GENERATE_PERSONALIZED_CHECK"}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
 func newTestHandler() http.Handler {
 	store := &fakeRepository{
 		items: []domain.ArchiveItem{
@@ -245,7 +287,12 @@ func newTestHandler() http.Handler {
 		fixedClock{now: time.Date(2026, 5, 29, 8, 0, 0, 0, time.UTC)},
 	)
 	list := usecase.NewListArchiveItems(store)
-	return httpapi.NewServer(uc, list, "ueacd").Handler()
+	createTutoringRequest := usecase.NewCreateTutoringAnalysisRequest(
+		store,
+		fixedIDs{id: "tutor_req_http"},
+		fixedClock{now: time.Date(2026, 5, 29, 8, 30, 0, 0, time.UTC)},
+	)
+	return httpapi.NewServer(uc, list, createTutoringRequest, "ueacd").Handler()
 }
 
 func setPrincipalHeader(t *testing.T, request *http.Request, principal domain.PrincipalContext) {
@@ -318,7 +365,8 @@ func remotePrincipal() domain.PrincipalContext {
 }
 
 type fakeRepository struct {
-	items []domain.ArchiveItem
+	items    []domain.ArchiveItem
+	requests []domain.TutoringAnalysisRequest
 }
 
 func (f *fakeRepository) Create(_ context.Context, _ domain.ArchiveItem) error {
@@ -346,6 +394,20 @@ func (f *fakeRepository) List(_ context.Context, query domain.ArchiveItemQuery) 
 		}
 	}
 	return items, nil
+}
+
+func (f *fakeRepository) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {
+	for _, item := range f.items {
+		if item.ID == id {
+			return item, true, nil
+		}
+	}
+	return domain.ArchiveItem{}, false, nil
+}
+
+func (f *fakeRepository) CreateTutoringAnalysisRequest(_ context.Context, request domain.TutoringAnalysisRequest) error {
+	f.requests = append(f.requests, request)
+	return nil
 }
 
 func containsString(values []string, target string) bool {

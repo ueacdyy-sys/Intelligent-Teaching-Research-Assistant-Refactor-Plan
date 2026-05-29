@@ -21,3 +21,13 @@ func (IDGenerator) NewID() string {
 	}
 	return "tarch_" + base64.RawURLEncoding.EncodeToString(buffer)
 }
+
+type TutoringRequestIDGenerator struct{}
+
+func (TutoringRequestIDGenerator) NewID() string {
+	buffer := make([]byte, 18)
+	if _, err := rand.Read(buffer); err != nil {
+		panic(err)
+	}
+	return "tutor_req_" + base64.RawURLEncoding.EncodeToString(buffer)
+}

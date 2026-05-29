@@ -83,6 +83,77 @@ func (r *ArchiveRepository) Create(ctx context.Context, item domain.ArchiveItem)
 	return err
 }
 
+func (r *ArchiveRepository) GetByID(ctx context.Context, id string) (domain.ArchiveItem, bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			id,
+			owner_type,
+			student_id,
+			material_type,
+			title,
+			source,
+			content_ref,
+			tags,
+			analysis_intents,
+			ocr_status,
+			created_at
+		FROM teaching_archive_items
+		WHERE id = $1
+		LIMIT 1
+	`, id)
+	if err != nil {
+		return domain.ArchiveItem{}, false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.ArchiveItem{}, false, err
+		}
+		return domain.ArchiveItem{}, false, nil
+	}
+	item, err := scanArchiveItem(rows)
+	if err != nil {
+		return domain.ArchiveItem{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.ArchiveItem{}, false, err
+	}
+	return item, true, nil
+}
+
+func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
+	ctx context.Context,
+	request domain.TutoringAnalysisRequest,
+) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO teaching_tutoring_analysis_requests (
+			id,
+			archive_item_id,
+			requested_by_principal_id,
+			analysis_goal,
+			question_bank_intent,
+			status,
+			source_archive_owner_type,
+			source_archive_student_id,
+			source_archive_material,
+			created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, $10)
+	`,
+		request.ID,
+		request.ArchiveItemID,
+		request.RequestedByPrincipalID,
+		request.AnalysisGoal,
+		request.QuestionBankIntent,
+		request.Status,
+		request.SourceArchiveOwnerType,
+		request.SourceArchiveStudentID,
+		request.SourceArchiveMaterial,
+		request.CreatedAt,
+	)
+	return err
+}
+
 func (r *ArchiveRepository) List(ctx context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
 	args := make([]any, 0, 6)
 	clauses := []string{"TRUE"}
@@ -221,4 +292,20 @@ var schemaStatements = []string{
 		ON teaching_archive_items (owner_type, created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
 		ON teaching_archive_items (material_type, created_at DESC, id DESC)`,
+	`CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
+		id TEXT PRIMARY KEY,
+		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+		requested_by_principal_id TEXT NOT NULL,
+		analysis_goal TEXT NOT NULL,
+		question_bank_intent TEXT NOT NULL,
+		status TEXT NOT NULL,
+		source_archive_owner_type TEXT NOT NULL,
+		source_archive_student_id TEXT,
+		source_archive_material TEXT NOT NULL,
+		created_at TIMESTAMPTZ NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_archive_created
+		ON teaching_tutoring_analysis_requests (archive_item_id, created_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_principal_created
+		ON teaching_tutoring_analysis_requests (requested_by_principal_id, created_at DESC)`,
 }
