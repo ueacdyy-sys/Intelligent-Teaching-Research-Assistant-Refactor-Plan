@@ -1,0 +1,392 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
+	"ita-refactor/services/identity-access-gateway/internal/domain"
+	"ita-refactor/services/identity-access-gateway/internal/usecase"
+)
+
+type Server struct {
+	identity         *usecase.IdentityService
+	channelSignature string
+}
+
+type passwordSessionRequest struct {
+	Identifier    string            `json:"identifier"`
+	Password      string            `json:"password"`
+	RequestedRole domain.Role       `json:"requestedRole,omitempty"`
+	EntryPoint    domain.EntryPoint `json:"entryPoint"`
+}
+
+type wechatSessionStartRequest struct {
+	RequestedRole domain.Role       `json:"requestedRole,omitempty"`
+	EntryPoint    domain.EntryPoint `json:"entryPoint"`
+	RedirectURI   string            `json:"redirectUri,omitempty"`
+}
+
+type wechatSessionStartResponse struct {
+	State     string `json:"state"`
+	AuthURL   string `json:"authUrl"`
+	ExpiresAt string `json:"expiresAt"`
+}
+
+type wechatSessionCallbackRequest struct {
+	State string `json:"state"`
+	Code  string `json:"code"`
+}
+
+type remoteCommandGrantRequest struct {
+	Provider          domain.ChannelProvider `json:"provider"`
+	ExternalSubjectID string                 `json:"externalSubjectId"`
+	CommandPreview    string                 `json:"commandPreview"`
+	Nonce             string                 `json:"nonce"`
+	IssuedAt          string                 `json:"issuedAt"`
+}
+
+type refreshSessionRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+type sessionResponse struct {
+	AccessToken  string              `json:"accessToken"`
+	RefreshToken string              `json:"refreshToken"`
+	TokenType    string              `json:"tokenType"`
+	ExpiresIn    int                 `json:"expiresIn"`
+	Principal    principalContextDTO `json:"principal"`
+}
+
+type principalResponse struct {
+	Principal principalContextDTO `json:"principal"`
+}
+
+type remoteCommandGrantResponse struct {
+	GrantToken string              `json:"grantToken"`
+	ExpiresAt  string              `json:"expiresAt"`
+	Principal  principalContextDTO `json:"principal"`
+}
+
+type principalContextDTO struct {
+	PrincipalID             string             `json:"principalId"`
+	SubjectType             domain.SubjectType `json:"subjectType"`
+	Role                    domain.Role        `json:"role"`
+	EntryPoint              domain.EntryPoint  `json:"entryPoint"`
+	DisplayName             *string            `json:"displayName"`
+	Scopes                  []domain.Scope     `json:"scopes"`
+	KnowledgeAccess         knowledgeAccessDTO `json:"knowledgeAccess"`
+	StudentAccess           studentAccessDTO   `json:"studentAccess"`
+	Channel                 *channelContextDTO `json:"channel,omitempty"`
+	RequiresHarnessApproval bool               `json:"requiresHarnessApproval"`
+	SessionID               string             `json:"sessionId"`
+	IssuedAt                string             `json:"issuedAt"`
+	ExpiresAt               string             `json:"expiresAt"`
+}
+
+type knowledgeAccessDTO struct {
+	Public  bool                          `json:"public"`
+	Private domain.PrivateKnowledgeAccess `json:"private"`
+}
+
+type studentAccessDTO struct {
+	Mode       domain.StudentAccessMode `json:"mode"`
+	StudentIDs []string                 `json:"studentIds,omitempty"`
+}
+
+type channelContextDTO struct {
+	Provider          domain.ChannelProvider `json:"provider"`
+	ExternalSubjectID string                 `json:"externalSubjectId"`
+	DeviceName        *string                `json:"deviceName,omitempty"`
+}
+
+type errorResponse struct {
+	Error apiError `json:"error"`
+}
+
+type apiError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func NewServer(identity *usecase.IdentityService, channelSignature string) *Server {
+	return &Server{identity: identity, channelSignature: channelSignature}
+}
+
+func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", s.health)
+	mux.HandleFunc("/v1/identity/sessions/password", s.createPasswordSession)
+	mux.HandleFunc("/v1/identity/sessions/wechat", s.startWeChatSession)
+	mux.HandleFunc("/v1/identity/sessions/wechat/callback", s.completeWeChatSession)
+	mux.HandleFunc("/v1/identity/sessions/refresh", s.refreshSession)
+	mux.HandleFunc("/v1/identity/sessions/", s.sessionByID)
+	mux.HandleFunc("/v1/identity/principal", s.getPrincipal)
+	mux.HandleFunc("/v1/identity/remote-command-grants", s.createRemoteCommandGrant)
+	return mux
+}
+
+func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "identity-access-gateway"})
+}
+
+func (s *Server) createPasswordSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	var request passwordSessionRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	session, err := s.identity.CreatePasswordSession(r.Context(), domain.PasswordSessionInput{
+		Identifier:    request.Identifier,
+		Password:      request.Password,
+		RequestedRole: request.RequestedRole,
+		EntryPoint:    request.EntryPoint,
+	})
+	if handleUsecaseError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusCreated, toSessionResponse(session))
+}
+
+func (s *Server) startWeChatSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	var request wechatSessionStartRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	challenge, err := s.identity.StartWeChatSession(r.Context(), domain.WeChatSessionStartInput{
+		RequestedRole: request.RequestedRole,
+		EntryPoint:    request.EntryPoint,
+		RedirectURI:   request.RedirectURI,
+	})
+	if handleUsecaseError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusAccepted, wechatSessionStartResponse{
+		State:     challenge.State,
+		AuthURL:   challenge.AuthURL,
+		ExpiresAt: formatTime(challenge.ExpiresAt),
+	})
+}
+
+func (s *Server) completeWeChatSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	var request wechatSessionCallbackRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	session, err := s.identity.CompleteWeChatSession(r.Context(), domain.WeChatSessionCallbackInput{
+		State: request.State,
+		Code:  request.Code,
+	})
+	if handleUsecaseError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusCreated, toSessionResponse(session))
+}
+
+func (s *Server) refreshSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	var request refreshSessionRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	session, err := s.identity.RefreshSession(r.Context(), request.RefreshToken)
+	if handleUsecaseError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusOK, toSessionResponse(session))
+}
+
+func (s *Server) sessionByID(w http.ResponseWriter, r *http.Request) {
+	sessionID := strings.TrimPrefix(r.URL.Path, "/v1/identity/sessions/")
+	if sessionID == "" || strings.Contains(sessionID, "/") {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+	if r.Method != http.MethodDelete {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	token := bearerToken(r.Header.Get("Authorization"))
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "missing bearer token")
+		return
+	}
+	if err := s.identity.RevokeSession(r.Context(), token, sessionID); handleUsecaseError(w, err) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) getPrincipal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	token := bearerToken(r.Header.Get("Authorization"))
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "missing bearer token")
+		return
+	}
+	principal, err := s.identity.GetPrincipal(r.Context(), token)
+	if handleUsecaseError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusOK, principalResponse{Principal: toPrincipalDTO(principal)})
+}
+
+func (s *Server) createRemoteCommandGrant(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	if s.channelSignature != "" && r.Header.Get("X-Channel-Signature") != s.channelSignature {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid channel signature")
+		return
+	}
+	var request remoteCommandGrantRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	issuedAt, err := time.Parse(time.RFC3339, request.IssuedAt)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "issuedAt must be an RFC3339 timestamp")
+		return
+	}
+	grant, err := s.identity.CreateRemoteCommandGrant(r.Context(), domain.RemoteCommandGrantInput{
+		Provider:          request.Provider,
+		ExternalSubjectID: request.ExternalSubjectID,
+		CommandPreview:    request.CommandPreview,
+		Nonce:             request.Nonce,
+		IssuedAt:          issuedAt,
+	})
+	if handleUsecaseError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusCreated, remoteCommandGrantResponse{
+		GrantToken: grant.GrantToken,
+		ExpiresAt:  formatTime(grant.ExpiresAt),
+		Principal:  toPrincipalDTO(grant.Principal),
+	})
+}
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", "invalid request body")
+		return false
+	}
+	return true
+}
+
+func handleUsecaseError(w http.ResponseWriter, err error) bool {
+	if err == nil {
+		return false
+	}
+	switch {
+	case errors.Is(err, domain.ErrValidation):
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error())
+	case errors.Is(err, domain.ErrInvalidCredentials), errors.Is(err, domain.ErrInvalidSession):
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
+	case errors.Is(err, domain.ErrForbidden):
+		writeError(w, http.StatusForbidden, "FORBIDDEN", err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "identity service failed")
+	}
+	return true
+}
+
+func bearerToken(header string) string {
+	parts := strings.SplitN(strings.TrimSpace(header), " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}
+
+func toSessionResponse(session domain.Session) sessionResponse {
+	return sessionResponse{
+		AccessToken:  session.AccessToken,
+		RefreshToken: session.RefreshToken,
+		TokenType:    session.TokenType,
+		ExpiresIn:    session.ExpiresIn,
+		Principal:    toPrincipalDTO(session.Principal),
+	}
+}
+
+func toPrincipalDTO(principal domain.PrincipalContext) principalContextDTO {
+	displayName := stringPtrOrNil(principal.DisplayName)
+	return principalContextDTO{
+		PrincipalID: principal.PrincipalID,
+		SubjectType: principal.SubjectType,
+		Role:        principal.Role,
+		EntryPoint:  principal.EntryPoint,
+		DisplayName: displayName,
+		Scopes:      principal.Scopes,
+		KnowledgeAccess: knowledgeAccessDTO{
+			Public:  principal.KnowledgeAccess.Public,
+			Private: principal.KnowledgeAccess.Private,
+		},
+		StudentAccess: studentAccessDTO{
+			Mode:       principal.StudentAccess.Mode,
+			StudentIDs: principal.StudentAccess.StudentIDs,
+		},
+		Channel:                 toChannelDTO(principal.Channel),
+		RequiresHarnessApproval: principal.RequiresHarnessApproval,
+		SessionID:               principal.SessionID,
+		IssuedAt:                formatTime(principal.IssuedAt),
+		ExpiresAt:               formatTime(principal.ExpiresAt),
+	}
+}
+
+func toChannelDTO(channel *domain.ChannelContext) *channelContextDTO {
+	if channel == nil {
+		return nil
+	}
+	return &channelContextDTO{
+		Provider:          channel.Provider,
+		ExternalSubjectID: channel.ExternalSubjectID,
+		DeviceName:        stringPtrOrNil(channel.DeviceName),
+	}
+}
+
+func stringPtrOrNil(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func formatTime(value time.Time) string {
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func writeError(w http.ResponseWriter, status int, code string, message string) {
+	writeJSON(w, status, errorResponse{Error: apiError{Code: code, Message: message}})
+}

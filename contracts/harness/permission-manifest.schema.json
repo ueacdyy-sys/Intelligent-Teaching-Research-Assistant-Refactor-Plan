@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/harness/permission-manifest.schema.json",
+  "title": "Agent Harness Permission Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "defaultDecision", "fileRules", "processRules", "browserRules"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-29.agent-harness.permission-manifest.v1"
+    },
+    "defaultDecision": {
+      "type": "string",
+      "enum": ["DENY"]
+    },
+    "fileRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "root", "actions"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "root": { "type": "string", "minLength": 1 },
+          "actions": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["FILE_READ", "FILE_WRITE"] },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "processRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "executable", "mode"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "executable": { "type": "string", "minLength": 1 },
+          "mode": { "type": "string", "enum": ["DRY_RUN_ONLY"] }
+        }
+      }
+    },
+    "browserRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "origin"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "origin": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

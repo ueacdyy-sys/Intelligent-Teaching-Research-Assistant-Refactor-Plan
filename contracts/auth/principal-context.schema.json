@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-teaching-assistant.local/contracts/auth/principal-context.schema.json",
+  "title": "Principal Context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "principalId",
+    "subjectType",
+    "role",
+    "entryPoint",
+    "scopes",
+    "knowledgeAccess",
+    "studentAccess",
+    "requiresHarnessApproval",
+    "sessionId",
+    "issuedAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "principalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subjectType": {
+      "type": "string",
+      "enum": ["USER", "REMOTE_CHANNEL", "SERVICE"]
+    },
+    "role": {
+      "type": "string",
+      "enum": ["TEACHER", "STUDENT", "ADMIN", "REMOTE_OPERATOR", "SERVICE"]
+    },
+    "entryPoint": {
+      "type": "string",
+      "enum": [
+        "DESKTOP_TEACHER",
+        "DESKTOP_RESEARCH",
+        "STUDENT_APP",
+        "REMOTE_SOCIAL",
+        "AGENT_INTERNAL"
+      ]
+    },
+    "displayName": {
+      "type": ["string", "null"]
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "IDENTITY_READ",
+          "TEACHING_READ",
+          "TEACHING_WRITE",
+          "RESEARCH_READ",
+          "RESEARCH_WRITE",
+          "STUDENT_OWN_READ",
+          "STUDENT_OWN_WRITE",
+          "STUDENT_ASSIGNED_READ",
+          "STUDENT_ARCHIVE_WRITE",
+          "KNOWLEDGE_PUBLIC_READ",
+          "KNOWLEDGE_PRIVATE_READ",
+          "AGENT_COMMAND_SUBMIT",
+          "HARNESS_APPROVE",
+          "DEVICE_LOCAL_CONTROL",
+          "ADMIN_SYSTEM"
+        ]
+      }
+    },
+    "knowledgeAccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["public", "private"],
+      "properties": {
+        "public": { "type": "boolean" },
+        "private": {
+          "type": "string",
+          "enum": ["NONE", "OWN", "ASSIGNED", "ALL"]
+        }
+      }
+    },
+    "studentAccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["NONE", "OWN", "ASSIGNED", "ALL"]
+        },
+        "studentIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "channel": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["provider", "externalSubjectId"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["WECHAT", "QQ", "TELEGRAM", "LOCAL_PAIRING", "OTHER"]
+        },
+        "externalSubjectId": { "type": "string", "minLength": 1 },
+        "deviceName": { "type": ["string", "null"] }
+      }
+    },
+    "requiresHarnessApproval": {
+      "type": "boolean"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

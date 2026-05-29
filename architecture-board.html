@@ -1,0 +1,2434 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Intelligent Teaching Research Assistant - Target Architecture Board</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f3ec;
+      --surface: #fffdf8;
+      --surface-soft: #f0eee5;
+      --surface-alt: #eef3f2;
+      --ink: #1e2524;
+      --muted: #5f6865;
+      --line: #d5d0c4;
+      --deep: #22322f;
+      --green: #2f6f59;
+      --blue: #2b6e8d;
+      --amber: #8c6517;
+      --red: #9a443c;
+      --violet: #6d5a85;
+      --teal: #2d756e;
+      --shadow: 0 14px 36px rgba(35, 38, 32, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1540px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 22px 0 36px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.16;
+      font-weight: 760;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: 880px;
+    }
+
+    .top-meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(116px, 1fr));
+      gap: 8px;
+      min-width: 520px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--green);
+      background: #fbfaf4;
+      border-radius: 6px;
+      padding: 10px;
+      min-height: 70px;
+    }
+
+    .metric:nth-child(2) {
+      border-left-color: var(--blue);
+    }
+
+    .metric:nth-child(3) {
+      border-left-color: var(--amber);
+    }
+
+    .metric:nth-child(4) {
+      border-left-color: var(--red);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1.15;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 0;
+      padding: 10px 0;
+      background: rgba(245, 243, 236, 0.94);
+      backdrop-filter: blur(10px);
+    }
+
+    .tab {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 9px 13px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      min-height: 38px;
+    }
+
+    .tab[aria-selected="true"] {
+      border-color: var(--deep);
+      background: var(--deep);
+      color: #fffdf7;
+    }
+
+    .panel {
+      display: none;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .hint {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      max-width: 980px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: #303632;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .badge.green {
+      border-color: rgba(47, 111, 89, 0.32);
+      background: #e5f0eb;
+      color: #215642;
+    }
+
+    .badge.blue {
+      border-color: rgba(43, 110, 141, 0.3);
+      background: #e4eef3;
+      color: #214e67;
+    }
+
+    .badge.amber {
+      border-color: rgba(140, 101, 23, 0.32);
+      background: #f1e8d2;
+      color: #67480f;
+    }
+
+    .badge.red {
+      border-color: rgba(154, 68, 60, 0.3);
+      background: #f4e2df;
+      color: #76332e;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--green);
+      background: #fbfaf4;
+      border-radius: var(--radius);
+      padding: 13px;
+      min-height: 100px;
+    }
+
+    .card.blue {
+      border-left-color: var(--blue);
+    }
+
+    .card.amber {
+      border-left-color: var(--amber);
+    }
+
+    .card.red {
+      border-left-color: var(--red);
+    }
+
+    .card.violet {
+      border-left-color: var(--violet);
+    }
+
+    .card.teal {
+      border-left-color: var(--teal);
+    }
+
+    .card h3 {
+      margin-bottom: 7px;
+    }
+
+    .card p,
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .mini-list span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      border-top: 1px solid rgba(213, 208, 196, 0.72);
+      padding-top: 6px;
+    }
+
+    .diagram {
+      display: grid;
+      grid-template-columns: 1fr 30px 1fr 30px 1.1fr 30px 1fr;
+      gap: 10px;
+      align-items: stretch;
+      margin-top: 12px;
+    }
+
+    .lane {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      border: 1px solid var(--line);
+      background: #fbfaf4;
+      border-radius: var(--radius);
+      padding: 12px;
+      min-height: 520px;
+    }
+
+    .lane-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .node {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--green);
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 11px;
+      min-height: 84px;
+    }
+
+    .node.blue {
+      border-left-color: var(--blue);
+    }
+
+    .node.amber {
+      border-left-color: var(--amber);
+    }
+
+    .node.red {
+      border-left-color: var(--red);
+    }
+
+    .node.violet {
+      border-left-color: var(--violet);
+    }
+
+    .node.teal {
+      border-left-color: var(--teal);
+    }
+
+    .node h3 {
+      margin-bottom: 6px;
+    }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 20px;
+      min-height: 100%;
+    }
+
+    .matrix,
+    .function-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfaf4;
+      table-layout: fixed;
+    }
+
+    .matrix th,
+    .matrix td,
+    .function-table th,
+    .function-table td {
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      padding: 10px;
+      vertical-align: top;
+      text-align: left;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .matrix th,
+    .function-table th {
+      background: var(--surface-soft);
+      color: #313834;
+      font-weight: 700;
+    }
+
+    .matrix tr:last-child td,
+    .function-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .matrix th:last-child,
+    .matrix td:last-child,
+    .function-table th:last-child,
+    .function-table td:last-child {
+      border-right: 0;
+    }
+
+    .logic {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .step {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 5px 8px;
+      color: #29302d;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .step.warn {
+      border-color: rgba(154, 68, 60, 0.35);
+      background: #f6e6e3;
+      color: #76332e;
+    }
+
+    .step.good {
+      border-color: rgba(47, 111, 89, 0.35);
+      background: #e7f1ec;
+      color: #245741;
+    }
+
+    .flow-arrow {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .swimlane {
+      display: grid;
+      grid-template-columns: 180px repeat(5, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fbfaf4;
+    }
+
+    .swimlane div {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      min-height: 74px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .swimlane div:nth-child(6n) {
+      border-right: 0;
+    }
+
+    .swimlane .head {
+      background: var(--surface-soft);
+      font-weight: 700;
+      min-height: 48px;
+    }
+
+    .swimlane .topic {
+      background: #eef3f2;
+      font-weight: 700;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 12px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 10px;
+      align-items: stretch;
+      border: 1px solid var(--line);
+      background: #fbfaf4;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .phase strong {
+      display: grid;
+      place-items: center;
+      background: var(--deep);
+      color: #fffdf7;
+      padding: 10px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .phase div {
+      padding: 11px;
+      font-size: 12px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    .risk {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) 150px;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--red);
+      border-radius: var(--radius);
+      background: #fbfaf4;
+      padding: 12px;
+    }
+
+    .risk.good {
+      border-left-color: var(--green);
+    }
+
+    .risk.warn {
+      border-left-color: var(--amber);
+    }
+
+    .risk strong {
+      font-size: 13px;
+    }
+
+    .callout {
+      border: 1px solid rgba(43, 110, 141, 0.32);
+      border-left: 5px solid var(--blue);
+      background: #eef5f7;
+      border-radius: var(--radius);
+      padding: 12px;
+      color: #244b5e;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .legend span {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1180px) {
+      header {
+        grid-template-columns: 1fr;
+      }
+
+      .top-meta {
+        min-width: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .diagram {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        min-height: 24px;
+        transform: rotate(90deg);
+      }
+
+      .grid.three,
+      .grid.four,
+      .grid.two,
+      .split {
+        grid-template-columns: 1fr;
+      }
+
+      .swimlane {
+        grid-template-columns: 1fr;
+      }
+
+      .swimlane div,
+      .swimlane div:nth-child(6n) {
+        border-right: 0;
+      }
+
+      .legend {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100% - 18px, 1540px);
+        padding-top: 10px;
+      }
+
+      header,
+      .panel {
+        padding: 13px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .top-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .section-title {
+        display: block;
+      }
+
+      .badge-row {
+        justify-content: flex-start;
+        margin-top: 10px;
+      }
+
+      .risk,
+      .phase {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <h1>智能教研助手重构架构板</h1>
+        <p class="subtitle">
+          目标架构：平台化模块单体优先，核心能力由 Agent Harness 统一管控。多语言用于边界治理和学习扩展，不用于一次性重写。当前实测读路径约 4.3k RPS，混合读写约 1.9k RPS，纯写约 1.0k RPS；优先治理写路径、契约、队列和权限，再按边界引入 Go/Rust。
+        </p>
+      </div>
+      <div class="top-meta" aria-label="Architecture summary">
+        <div class="metric"><strong>目标形态</strong><span>工作台 + 子系统 + 平台能力</span></div>
+        <div class="metric"><strong>语言策略</strong><span>TS/Python 保留，Go/Rust 按边界引入</span></div>
+        <div class="metric"><strong>迁移策略</strong><span>Legacy 隔离，按垂直切片替换</span></div>
+        <div class="metric"><strong>性能门槛</strong><span>新语言必须带基准、回滚和契约测试</span></div>
+      </div>
+    </header>
+
+    <nav aria-label="Architecture board tabs">
+      <button class="tab" aria-selected="true" data-tab="overview">总览架构</button>
+      <button class="tab" aria-selected="false" data-tab="business">业务功能逻辑</button>
+      <button class="tab" aria-selected="false" data-tab="boundaries">模块边界</button>
+      <button class="tab" aria-selected="false" data-tab="model">数据模型</button>
+      <button class="tab" aria-selected="false" data-tab="contracts">API 与事件</button>
+      <button class="tab" aria-selected="false" data-tab="permissions">权限清单</button>
+      <button class="tab" aria-selected="false" data-tab="tech">技术栈语言</button>
+      <button class="tab" aria-selected="false" data-tab="performance">性能与语言</button>
+      <button class="tab" aria-selected="false" data-tab="harness">Agent Harness</button>
+      <button class="tab" aria-selected="false" data-tab="adapters">工具与 CLI</button>
+      <button class="tab" aria-selected="false" data-tab="data">数据权限事件</button>
+      <button class="tab" aria-selected="false" data-tab="migration">迁移路线</button>
+      <button class="tab" aria-selected="false" data-tab="acceptance">验收矩阵</button>
+      <button class="tab" aria-selected="false" data-tab="opensource">开源治理</button>
+    </nav>
+
+    <section class="panel active" id="overview">
+      <div class="section-title">
+        <div>
+          <h2>平台化模块单体优先架构</h2>
+          <p class="hint">不是一上来微服务。先把边界、契约、权限、事件、工具控制做好；未来只有高压、高风险、独立生命周期的模块才抽服务。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">目标：可治理</span>
+          <span class="badge blue">目标：可开源</span>
+          <span class="badge amber">目标：可让 AI 执行</span>
+        </div>
+      </div>
+
+      <div class="diagram">
+        <div class="lane">
+          <div class="lane-title"><span>Experience Layer</span><span>TypeScript</span></div>
+          <div class="node blue"><h3>教师工作台</h3><p>教学悬浮球、科研全屏工作台、统筹入口、设置、通知、审批面板。</p></div>
+          <div class="node blue"><h3>学生端</h3><p>登录、答题、签到、学习档案、AI 辅导、教学资料访问。</p></div>
+          <div class="node blue"><h3>移动/外部入口</h3><p>微信/QQ/网页/语音入口只发命令，不直接碰业务数据。</p></div>
+        </div>
+        <div class="arrow">></div>
+        <div class="lane">
+          <div class="lane-title"><span>Application Layer</span><span>Go</span></div>
+          <div class="node green"><h3>BFF / API Gateway</h3><p>统一鉴权、字段转换、分页、错误格式、限流、OpenAPI 合约。</p></div>
+          <div class="node green"><h3>Command Router</h3><p>把自然语言命令路由到教学、科研、开发、系统工具。</p></div>
+          <div class="node green"><h3>Workflow Orchestrator</h3><p>负责任务状态、队列、事件、重试、取消、人工审批。</p></div>
+        </div>
+        <div class="arrow">></div>
+        <div class="lane">
+          <div class="lane-title"><span>Domain Subsystems</span><span>Go + Rust + Python</span></div>
+          <div class="node"><h3>Teaching Subsystem</h3><p>测验、批改、点名、资源、辅导、学生档案、教学资料。</p></div>
+          <div class="node"><h3>Research Subsystem</h3><p>多模型对话、节点、知识库、收藏、训练、设备协同。</p></div>
+          <div class="node"><h3>Agent Subsystem</h3><p>统筹智能体、工作流、插件、技能、外部应用操控。</p></div>
+          <div class="node"><h3>Student Subsystem</h3><p>学生认证、学习资源、个性化题库、扫码答题、AI 辅导。</p></div>
+        </div>
+        <div class="arrow">></div>
+        <div class="lane">
+          <div class="lane-title"><span>Platform Capabilities</span><span>Rust + Go</span></div>
+          <div class="node amber"><h3>Shared Kernel</h3><p>用户、组织、班级、课程、角色、权限、文件、任务、通知。</p></div>
+          <div class="node amber"><h3>Agent Harness</h3><p>工具注册、权限策略、命令执行、审计证据、回滚、沙箱。</p></div>
+          <div class="node amber"><h3>Data Platform</h3><p>PostgreSQL、SQLite、对象存储、向量库、事件总线、缓存。</p></div>
+          <div class="node amber"><h3>Runtime Governance</h3><p>配置、Feature Flag、CI、质量门禁、遥测、发布和回滚。</p></div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><strong>Rust</strong><br />桌面壳、本机文件/命令/自动化、权限沙箱、索引、低资源常驻服务。</span>
+        <span><strong>Go</strong><br />平台 API、BFF、任务编排、队列 worker、契约服务、并发服务。</span>
+        <span><strong>TypeScript</strong><br />工作台 UI、学生端 UI、前端 SDK、组件规范、浏览器自动化生成后的规范化。</span>
+        <span><strong>Python</strong><br />RAG、模型训练、OCR、LLM 实验性能力，作为隔离 worker 保留，不再做大总线。</span>
+        <span><strong>Legacy</strong><br />现有 React/Electron/FastAPI 进入兼容区，按功能切片迁移，不直接大爆破。</span>
+      </div>
+    </section>
+
+    <section class="panel" id="business">
+      <div class="section-title">
+        <div>
+          <h2>业务功能逻辑拆解</h2>
+          <p class="hint">每个功能都写清：用户动作、系统流程、归属子系统、推荐技术栈、Agent 触点。后续让 AI 执行时，就按这些切片开任务。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">Core：默认保留</span>
+          <span class="badge amber">Optional：默认关闭</span>
+          <span class="badge red">Risk：Harness 托管</span>
+        </div>
+      </div>
+
+      <table class="function-table">
+        <colgroup>
+          <col style="width: 14%" />
+          <col style="width: 18%" />
+          <col style="width: 30%" />
+          <col style="width: 16%" />
+          <col style="width: 12%" />
+          <col style="width: 10%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>业务功能</th>
+            <th>业务目标</th>
+            <th>核心逻辑流程</th>
+            <th>归属子系统</th>
+            <th>技术栈</th>
+            <th>级别</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>教师登录/学生登录</td>
+            <td>把教师、学生、管理员分清，避免所有功能裸奔。</td>
+            <td><div class="logic"><span class="step">登录</span><span class="flow-arrow">></span><span class="step">JWT/Session</span><span class="flow-arrow">></span><span class="step">角色权限</span><span class="flow-arrow">></span><span class="step">进入工作台</span></div></td>
+            <td>Identity + Shared Kernel</td>
+            <td>Go API / Rust Secure Store / TS UI</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>教学悬浮球</td>
+            <td>课堂中快速打开工具，不打断教学节奏。</td>
+            <td><div class="logic"><span class="step">悬浮入口</span><span class="flow-arrow">></span><span class="step">选择工具</span><span class="flow-arrow">></span><span class="step">小窗口任务</span><span class="flow-arrow">></span><span class="step">结果入档案</span></div></td>
+            <td>Teaching Workbench</td>
+            <td>TypeScript UI / Rust Tauri Window</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>随堂测验</td>
+            <td>教师快速出题，学生扫码作答，结果可分析。</td>
+            <td><div class="logic"><span class="step">创建测验</span><span class="flow-arrow">></span><span class="step">生成二维码</span><span class="flow-arrow">></span><span class="step">学生作答</span><span class="flow-arrow">></span><span class="step">收卷</span><span class="flow-arrow">></span><span class="step">统计入档</span></div></td>
+            <td>Teaching + Student</td>
+            <td>Go API / PostgreSQL / TS UI</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>AI 批改</td>
+            <td>把主观题/作业批改变成可审计流程。</td>
+            <td><div class="logic"><span class="step">上传答案</span><span class="flow-arrow">></span><span class="step">OCR/解析</span><span class="flow-arrow">></span><span class="step">评分规则</span><span class="flow-arrow">></span><span class="step">AI 初评</span><span class="flow-arrow">></span><span class="step">教师复核</span></div></td>
+            <td>Teaching + AI Worker</td>
+            <td>Go API / Python OCR / Python LLM / TS UI</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>智能点名</td>
+            <td>点名、签到、课堂参与都能进入学生画像。</td>
+            <td><div class="logic"><span class="step">导入名单</span><span class="flow-arrow">></span><span class="step">创建场次</span><span class="flow-arrow">></span><span class="step">扫码/随机/手动</span><span class="flow-arrow">></span><span class="step">记录行为</span></div></td>
+            <td>Teaching + Student Profile</td>
+            <td>Go API / PostgreSQL / TS UI</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>资源检索</td>
+            <td>教师检索教学资料并沉淀到教学资料库。</td>
+            <td><div class="logic"><span class="step">输入主题</span><span class="flow-arrow">></span><span class="step">本地/联网检索</span><span class="flow-arrow">></span><span class="step">筛选</span><span class="flow-arrow">></span><span class="step">收藏到资料库</span></div></td>
+            <td>Teaching Resources</td>
+            <td>Go API / Python RAG / TS UI</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>辅导模式</td>
+            <td>基于学生档案给出个性化讲解和练习。</td>
+            <td><div class="logic"><span class="step">选择学生</span><span class="flow-arrow">></span><span class="step">读取档案</span><span class="flow-arrow">></span><span class="step">RAG 辅导</span><span class="flow-arrow">></span><span class="step">生成题库</span><span class="flow-arrow">></span><span class="step">反馈更新画像</span></div></td>
+            <td>Tutor + Student Profile</td>
+            <td>Go API / Python RAG / TS UI</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>课堂白板</td>
+            <td>保留板书、草图、课堂推演，并能转成教学资料。</td>
+            <td><div class="logic"><span class="step">打开白板</span><span class="flow-arrow">></span><span class="step">书写/贴图</span><span class="flow-arrow">></span><span class="step">保存快照</span><span class="flow-arrow">></span><span class="step">转资料</span><span class="flow-arrow">></span><span class="step">入档案</span></div></td>
+            <td>Teaching Workbench + Archive</td>
+            <td>TypeScript Canvas / Rust File Service / Go API</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>档案资料</td>
+            <td>替代截图功能，成为学生材料和教学材料库。</td>
+            <td><div class="logic"><span class="step">上传材料</span><span class="flow-arrow">></span><span class="step">分类</span><span class="flow-arrow">></span><span class="step">权限标记</span><span class="flow-arrow">></span><span class="step">索引</span><span class="flow-arrow">></span><span class="step">导出/分析</span></div></td>
+            <td>Archive + Data Platform</td>
+            <td>Rust File Service / Go API / Python Parser</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>学情监控</td>
+            <td>把测验、点名、批改、辅导反馈统一成学生画像。</td>
+            <td><div class="logic"><span class="step">采集事件</span><span class="flow-arrow">></span><span class="step">清洗聚合</span><span class="flow-arrow">></span><span class="step">能力维度</span><span class="flow-arrow">></span><span class="step">趋势分析</span><span class="flow-arrow">></span><span class="step">教学建议</span></div></td>
+            <td>Student Profile + Analytics</td>
+            <td>Go Event Worker / PostgreSQL / TS Charts / Python Analysis</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>学生端应用</td>
+            <td>学生登录后访问资源、答题、签到、AI 辅导。</td>
+            <td><div class="logic"><span class="step">登录</span><span class="flow-arrow">></span><span class="step">看资料</span><span class="flow-arrow">></span><span class="step">答题/签到</span><span class="flow-arrow">></span><span class="step">AI 辅导</span><span class="flow-arrow">></span><span class="step">同步档案</span></div></td>
+            <td>Student Subsystem</td>
+            <td>TypeScript PWA / Go API</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>科研多模型对话</td>
+            <td>多个模型并行回答，按事实性、速度、质量融合。</td>
+            <td><div class="logic"><span class="step">用户提问</span><span class="flow-arrow">></span><span class="step">选节点</span><span class="flow-arrow">></span><span class="step">并行请求</span><span class="flow-arrow">></span><span class="step">融合评分</span><span class="flow-arrow">></span><span class="step">流式展示</span></div></td>
+            <td>Research Chat</td>
+            <td>Go Orchestrator / Python Fusion / TS UI</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>节点管理</td>
+            <td>管理云端、本地、远程设备模型节点和访问范围。</td>
+            <td><div class="logic"><span class="step">注册节点</span><span class="flow-arrow">></span><span class="step">健康检查</span><span class="flow-arrow">></span><span class="step">权限绑定</span><span class="flow-arrow">></span><span class="step">调度策略</span></div></td>
+            <td>Model Node Registry</td>
+            <td>Go API / Rust Local Probe / PostgreSQL</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>知识库</td>
+            <td>公开/私密隔离，支持结构化索引和混合 RAG。</td>
+            <td><div class="logic"><span class="step">上传</span><span class="flow-arrow">></span><span class="step">解析</span><span class="flow-arrow">></span><span class="step">公开/私密标记</span><span class="flow-arrow">></span><span class="step">向量+目录索引</span><span class="flow-arrow">></span><span class="step">检索审计</span></div></td>
+            <td>Knowledge Platform</td>
+            <td>Python RAG / Rust Indexer / Qdrant or Chroma</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>收藏与偏好</td>
+            <td>把高质量回答变成偏好、数据集、可视化资产。</td>
+            <td><div class="logic"><span class="step">收藏</span><span class="flow-arrow">></span><span class="step">标签/备注</span><span class="flow-arrow">></span><span class="step">清洗</span><span class="flow-arrow">></span><span class="step">偏好分析</span><span class="flow-arrow">></span><span class="step">训练数据候选</span></div></td>
+            <td>Research Favorites</td>
+            <td>Go API / PostgreSQL / TS Charts</td>
+            <td><span class="badge green">Core</span></td>
+          </tr>
+          <tr>
+            <td>数据监控</td>
+            <td>展示模型节点、设备、任务、训练、数据流的真实状态。</td>
+            <td><div class="logic"><span class="step">采集指标</span><span class="flow-arrow">></span><span class="step">事件入库</span><span class="flow-arrow">></span><span class="step">拓扑展示</span><span class="flow-arrow">></span><span class="step">异常告警</span><span class="flow-arrow">></span><span class="step">审计导出</span></div></td>
+            <td>Observability + DataFlow</td>
+            <td>Go Metrics API / Prometheus / TS Visualization</td>
+            <td><span class="badge amber">Optional</span></td>
+          </tr>
+          <tr>
+            <td>模型训练</td>
+            <td>从收藏/私密数据生成微调任务，导出本地可用模型。</td>
+            <td><div class="logic"><span class="step">选数据</span><span class="flow-arrow">></span><span class="step">清洗</span><span class="flow-arrow">></span><span class="step">训练任务</span><span class="flow-arrow">></span><span class="step">监控</span><span class="flow-arrow">></span><span class="step">导出 GGUF</span><span class="flow-arrow">></span><span class="step">注册节点</span></div></td>
+            <td>Training Worker</td>
+            <td>Python Worker / Go Job API / Rust File Guard</td>
+            <td><span class="badge amber">Optional</span></td>
+          </tr>
+          <tr>
+            <td>设备协同</td>
+            <td>发现、配对、远程节点协作，不泄露本机私密库。</td>
+            <td><div class="logic"><span class="step">发现</span><span class="flow-arrow">></span><span class="step">配对</span><span class="flow-arrow">></span><span class="step">能力声明</span><span class="flow-arrow">></span><span class="step">远程调用</span><span class="flow-arrow">></span><span class="step">撤销</span></div></td>
+            <td>Device Collaboration</td>
+            <td>Rust Local Network / Go API / mTLS</td>
+            <td><span class="badge amber">Optional</span></td>
+          </tr>
+          <tr>
+            <td>统筹智能体</td>
+            <td>老板下命令，系统分派给教学/科研/开发/工具。</td>
+            <td><div class="logic"><span class="step">接命令</span><span class="flow-arrow">></span><span class="step">识别意图</span><span class="flow-arrow">></span><span class="step">生成计划</span><span class="flow-arrow">></span><span class="step warn">策略检查</span><span class="flow-arrow">></span><span class="step">执行</span><span class="flow-arrow">></span><span class="step">汇报</span></div></td>
+            <td>Agent Harness</td>
+            <td>Go Orchestrator / Rust Harness / Python LLM</td>
+            <td><span class="badge red">Risk</span></td>
+          </tr>
+          <tr>
+            <td>语音入口</td>
+            <td>用语音触发教学、科研、工具能力，但不绕过审批。</td>
+            <td><div class="logic"><span class="step">唤醒/录音</span><span class="flow-arrow">></span><span class="step">转写</span><span class="flow-arrow">></span><span class="step">意图识别</span><span class="flow-arrow">></span><span class="step warn">二次确认</span><span class="flow-arrow">></span><span class="step">调用智能体</span></div></td>
+            <td>Supervisor Entry + Agent Harness</td>
+            <td>TypeScript UI / Python ASR / Go Command Router</td>
+            <td><span class="badge amber">Optional</span></td>
+          </tr>
+          <tr>
+            <td>工作流生成</td>
+            <td>用户描述流程，AI 生成工作流代码并自动测试。</td>
+            <td><div class="logic"><span class="step">描述需求</span><span class="flow-arrow">></span><span class="step">生成 DSL/代码</span><span class="flow-arrow">></span><span class="step">沙箱测试</span><span class="flow-arrow">></span><span class="step">人类评估</span><span class="flow-arrow">></span><span class="step">发布到池</span></div></td>
+            <td>Workflow Factory</td>
+            <td>Go DSL / Rust Sandbox / TS UI</td>
+            <td><span class="badge red">Risk</span></td>
+          </tr>
+          <tr>
+            <td>插件/技能自进化</td>
+            <td>失败后总结工具缺口，生成可复用插件或技能。</td>
+            <td><div class="logic"><span class="step">任务失败</span><span class="flow-arrow">></span><span class="step">缺口分析</span><span class="flow-arrow">></span><span class="step">生成插件</span><span class="flow-arrow">></span><span class="step">权限声明</span><span class="flow-arrow">></span><span class="step">测试</span><span class="flow-arrow">></span><span class="step">入库</span></div></td>
+            <td>Plugin + Skill Registry</td>
+            <td>Rust Harness / Go Registry / TS UI</td>
+            <td><span class="badge red">Risk</span></td>
+          </tr>
+          <tr>
+            <td>外部应用操控</td>
+            <td>通过 API/CLI/文件/浏览器/兜底 UI 控制外部应用。</td>
+            <td><div class="logic"><span class="step">声明目标</span><span class="flow-arrow">></span><span class="step good">优先 CLI/API</span><span class="flow-arrow">></span><span class="step">执行</span><span class="flow-arrow">></span><span class="step">截图/日志证据</span><span class="flow-arrow">></span><span class="step">回滚</span></div></td>
+            <td>Tool Adapter Layer</td>
+            <td>Rust Adapter / Go Policy / Browser Automation</td>
+            <td><span class="badge red">Risk</span></td>
+          </tr>
+          <tr>
+            <td>外部消息入口</td>
+            <td>移动端或社交平台只提交命令，由统筹智能体接管。</td>
+            <td><div class="logic"><span class="step">收到消息</span><span class="flow-arrow">></span><span class="step">身份校验</span><span class="flow-arrow">></span><span class="step">命令入队</span><span class="flow-arrow">></span><span class="step warn">风险审批</span><span class="flow-arrow">></span><span class="step">执行/回报</span></div></td>
+            <td>Channel Gateway + Agent Harness</td>
+            <td>Go Gateway / Rust Harness / TypeScript Admin UI</td>
+            <td><span class="badge red">Risk</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="boundaries">
+      <div class="section-title">
+        <div>
+          <h2>模块边界与禁止跨界</h2>
+          <p class="hint">这页是给 AI 施工用的边界说明。每个模块只做自己该做的事，跨模块只能走 API、事件或端口接口，不能直接互相读库、互相 import、互相偷状态。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">可复用</span>
+          <span class="badge blue">可替换</span>
+          <span class="badge red">禁止串线</span>
+        </div>
+      </div>
+
+      <div class="grid three">
+        <div class="card green">
+          <h3>总规则</h3>
+          <p>UI 调用 BFF，BFF 调用用例，用例调用端口，端口由数据、工具、AI Worker 实现。业务规则不能依赖具体框架、数据库、浏览器、Office、CLI。</p>
+        </div>
+        <div class="card blue">
+          <h3>复用方式</h3>
+          <p>复用不是复制代码，而是沉到 Shared Kernel、契约 SDK、Domain Event、Tool Manifest。只有稳定、跨模块共用的东西才能下沉。</p>
+        </div>
+        <div class="card red">
+          <h3>禁止方式</h3>
+          <p>禁止前端直接拼后端地址，禁止 Agent 直接执行命令，禁止 AI Worker 写主库，禁止一个模块直接改另一个模块的表。</p>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>模块</th>
+            <th>包含</th>
+            <th>不包含</th>
+            <th>主语言</th>
+            <th>对外契约</th>
+            <th>AI 施工禁令</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Identity</td>
+            <td>教师、学生、管理员、会话、角色、权限、设备登录态。</td>
+            <td>不写教学业务，不保存知识库正文。</td>
+            <td>Go + Rust Secure Store</td>
+            <td>Auth API、Session DTO、Role Policy</td>
+            <td>不得把角色判断散落到 UI 组件里。</td>
+          </tr>
+          <tr>
+            <td>Workbench Shell</td>
+            <td>窗口、悬浮球、导航、主题、通知、审批面板、前端 SDK。</td>
+            <td>不写评分规则，不直接调用本机命令。</td>
+            <td>TypeScript + Rust/Tauri</td>
+            <td>Frontend SDK、UI Events</td>
+            <td>不得在页面里硬编码后端地址和 mock 数据。</td>
+          </tr>
+          <tr>
+            <td>Teaching</td>
+            <td>测验、点名、批改、课堂白板、教学资料、教师课堂工具。</td>
+            <td>不管理模型节点，不执行外部应用操控。</td>
+            <td>Go Domain + TS UI</td>
+            <td>Teaching API、teaching.* Events</td>
+            <td>不得直接读取科研私密知识库。</td>
+          </tr>
+          <tr>
+            <td>Student Profile</td>
+            <td>学生档案、成长资料、能力维度、个性化题库、学习反馈。</td>
+            <td>不保存教师私密科研资料，不直接训练模型。</td>
+            <td>Go + Python Analysis</td>
+            <td>Profile API、profile.updated Event</td>
+            <td>不得让学生访问他人档案。</td>
+          </tr>
+          <tr>
+            <td>Research</td>
+            <td>多模型对话、节点管理、收藏、知识库、RAG、论文/资料工作流。</td>
+            <td>不直接操作系统命令，不绕过权限访问学生隐私。</td>
+            <td>Go + Python Worker</td>
+            <td>Research API、research.* Events</td>
+            <td>不得把模型 API Key 放到前端或日志。</td>
+          </tr>
+          <tr>
+            <td>Knowledge Platform</td>
+            <td>公开库、私密库、目录索引、向量索引、文档解析、检索审计。</td>
+            <td>不决定教学流程，不决定 Agent 是否能执行命令。</td>
+            <td>Python RAG + Rust Indexer</td>
+            <td>Knowledge Query Port、ingest events</td>
+            <td>不得混用公开库和私密库物理存储。</td>
+          </tr>
+          <tr>
+            <td>Agent Harness</td>
+            <td>计划、审批、工具权限、沙箱、证据、回滚、插件/工作流执行。</td>
+            <td>不保存业务主数据，不直接绕过 BFF 改业务库。</td>
+            <td>Rust + Go Policy</td>
+            <td>Command API、Tool Manifest、Audit Event</td>
+            <td>不得出现无 manifest 的工具调用。</td>
+          </tr>
+          <tr>
+            <td>Tool Adapter</td>
+            <td>API、SDK、CLI、文件协议、浏览器自动化、外部应用适配。</td>
+            <td>不做意图识别，不持久化业务结论。</td>
+            <td>Rust + Go Client</td>
+            <td>Tool Port、Execution Result Schema</td>
+            <td>不得把 UI 自动化作为第一优先级。</td>
+          </tr>
+          <tr>
+            <td>AI Workers</td>
+            <td>RAG、OCR、ASR、训练、文档解析、多模态、实验模型。</td>
+            <td>不直接对外暴露用户界面，不直接执行系统命令。</td>
+            <td>Python</td>
+            <td>Worker Job API、Job Result DTO</td>
+            <td>不得直接写主库，只能回传结果由 Go 落库。</td>
+          </tr>
+          <tr>
+            <td>Governance</td>
+            <td>Feature Flag、配置、审计、质量门禁、版本、开源能力边界。</td>
+            <td>不承载具体业务流程。</td>
+            <td>Go + TS Admin UI</td>
+            <td>Config API、Policy Bundle</td>
+            <td>不得把实验能力默认打开。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="model">
+      <div class="section-title">
+        <div>
+          <h2>核心数据模型关系</h2>
+          <p class="hint">这不是最终数据库建表语句，而是领域对象地图。AI 以后写表、API、测试时必须先对齐这张关系图，不能凭组件名字临时造字段。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">PostgreSQL 主数据</span>
+          <span class="badge blue">向量库隔离</span>
+          <span class="badge amber">对象存储</span>
+        </div>
+      </div>
+
+      <div class="grid four">
+        <div class="card green">
+          <h3>人员与组织</h3>
+          <p>Teacher、Student、Class、Role、Session 是权限入口。所有教学、档案、资源都必须能追到 owner 和 class。</p>
+        </div>
+        <div class="card blue">
+          <h3>教学闭环</h3>
+          <p>Quiz、Answer、GradingTask、RollcallSession、WhiteboardSnapshot、TeachingMaterial 最终汇聚到 StudentProfile。</p>
+        </div>
+        <div class="card amber">
+          <h3>科研闭环</h3>
+          <p>Conversation、Message、ModelNode、KnowledgeDocument、Bookmark、TrainingDataset、TrainingJob 形成科研资产。</p>
+        </div>
+        <div class="card red">
+          <h3>Agent 闭环</h3>
+          <p>Command、Plan、Approval、ToolRun、Evidence、Workflow、Plugin 都必须可审计、可暂停、可回放。</p>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>领域对象</th>
+            <th>核心字段概念</th>
+            <th>关系</th>
+            <th>存储建议</th>
+            <th>隐私/权限</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Teacher / Student / Class</td>
+            <td>id、displayName、role、classId、status、createdAt。</td>
+            <td>Teacher 管理 Class，Class 包含 Student。</td>
+            <td>PostgreSQL</td>
+            <td>学生只能读自己；教师只能读所管班级。</td>
+          </tr>
+          <tr>
+            <td>Quiz / Answer / GradingTask</td>
+            <td>quizId、questionSet、answerSheet、score、rubric、reviewStatus。</td>
+            <td>Quiz 产生 Answer，Answer 进入 GradingTask，结果写 ProfileEvent。</td>
+            <td>PostgreSQL + Object Store</td>
+            <td>答题原件和批改证据按班级隔离。</td>
+          </tr>
+          <tr>
+            <td>StudentProfile / ProfileEvent</td>
+            <td>studentId、abilityVector、trend、sourceType、evidenceId。</td>
+            <td>由测验、点名、批改、辅导、资料阅读事件聚合。</td>
+            <td>PostgreSQL + Analytics View</td>
+            <td>属于高敏数据，默认不进入科研知识库。</td>
+          </tr>
+          <tr>
+            <td>TeachingMaterial / ArchiveAsset</td>
+            <td>assetId、ownerId、classId、fileHash、type、visibility、indexStatus。</td>
+            <td>白板、作业、导学案、试卷、教师资料统一归档。</td>
+            <td>Object Store + PostgreSQL Metadata</td>
+            <td>公开给班级前必须有发布状态。</td>
+          </tr>
+          <tr>
+            <td>Conversation / Message</td>
+            <td>conversationId、role、content、nodeRuns、fusionTrace、citations。</td>
+            <td>Message 可被 Bookmark 引用，可生成 DatasetCandidate。</td>
+            <td>PostgreSQL</td>
+            <td>私密对话默认不进入公开知识库。</td>
+          </tr>
+          <tr>
+            <td>ModelNode</td>
+            <td>nodeId、nodeType、endpoint、capabilities、health、knowledgeScope。</td>
+            <td>Conversation 调度 Node，Node 权限决定可读知识库范围。</td>
+            <td>PostgreSQL + Local Secure Store</td>
+            <td>云端只读公开库，本地可读授权私密库，远程设备不读本机私密库。</td>
+          </tr>
+          <tr>
+            <td>KnowledgeDocument / IndexChunk</td>
+            <td>docId、visibility、structurePath、chunkId、embeddingRef、sourceHash。</td>
+            <td>Document 解析为目录索引和向量索引，检索结果必须带来源。</td>
+            <td>PostgreSQL + Qdrant/Chroma + Object Store</td>
+            <td>公开库和私密库物理隔离，查询记录可审计。</td>
+          </tr>
+          <tr>
+            <td>Bookmark / DatasetCandidate</td>
+            <td>bookmarkId、messageId、tags、qualityScore、cleanStatus、datasetRef。</td>
+            <td>Bookmark 清洗后可成为训练数据候选。</td>
+            <td>PostgreSQL</td>
+            <td>进入训练前必须确认授权和脱敏状态。</td>
+          </tr>
+          <tr>
+            <td>Command / Plan / Approval</td>
+            <td>commandId、intent、planSteps、riskLevel、approvalState、actorId。</td>
+            <td>外部入口和语音入口都先生成 Command，再由 Plan 执行。</td>
+            <td>PostgreSQL</td>
+            <td>高风险命令必须人工审批，不允许默认通过。</td>
+          </tr>
+          <tr>
+            <td>ToolRun / Evidence / Rollback</td>
+            <td>toolRunId、toolName、inputsHash、outputsHash、screenshots、logs、rollbackRef。</td>
+            <td>每次工具执行都有证据，失败可定位，必要时可回滚。</td>
+            <td>PostgreSQL + Object Store</td>
+            <td>证据中必须脱敏密钥、路径、学生隐私。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="contracts">
+      <div class="section-title">
+        <div>
+          <h2>API、命令与事件契约</h2>
+          <p class="hint">重构时先写契约，再写实现。UI、Go API、Rust Harness、Python Worker 都按契约通信，避免弱模型时代那种“前端猜字段、后端临时返回”的混乱。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">OpenAPI</span>
+          <span class="badge blue">Domain Events</span>
+          <span class="badge amber">WebSocket</span>
+          <span class="badge red">Command Gate</span>
+        </div>
+      </div>
+
+      <div class="grid three">
+        <div class="card green">
+          <h3>Query API</h3>
+          <p>只读查询，例如列表、详情、搜索、状态。必须分页、可过滤、错误码稳定，不触发副作用。</p>
+        </div>
+        <div class="card blue">
+          <h3>Command API</h3>
+          <p>会改变状态的请求，例如创建测验、发布资料、执行工具。必须返回 commandId 或 taskId，可追踪。</p>
+        </div>
+        <div class="card amber">
+          <h3>Event Stream</h3>
+          <p>长任务、融合回答、训练、工作流执行通过事件流展示进度，UI 不轮询拼状态。</p>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>契约类型</th>
+            <th>示例</th>
+            <th>输入</th>
+            <th>输出</th>
+            <th>归属</th>
+            <th>验收规则</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Auth API</td>
+            <td>POST /api/v1/auth/login</td>
+            <td>loginName、password 或扫码 token。</td>
+            <td>session、role、expiresAt。</td>
+            <td>Identity</td>
+            <td>错误码区分未认证、无权限、会话过期。</td>
+          </tr>
+          <tr>
+            <td>Teaching Command</td>
+            <td>POST /api/v1/quizzes</td>
+            <td>classId、questionSet、publishMode。</td>
+            <td>quizId、qrCodeUrl、status。</td>
+            <td>Teaching</td>
+            <td>创建后发 quiz.created 事件。</td>
+          </tr>
+          <tr>
+            <td>Student Command</td>
+            <td>POST /api/v1/quizzes/{id}/answers</td>
+            <td>studentId、answers、clientTime。</td>
+            <td>answerId、acceptedAt、gradingState。</td>
+            <td>Student</td>
+            <td>重复提交有幂等策略。</td>
+          </tr>
+          <tr>
+            <td>Profile Query</td>
+            <td>GET /api/v1/students/{id}/profile</td>
+            <td>studentId、viewScope。</td>
+            <td>profile、abilityTrend、evidenceRefs。</td>
+            <td>Student Profile</td>
+            <td>只返回当前角色允许看的字段。</td>
+          </tr>
+          <tr>
+            <td>Research Query</td>
+            <td>POST /api/v1/research/query</td>
+            <td>conversationId、prompt、nodePolicy、knowledgeScope。</td>
+            <td>streamId、selectedNodes。</td>
+            <td>Research</td>
+            <td>必须能看到融合进度和来源。</td>
+          </tr>
+          <tr>
+            <td>Node API</td>
+            <td>POST /api/v1/model-nodes/{id}/health-check</td>
+            <td>nodeId、checkMode。</td>
+            <td>health、latency、capabilities。</td>
+            <td>Model Node Registry</td>
+            <td>健康检查不泄露密钥。</td>
+          </tr>
+          <tr>
+            <td>Knowledge Ingest</td>
+            <td>POST /api/v1/knowledge/documents</td>
+            <td>fileRef、visibility、collectionId、indexStrategy。</td>
+            <td>docId、ingestJobId。</td>
+            <td>Knowledge Platform</td>
+            <td>公开/私密库必须显式选择。</td>
+          </tr>
+          <tr>
+            <td>Agent Command</td>
+            <td>POST /api/v1/agent/commands</td>
+            <td>text、source、riskConsent、attachments。</td>
+            <td>commandId、riskLevel、approvalRequired。</td>
+            <td>Agent Harness</td>
+            <td>高风险命令先返回待审批，不直接执行。</td>
+          </tr>
+          <tr>
+            <td>Tool Run</td>
+            <td>POST /api/v1/harness/tool-runs</td>
+            <td>toolName、manifestId、arguments、approvalId。</td>
+            <td>toolRunId、status、evidenceRef。</td>
+            <td>Tool Adapter</td>
+            <td>无 manifest 或无审批必须拒绝。</td>
+          </tr>
+          <tr>
+            <td>Worker Job</td>
+            <td>POST /api/v1/workers/jobs</td>
+            <td>jobType、inputRefs、options。</td>
+            <td>jobId、queueState、resultContract。</td>
+            <td>Python AI Workers</td>
+            <td>结果只能通过 Job Result DTO 回到 Go。</td>
+          </tr>
+          <tr>
+            <td>WebSocket</td>
+            <td>WS /api/v1/streams/{streamId}</td>
+            <td>streamId、session token。</td>
+            <td>progress、delta、source、error、done。</td>
+            <td>Workbench</td>
+            <td>断线可重连，事件序号不乱。</td>
+          </tr>
+          <tr>
+            <td>Domain Event</td>
+            <td>quiz.submitted / tool.run.completed</td>
+            <td>eventId、type、actor、payload、occurredAt。</td>
+            <td>异步消费者处理。</td>
+            <td>Event Bus</td>
+            <td>事件必须可重放、可去重、可审计。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="permissions">
+      <div class="section-title">
+        <div>
+          <h2>Agent Harness 权限清单</h2>
+          <p class="hint">所有能影响电脑、文件、网络、学生隐私、外部平台的能力，都必须在这里声明。AI 以后写工具、工作流、插件时，先写 manifest，再写执行代码。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">默认最小权限</span>
+          <span class="badge amber">高风险审批</span>
+          <span class="badge red">证据与回滚</span>
+        </div>
+      </div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>权限</th>
+            <th>允许做什么</th>
+            <th>默认状态</th>
+            <th>需要审批</th>
+            <th>必须记录的证据</th>
+            <th>回滚/补救</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>file.read</td>
+            <td>读取 manifest 声明范围内的文件。</td>
+            <td>仅工作区只读</td>
+            <td>读取私密库、学生资料、系统目录。</td>
+            <td>路径、hash、调用者、用途。</td>
+            <td>撤销授权，清理缓存。</td>
+          </tr>
+          <tr>
+            <td>file.write</td>
+            <td>创建、修改、导出文件。</td>
+            <td>关闭</td>
+            <td>任何覆盖、删除、批量写入。</td>
+            <td>写入前后 hash、diff、备份路径。</td>
+            <td>恢复备份，生成修复报告。</td>
+          </tr>
+          <tr>
+            <td>command.run</td>
+            <td>运行白名单 CLI 或脚本。</td>
+            <td>关闭</td>
+            <td>所有命令执行；高风险命令二次确认。</td>
+            <td>命令、参数、cwd、exit code、stdout schema。</td>
+            <td>停止进程，撤销生成文件。</td>
+          </tr>
+          <tr>
+            <td>browser.automation</td>
+            <td>操作浏览器页面或 Webcoding 网站。</td>
+            <td>受限</td>
+            <td>登录、提交、下载、发布、发送数据。</td>
+            <td>URL、截图、选择器、表单字段摘要。</td>
+            <td>停止会话，删除下载临时文件。</td>
+          </tr>
+          <tr>
+            <td>external_app.control</td>
+            <td>控制 Office、编辑器、设计工具或其他桌面应用。</td>
+            <td>关闭</td>
+            <td>任何影响外部应用状态的操作。</td>
+            <td>应用名、操作步骤、截图、输出文件。</td>
+            <td>关闭文档、恢复版本、撤销操作。</td>
+          </tr>
+          <tr>
+            <td>network.remote</td>
+            <td>访问云模型、检索服务、包仓库、合规外部 API。</td>
+            <td>按域名白名单</td>
+            <td>上传文件、发送学生资料、调用付费接口。</td>
+            <td>域名、请求类型、数据摘要、费用估计。</td>
+            <td>撤销 token，删除远端临时数据。</td>
+          </tr>
+          <tr>
+            <td>knowledge.private</td>
+            <td>读取私密知识库和私密科研资料。</td>
+            <td>关闭</td>
+            <td>所有跨节点、云端节点、训练用途。</td>
+            <td>docId、collectionId、检索原因、引用片段 hash。</td>
+            <td>撤销检索结果，清理上下文。</td>
+          </tr>
+          <tr>
+            <td>student.private</td>
+            <td>读取学生档案、答题、作业、成长资料。</td>
+            <td>按角色最小授权</td>
+            <td>导出、训练、跨班级分析、发送给外部模型。</td>
+            <td>studentId、classId、字段范围、审批人。</td>
+            <td>撤销导出，脱敏重跑。</td>
+          </tr>
+          <tr>
+            <td>plugin.install</td>
+            <td>安装或启用插件、技能、工作流。</td>
+            <td>关闭</td>
+            <td>所有安装、升级、启用高风险能力。</td>
+            <td>manifest、来源、签名、权限 diff、测试结果。</td>
+            <td>禁用插件，回滚版本。</td>
+          </tr>
+          <tr>
+            <td>workflow.publish</td>
+            <td>把 AI 生成流程保存到工作流池。</td>
+            <td>关闭</td>
+            <td>所有发布；涉及工具调用时逐项审批。</td>
+            <td>DSL、测试日志、性能评估、人工确认。</td>
+            <td>下架工作流，恢复旧版本。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+      <div class="callout">
+        对你这种全程由 AI 重构的模式，权限清单就是安全带。以后每个 Agent 任务都应该先生成“我要用哪些权限”，你确认后才进入执行。
+      </div>
+    </section>
+
+    <section class="panel" id="tech">
+      <div class="section-title">
+        <div>
+          <h2>目标技术栈与语言分工</h2>
+      <p class="hint">不要用一种语言解决所有问题，也不要为了换语言重写所有问题。Rust 负责本机可信边界，Go 负责真正拥有业务/任务/事件语义的平台服务，TypeScript 负责工作台体验，Python 作为 AI 工作者隔离保留。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge blue">前端：TypeScript</span>
+          <span class="badge green">平台：Go</span>
+          <span class="badge amber">本机：Rust</span>
+          <span class="badge red">AI：Python 隔离</span>
+        </div>
+      </div>
+
+      <div class="grid four">
+        <div class="card blue">
+          <h3>TypeScript UI</h3>
+          <p>教师工作台、科研工作台、学生端、审批面板、数据可视化。迁移期可继续 React/Vite；真正减重靠 Tauri 替换 Electron、统一 SDK、减少散乱状态。</p>
+          <div class="mini-list">
+            <span>产物：Workbench UI Kit、Frontend SDK、Contract Client</span>
+            <span>代码来源：可用 Webcoding 生成，但必须本地规范化、类型化、测试化</span>
+          </div>
+        </div>
+        <div class="card green">
+          <h3>Go Platform API</h3>
+      <p>BFF、OpenAPI 合约、任务编排、事件处理、队列 worker、认证授权、业务子系统 API。适合长期维护和开源；不建议先做只转发 FastAPI 的空壳代理。</p>
+      <div class="mini-list">
+        <span>建议：net/http + chi 或 Fiber，SQLC/Ent，OpenAPI first</span>
+        <span>边界：拥有鉴权、聚合、限流、Job API、事件处理时才进入核心链路</span>
+      </div>
+        </div>
+        <div class="card amber">
+          <h3>Rust Local Runtime</h3>
+          <p>桌面壳、本机文件索引、命令执行、CLI 适配、进程管理、权限沙箱、证据采集、Tauri 插件。</p>
+          <div class="mini-list">
+            <span>建议：Tauri、Tokio、Serde、SQLite、tantivy、reqwest</span>
+            <span>边界：所有本机能力都需要 permission manifest</span>
+          </div>
+        </div>
+        <div class="card red">
+          <h3>Python AI Workers</h3>
+          <p>RAG、OCR、文档解析、模型训练、语音、多模态、LLM 实验能力。保留 Python，但不再让 Python 承担总架构中心。</p>
+          <div class="mini-list">
+            <span>建议：FastAPI worker 或 gRPC worker，任务输入输出契约化</span>
+            <span>边界：无 UI、无直接系统命令、无散乱数据库写入</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>层级</th>
+            <th>推荐语言/框架</th>
+            <th>负责什么</th>
+            <th>不负责什么</th>
+            <th>替代旧系统哪部分</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Desktop Shell</td>
+            <td>Rust + Tauri</td>
+            <td>窗口、托盘、悬浮球、系统权限、文件选择、截图/语音入口。</td>
+            <td>不写业务规则，不直接拼 API。</td>
+            <td>逐步替换 Electron main/preload。</td>
+          </tr>
+          <tr>
+            <td>Workbench Frontend</td>
+            <td>TypeScript + React 迁移期保留</td>
+            <td>所有用户可见界面、状态展示、审批、可视化。</td>
+            <td>不直接写复杂业务逻辑，不散乱读取后端地址。</td>
+            <td>替换 app/src 中超大组件和多处 fetch。</td>
+          </tr>
+          <tr>
+            <td>BFF / API</td>
+            <td>Go + OpenAPI</td>
+        <td>认证、路由、字段转换、分页、错误、限流、契约；或承接新的垂直切片。</td>
+        <td>不直接执行本机命令，不直接跑模型。</td>
+        <td>先收敛契约和新切片；旧接口不为了代理而代理。</td>
+          </tr>
+          <tr>
+            <td>Business Domain</td>
+            <td>Go modules</td>
+            <td>教学、科研、学生、档案、收藏、任务等业务用例。</td>
+            <td>不依赖 UI、框架、具体数据库细节。</td>
+            <td>替换 Service/Repository 混合区。</td>
+          </tr>
+          <tr>
+            <td>Harness Runtime</td>
+            <td>Rust services + Go policy</td>
+            <td>工具注册、CLI 执行、权限、审计、回滚、证据。</td>
+            <td>不让业务绕过它直接控制电脑。</td>
+            <td>收拢 sandbox、external automation、office automation。</td>
+          </tr>
+          <tr>
+            <td>AI Workers</td>
+            <td>Python</td>
+            <td>RAG、OCR、训练、融合、转写、模型调用。</td>
+            <td>不持有主业务状态，不直接改用户文件。</td>
+            <td>隔离现有 Python AI 服务。</td>
+          </tr>
+          <tr>
+            <td>Data Layer</td>
+            <td>PostgreSQL + SQLite + Object Store + Vector DB</td>
+            <td>业务数据、本机缓存、文件资产、向量索引。</td>
+            <td>不让每个模块自建一套数据语义。</td>
+            <td>统一 SQLite/PostgreSQL/Chroma 混用问题。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="performance">
+      <div class="section-title">
+        <div>
+          <h2>性能证据与语言决策</h2>
+          <p class="hint">这页专门回答“当前系统有没有必要换语言”。空接口只能当参考，真正决策要看同库同表读写、连接预算、CPU 分布和可回滚迁移。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">已实测</span>
+          <span class="badge amber">不做空代理</span>
+          <span class="badge blue">边界式多语言</span>
+        </div>
+      </div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>测试对象</th>
+            <th>并发</th>
+            <th>RPS</th>
+            <th>P95</th>
+            <th>判读</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>当前 FastAPI health（参考）</td>
+            <td>800</td>
+            <td>4232</td>
+            <td>237ms</td>
+            <td>只证明 HTTP 外壳，不能作为换语言依据。</td>
+          </tr>
+          <tr>
+            <td>当前真实读路径</td>
+            <td>800</td>
+            <td>4333</td>
+            <td>244ms</td>
+            <td>读路径已经能吃高并发，主要风险是 P99 尾延迟。</td>
+          </tr>
+          <tr>
+            <td>当前混合读写</td>
+            <td>800</td>
+            <td>1895</td>
+            <td>1337ms</td>
+            <td>写入一混入，队列和数据库等待明显上升。</td>
+          </tr>
+          <tr>
+            <td>当前纯写路径</td>
+            <td>800</td>
+            <td>1011</td>
+            <td>1034ms</td>
+            <td>完整业务端点下，后端 CPU 约 1093%，PostgreSQL 约 160%。瓶颈主要在应用热路径。</td>
+          </tr>
+          <tr>
+            <td>Go 同库同表读取</td>
+            <td>800</td>
+            <td>4554</td>
+            <td>220ms</td>
+            <td>停掉后端后，32 DB 连接直接跑 count + 最新 20 条；数据库 CPU 可到约 918%。</td>
+          </tr>
+          <tr>
+            <td>Go 同库同表写入</td>
+            <td>800</td>
+            <td>5515</td>
+            <td>186ms</td>
+            <td>同表 insert 上限远高于当前业务写入；说明数据库原始写入能力不是第一瓶颈。</td>
+          </tr>
+          <tr>
+            <td>Go 静态 JSON（参考）</td>
+            <td>800</td>
+            <td>6113</td>
+            <td>151ms</td>
+            <td>Go 适合高并发平台 API，但收益要落在真实业务路径。</td>
+          </tr>
+          <tr>
+            <td>Rust 静态 JSON（参考）</td>
+            <td>800</td>
+            <td>5517</td>
+            <td>159ms</td>
+            <td>Rust 适合低资源本机 runtime，不应拿来重写普通 CRUD。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+
+      <div class="grid three">
+        <div class="card red">
+          <h3>先拆写路径</h3>
+          <p>完整 POST 与 Go 同表 insert 的差距约 5 倍。优先审计 FastAPI/Pydantic/SQLAlchemy/Redis dirty marker/响应 DTO 这条热路径，减少对象构造、重复提交、同步缓存写和事务持有时间。</p>
+          <div class="mini-list">
+            <span>目标：完整写入 P95 先降到 500ms 内</span>
+            <span>验收：write 800c 超过 2000 RPS，mixed 800c 超过 2500 RPS</span>
+          </div>
+        </div>
+        <div class="card green">
+          <h3>Go 的真实收益</h3>
+          <p>Go 的价值不是空接口快，而是能把高频写入、任务 API、事件消费者做成低开销、强契约、连接数可控的服务。它适合承接新的热切片或重写一个窄的 Command/Job 边界。</p>
+          <div class="mini-list">
+            <span>第一个 Go 切片：Conversation Write Gateway 或 Quiz Submit API</span>
+            <span>必须：OpenAPI、影子流量、双写校验、回滚路由、压测报告</span>
+          </div>
+        </div>
+        <div class="card amber">
+          <h3>配置是硬门槛</h3>
+          <p>当前实际 PostgreSQL 是默认配置：max_connections=100、shared_buffers=128MB。24 worker 高压后会扩到 96 条 idle 连接，几乎没有余量给新服务。不上连接预算，Go 服务会把数据库顶满。</p>
+          <div class="mini-list">
+            <span>连接预算：workers × 每 worker 池数 + 新服务池数 <= max_connections × 70%</span>
+            <span>必须：PgBouncer 或提高 max_connections，并设置 idle_in_transaction_timeout</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>深度优化项</th>
+            <th>现象证据</th>
+            <th>处理方式</th>
+            <th>验收指标</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>连接池乘法</td>
+            <td>24 worker 高压后 PostgreSQL 看到 96 idle 连接。</td>
+            <td>统一 async/sync DB engine，或把 sync engine 改为 NullPool/PgBouncer transaction pooling。</td>
+            <td>压测后 idle 连接不超过连接预算，不能挤满 PostgreSQL。</td>
+          </tr>
+          <tr>
+            <td>写入热路径</td>
+            <td>同表 Go insert 5515 RPS，完整 FastAPI POST 1011 RPS。</td>
+            <td>减少 ORM/DTO 往返，短事务，必要时为高频写入建立 Go Gateway。</td>
+            <td>write 800c P95 小于 500ms，P99 小于 1000ms。</td>
+          </tr>
+          <tr>
+            <td>缓存一致性</td>
+            <td>写入后仍同步标记读缓存，Redis 在写压测时有可见 CPU。</td>
+            <td>保留版本 marker，但把非关键读缓存刷新事件化；严禁 wildcard scan。</td>
+            <td>写压测下 Redis 不成为 P95 主因。</td>
+          </tr>
+          <tr>
+            <td>PostgreSQL 配置</td>
+            <td>实际运行 shared_buffers 128MB，不是 perf compose 里的 1GB。</td>
+            <td>性能环境固定使用 perf compose 或显式 postgres command；开启 pg_stat_statements。</td>
+            <td>每次压测报告记录 max_connections、shared_buffers、连接状态、等待事件。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>语言</th>
+            <th>保留/引入方式</th>
+            <th>学习收益</th>
+            <th>工程保护线</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>TypeScript</td>
+            <td>继续作为 UI 和前端 SDK 的主语言。</td>
+            <td>训练产品体验、状态管理、契约消费。</td>
+            <td>统一 API client，禁止散乱 fetch 和多处后端地址。</td>
+          </tr>
+          <tr>
+            <td>Python</td>
+            <td>保留 FastAPI legacy 和 AI/RAG/OCR worker。</td>
+            <td>训练 AI 工程、数据处理、模型生态。</td>
+            <td>AI worker 不直接写主业务库，不承担总线职责。</td>
+          </tr>
+          <tr>
+            <td>Go</td>
+            <td>从一个高频写入或任务事件切片进入，不包全站。</td>
+            <td>训练并发服务、契约服务、队列消费者。</td>
+            <td>必须在真实 DB/缓存/鉴权链路证明 P95 或吞吐改善，空接口不算。</td>
+          </tr>
+          <tr>
+            <td>Rust</td>
+            <td>从本机 Harness/Tauri/CLI sandbox 进入。</td>
+            <td>训练系统编程、权限边界、桌面 runtime。</td>
+            <td>不进入普通 CRUD；所有能力先有 Manifest 和审计。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+      <div class="callout">
+        深测后的判断：当前系统值得引入 Go，但不值得全量换语言；Go 应该先吃掉一个高频写入/任务事件边界，Rust 继续吃本机 Harness 边界。对 vibecoder 来说，多语言是经验加速器；对这个项目来说，多语言必须同时是风险隔离器和性能证据链。
+      </div>
+    </section>
+
+    <section class="panel" id="harness">
+      <div class="section-title">
+        <div>
+          <h2>Agent Harness 控制平面</h2>
+          <p class="hint">这是新架构的保险丝。以后凡是“能控制电脑、能读写文件、能联网、能生成插件、能跑命令”的能力，都必须从这里过。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge red">默认拒绝</span>
+          <span class="badge amber">审批放行</span>
+          <span class="badge green">证据留存</span>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="grid">
+          <div class="card red">
+            <h3>Harness 执行链路</h3>
+            <div class="logic" style="margin-top: 8px">
+              <span class="step">命令/任务</span><span class="flow-arrow">></span>
+              <span class="step">Intent</span><span class="flow-arrow">></span>
+              <span class="step">Plan</span><span class="flow-arrow">></span>
+              <span class="step warn">Policy</span><span class="flow-arrow">></span>
+              <span class="step warn">Approval</span><span class="flow-arrow">></span>
+              <span class="step">Tool Adapter</span><span class="flow-arrow">></span>
+              <span class="step">Evidence</span><span class="flow-arrow">></span>
+              <span class="step">Rollback</span>
+            </div>
+            <p class="hint">业务模块只提交意图和参数，不能绕过 Harness 直接 shell、browser、office、file write。</p>
+          </div>
+          <div class="card amber">
+            <h3>权限清单 Manifest</h3>
+            <p>每个工具、插件、工作流都必须声明：读哪些目录、写哪些目录、是否联网、是否打开外部应用、是否可回滚、需要什么角色、风险级别。</p>
+          </div>
+          <div class="card green">
+            <h3>证据与回滚</h3>
+            <p>每次执行保存 request、参数 hash、命令预览、输出摘要、文件 diff、截图/日志、审批记录。可回滚的自动回滚，不可回滚的必须人工审批。</p>
+          </div>
+        </div>
+
+        <div class="swimlane">
+          <div class="head">能力类型</div>
+          <div class="head">输入</div>
+          <div class="head">策略</div>
+          <div class="head">执行器</div>
+          <div class="head">证据</div>
+          <div class="head">默认状态</div>
+
+          <div class="topic">文件读写</div>
+          <div>路径、读写模式、文件类型、用户确认来源。</div>
+          <div>工作区范围、私密库 ACL、敏感扩展名、大小限制。</div>
+          <div>Rust File Adapter</div>
+          <div>hash、diff、备份、路径归属。</div>
+          <div>保守放行</div>
+
+          <div class="topic">命令执行</div>
+          <div>命令、cwd、环境变量、超时、期望输出。</div>
+          <div>命令白名单、危险模式、不可回滚、角色。</div>
+          <div>Rust Process Runner</div>
+          <div>stdout/stderr 摘要、exit code、资源消耗。</div>
+          <div>默认审批</div>
+
+          <div class="topic">浏览器自动化</div>
+          <div>URL、动作、选择器、下载目标。</div>
+          <div>域名 allowlist、下载类型、账号会话风险。</div>
+          <div>Browser Adapter</div>
+          <div>截图、DOM 摘要、网络错误。</div>
+          <div>条件放行</div>
+
+          <div class="topic">外部应用</div>
+          <div>应用名、CLI/API/文件路径、动作参数。</div>
+          <div>优先 CLI/API，禁止无声明 UI 自动化。</div>
+          <div>Rust Tool Adapter</div>
+          <div>命令记录、窗口/文件结果。</div>
+          <div>默认审批</div>
+
+          <div class="topic">插件/工作流</div>
+          <div>源码、依赖、权限、测试用例。</div>
+          <div>静态扫描、沙箱测试、人类评审、版本签名。</div>
+          <div>Go Registry + Rust Sandbox</div>
+          <div>测试报告、权限 diff、版本号。</div>
+          <div>默认草稿</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="adapters">
+      <div class="section-title">
+        <div>
+          <h2>工具适配与 CLI 优先原则</h2>
+          <p class="hint">你说“对接 CLI 接口会好很多”，这个判断是正确的。新架构要把 CLI 适配器正式化，而不是把它当脚本临时跑。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">API/SDK 第一</span>
+          <span class="badge blue">CLI 第二</span>
+          <span class="badge amber">浏览器第三</span>
+          <span class="badge red">UI 兜底</span>
+        </div>
+      </div>
+
+      <div class="grid five"></div>
+
+      <div class="grid four">
+        <div class="card green">
+          <h3>1. API / SDK Adapter</h3>
+          <p>最稳定。适合 OpenAI、模型服务、Notion、GitHub、数据库、云服务。输入输出可契约化，最适合 Agent 调用。</p>
+          <div class="mini-list"><span>语言：Go client / TS SDK / Python client</span><span>验证：OpenAPI contract + mock server</span></div>
+        </div>
+        <div class="card blue">
+          <h3>2. CLI Adapter</h3>
+          <p>适合 Git、ffmpeg、office 转换器、模型工具、部署工具、浏览器下载器。需要命令白名单、参数 schema、输出解析。</p>
+          <div class="mini-list"><span>语言：Rust process runner</span><span>验证：固定参数、超时、exit code、stdout schema</span></div>
+        </div>
+        <div class="card amber">
+          <h3>3. File Protocol Adapter</h3>
+          <p>适合 Word/Excel/PDF/图片/课程材料。通过文件读写、目录监听、版本备份实现半自动化。</p>
+          <div class="mini-list"><span>语言：Rust file service + Python parser</span><span>验证：hash、diff、备份、权限</span></div>
+        </div>
+        <div class="card red">
+          <h3>4. Browser / UI Fallback</h3>
+          <p>只在没有 API/SDK/CLI 时使用。它最脆弱，必须保存截图、选择器、域名、人工确认点。</p>
+          <div class="mini-list"><span>语言：Browser automation</span><span>验证：截图比对、下载校验、失败回退</span></div>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>外部能力</th>
+            <th>优先接入方式</th>
+            <th>Agent 可做</th>
+            <th>必须禁止/审批</th>
+            <th>产物</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>代码仓库</td>
+            <td>Git CLI + GitHub/Gitee API</td>
+            <td>查看 diff、创建分支、跑测试、生成 PR 描述。</td>
+            <td>强推、重置、删除分支、覆盖用户改动。</td>
+            <td>commit、patch、test report</td>
+          </tr>
+          <tr>
+            <td>Office 文档</td>
+            <td>文件协议 + OpenXML/Python 库 + 可选 CLI</td>
+            <td>创建、读取、填充、导出、摘要。</td>
+            <td>覆盖原文件、批量删除、无备份修改。</td>
+            <td>docx/xlsx/pdf、diff、备份</td>
+          </tr>
+          <tr>
+            <td>浏览器网站</td>
+            <td>官方 API 优先，Browser 自动化兜底</td>
+            <td>登录后操作、下载前端代码、截图验证。</td>
+            <td>支付、账号安全设置、不可逆提交。</td>
+            <td>download、screenshot、DOM trace</td>
+          </tr>
+          <tr>
+            <td>本地模型</td>
+            <td>Ollama/LM Studio API + CLI</td>
+            <td>列模型、拉模型、测试推理、注册节点。</td>
+            <td>删除模型、覆盖配置、下载超大模型。</td>
+            <td>node config、health report</td>
+          </tr>
+          <tr>
+            <td>训练工具</td>
+            <td>Python worker + CLI wrapper</td>
+            <td>准备数据、启动训练、监控日志、导出模型。</td>
+            <td>无限制占用 GPU/磁盘、上传私密数据。</td>
+            <td>dataset、training log、model artifact</td>
+          </tr>
+          <tr>
+            <td>社交平台入口</td>
+            <td>官方开放平台/API；没有就不做深度自动化</td>
+            <td>接收命令、发通知、授权确认。</td>
+            <td>模拟用户刷消息、绕过平台规则。</td>
+            <td>command event、notification</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="data">
+      <div class="section-title">
+        <div>
+          <h2>数据、权限与事件架构</h2>
+          <p class="hint">这里决定系统能不能长期维护。教学和科研可以打通，但必须通过事件和授权，不允许任意模块直接互相拿数据。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">Shared Kernel</span>
+          <span class="badge blue">Domain Events</span>
+          <span class="badge amber">ACL</span>
+        </div>
+      </div>
+
+      <div class="grid three">
+        <div class="card amber">
+          <h3>Shared Kernel</h3>
+          <p>用户、组织、班级、课程、学生、角色、权限、文件资产、任务、通知、审计主体。这些是复用基础，不能散落在各模块自定义。</p>
+        </div>
+        <div class="card blue">
+          <h3>Domain Events</h3>
+          <p>测验提交、批改完成、档案更新、收藏创建、知识库入库、模型节点失效、工作流发布都要变成事件。</p>
+        </div>
+        <div class="card green">
+          <h3>Access Policy</h3>
+          <p>云端节点只读公开知识库，本地节点可读公开+私密，远程设备不读本机私密库。学生只读自己的档案和教师发布资料。</p>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <div class="split">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>事件</th>
+              <th>来源</th>
+              <th>消费者</th>
+              <th>用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>QuizPublished</td>
+              <td>Teaching Quiz</td>
+              <td>Student App / Notification</td>
+              <td>学生端展示测验，生成扫码入口。</td>
+            </tr>
+            <tr>
+              <td>QuizSubmitted</td>
+              <td>Student App</td>
+              <td>Grading / Profile / Analytics</td>
+              <td>触发批改、统计和学生档案更新。</td>
+            </tr>
+            <tr>
+              <td>GradingReviewed</td>
+              <td>AI Grading</td>
+              <td>Profile / Tutor</td>
+              <td>把教师确认后的结果进入画像。</td>
+            </tr>
+            <tr>
+              <td>DocumentIngested</td>
+              <td>Archive / Knowledge</td>
+              <td>RAG / Search / Audit</td>
+              <td>建立索引，记录公开/私密范围。</td>
+            </tr>
+            <tr>
+              <td>BookmarkCreated</td>
+              <td>Research Favorites</td>
+              <td>Preference / Training Candidate</td>
+              <td>生成偏好画像和训练候选数据。</td>
+            </tr>
+            <tr>
+              <td>ToolExecutionRequested</td>
+              <td>Agent</td>
+              <td>Harness / Approval</td>
+              <td>进入策略判断和人工审批。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>数据区</th>
+              <th>存储</th>
+              <th>谁能访问</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>业务主库</td>
+              <td>PostgreSQL</td>
+              <td>Go Domain API</td>
+              <td>用户、班级、测验、档案、收藏、任务。</td>
+            </tr>
+            <tr>
+              <td>本机轻量库</td>
+              <td>SQLite</td>
+              <td>Rust Local Runtime</td>
+              <td>桌面偏好、本机缓存、离线队列。</td>
+            </tr>
+            <tr>
+              <td>文件资产</td>
+              <td>Object Store / Local Vault</td>
+              <td>File Service + ACL</td>
+              <td>教学资料、学生材料、导出报告。</td>
+            </tr>
+            <tr>
+              <td>向量索引</td>
+              <td>Qdrant/Chroma</td>
+              <td>RAG Worker</td>
+              <td>必须绑定公开/私密标签和来源证据。</td>
+            </tr>
+            <tr>
+              <td>事件流</td>
+              <td>NATS/Redis Streams</td>
+              <td>Subscribed Workers</td>
+              <td>先可嵌入，后可独立。</td>
+            </tr>
+            <tr>
+              <td>审计证据</td>
+              <td>Append-only Log</td>
+              <td>Governance UI</td>
+              <td>Agent、工具、权限、外部命令全部留痕。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="migration">
+      <div class="section-title">
+        <div>
+          <h2>从当前项目迁移到目标架构</h2>
+          <p class="hint">不要让 AI 一次性重写 20 万行。正确做法是先设边界，再逐个垂直切片迁移。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge red">不大爆破</span>
+          <span class="badge amber">按切片</span>
+          <span class="badge green">可回滚</span>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="phase">
+          <strong>P0a<br />冻结与观测</strong>
+          <div>原项目进入 Legacy Zone。导出 OpenAPI、数据库模型、功能清单、测试基线；固定 perf compose、记录 PostgreSQL 配置、连接状态、CPU、P95/P99，先把性能证据链补齐。</div>
+        </div>
+        <div class="phase">
+          <strong>P0b<br />连接与写路径</strong>
+          <div>统一连接预算，处理 async/sync engine 乘法；优化高频 POST 热路径。目标先让当前系统 write 800c P95 进入 500ms 内，再决定是否迁移该切片。</div>
+        </div>
+        <div class="phase">
+          <strong>P1<br />合约先行</strong>
+          <div>建立 OpenAPI 合约和 TypeScript SDK。前端不再散乱 fetch；Go 只承接拥有真实逻辑的新切片，不做单纯 FastAPI 转发壳。</div>
+        </div>
+        <div class="phase">
+          <strong>P2<br />Go 热切片</strong>
+          <div>选择 Conversation Write Gateway、Quiz Submit API 或 Job API 做第一个 Go 切片。必须具备影子流量、双写校验、回滚路由、压测报告。</div>
+        </div>
+        <div class="phase">
+          <strong>P3<br />Harness 先落地</strong>
+          <div>Rust Harness 接管命令、文件、Office、浏览器、CLI、插件、工作流执行。旧系统所有危险接口改为调用 Harness，不再直接执行。</div>
+        </div>
+        <div class="phase">
+          <strong>P4<br />教学核心</strong>
+          <div>迁移登录、班级、学生、测验、点名、批改、档案。每个功能一条竖切：UI + API + 数据 + 测试 + 事件。</div>
+        </div>
+        <div class="phase">
+          <strong>P5<br />科研核心</strong>
+          <div>迁移节点、对话、知识库、收藏、多模型融合。RAG 和训练继续放 Python worker，但输入输出契约化。</div>
+        </div>
+        <div class="phase">
+          <strong>P6<br />Agent 产品化</strong>
+          <div>统筹智能体、工作流生成、插件生成、外部应用操控进入 Beta。默认关闭高风险能力，逐项通过权限、审批、测试、回滚验收。</div>
+        </div>
+        <div class="phase">
+          <strong>P7<br />开源版本</strong>
+          <div>拆出 Community / Local / Pro 能力边界。开源核心保留教学、科研、知识库、基础 Agent；高风险远控、训练、平台集成以插件或企业能力处理。</div>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <div class="grid three">
+        <div class="risk good">
+          <strong>优先迁移</strong>
+          <span>登录、权限、测验、点名、学生档案、知识库、节点、对话、收藏。</span>
+          <span class="badge green">收益高</span>
+        </div>
+        <div class="risk warn">
+          <strong>延后迁移</strong>
+          <span>模型训练、设备协同、数据可视化高级分析、工作流生成。</span>
+          <span class="badge amber">依赖多</span>
+        </div>
+        <div class="risk">
+          <strong>谨慎开放</strong>
+          <span>合规网络通道、全电脑操控、社交平台远程控制、插件自进化；不设计、不发布绕过网络监管的能力。</span>
+          <span class="badge red">风险高</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="acceptance">
+      <div class="section-title">
+        <div>
+          <h2>迁移验收矩阵</h2>
+          <p class="hint">这页是“AI 做完了怎么算真做完”。每个模块迁移必须同时满足页面、API、数据、权限、测试、文档六件事，不能只说功能看起来能点。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge green">可验收</span>
+          <span class="badge blue">可回归</span>
+          <span class="badge red">无 Mock 冒充</span>
+        </div>
+      </div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>迁移对象</th>
+            <th>完成定义</th>
+            <th>必须测试</th>
+            <th>禁止通过</th>
+            <th>交付产物</th>
+            <th>优先级</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Identity 登录权限</td>
+            <td>教师、学生、管理员登录后进入不同工作台，API 按角色过滤数据。</td>
+            <td>登录成功/失败、会话过期、越权访问、扫码登录降级。</td>
+            <td>前端隐藏按钮但后端仍可越权。</td>
+            <td>Auth API、角色策略、登录 UI、权限测试。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>教学测验</td>
+            <td>教师创建测验，学生扫码作答，结果统计并进入档案事件。</td>
+            <td>创建、发布、提交、重复提交、收卷、统计、断网恢复。</td>
+            <td>只做 UI 表格，不落库，不产生事件。</td>
+            <td>Quiz API、Student UI、teaching events、E2E。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>AI 批改</td>
+            <td>上传答案后生成 AI 初评，教师可复核，批改证据可追溯。</td>
+            <td>OCR 失败、评分规则缺失、人工改分、证据导出。</td>
+            <td>AI 直接改最终分且无人工复核。</td>
+            <td>Grading API、Worker Job、Review UI、证据存储。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>学生档案</td>
+            <td>测验、点名、批改、辅导反馈能聚合成学生画像和趋势。</td>
+            <td>权限隔离、跨班级访问拒绝、趋势计算、导出脱敏。</td>
+            <td>把学生隐私直接发给云模型。</td>
+            <td>Profile API、ProfileEvent、分析视图、隐私测试。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>科研多模型对话</td>
+            <td>多个节点并行回答，融合过程可视化，结果带来源和复制/朗读操作。</td>
+            <td>节点失败、超时、流式输出、融合评分、引用来源。</td>
+            <td>回答一次性冒出来，没有节点证据。</td>
+            <td>Research API、Stream、Fusion Worker、Chat UI。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>节点管理</td>
+            <td>云端、本地、远程设备节点可注册、测试、筛选、禁用。</td>
+            <td>密钥保护、健康检查、权限范围、远程节点不可读本机私密库。</td>
+            <td>把 API Key 存 localStorage 或前端代码。</td>
+            <td>Node Registry、Secure Store、筛选 UI、权限测试。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>知识库</td>
+            <td>公开库和私密库物理隔离，支持目录索引和向量索引混合检索。</td>
+            <td>上传、解析、索引、检索、删除、权限、来源追踪。</td>
+            <td>公开库和私密库混在一个 collection。</td>
+            <td>Ingest API、Indexer、Vector Store、检索 UI。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>收藏与训练数据候选</td>
+            <td>收藏可清洗、打标签、可视化，并可进入训练数据候选池。</td>
+            <td>收藏来源、取消收藏、标签统计、脱敏、数据集生成。</td>
+            <td>收藏后自动拿去训练。</td>
+            <td>Bookmark API、DatasetCandidate、图表 UI、脱敏测试。</td>
+            <td><span class="badge blue">P1</span></td>
+          </tr>
+          <tr>
+            <td>Agent Harness</td>
+            <td>命令、文件、浏览器、外部应用、插件、工作流都从 Harness 过。</td>
+            <td>无权限拒绝、审批通过、审批拒绝、失败证据、回滚。</td>
+            <td>Agent 服务直接调用 subprocess 或写文件。</td>
+            <td>Rust Harness、Manifest Schema、Audit Log、Policy Test。</td>
+            <td><span class="badge green">P0</span></td>
+          </tr>
+          <tr>
+            <td>工作流生成</td>
+            <td>用户描述流程后 AI 生成 DSL/代码，自动测试，通过后人工发布。</td>
+            <td>生成失败、测试失败、权限过高、性能评估、版本回滚。</td>
+            <td>拖拽式假工作流或无测试直接入库。</td>
+            <td>Workflow DSL、Test Runner、发布 UI、版本管理。</td>
+            <td><span class="badge amber">P2</span></td>
+          </tr>
+          <tr>
+            <td>插件/技能自进化</td>
+            <td>任务失败后总结缺口，生成插件，声明权限，测试通过后进入插件池。</td>
+            <td>manifest 校验、签名、权限 diff、禁用/卸载、失败回滚。</td>
+            <td>AI 生成代码后直接启用。</td>
+            <td>Plugin Registry、Skill Manifest、Sandbox Test、管理 UI。</td>
+            <td><span class="badge amber">P2</span></td>
+          </tr>
+          <tr>
+            <td>外部应用操控</td>
+            <td>优先 API/SDK/CLI，最后才浏览器或 UI 自动化，所有步骤有证据。</td>
+            <td>权限审批、超时、失败截图、文件备份、人工确认点。</td>
+            <td>无声明地控制用户电脑或外部账号。</td>
+            <td>Tool Adapter、CLI Runner、Evidence Store、审批 UI。</td>
+            <td><span class="badge red">P3</span></td>
+          </tr>
+          <tr>
+            <td>开源版本</td>
+            <td>仓库不含真实密钥、私钥、个人数据，高风险能力默认关闭。</td>
+            <td>secret scan、license scan、contract test、build、README truth。</td>
+            <td>把半成品和危险能力包装成生产可用。</td>
+            <td>Community 配置、NOTICE、Security Policy、Release Checklist。</td>
+            <td><span class="badge red">Gate</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+      <div class="callout">
+        后续真正重构时，我建议每次只拿这张表的一行开工：一行就是一个可验收垂直切片，做完再进入下一行。
+      </div>
+    </section>
+
+    <section class="panel" id="opensource">
+      <div class="section-title">
+        <div>
+          <h2>开源治理闸门</h2>
+          <p class="hint">现在的项目不能直接开源。开源前要先过这张闸门，否则会把密钥、私有数据、危险能力、半成品接口一起暴露出去。</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge red">Blocker</span>
+          <span class="badge amber">Must Fix</span>
+          <span class="badge green">Ready</span>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <div class="card red">
+          <h3>开源前必须阻断</h3>
+          <div class="mini-list">
+            <span>仓库历史中的 .env、证书私钥、固定口令、测试密钥必须清理并轮换。</span>
+            <span>危险能力默认关闭：命令执行、文件写入、Office 自动化、外部应用控制、远程控制。</span>
+            <span>测试不能依赖真实外网、真实第三方账号、真实浏览器状态。</span>
+            <span>README 不能宣称未完成能力已经生产可用。</span>
+          </div>
+        </div>
+        <div class="card green">
+          <h3>开源版本能力边界</h3>
+          <div class="mini-list">
+            <span>Community：教学/科研基础工作台、本地知识库、基础多模型对话、手动节点管理。</span>
+            <span>Local Advanced：Agent Harness、本机 CLI/API 适配、工作流池、插件池，但默认审批。</span>
+            <span>Pro/Private：社交平台接入、远程控制、训练集管理、多设备协同、企业审计。</span>
+            <span>所有版本都保留契约测试、权限声明、审计证据。</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>治理项</th>
+            <th>检查方法</th>
+            <th>通过标准</th>
+            <th>失败后动作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Secret Scan</td>
+            <td>gitleaks/trufflehog + 人工检查配置目录。</td>
+            <td>当前文件和 Git 历史均无真实密钥/私钥。</td>
+            <td>清历史、轮换密钥、重建证书。</td>
+          </tr>
+          <tr>
+            <td>License Scan</td>
+            <td>扫描 npm/pip/cargo/go 依赖许可证。</td>
+            <td>无冲突许可证，NOTICE 完整。</td>
+            <td>替换依赖或隔离为可选插件。</td>
+          </tr>
+          <tr>
+            <td>Contract Test</td>
+            <td>OpenAPI 生成 mock server，前后端 SDK 跑契约测试。</td>
+            <td>字段、错误、分页、鉴权全部稳定。</td>
+            <td>先修合约，不继续写 UI。</td>
+          </tr>
+          <tr>
+            <td>Harness Policy Test</td>
+            <td>模拟读写文件、命令、浏览器、外部应用。</td>
+            <td>默认拒绝危险操作，可审批，可审计，可回滚。</td>
+            <td>阻断 Agent 能力发布。</td>
+          </tr>
+          <tr>
+            <td>CI Quality Gate</td>
+            <td>lint、typecheck、unit、contract、e2e、security、build。</td>
+            <td>主分支全绿，E2E 不依赖外网。</td>
+            <td>冻结合并，先修测试环境。</td>
+          </tr>
+          <tr>
+            <td>Feature Truth</td>
+            <td>功能清单对照 UI 和 API。</td>
+            <td>已完成、实验、禁用、规划四种状态清楚。</td>
+            <td>README 和界面降级说明。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+      <div class="callout">
+        专业判断：这个项目开源的第一目标不是“功能震撼”，而是“边界可信”。只要边界可信，即使功能少一点，也会像一个认真项目；如果边界不可信，功能越多风险越大。
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+    const panels = Array.from(document.querySelectorAll(".panel"));
+
+    function activateTab(id) {
+      tabs.forEach((tab) => {
+        const selected = tab.dataset.tab === id;
+        tab.setAttribute("aria-selected", String(selected));
+      });
+      panels.forEach((panel) => {
+        panel.classList.toggle("active", panel.id === id);
+      });
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        activateTab(tab.dataset.tab);
+      });
+    });
+  </script>
+</body>
+</html>

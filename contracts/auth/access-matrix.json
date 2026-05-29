@@ -1,0 +1,95 @@
+{
+  "$schema": "https://intelligent-teaching-assistant.local/contracts/auth/access-matrix.schema.json",
+  "profiles": [
+    {
+      "name": "teacher-desktop",
+      "role": "TEACHER",
+      "subjectType": "USER",
+      "entryPoint": "DESKTOP_TEACHER",
+      "scopes": [
+        "IDENTITY_READ",
+        "TEACHING_READ",
+        "TEACHING_WRITE",
+        "RESEARCH_READ",
+        "STUDENT_ASSIGNED_READ",
+        "STUDENT_ARCHIVE_WRITE",
+        "KNOWLEDGE_PUBLIC_READ",
+        "KNOWLEDGE_PRIVATE_READ",
+        "AGENT_COMMAND_SUBMIT"
+      ],
+      "knowledgeAccess": { "public": true, "private": "ASSIGNED" },
+      "studentAccess": { "mode": "ASSIGNED" },
+      "requiresHarnessApproval": false
+    },
+    {
+      "name": "research-desktop",
+      "role": "TEACHER",
+      "subjectType": "USER",
+      "entryPoint": "DESKTOP_RESEARCH",
+      "scopes": [
+        "IDENTITY_READ",
+        "RESEARCH_READ",
+        "RESEARCH_WRITE",
+        "KNOWLEDGE_PUBLIC_READ",
+        "KNOWLEDGE_PRIVATE_READ",
+        "AGENT_COMMAND_SUBMIT"
+      ],
+      "knowledgeAccess": { "public": true, "private": "OWN" },
+      "studentAccess": { "mode": "NONE" },
+      "requiresHarnessApproval": false
+    },
+    {
+      "name": "student-app",
+      "role": "STUDENT",
+      "subjectType": "USER",
+      "entryPoint": "STUDENT_APP",
+      "scopes": [
+        "IDENTITY_READ",
+        "TEACHING_READ",
+        "STUDENT_OWN_READ",
+        "STUDENT_OWN_WRITE",
+        "KNOWLEDGE_PUBLIC_READ"
+      ],
+      "knowledgeAccess": { "public": true, "private": "NONE" },
+      "studentAccess": { "mode": "OWN" },
+      "requiresHarnessApproval": false
+    },
+    {
+      "name": "remote-social-command",
+      "role": "REMOTE_OPERATOR",
+      "subjectType": "REMOTE_CHANNEL",
+      "entryPoint": "REMOTE_SOCIAL",
+      "scopes": [
+        "IDENTITY_READ",
+        "AGENT_COMMAND_SUBMIT"
+      ],
+      "knowledgeAccess": { "public": false, "private": "NONE" },
+      "studentAccess": { "mode": "NONE" },
+      "requiresHarnessApproval": true
+    },
+    {
+      "name": "admin-desktop",
+      "role": "ADMIN",
+      "subjectType": "USER",
+      "entryPoint": "DESKTOP_TEACHER",
+      "scopes": [
+        "IDENTITY_READ",
+        "TEACHING_READ",
+        "TEACHING_WRITE",
+        "RESEARCH_READ",
+        "RESEARCH_WRITE",
+        "STUDENT_ASSIGNED_READ",
+        "STUDENT_ARCHIVE_WRITE",
+        "KNOWLEDGE_PUBLIC_READ",
+        "KNOWLEDGE_PRIVATE_READ",
+        "AGENT_COMMAND_SUBMIT",
+        "HARNESS_APPROVE",
+        "DEVICE_LOCAL_CONTROL",
+        "ADMIN_SYSTEM"
+      ],
+      "knowledgeAccess": { "public": true, "private": "ALL" },
+      "studentAccess": { "mode": "ALL" },
+      "requiresHarnessApproval": false
+    }
+  ]
+}

@@ -1,0 +1,278 @@
+{
+  "sourceFiles": {
+    "composeFile": "../智能教研助手/docker-compose.perf.yml",
+    "pgbouncerIni": "../智能教研助手/pgbouncer/perf.ini",
+    "pgbouncerUserlist": "../智能教研助手/pgbouncer/perf-userlist.txt"
+  },
+  "generatedAt": "2026-05-28T14:48:57.686Z",
+  "readiness": "NEEDS_REMEDIATION",
+  "observed": {
+    "postgres": {
+      "present": true,
+      "maxConnections": 300,
+      "sharedBuffers": "1GB"
+    },
+    "pgbouncer": {
+      "present": true,
+      "hasProfile": true,
+      "poolMode": "transaction",
+      "listenPort": 6432,
+      "maxDbConnections": 90
+    },
+    "backend": {
+      "present": true,
+      "environment": {
+        "DATABASE_TYPE": "postgresql",
+        "POSTGRES_HOST": "postgres-perf",
+        "POSTGRES_PORT": "5432",
+        "POSTGRES_USER": "app_user",
+        "POSTGRES_PASSWORD": "ueacd",
+        "POSTGRES_DB": "intelligent_teaching_assistant",
+        "DB_POOL_SIZE": "${DB_POOL_SIZE:-3}",
+        "DB_MAX_OVERFLOW": "${DB_MAX_OVERFLOW:-0}",
+        "DB_POOL_TIMEOUT": "10",
+        "DB_POOL_RECYCLE": "1800",
+        "DB_POOL_PRE_PING": "true",
+        "REDIS_ENABLED": "true",
+        "REDIS_HOST": "redis-perf",
+        "REDIS_PORT": "6379",
+        "REDIS_DB": "0",
+        "HOST": "0.0.0.0",
+        "PORT": "8000",
+        "DEBUG": "false",
+        "ALLOW_REMOTE_AGENT": "true",
+        "REQUEST_AUDIT_LOG_ENABLED": "false",
+        "CONVERSATION_SEARCH_CACHE_TTL": "${CONVERSATION_SEARCH_CACHE_TTL:-30}",
+        "CACHE_L1_TTL_SECONDS": "${CACHE_L1_TTL_SECONDS:-1.0}",
+        "CACHE_L1_MAX_ITEMS": "${CACHE_L1_MAX_ITEMS:-2048}",
+        "CACHE_VERSION_L1_TTL_SECONDS": "${CACHE_VERSION_L1_TTL_SECONDS:-0.25}",
+        "CACHE_VERSION_BUCKET_SECONDS": "${CACHE_VERSION_BUCKET_SECONDS:-1.0}",
+        "CACHE_VERSION_MARKER_TTL_SECONDS": "${CACHE_VERSION_MARKER_TTL_SECONDS:-3600}",
+        "LOG_LEVEL": "WARNING",
+        "LOGURU_LEVEL": "WARNING",
+        "GUNICORN_WORKERS": "${GUNICORN_WORKERS:-24}",
+        "GUNICORN_MAX_REQUESTS": "${GUNICORN_MAX_REQUESTS:-0}",
+        "GUNICORN_ACCESSLOG": "",
+        "GUNICORN_LOG_LEVEL": "warning",
+        "AGENT_API_KEY": "ueacd",
+        "ADMIN_API_KEY": "ueacd",
+        "TRIGGER_API_KEY": "ueacd",
+        "JWT_SECRET_KEY": "ueacd",
+        "MASTER_ENCRYPTION_KEY": "ueacd",
+        "COMMAND_SIGNATURE_SECRET": "ueacd",
+        "BOOTSTRAP_SUPER_ADMIN_PASSWORD": "ueacd",
+        "SERPAPI_API_KEY": "ueacd"
+      },
+      "dependsOnPgbouncer": false
+    }
+  },
+  "findings": [
+    {
+      "id": "postgres.service_present",
+      "passed": true,
+      "severity": "info",
+      "message": "PostgreSQL service postgres-perf is present.",
+      "actual": true,
+      "expected": true,
+      "remediation": "Restore the postgres performance service in docker-compose.perf.yml."
+    },
+    {
+      "id": "postgres.max_connections",
+      "passed": true,
+      "severity": "info",
+      "message": "PostgreSQL max_connections meets the performance-test floor.",
+      "actual": 300,
+      "expected": ">=300",
+      "remediation": "Set the perf PostgreSQL command to include -c max_connections=300 or higher."
+    },
+    {
+      "id": "postgres.shared_buffers",
+      "passed": true,
+      "severity": "info",
+      "message": "PostgreSQL shared_buffers meets the performance-test floor.",
+      "actual": "1GB",
+      "expected": ">=1GB",
+      "remediation": "Set the perf PostgreSQL command to include -c shared_buffers=1GB or higher."
+    },
+    {
+      "id": "pgbouncer.service_present",
+      "passed": true,
+      "severity": "info",
+      "message": "PgBouncer service pgbouncer-perf is present.",
+      "actual": true,
+      "expected": true,
+      "remediation": "Add the PgBouncer service to the performance compose file."
+    },
+    {
+      "id": "pgbouncer.pool_mode",
+      "passed": true,
+      "severity": "info",
+      "message": "PgBouncer uses transaction pooling.",
+      "actual": "transaction",
+      "expected": "transaction",
+      "remediation": "Set pool_mode = transaction in pgbouncer/perf.ini."
+    },
+    {
+      "id": "pgbouncer.listen_port",
+      "passed": true,
+      "severity": "info",
+      "message": "PgBouncer listens on the expected performance port.",
+      "actual": 6432,
+      "expected": 6432,
+      "remediation": "Set listen_port = 6432 in pgbouncer/perf.ini."
+    },
+    {
+      "id": "pgbouncer.max_db_connections",
+      "passed": true,
+      "severity": "info",
+      "message": "PgBouncer caps server connections below the target safe budget.",
+      "actual": 90,
+      "expected": "<=190",
+      "remediation": "Lower max_db_connections or raise the explicit PostgreSQL performance capacity profile."
+    },
+    {
+      "id": "backend.postgres_host",
+      "passed": false,
+      "severity": "error",
+      "message": "Backend routes PostgreSQL traffic through PgBouncer.",
+      "actual": "postgres-perf",
+      "expected": "pgbouncer-perf",
+      "remediation": "Apply infra/perf/docker-compose.pgbouncer.override.yml or set POSTGRES_HOST=pgbouncer-perf."
+    },
+    {
+      "id": "backend.postgres_port",
+      "passed": false,
+      "severity": "error",
+      "message": "Backend uses the PgBouncer port.",
+      "actual": "5432",
+      "expected": "6432",
+      "remediation": "Apply the PgBouncer override or set POSTGRES_PORT=6432."
+    },
+    {
+      "id": "backend.db_pool_size",
+      "passed": false,
+      "severity": "error",
+      "message": "Backend per-worker DB pool stays within the combined-test target.",
+      "actual": "3",
+      "expected": "<=2",
+      "remediation": "Set DB_POOL_SIZE=2 for combined legacy plus Go performance tests."
+    },
+    {
+      "id": "backend.db_max_overflow",
+      "passed": true,
+      "severity": "info",
+      "message": "Backend disables DB pool overflow for the performance profile.",
+      "actual": "0",
+      "expected": "0",
+      "remediation": "Set DB_MAX_OVERFLOW=0."
+    },
+    {
+      "id": "backend.workers",
+      "passed": true,
+      "severity": "info",
+      "message": "Backend worker count matches the target high-concurrency profile.",
+      "actual": "24",
+      "expected": "24",
+      "remediation": "Set GUNICORN_WORKERS=24 for this performance profile or update the connection budget."
+    },
+    {
+      "id": "backend.depends_on_pgbouncer",
+      "passed": false,
+      "severity": "error",
+      "message": "Backend startup is ordered after PgBouncer in the proposed profile.",
+      "actual": false,
+      "expected": true,
+      "remediation": "Add backend-perf depends_on pgbouncer-perf in the PgBouncer override."
+    },
+    {
+      "id": "secret.POSTGRES_PASSWORD",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret POSTGRES_PASSWORD uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set POSTGRES_PASSWORD to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.AGENT_API_KEY",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret AGENT_API_KEY uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set AGENT_API_KEY to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.ADMIN_API_KEY",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret ADMIN_API_KEY uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set ADMIN_API_KEY to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.TRIGGER_API_KEY",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret TRIGGER_API_KEY uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set TRIGGER_API_KEY to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.JWT_SECRET_KEY",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret JWT_SECRET_KEY uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set JWT_SECRET_KEY to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.MASTER_ENCRYPTION_KEY",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret MASTER_ENCRYPTION_KEY uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set MASTER_ENCRYPTION_KEY to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.COMMAND_SIGNATURE_SECRET",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret COMMAND_SIGNATURE_SECRET uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set COMMAND_SIGNATURE_SECRET to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.BOOTSTRAP_SUPER_ADMIN_PASSWORD",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret BOOTSTRAP_SUPER_ADMIN_PASSWORD uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set BOOTSTRAP_SUPER_ADMIN_PASSWORD to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.SERPAPI_API_KEY",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret SERPAPI_API_KEY uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set SERPAPI_API_KEY to ueacd in the performance profile."
+    },
+    {
+      "id": "secret.pgbouncer.app_user",
+      "passed": true,
+      "severity": "info",
+      "message": "Secret pgbouncer.app_user uses the required local test value.",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set pgbouncer.app_user to ueacd in the performance profile."
+    }
+  ]
+}

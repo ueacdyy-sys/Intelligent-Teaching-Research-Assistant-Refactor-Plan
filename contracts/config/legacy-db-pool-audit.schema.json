@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/config/legacy-db-pool-audit.schema.json",
+  "title": "Legacy DB Pool Audit Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scannedRoot", "generatedAt", "summary", "findings"],
+  "properties": {
+    "scannedRoot": {
+      "type": "string"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filesScanned", "engineSites", "highRiskSites", "estimatedDefaultQueuePoolMaxPerWorker"],
+      "properties": {
+        "filesScanned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "engineSites": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "highRiskSites": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimatedDefaultQueuePoolMaxPerWorker": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "line",
+          "engineFunction",
+          "assignment",
+          "callText",
+          "poolClass",
+          "poolSize",
+          "maxOverflow",
+          "estimatedMaxConnectionsPerWorker",
+          "risk",
+          "recommendation"
+        ],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "engineFunction": {
+            "type": "string",
+            "enum": ["create_engine", "create_async_engine"]
+          },
+          "assignment": {
+            "type": "string"
+          },
+          "callText": {
+            "type": "string"
+          },
+          "poolClass": {
+            "type": "string"
+          },
+          "poolSize": {
+            "type": "string"
+          },
+          "maxOverflow": {
+            "type": "string"
+          },
+          "estimatedMaxConnectionsPerWorker": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "risk": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "recommendation": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

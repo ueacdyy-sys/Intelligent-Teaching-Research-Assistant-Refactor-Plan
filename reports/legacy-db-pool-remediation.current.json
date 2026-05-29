@@ -1,0 +1,167 @@
+{
+  "sourceAudit": "reports/legacy-db-pool-audit.current.json",
+  "generatedAt": "2026-05-28T14:32:42.336Z",
+  "recommendedMode": "pgbouncer-transaction",
+  "actions": [
+    {
+      "file": "core/database.py",
+      "line": 28,
+      "risk": "medium",
+      "action": "Set legacy request-path async DB_POOL_SIZE to 2 and DB_MAX_OVERFLOW to 0 for combined legacy plus Go tests unless a higher PostgreSQL/PgBouncer profile is active.",
+      "persistentConnectionsAfter": 2,
+      "rationale": "This is the main request-path pool. It should remain explicit and globally budgeted per worker."
+    },
+    {
+      "file": "core/database.py",
+      "line": 48,
+      "risk": "low",
+      "action": "No persistent pool remediation required.",
+      "persistentConnectionsAfter": 0,
+      "rationale": "The finding is already low risk for persistent connection exposure."
+    },
+    {
+      "file": "services/research/node_store.py",
+      "line": 40,
+      "risk": "high",
+      "action": "Change sync research helper engine from SQLAlchemy default QueuePool to explicit NullPool for PgBouncer transaction mode, or explicit pool_size=1,max_overflow=0 for direct PostgreSQL fallback.",
+      "persistentConnectionsAfter": 0,
+      "rationale": "The current default QueuePool can keep 15 persistent connections per worker. Under 24 workers, each such site can expose up to 360 planned connections."
+    },
+    {
+      "file": "services/research/persistence.py",
+      "line": 58,
+      "risk": "high",
+      "action": "Change sync research helper engine from SQLAlchemy default QueuePool to explicit NullPool for PgBouncer transaction mode, or explicit pool_size=1,max_overflow=0 for direct PostgreSQL fallback.",
+      "persistentConnectionsAfter": 0,
+      "rationale": "The current default QueuePool can keep 15 persistent connections per worker. Under 24 workers, each such site can expose up to 360 planned connections."
+    },
+    {
+      "file": "services/research/rag_document_store.py",
+      "line": 34,
+      "risk": "high",
+      "action": "Change sync research helper engine from SQLAlchemy default QueuePool to explicit NullPool for PgBouncer transaction mode, or explicit pool_size=1,max_overflow=0 for direct PostgreSQL fallback.",
+      "persistentConnectionsAfter": 0,
+      "rationale": "The current default QueuePool can keep 15 persistent connections per worker. Under 24 workers, each such site can expose up to 360 planned connections."
+    }
+  ],
+  "targetProfiles": [
+    {
+      "name": "direct-limited",
+      "description": "Direct PostgreSQL with lower async pool and zero persistent sync helper exposure.",
+      "connectionBudget": {
+        "database": {
+          "maxConnections": 100,
+          "reservedConnections": 5,
+          "safetyRatio": 0.7
+        },
+        "services": [
+          {
+            "name": "legacy-fastapi-backend",
+            "instances": 1,
+            "workers": 24,
+            "pools": [
+              {
+                "name": "async-sqlalchemy",
+                "maxConnsPerWorker": 2
+              },
+              {
+                "name": "sync-research-helpers-nullpool-or-bounded",
+                "maxConnsPerWorker": 0
+              }
+            ]
+          },
+          {
+            "name": "conversation-write-gateway",
+            "instances": 1,
+            "maxConns": 8
+          }
+        ]
+      },
+      "budgetResult": {
+        "passed": true,
+        "totalPlannedConnections": 56,
+        "hardLimit": 95,
+        "safeLimit": 65,
+        "maxConnections": 100,
+        "reservedConnections": 5,
+        "safetyRatio": 0.7,
+        "services": [
+          {
+            "name": "legacy-fastapi-backend",
+            "instances": 1,
+            "workers": 24,
+            "poolConnections": 2,
+            "plannedConnections": 48
+          },
+          {
+            "name": "conversation-write-gateway",
+            "instances": 1,
+            "workers": 1,
+            "poolConnections": 8,
+            "plannedConnections": 8
+          }
+        ],
+        "remediation": []
+      }
+    },
+    {
+      "name": "pgbouncer-transaction",
+      "description": "Recommended profile for combined high-concurrency tests.",
+      "connectionBudget": {
+        "database": {
+          "maxConnections": 300,
+          "reservedConnections": 20,
+          "safetyRatio": 0.7
+        },
+        "services": [
+          {
+            "name": "legacy-fastapi-backend-via-pgbouncer",
+            "instances": 1,
+            "workers": 24,
+            "pools": [
+              {
+                "name": "async-sqlalchemy-client-pool",
+                "maxConnsPerWorker": 2
+              },
+              {
+                "name": "sync-research-helpers-nullpool",
+                "maxConnsPerWorker": 0
+              }
+            ]
+          },
+          {
+            "name": "conversation-write-gateway-via-pgbouncer",
+            "instances": 1,
+            "maxConns": 16
+          }
+        ]
+      },
+      "budgetResult": {
+        "passed": true,
+        "totalPlannedConnections": 64,
+        "hardLimit": 280,
+        "safeLimit": 190,
+        "maxConnections": 300,
+        "reservedConnections": 20,
+        "safetyRatio": 0.7,
+        "services": [
+          {
+            "name": "legacy-fastapi-backend-via-pgbouncer",
+            "instances": 1,
+            "workers": 24,
+            "poolConnections": 2,
+            "plannedConnections": 48
+          },
+          {
+            "name": "conversation-write-gateway-via-pgbouncer",
+            "instances": 1,
+            "workers": 1,
+            "poolConnections": 16,
+            "plannedConnections": 16
+          }
+        ],
+        "remediation": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/config/connection-budget.schema.json",
+  "title": "Connection Budget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["database", "services"],
+  "properties": {
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxConnections", "reservedConnections", "safetyRatio"],
+      "properties": {
+        "maxConnections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reservedConnections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "safetyRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "services": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "instances"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "instances": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "workers": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "maxConns": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pools": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "maxConnsPerWorker"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxConnsPerWorker": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+name: ita-identity-session-runtime
+
+services:
+  identity-session-postgres:
+    image: postgres:18-alpine
+    container_name: ita-identity-session-postgres
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: ueacd
+      POSTGRES_DB: intelligent_teaching_assistant
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    command: >
+      postgres
+      -c max_connections=120
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=8MB
+    ports:
+      - "15432:5432"
+    volumes:
+      - identity_session_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d intelligent_teaching_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  identity-session-pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: ita-identity-session-pgbouncer
+    ports:
+      - "16432:6432"
+    volumes:
+      - ./identity-session-pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./identity-session-userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      identity-session-postgres:
+        condition: service_healthy
+
+volumes:
+  identity_session_postgres_data:

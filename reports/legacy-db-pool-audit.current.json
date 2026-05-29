@@ -1,0 +1,77 @@
+{
+  "scannedRoot": "C:\\Users\\Administrator\\Desktop\\智能教研助手\\backend\\app",
+  "generatedAt": "2026-05-28T14:22:03.305Z",
+  "summary": {
+    "filesScanned": 358,
+    "engineSites": 5,
+    "highRiskSites": 3,
+    "estimatedDefaultQueuePoolMaxPerWorker": 60
+  },
+  "findings": [
+    {
+      "file": "core/database.py",
+      "line": 28,
+      "engineFunction": "create_async_engine",
+      "assignment": "engine",
+      "callText": "(\n        DATABASE_URL,\n        # Keep pool sizing environment-driven because direct PostgreSQL and\n        # PgBouncer need different client-side connection behavior.\n        poolclass=AsyncAdaptedQueuePool,\n        pool_size=settings.DB_POOL_SIZE,\n        max_overflow=settings.DB_MAX_OVERFLOW,\n        pool_timeout=settings.DB_POOL_TIMEOUT,\n        pool_recycle=settings.DB_POOL_RECYCLE,\n        pool_pre_ping=settings.DB_POOL_PRE_PING,\n        connect_args=postgres_connect_args,\n        # Echo SQL for debugging (disable in production for better performance)\n        echo=False,  # Disabled for P1 optimization (improve throughput)\n    )",
+      "poolClass": "AsyncAdaptedQueuePool",
+      "poolSize": "settings.DB_POOL_SIZE",
+      "maxOverflow": "settings.DB_MAX_OVERFLOW",
+      "estimatedMaxConnectionsPerWorker": 15,
+      "risk": "medium",
+      "recommendation": "Explicit pool sizing exists; include this site in the global connection budget for every worker/process."
+    },
+    {
+      "file": "core/database.py",
+      "line": 48,
+      "engineFunction": "create_async_engine",
+      "assignment": "engine",
+      "callText": "(\r\n        DATABASE_URL,\r\n        connect_args={\r\n            \"check_same_thread\": False,\r\n            \"timeout\": 30,  # Connection timeout (30 seconds)\r\n        },\r\n        # Use NullPool for high concurrency (creates new connection per request)\r\n        poolclass=NullPool,\r\n        # Echo SQL for debugging (disable in production)\r\n        echo=False,\r\n    )",
+      "poolClass": "NullPool",
+      "poolSize": "default",
+      "maxOverflow": "default",
+      "estimatedMaxConnectionsPerWorker": 0,
+      "risk": "low",
+      "recommendation": "NullPool does not keep persistent per-worker connections; suitable behind PgBouncer transaction pooling or one-shot scripts."
+    },
+    {
+      "file": "services/research/node_store.py",
+      "line": 40,
+      "engineFunction": "create_engine",
+      "assignment": "return",
+      "callText": "(sync_url, connect_args=connect_args, pool_pre_ping=True)",
+      "poolClass": "default",
+      "poolSize": "default",
+      "maxOverflow": "default",
+      "estimatedMaxConnectionsPerWorker": 15,
+      "risk": "high",
+      "recommendation": "Sync create_engine defaults to QueuePool 5 + max_overflow 10 per process; set explicit poolclass/pool_size or move behind PgBouncer."
+    },
+    {
+      "file": "services/research/persistence.py",
+      "line": 58,
+      "engineFunction": "create_engine",
+      "assignment": "return",
+      "callText": "(sync_url, connect_args=connect_args, pool_pre_ping=True)",
+      "poolClass": "default",
+      "poolSize": "default",
+      "maxOverflow": "default",
+      "estimatedMaxConnectionsPerWorker": 15,
+      "risk": "high",
+      "recommendation": "Sync create_engine defaults to QueuePool 5 + max_overflow 10 per process; set explicit poolclass/pool_size or move behind PgBouncer."
+    },
+    {
+      "file": "services/research/rag_document_store.py",
+      "line": 34,
+      "engineFunction": "create_engine",
+      "assignment": "return",
+      "callText": "(sync_url, connect_args=connect_args, pool_pre_ping=True)",
+      "poolClass": "default",
+      "poolSize": "default",
+      "maxOverflow": "default",
+      "estimatedMaxConnectionsPerWorker": 15,
+      "risk": "high",
+      "recommendation": "Sync create_engine defaults to QueuePool 5 + max_overflow 10 per process; set explicit poolclass/pool_size or move behind PgBouncer."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+CREATE TABLE IF NOT EXISTS identity_sessions (
+    session_id TEXT PRIMARY KEY,
+    access_token TEXT NOT NULL UNIQUE,
+    refresh_token TEXT UNIQUE,
+    principal_json JSONB NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_identity_sessions_access_active
+    ON identity_sessions (access_token)
+    WHERE revoked_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_identity_sessions_refresh_active
+    ON identity_sessions (refresh_token)
+    WHERE refresh_token IS NOT NULL AND revoked_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at
+    ON identity_sessions (expires_at);
+
+CREATE TABLE IF NOT EXISTS identity_remote_command_nonces (
+    provider TEXT NOT NULL,
+    external_subject_id TEXT NOT NULL,
+    nonce TEXT NOT NULL,
+    accepted_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (provider, external_subject_id, nonce)
+);
+
+CREATE INDEX IF NOT EXISTS idx_identity_remote_command_nonces_expires_at
+    ON identity_remote_command_nonces (expires_at);

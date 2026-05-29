@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-teaching-assistant.local/contracts/config/pgbouncer-perf-profile.schema.json",
+  "title": "PgBouncer Performance Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceFiles", "expected"],
+  "properties": {
+    "sourceFiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composeFile", "pgbouncerIni", "pgbouncerUserlist"],
+      "properties": {
+        "composeFile": { "type": "string", "minLength": 1 },
+        "composeOverrideFile": { "type": "string", "minLength": 1 },
+        "pgbouncerIni": { "type": "string", "minLength": 1 },
+        "pgbouncerUserlist": { "type": "string", "minLength": 1 }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postgres",
+        "pgbouncer",
+        "backend",
+        "secrets"
+      ],
+      "properties": {
+        "postgres": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["serviceName", "minMaxConnections", "minSharedBuffers"],
+          "properties": {
+            "serviceName": { "type": "string", "minLength": 1 },
+            "minMaxConnections": { "type": "integer", "minimum": 1 },
+            "minSharedBuffers": { "type": "string", "minLength": 1 }
+          }
+        },
+        "pgbouncer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "serviceName",
+            "requiredPoolMode",
+            "maxDbConnectionsCeiling",
+            "requiredListenPort"
+          ],
+          "properties": {
+            "serviceName": { "type": "string", "minLength": 1 },
+            "requiredPoolMode": { "type": "string", "enum": ["transaction"] },
+            "maxDbConnectionsCeiling": { "type": "integer", "minimum": 1 },
+            "requiredListenPort": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "backend": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "serviceName",
+            "requiredPostgresHost",
+            "requiredPostgresPort",
+            "maxDbPoolSize",
+            "requiredDbMaxOverflow",
+            "requiredWorkers"
+          ],
+          "properties": {
+            "serviceName": { "type": "string", "minLength": 1 },
+            "requiredPostgresHost": { "type": "string", "minLength": 1 },
+            "requiredPostgresPort": { "type": "integer", "minimum": 1 },
+            "maxDbPoolSize": { "type": "integer", "minimum": 0 },
+            "requiredDbMaxOverflow": { "type": "integer", "minimum": 0 },
+            "requiredWorkers": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "secrets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requiredValue", "keys"],
+          "properties": {
+            "requiredValue": { "type": "string", "minLength": 1 },
+            "keys": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-05-29T11:32:09.536Z",
+  "readiness": "READY",
+  "expected": {
+    "postgresService": "identity-session-postgres",
+    "pgbouncerService": "identity-session-pgbouncer",
+    "postgresHostPort": 15432,
+    "pgbouncerHostPort": 16432,
+    "pgbouncerListenPort": 6432,
+    "pgbouncerPoolMode": "transaction",
+    "maxDbConnectionsCeiling": 40,
+    "databaseName": "intelligent_teaching_assistant",
+    "databaseUser": "app_user",
+    "secretValue": "ueacd"
+  },
+  "observed": {
+    "postgres": {
+      "present": true,
+      "hostPort": 15432,
+      "environment": {
+        "POSTGRES_USER": "app_user",
+        "POSTGRES_PASSWORD": "ueacd",
+        "POSTGRES_DB": "intelligent_teaching_assistant",
+        "POSTGRES_INITDB_ARGS": "-E UTF8"
+      },
+      "volumeTargets": [
+        "/var/lib/postgresql"
+      ]
+    },
+    "pgbouncer": {
+      "present": true,
+      "hostPort": 16432,
+      "dependsOnPostgres": true
+    }
+  },
+  "findings": [
+    {
+      "id": "postgres.service_present",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Add identity-session-postgres to the identity runtime compose profile."
+    },
+    {
+      "id": "postgres.host_port",
+      "passed": true,
+      "severity": "info",
+      "actual": 15432,
+      "expected": 15432,
+      "remediation": "Expose identity runtime PostgreSQL on host port 15432 to avoid the dev 5433 profile."
+    },
+    {
+      "id": "postgres.password",
+      "passed": true,
+      "severity": "info",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set POSTGRES_PASSWORD to ueacd in the identity runtime profile."
+    },
+    {
+      "id": "postgres.database",
+      "passed": true,
+      "severity": "info",
+      "actual": "intelligent_teaching_assistant",
+      "expected": "intelligent_teaching_assistant",
+      "remediation": "Use the shared intelligent_teaching_assistant test database name."
+    },
+    {
+      "id": "postgres.volume_target",
+      "passed": true,
+      "severity": "info",
+      "actual": "/var/lib/postgresql",
+      "expected": "/var/lib/postgresql",
+      "remediation": "PostgreSQL 18 images need the volume mounted at /var/lib/postgresql, not /var/lib/postgresql/data."
+    },
+    {
+      "id": "pgbouncer.service_present",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Add identity-session-pgbouncer to the identity runtime compose profile."
+    },
+    {
+      "id": "pgbouncer.host_port",
+      "passed": true,
+      "severity": "info",
+      "actual": 16432,
+      "expected": 16432,
+      "remediation": "Expose identity runtime PgBouncer on host port 16432."
+    },
+    {
+      "id": "pgbouncer.depends_on_postgres",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Order identity-session-pgbouncer after identity-session-postgres."
+    },
+    {
+      "id": "pgbouncer.database_host",
+      "passed": true,
+      "severity": "info",
+      "actual": "host=identity-session-postgres port=5432 dbname=intelligent_teaching_assistant",
+      "expected": "host=identity-session-postgres",
+      "remediation": "Route PgBouncer database traffic to identity-session-postgres."
+    },
+    {
+      "id": "pgbouncer.listen_port",
+      "passed": true,
+      "severity": "info",
+      "actual": 6432,
+      "expected": 6432,
+      "remediation": "Set listen_port = 6432 in the identity PgBouncer profile."
+    },
+    {
+      "id": "pgbouncer.pool_mode",
+      "passed": true,
+      "severity": "info",
+      "actual": "transaction",
+      "expected": "transaction",
+      "remediation": "Use PgBouncer transaction pooling for high-concurrency session tests."
+    },
+    {
+      "id": "pgbouncer.max_db_connections",
+      "passed": true,
+      "severity": "info",
+      "actual": 32,
+      "expected": "<=40",
+      "remediation": "Keep identity runtime PgBouncer server connections bounded."
+    },
+    {
+      "id": "pgbouncer.userlist_secret",
+      "passed": true,
+      "severity": "info",
+      "actual": "***",
+      "expected": "***",
+      "remediation": "Set app_user in identity-session-userlist.txt to ueacd."
+    }
+  ]
+}

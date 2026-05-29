@@ -1,0 +1,37 @@
+{
+  "database": {
+    "maxConnections": 100,
+    "reservedConnections": 5,
+    "safetyRatio": 0.7
+  },
+  "services": [
+    {
+      "name": "legacy-fastapi-backend",
+      "instances": 1,
+      "workers": 24,
+      "pools": [
+        {
+          "name": "async-sqlalchemy",
+          "maxConnsPerWorker": 3
+        },
+        {
+          "name": "sync-research-node-store-default-queuepool",
+          "maxConnsPerWorker": 15
+        },
+        {
+          "name": "sync-research-persistence-default-queuepool",
+          "maxConnsPerWorker": 15
+        },
+        {
+          "name": "sync-rag-document-store-default-queuepool",
+          "maxConnsPerWorker": 15
+        }
+      ]
+    },
+    {
+      "name": "conversation-write-gateway",
+      "instances": 1,
+      "maxConns": 4
+    }
+  ]
+}

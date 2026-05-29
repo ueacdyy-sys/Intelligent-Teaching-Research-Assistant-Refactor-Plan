@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/harness/execution-candidate-view.schema.json",
+  "title": "Agent Harness Execution Candidate View",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "sourceQueueGeneratedAt",
+    "sourceApprovalDecisionCount",
+    "sourceUncorrelatedDecisionCount",
+    "candidateCount",
+    "candidates",
+    "blockedReason",
+    "blockedPreconditions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-29.agent-harness.execution-candidate-view.v1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceQueueGeneratedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceApprovalDecisionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sourceUncorrelatedDecisionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidateCount": {
+      "type": "integer",
+      "const": 0
+    },
+    "candidates": {
+      "type": "array",
+      "maxItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["candidateId", "action", "target"],
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action": {
+            "type": "string",
+            "enum": ["FILE_READ", "FILE_WRITE", "PROCESS_START", "BROWSER_NAVIGATE"]
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "blockedReason": {
+      "type": "string",
+      "const": "real local execution is disabled by current SDD"
+    },
+    "blockedPreconditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "contains": {
+        "const": "future SDD must explicitly enable execution candidates"
+      }
+    }
+  }
+}

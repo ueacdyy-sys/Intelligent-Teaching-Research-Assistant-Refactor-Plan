@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/config/legacy-db-pool-remediation.schema.json",
+  "title": "Legacy DB Pool Remediation Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceAudit", "generatedAt", "recommendedMode", "actions", "targetProfiles"],
+  "properties": {
+    "sourceAudit": {
+      "type": "string"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recommendedMode": {
+      "type": "string",
+      "enum": ["direct-limited", "pgbouncer-transaction"]
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "line", "risk", "action", "persistentConnectionsAfter", "rationale"],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "risk": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "action": {
+            "type": "string"
+          },
+          "persistentConnectionsAfter": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rationale": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "targetProfiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "description", "connectionBudget"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "connectionBudget": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

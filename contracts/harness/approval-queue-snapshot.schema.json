@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/harness/approval-queue-snapshot.schema.json",
+  "title": "Agent Harness Approval Queue Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "approvalArtifactCount",
+    "approvalDecisionCount",
+    "allDecisionsCorrelated",
+    "uncorrelatedDecisionCount",
+    "executionCandidateCount",
+    "executionDisabledReason",
+    "correlation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-29.agent-harness.approval-queue-snapshot.v1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "approvalArtifactCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "approvalDecisionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "allDecisionsCorrelated": {
+      "type": "boolean"
+    },
+    "uncorrelatedDecisionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "executionCandidateCount": {
+      "type": "integer",
+      "const": 0
+    },
+    "executionDisabledReason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "generatedAt",
+        "totalApprovalArtifacts",
+        "totalDecisions",
+        "allCorrelated",
+        "entries"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-05-29.agent-harness.approval-decision-correlation.v1"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "totalApprovalArtifacts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalDecisions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "allCorrelated": {
+          "type": "boolean"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["decisionId", "approvalId", "status", "issues"],
+            "properties": {
+              "decisionId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "approvalId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "MATCHED",
+                  "MISSING_APPROVAL",
+                  "DUPLICATE_APPROVAL_ID",
+                  "CONTEXT_MISMATCH",
+                  "EXECUTION_READY_DECISION"
+                ]
+              },
+              "issues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

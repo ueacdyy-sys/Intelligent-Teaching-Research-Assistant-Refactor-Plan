@@ -1,0 +1,39 @@
+{
+  "database": {
+    "maxConnections": 300,
+    "reservedConnections": 20,
+    "safetyRatio": 0.7
+  },
+  "services": [
+    {
+      "name": "legacy-fastapi-backend-via-pgbouncer",
+      "instances": 1,
+      "workers": 24,
+      "pools": [
+        {
+          "name": "async-sqlalchemy-client-pool",
+          "maxConnsPerWorker": 2
+        },
+        {
+          "name": "sync-research-helpers-nullpool",
+          "maxConnsPerWorker": 0
+        }
+      ]
+    },
+    {
+      "name": "conversation-write-gateway-via-pgbouncer",
+      "instances": 1,
+      "maxConns": 16
+    },
+    {
+      "name": "identity-access-gateway-via-pgbouncer",
+      "instances": 1,
+      "maxConns": 16
+    },
+    {
+      "name": "teaching-archive-gateway-via-pgbouncer",
+      "instances": 1,
+      "maxConns": 16
+    }
+  ]
+}

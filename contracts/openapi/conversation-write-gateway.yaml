@@ -1,0 +1,113 @@
+openapi: 3.1.0
+info:
+  title: Conversation Write Gateway
+  version: 0.1.0
+  description: Contract for the first Go hot-path slice.
+servers:
+  - url: http://127.0.0.1:18080
+paths:
+  /v1/research/conversations:
+    post:
+      operationId: createResearchConversation
+      summary: Create a research conversation.
+      security:
+        - AgentApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: Conversation created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '401':
+          description: Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    AgentApiKey:
+      type: apiKey
+      in: header
+      name: X-Agent-Api-Key
+  schemas:
+    CreateConversationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        settings:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+    ConversationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+        - messageCount
+        - totalTokens
+      properties:
+        id:
+          type: string
+          pattern: '^conv_[A-Za-z0-9_-]+$'
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+          minimum: 0
+        totalTokens:
+          type: integer
+          minimum: 0
+        settings:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              examples:
+                - VALIDATION_ERROR
+            message:
+              type: string
