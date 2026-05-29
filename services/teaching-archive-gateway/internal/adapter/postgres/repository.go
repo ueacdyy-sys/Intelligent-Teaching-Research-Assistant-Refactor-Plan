@@ -686,11 +686,17 @@ var schemaStatements = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_archive_created
 		ON teaching_ai_grading_requests (archive_item_id, created_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_archive_page
+		ON teaching_ai_grading_requests (archive_item_id, created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_status_created
 		ON teaching_ai_grading_requests (status, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_source_owner_created
+		ON teaching_ai_grading_requests (source_archive_owner_type, created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_source_student_created
 		ON teaching_ai_grading_requests (source_archive_student_id, created_at DESC, id DESC)
 		WHERE source_archive_student_id IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_created_page
+		ON teaching_ai_grading_requests (created_at DESC, id DESC)`,
 	`CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
 		id TEXT PRIMARY KEY,
 		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),

@@ -444,6 +444,7 @@ func newTestHandler() http.Handler {
 		fixedIDs{id: "grading_req_http"},
 		fixedClock{now: time.Date(2026, 5, 29, 8, 20, 0, 0, time.UTC)},
 	)
+	listAIGradingRequests := usecase.NewListAIGradingRequests(store)
 	listTutoringRequests := usecase.NewListTutoringAnalysisRequests(store)
 	createTutoringRequest := usecase.NewCreateTutoringAnalysisRequest(
 		store,
@@ -462,6 +463,7 @@ func newTestHandler() http.Handler {
 		uc,
 		list,
 		createAIGradingRequest,
+		listAIGradingRequests,
 		createTutoringRequest,
 		listTutoringRequests,
 		claimTutoringRequest,
@@ -491,6 +493,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		fixedIDs{id: "grading_req_http"},
 		fixedClock{now: time.Date(2026, 5, 29, 8, 20, 0, 0, time.UTC)},
 	)
+	listAIGradingRequests := usecase.NewListAIGradingRequests(store)
 	listTutoringRequests := usecase.NewListTutoringAnalysisRequests(store)
 	createTutoringRequest := usecase.NewCreateTutoringAnalysisRequest(
 		store,
@@ -509,6 +512,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		uc,
 		list,
 		createAIGradingRequest,
+		listAIGradingRequests,
 		createTutoringRequest,
 		listTutoringRequests,
 		claimTutoringRequest,

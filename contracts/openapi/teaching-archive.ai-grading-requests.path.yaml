@@ -1,0 +1,59 @@
+get:
+  operationId: listTeachingAIGradingRequests
+  summary: List AI grading request metadata for teacher and student status views.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: status
+      in: query
+      required: false
+      schema:
+        $ref: './teaching-archive.yaml#/components/schemas/AIGradingStatus'
+    - name: archiveItemId
+      in: query
+      required: false
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+    - name: sourceArchiveOwnerType
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [STUDENT]
+    - name: studentId
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    - name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: AI grading request metadata page.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/AIGradingRequestListResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

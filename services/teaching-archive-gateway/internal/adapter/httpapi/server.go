@@ -17,6 +17,7 @@ type Server struct {
 	createArchiveItem             *usecase.CreateArchiveItem
 	listArchiveItems              *usecase.ListArchiveItems
 	createAIGradingRequest        *usecase.CreateAIGradingRequest
+	listAIGradingRequests         *usecase.ListAIGradingRequests
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
 	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
 	claimTutoringAnalysisRequest  *usecase.ClaimTutoringAnalysisRequest
@@ -154,6 +155,7 @@ func NewServer(
 	createArchiveItem *usecase.CreateArchiveItem,
 	listArchiveItems *usecase.ListArchiveItems,
 	createAIGradingRequest *usecase.CreateAIGradingRequest,
+	listAIGradingRequests *usecase.ListAIGradingRequests,
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
 	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
 	claimTutoringAnalysisRequest *usecase.ClaimTutoringAnalysisRequest,
@@ -164,6 +166,7 @@ func NewServer(
 		createArchiveItem:             createArchiveItem,
 		listArchiveItems:              listArchiveItems,
 		createAIGradingRequest:        createAIGradingRequest,
+		listAIGradingRequests:         listAIGradingRequests,
 		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
 		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
 		claimTutoringAnalysisRequest:  claimTutoringAnalysisRequest,
@@ -177,6 +180,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/v1/teaching/archive-items", s.archiveItems)
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
+	mux.HandleFunc("/v1/teaching/ai-grading-requests", s.aiGradingRequests)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests", s.tutoringAnalysisRequests)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests/", s.tutoringAnalysisRequestSubresources)
 	return mux
