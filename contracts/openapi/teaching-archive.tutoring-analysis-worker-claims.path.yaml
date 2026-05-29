@@ -1,0 +1,28 @@
+post:
+  operationId: claimTeachingTutoringAnalysisWorkerRequest
+  summary: Claim one metadata-only tutoring analysis request for an internal worker.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: './teaching-archive.yaml#/components/schemas/ClaimTutoringAnalysisRequest'
+  responses:
+    '200':
+      description: Tutoring analysis request claimed for worker processing.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/TutoringAnalysisWorkerClaimResponse'
+    '204':
+      description: No eligible tutoring analysis request is available.
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

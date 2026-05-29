@@ -1,0 +1,37 @@
+post:
+  operationId: recordTeachingTutoringAnalysisWorkerResult
+  summary: Record metadata-only worker result for a tutoring analysis request.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: './teaching-archive.yaml#/components/schemas/RecordTutoringAnalysisResultRequest'
+  responses:
+    '200':
+      description: Tutoring analysis request result metadata recorded.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/TutoringAnalysisRequestResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '409':
+      $ref: './teaching-archive.yaml#/components/responses/Conflict'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
