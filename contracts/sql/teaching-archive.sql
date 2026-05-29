@@ -35,6 +35,31 @@ CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_page
 CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
     ON teaching_archive_items (material_type, created_at DESC, id DESC);
 
+CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
+    id TEXT PRIMARY KEY,
+    archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+    requested_by_principal_id TEXT NOT NULL,
+    grading_instructions TEXT NOT NULL,
+    rubric_ref TEXT,
+    status TEXT NOT NULL,
+    source_archive_owner_type TEXT NOT NULL,
+    source_archive_student_id TEXT,
+    source_archive_material TEXT NOT NULL,
+    source_archive_ocr_status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_archive_created
+    ON teaching_ai_grading_requests (archive_item_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_status_created
+    ON teaching_ai_grading_requests (status, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_source_student_created
+    ON teaching_ai_grading_requests (source_archive_student_id, created_at DESC, id DESC)
+    WHERE source_archive_student_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
     id TEXT PRIMARY KEY,
     archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),

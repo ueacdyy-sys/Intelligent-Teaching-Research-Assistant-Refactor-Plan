@@ -172,6 +172,42 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 	return err
 }
 
+func (r *ArchiveRepository) CreateAIGradingRequest(
+	ctx context.Context,
+	request domain.AIGradingRequest,
+) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO teaching_ai_grading_requests (
+			id,
+			archive_item_id,
+			requested_by_principal_id,
+			grading_instructions,
+			rubric_ref,
+			status,
+			source_archive_owner_type,
+			source_archive_student_id,
+			source_archive_material,
+			source_archive_ocr_status,
+			created_at,
+			updated_at
+		) VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, $10, $11, $12)
+	`,
+		request.ID,
+		request.ArchiveItemID,
+		request.RequestedByPrincipalID,
+		request.GradingInstructions,
+		request.RubricRef,
+		request.Status,
+		request.SourceArchiveOwnerType,
+		request.SourceArchiveStudentID,
+		request.SourceArchiveMaterial,
+		request.SourceArchiveOCRStatus,
+		request.CreatedAt,
+		request.UpdatedAt,
+	)
+	return err
+}
+
 func (r *ArchiveRepository) GetTutoringAnalysisRequestByID(
 	ctx context.Context,
 	id string,
@@ -634,6 +670,27 @@ var schemaStatements = []string{
 		ON teaching_archive_items (owner_type, created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
 		ON teaching_archive_items (material_type, created_at DESC, id DESC)`,
+	`CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
+		id TEXT PRIMARY KEY,
+		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+		requested_by_principal_id TEXT NOT NULL,
+		grading_instructions TEXT NOT NULL,
+		rubric_ref TEXT,
+		status TEXT NOT NULL,
+		source_archive_owner_type TEXT NOT NULL,
+		source_archive_student_id TEXT,
+		source_archive_material TEXT NOT NULL,
+		source_archive_ocr_status TEXT NOT NULL,
+		created_at TIMESTAMPTZ NOT NULL,
+		updated_at TIMESTAMPTZ NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_archive_created
+		ON teaching_ai_grading_requests (archive_item_id, created_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_status_created
+		ON teaching_ai_grading_requests (status, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_source_student_created
+		ON teaching_ai_grading_requests (source_archive_student_id, created_at DESC, id DESC)
+		WHERE source_archive_student_id IS NOT NULL`,
 	`CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
 		id TEXT PRIMARY KEY,
 		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),

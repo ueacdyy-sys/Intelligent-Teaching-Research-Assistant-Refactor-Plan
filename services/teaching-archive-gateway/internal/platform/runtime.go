@@ -31,3 +31,13 @@ func (TutoringRequestIDGenerator) NewID() string {
 	}
 	return "tutor_req_" + base64.RawURLEncoding.EncodeToString(buffer)
 }
+
+type AIGradingRequestIDGenerator struct{}
+
+func (AIGradingRequestIDGenerator) NewID() string {
+	buffer := make([]byte, 18)
+	if _, err := rand.Read(buffer); err != nil {
+		panic(err)
+	}
+	return "grading_req_" + base64.RawURLEncoding.EncodeToString(buffer)
+}

@@ -439,6 +439,11 @@ func newTestHandler() http.Handler {
 		fixedClock{now: time.Date(2026, 5, 29, 8, 0, 0, 0, time.UTC)},
 	)
 	list := usecase.NewListArchiveItems(store)
+	createAIGradingRequest := usecase.NewCreateAIGradingRequest(
+		store,
+		fixedIDs{id: "grading_req_http"},
+		fixedClock{now: time.Date(2026, 5, 29, 8, 20, 0, 0, time.UTC)},
+	)
 	listTutoringRequests := usecase.NewListTutoringAnalysisRequests(store)
 	createTutoringRequest := usecase.NewCreateTutoringAnalysisRequest(
 		store,
@@ -456,6 +461,7 @@ func newTestHandler() http.Handler {
 	return httpapi.NewServer(
 		uc,
 		list,
+		createAIGradingRequest,
 		createTutoringRequest,
 		listTutoringRequests,
 		claimTutoringRequest,
@@ -480,6 +486,11 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		fixedClock{now: time.Date(2026, 5, 29, 8, 0, 0, 0, time.UTC)},
 	)
 	list := usecase.NewListArchiveItems(store)
+	createAIGradingRequest := usecase.NewCreateAIGradingRequest(
+		store,
+		fixedIDs{id: "grading_req_http"},
+		fixedClock{now: time.Date(2026, 5, 29, 8, 20, 0, 0, time.UTC)},
+	)
 	listTutoringRequests := usecase.NewListTutoringAnalysisRequests(store)
 	createTutoringRequest := usecase.NewCreateTutoringAnalysisRequest(
 		store,
@@ -497,6 +508,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 	return httpapi.NewServer(
 		uc,
 		list,
+		createAIGradingRequest,
 		createTutoringRequest,
 		listTutoringRequests,
 		claimTutoringRequest,
@@ -590,8 +602,9 @@ func servicePrincipal() domain.PrincipalContext {
 }
 
 type fakeRepository struct {
-	items    []domain.ArchiveItem
-	requests []domain.TutoringAnalysisRequest
+	items           []domain.ArchiveItem
+	requests        []domain.TutoringAnalysisRequest
+	gradingRequests []domain.AIGradingRequest
 }
 
 func (f *fakeRepository) Create(_ context.Context, _ domain.ArchiveItem) error {
@@ -632,6 +645,11 @@ func (f *fakeRepository) GetByID(_ context.Context, id string) (domain.ArchiveIt
 
 func (f *fakeRepository) CreateTutoringAnalysisRequest(_ context.Context, request domain.TutoringAnalysisRequest) error {
 	f.requests = append(f.requests, request)
+	return nil
+}
+
+func (f *fakeRepository) CreateAIGradingRequest(_ context.Context, request domain.AIGradingRequest) error {
+	f.gradingRequests = append(f.gradingRequests, request)
 	return nil
 }
 
@@ -752,8 +770,8 @@ func archiveItem(id string, studentID string, createdAt time.Time) domain.Archiv
 		Source:          domain.SourceTeacherUpload,
 		ContentRef:      "local://archive/student/quiz.pdf",
 		Tags:            []string{"math"},
-		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentTutoring},
-		OCRStatus:       domain.OCRStatusNotRequired,
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentTutoring, domain.AnalysisIntentAIGrading},
+		OCRStatus:       domain.OCRStatusReserved,
 		CreatedAt:       createdAt,
 	}
 }

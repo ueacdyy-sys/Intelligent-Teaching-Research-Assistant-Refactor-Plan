@@ -34,6 +34,11 @@ func main() {
 		platform.Clock{},
 	)
 	listArchiveItems := usecase.NewListArchiveItems(archiveRepository)
+	createAIGradingRequest := usecase.NewCreateAIGradingRequest(
+		archiveRepository,
+		platform.AIGradingRequestIDGenerator{},
+		platform.Clock{},
+	)
 	createTutoringAnalysisRequest := usecase.NewCreateTutoringAnalysisRequest(
 		archiveRepository,
 		platform.TutoringRequestIDGenerator{},
@@ -54,6 +59,7 @@ func main() {
 		Handler: httpapi.NewServer(
 			createArchiveItem,
 			listArchiveItems,
+			createAIGradingRequest,
 			createTutoringAnalysisRequest,
 			listTutoringAnalysisRequests,
 			claimTutoringAnalysisRequest,

@@ -16,6 +16,7 @@ import (
 type Server struct {
 	createArchiveItem             *usecase.CreateArchiveItem
 	listArchiveItems              *usecase.ListArchiveItems
+	createAIGradingRequest        *usecase.CreateAIGradingRequest
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
 	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
 	claimTutoringAnalysisRequest  *usecase.ClaimTutoringAnalysisRequest
@@ -38,6 +39,11 @@ type createArchiveItemRequest struct {
 type createTutoringAnalysisRequestRequest struct {
 	AnalysisGoal       string                    `json:"analysisGoal"`
 	QuestionBankIntent domain.QuestionBankIntent `json:"questionBankIntent,omitempty"`
+}
+
+type createAIGradingRequestRequest struct {
+	GradingInstructions string `json:"gradingInstructions"`
+	RubricRef           string `json:"rubricRef,omitempty"`
 }
 
 type recordTutoringAnalysisResultRequest struct {
@@ -77,6 +83,21 @@ type archiveItemListResponse struct {
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`
+}
+
+type aiGradingRequestResponse struct {
+	ID                     string                 `json:"id"`
+	ArchiveItemID          string                 `json:"archiveItemId"`
+	RequestedByPrincipalID string                 `json:"requestedByPrincipalId"`
+	GradingInstructions    string                 `json:"gradingInstructions"`
+	RubricRef              *string                `json:"rubricRef,omitempty"`
+	Status                 domain.AIGradingStatus `json:"status"`
+	SourceArchiveOwnerType domain.OwnerType       `json:"sourceArchiveOwnerType"`
+	SourceArchiveStudentID *string                `json:"sourceArchiveStudentId,omitempty"`
+	SourceArchiveMaterial  domain.MaterialType    `json:"sourceArchiveMaterial"`
+	SourceArchiveOCRStatus domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
+	CreatedAt              string                 `json:"createdAt"`
+	UpdatedAt              string                 `json:"updatedAt"`
 }
 
 type tutoringAnalysisRequestResponse struct {
@@ -132,6 +153,7 @@ type apiError struct {
 func NewServer(
 	createArchiveItem *usecase.CreateArchiveItem,
 	listArchiveItems *usecase.ListArchiveItems,
+	createAIGradingRequest *usecase.CreateAIGradingRequest,
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
 	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
 	claimTutoringAnalysisRequest *usecase.ClaimTutoringAnalysisRequest,
@@ -141,6 +163,7 @@ func NewServer(
 	return &Server{
 		createArchiveItem:             createArchiveItem,
 		listArchiveItems:              listArchiveItems,
+		createAIGradingRequest:        createAIGradingRequest,
 		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
 		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
 		claimTutoringAnalysisRequest:  claimTutoringAnalysisRequest,
@@ -179,16 +202,23 @@ func (s *Server) archiveItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) archiveItemSubresources(w http.ResponseWriter, r *http.Request) {
-	archiveItemID, ok := parseArchiveItemTutoringAnalysisRequestPath(r.URL.Path)
-	if !ok {
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "archive item subresource not found")
+	if archiveItemID, ok := parseArchiveItemTutoringAnalysisRequestPath(r.URL.Path); ok {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.createTutoringRequest(w, r, archiveItemID)
 		return
 	}
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+	if archiveItemID, ok := parseArchiveItemAIGradingRequestPath(r.URL.Path); ok {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.createAIGrading(w, r, archiveItemID)
 		return
 	}
-	s.createTutoringRequest(w, r, archiveItemID)
+	writeError(w, http.StatusNotFound, "NOT_FOUND", "archive item subresource not found")
 }
 
 func (s *Server) tutoringAnalysisRequests(w http.ResponseWriter, r *http.Request) {
@@ -345,6 +375,37 @@ func (s *Server) createTutoringRequest(w http.ResponseWriter, r *http.Request, a
 	writeJSON(w, http.StatusCreated, toTutoringAnalysisRequestResponse(created))
 }
 
+func (s *Server) createAIGrading(w http.ResponseWriter, r *http.Request, archiveItemID string) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request createAIGradingRequestRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+
+	created, err := s.createAIGradingRequest.Execute(
+		r.Context(),
+		domain.CreateAIGradingRequestInput{
+			Principal:           principal,
+			ArchiveItemID:       archiveItemID,
+			GradingInstructions: request.GradingInstructions,
+			RubricRef:           request.RubricRef,
+		},
+	)
+	if handleArchiveError(w, err, "failed to create ai grading request") {
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, toAIGradingRequestResponse(created))
+}
+
 func (s *Server) claimTutoringRequest(w http.ResponseWriter, r *http.Request) {
 	if !s.authorized(r) {
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
@@ -422,6 +483,19 @@ func (s *Server) authorized(r *http.Request) bool {
 func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/archive-items/"
 	const suffix = "/tutoring-analysis-requests"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	archiveItemID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if archiveItemID == "" || strings.Contains(archiveItemID, "/") {
+		return "", false
+	}
+	return archiveItemID, true
+}
+
+func parseArchiveItemAIGradingRequestPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/archive-items/"
+	const suffix = "/ai-grading-requests"
 	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
 		return "", false
 	}
@@ -550,6 +624,23 @@ func toResponse(item domain.ArchiveItem) archiveItemResponse {
 		AnalysisIntents: item.AnalysisIntents,
 		OCRStatus:       item.OCRStatus,
 		CreatedAt:       formatTime(item.CreatedAt),
+	}
+}
+
+func toAIGradingRequestResponse(request domain.AIGradingRequest) aiGradingRequestResponse {
+	return aiGradingRequestResponse{
+		ID:                     request.ID,
+		ArchiveItemID:          request.ArchiveItemID,
+		RequestedByPrincipalID: request.RequestedByPrincipalID,
+		GradingInstructions:    request.GradingInstructions,
+		RubricRef:              optionalString(request.RubricRef),
+		Status:                 request.Status,
+		SourceArchiveOwnerType: request.SourceArchiveOwnerType,
+		SourceArchiveStudentID: optionalString(request.SourceArchiveStudentID),
+		SourceArchiveMaterial:  request.SourceArchiveMaterial,
+		SourceArchiveOCRStatus: request.SourceArchiveOCRStatus,
+		CreatedAt:              formatTime(request.CreatedAt),
+		UpdatedAt:              formatTime(request.UpdatedAt),
 	}
 }
 

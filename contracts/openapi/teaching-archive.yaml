@@ -121,6 +121,42 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /v1/teaching/archive-items/{archiveItemId}/ai-grading-requests:
+    post:
+      operationId: createTeachingAIGradingRequest
+      summary: Queue a metadata-only AI grading request for an archive item.
+      tags: [teaching-archive]
+      security:
+        - AgentApiKey: []
+          PrincipalContextHeader: []
+      parameters:
+        - name: archiveItemId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^tarch_[A-Za-z0-9_-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAIGradingRequest'
+      responses:
+        '201':
+          description: AI grading request queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIGradingRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /v1/teaching/tutoring-analysis-requests:
     get:
       operationId: listTeachingTutoringAnalysisRequests
@@ -349,6 +385,20 @@ components:
         questionBankIntent:
           $ref: '#/components/schemas/QuestionBankIntent'
           default: NONE
+    CreateAIGradingRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - gradingInstructions
+      properties:
+        gradingInstructions:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        rubricRef:
+          type: string
+          minLength: 1
+          maxLength: 1000
     ClaimTutoringAnalysisRequest:
       type: object
       additionalProperties: false
@@ -514,6 +564,55 @@ components:
             $ref: '#/components/schemas/TutoringAnalysisRequestResponse'
         pageInfo:
           $ref: '#/components/schemas/ArchivePageInfo'
+    AIGradingRequestResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - archiveItemId
+        - requestedByPrincipalId
+        - gradingInstructions
+        - status
+        - sourceArchiveOwnerType
+        - sourceArchiveMaterial
+        - sourceArchiveOcrStatus
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          pattern: '^grading_req_[A-Za-z0-9_-]+$'
+        archiveItemId:
+          type: string
+          pattern: '^tarch_[A-Za-z0-9_-]+$'
+        requestedByPrincipalId:
+          type: string
+          minLength: 1
+        gradingInstructions:
+          type: string
+        rubricRef:
+          type:
+            - string
+            - 'null'
+        status:
+          $ref: '#/components/schemas/AIGradingStatus'
+        sourceArchiveOwnerType:
+          $ref: '#/components/schemas/ArchiveOwnerType'
+        sourceArchiveStudentId:
+          type:
+            - string
+            - 'null'
+        sourceArchiveMaterial:
+          $ref: '#/components/schemas/ArchiveMaterialType'
+        sourceArchiveOcrStatus:
+          type: string
+          enum: [RESERVED, NOT_REQUIRED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     TutoringAnalysisWorkerClaimResponse:
       type: object
       additionalProperties: false
@@ -647,6 +746,9 @@ components:
     QuestionBankIntent:
       type: string
       enum: [NONE, GENERATE_PERSONALIZED_CHECK]
+    AIGradingStatus:
+      type: string
+      enum: [QUEUED]
     TutoringAnalysisStatus:
       type: string
       enum: [QUEUED, IN_PROGRESS, SUCCEEDED, FAILED]
