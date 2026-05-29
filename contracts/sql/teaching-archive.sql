@@ -45,8 +45,36 @@ CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
     source_archive_owner_type TEXT NOT NULL,
     source_archive_student_id TEXT,
     source_archive_material TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL
+    result_summary TEXT,
+    result_ref TEXT,
+    question_bank_draft_ref TEXT,
+    error_code TEXT,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 );
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS result_summary TEXT;
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS result_ref TEXT;
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS question_bank_draft_ref TEXT;
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS error_code TEXT;
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS error_message TEXT;
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_archive_created
     ON teaching_tutoring_analysis_requests (archive_item_id, created_at DESC);

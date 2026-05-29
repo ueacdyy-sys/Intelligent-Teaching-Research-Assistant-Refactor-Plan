@@ -180,6 +180,44 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /v1/teaching/tutoring-analysis-requests/{requestId}/worker-result:
+    post:
+      operationId: recordTeachingTutoringAnalysisWorkerResult
+      summary: Record metadata-only worker result for a tutoring analysis request.
+      tags: [teaching-archive]
+      security:
+        - AgentApiKey: []
+          PrincipalContextHeader: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordTutoringAnalysisResultRequest'
+      responses:
+        '200':
+          description: Tutoring analysis request result metadata recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutoringAnalysisRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 components:
   securitySchemes:
     AgentApiKey:
@@ -205,6 +243,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     NotFound:
       description: Requested archive item was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Requested state transition conflicts with the current tutoring analysis request status.
       content:
         application/json:
           schema:
@@ -276,6 +320,56 @@ components:
         questionBankIntent:
           $ref: '#/components/schemas/QuestionBankIntent'
           default: NONE
+    RecordTutoringAnalysisResultRequest:
+      oneOf:
+        - $ref: '#/components/schemas/RecordTutoringAnalysisSucceededRequest'
+        - $ref: '#/components/schemas/RecordTutoringAnalysisFailedRequest'
+      discriminator:
+        propertyName: status
+        mapping:
+          SUCCEEDED: '#/components/schemas/RecordTutoringAnalysisSucceededRequest'
+          FAILED: '#/components/schemas/RecordTutoringAnalysisFailedRequest'
+    RecordTutoringAnalysisSucceededRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - resultSummary
+        - resultRef
+      properties:
+        status:
+          type: string
+          const: SUCCEEDED
+        resultSummary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        resultRef:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        questionBankDraftRef:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    RecordTutoringAnalysisFailedRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - errorMessage
+      properties:
+        status:
+          type: string
+          const: FAILED
+        errorCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        errorMessage:
+          type: string
+          minLength: 1
+          maxLength: 1000
     ArchiveItemResponse:
       type: object
       additionalProperties: false
@@ -403,8 +497,38 @@ components:
             - 'null'
         sourceArchiveMaterial:
           $ref: '#/components/schemas/ArchiveMaterialType'
+        resultSummary:
+          type:
+            - string
+            - 'null'
+        resultRef:
+          type:
+            - string
+            - 'null'
+        questionBankDraftRef:
+          type:
+            - string
+            - 'null'
+        errorCode:
+          type:
+            - string
+            - 'null'
+        errorMessage:
+          type:
+            - string
+            - 'null'
         createdAt:
           type: string
+          format: date-time
+        completedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        updatedAt:
+          type:
+            - string
+            - 'null'
           format: date-time
     ArchiveOwnerType:
       type: string
@@ -423,7 +547,7 @@ components:
       enum: [NONE, GENERATE_PERSONALIZED_CHECK]
     TutoringAnalysisStatus:
       type: string
-      enum: [QUEUED]
+      enum: [QUEUED, SUCCEEDED, FAILED]
     ErrorResponse:
       type: object
       additionalProperties: false

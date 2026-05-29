@@ -3,6 +3,7 @@ package postgres_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -53,14 +54,75 @@ func TestListTutoringAnalysisRequestsBuildsScopedIndexedQuery(t *testing.T) {
 	}
 }
 
-type recordingDB struct {
-	lastSQL string
-	args    []any
-	rows    postgres.Rows
+func TestRecordTutoringAnalysisResultUpdatesMetadataOnly(t *testing.T) {
+	db := &recordingDB{tag: commandTag{rowsAffected: 1}}
+	repository := postgres.NewArchiveRepository(db)
+
+	err := repository.RecordTutoringAnalysisResult(context.Background(), domain.TutoringAnalysisRequest{
+		ID:                   "tutor_req_row",
+		Status:               domain.TutoringAnalysisStatusSucceeded,
+		ResultSummary:        "mastered fractions",
+		ResultRef:            "local://analysis/tutor_req_row/result.json",
+		QuestionBankDraftRef: "local://question-bank-drafts/tutor_req_row.json",
+		CompletedAt:          time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC),
+		UpdatedAt:            time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RecordTutoringAnalysisResult returned error: %v", err)
+	}
+
+	for _, fragment := range []string{
+		"UPDATE teaching_tutoring_analysis_requests",
+		"status = $1",
+		"result_summary = NULLIF($2, '')",
+		"result_ref = NULLIF($3, '')",
+		"question_bank_draft_ref = NULLIF($4, '')",
+		"completed_at = $7",
+		"updated_at = $8",
+		"WHERE id = $9",
+		"status NOT IN ($10, $11)",
+	} {
+		if !strings.Contains(db.lastExecSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastExecSQL)
+		}
+	}
+	if len(db.execArgs) != 11 {
+		t.Fatalf("args = %d, want 11", len(db.execArgs))
+	}
 }
 
-func (db *recordingDB) Exec(context.Context, string, ...any) (postgres.CommandTag, error) {
-	return nil, nil
+func TestRecordTutoringAnalysisResultRejectsAtomicFinalOverwrite(t *testing.T) {
+	db := &recordingDB{tag: commandTag{rowsAffected: 0}}
+	repository := postgres.NewArchiveRepository(db)
+
+	err := repository.RecordTutoringAnalysisResult(context.Background(), domain.TutoringAnalysisRequest{
+		ID:           "tutor_req_row",
+		Status:       domain.TutoringAnalysisStatusFailed,
+		ErrorMessage: "worker failed",
+		CompletedAt:  time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC),
+		UpdatedAt:    time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC),
+	})
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("error = %v, want ErrConflict", err)
+	}
+}
+
+type recordingDB struct {
+	lastSQL     string
+	lastExecSQL string
+	args        []any
+	execArgs    []any
+	rows        postgres.Rows
+	tag         postgres.CommandTag
+}
+
+func (db *recordingDB) Exec(_ context.Context, statement string, args ...any) (postgres.CommandTag, error) {
+	db.lastExecSQL = statement
+	db.execArgs = append([]any(nil), args...)
+	if db.tag == nil {
+		return commandTag{rowsAffected: 1}, nil
+	}
+	return db.tag, nil
 }
 
 func (db *recordingDB) Query(_ context.Context, query string, args ...any) (postgres.Rows, error) {
@@ -93,10 +155,25 @@ func (r *singleTutoringAnalysisRequestRow) Scan(dest ...any) error {
 	*(dest[6].(*string)) = string(domain.OwnerTypeStudent)
 	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
 	*(dest[8].(*string)) = string(domain.MaterialTypeQuiz)
-	*(dest[9].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[9].(*sql.NullString)) = sql.NullString{}
+	*(dest[10].(*sql.NullString)) = sql.NullString{}
+	*(dest[11].(*sql.NullString)) = sql.NullString{}
+	*(dest[12].(*sql.NullString)) = sql.NullString{}
+	*(dest[13].(*sql.NullString)) = sql.NullString{}
+	*(dest[14].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[15].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[16].(*sql.NullTime)) = sql.NullTime{}
 	return nil
 }
 
 func (r *singleTutoringAnalysisRequestRow) Err() error {
 	return nil
+}
+
+type commandTag struct {
+	rowsAffected int64
+}
+
+func (tag commandTag) RowsAffected() int64 {
+	return tag.rowsAffected
 }

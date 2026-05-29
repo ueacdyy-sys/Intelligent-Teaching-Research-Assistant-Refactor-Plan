@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -87,5 +88,93 @@ func TestBuildTutoringAnalysisRequestPageBuildsNextCursor(t *testing.T) {
 	}
 	if !page.PageInfo.HasMore || page.PageInfo.NextCursor == "" {
 		t.Fatalf("pageInfo = %#v", page.PageInfo)
+	}
+}
+
+func TestApplyTutoringAnalysisResultMarksSucceededMetadata(t *testing.T) {
+	request := domain.TutoringAnalysisRequest{
+		ID:                 "tutor_req_001",
+		Status:             domain.TutoringAnalysisStatusQueued,
+		QuestionBankIntent: domain.QuestionBankIntentGeneratePersonalizedCheck,
+		CreatedAt:          time.Date(2026, 5, 29, 14, 0, 0, 0, time.UTC),
+	}
+
+	updated, err := domain.ApplyTutoringAnalysisResult(
+		request,
+		domain.RecordTutoringAnalysisResultInput{
+			Principal:            servicePrincipal(),
+			RequestID:            " tutor_req_001 ",
+			Status:               domain.TutoringAnalysisStatusSucceeded,
+			ResultSummary:        "  mastered fractions  ",
+			ResultRef:            " local://analysis/tutor_req_001/result.json ",
+			QuestionBankDraftRef: " local://question-bank-drafts/tutor_req_001.json ",
+		},
+		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("ApplyTutoringAnalysisResult returned error: %v", err)
+	}
+
+	if updated.Status != domain.TutoringAnalysisStatusSucceeded {
+		t.Fatalf("Status = %q", updated.Status)
+	}
+	if updated.ResultSummary != "mastered fractions" {
+		t.Fatalf("ResultSummary = %q", updated.ResultSummary)
+	}
+	if updated.QuestionBankDraftRef == "" {
+		t.Fatalf("QuestionBankDraftRef missing")
+	}
+	if updated.CompletedAt.IsZero() || updated.UpdatedAt.IsZero() {
+		t.Fatalf("timestamps missing: %#v", updated)
+	}
+}
+
+func TestApplyTutoringAnalysisResultRequiresFailureMessage(t *testing.T) {
+	_, err := domain.ApplyTutoringAnalysisResult(
+		domain.TutoringAnalysisRequest{ID: "tutor_req_001", Status: domain.TutoringAnalysisStatusQueued},
+		domain.RecordTutoringAnalysisResultInput{
+			Principal: servicePrincipal(),
+			RequestID: "tutor_req_001",
+			Status:    domain.TutoringAnalysisStatusFailed,
+		},
+		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
+	)
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
+func TestApplyTutoringAnalysisResultRejectsErrorFieldsOnSuccess(t *testing.T) {
+	_, err := domain.ApplyTutoringAnalysisResult(
+		domain.TutoringAnalysisRequest{ID: "tutor_req_001", Status: domain.TutoringAnalysisStatusQueued},
+		domain.RecordTutoringAnalysisResultInput{
+			Principal:     servicePrincipal(),
+			RequestID:     "tutor_req_001",
+			Status:        domain.TutoringAnalysisStatusSucceeded,
+			ResultSummary: "summary",
+			ResultRef:     "local://analysis/tutor_req_001/result.json",
+			ErrorMessage:  "should not be accepted",
+		},
+		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
+	)
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
+func TestApplyTutoringAnalysisResultRejectsResultFieldsOnFailure(t *testing.T) {
+	_, err := domain.ApplyTutoringAnalysisResult(
+		domain.TutoringAnalysisRequest{ID: "tutor_req_001", Status: domain.TutoringAnalysisStatusQueued},
+		domain.RecordTutoringAnalysisResultInput{
+			Principal:     servicePrincipal(),
+			RequestID:     "tutor_req_001",
+			Status:        domain.TutoringAnalysisStatusFailed,
+			ResultSummary: "should not be accepted",
+			ErrorMessage:  "worker failed",
+		},
+		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
+	)
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
 	}
 }

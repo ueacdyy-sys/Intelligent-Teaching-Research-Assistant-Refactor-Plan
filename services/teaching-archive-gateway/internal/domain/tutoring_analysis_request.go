@@ -11,7 +11,10 @@ const (
 	maxTutoringAnalysisGoalLength = 500
 )
 
-var ErrNotFound = errors.New("archive item not found")
+var (
+	ErrNotFound = errors.New("archive item not found")
+	ErrConflict = errors.New("tutoring analysis request state conflict")
+)
 
 type QuestionBankIntent string
 
@@ -23,7 +26,9 @@ const (
 type TutoringAnalysisStatus string
 
 const (
-	TutoringAnalysisStatusQueued TutoringAnalysisStatus = "QUEUED"
+	TutoringAnalysisStatusQueued    TutoringAnalysisStatus = "QUEUED"
+	TutoringAnalysisStatusSucceeded TutoringAnalysisStatus = "SUCCEEDED"
+	TutoringAnalysisStatusFailed    TutoringAnalysisStatus = "FAILED"
 )
 
 type TutoringAnalysisRequest struct {
@@ -36,7 +41,14 @@ type TutoringAnalysisRequest struct {
 	SourceArchiveOwnerType OwnerType
 	SourceArchiveStudentID string
 	SourceArchiveMaterial  MaterialType
+	ResultSummary          string
+	ResultRef              string
+	QuestionBankDraftRef   string
+	ErrorCode              string
+	ErrorMessage           string
 	CreatedAt              time.Time
+	CompletedAt            time.Time
+	UpdatedAt              time.Time
 }
 
 type CreateTutoringAnalysisRequestInput struct {
@@ -73,6 +85,7 @@ func NewTutoringAnalysisRequest(
 		SourceArchiveStudentID: normalized.SourceArchiveStudentID,
 		SourceArchiveMaterial:  normalized.SourceArchiveMaterial,
 		CreatedAt:              createdAt.UTC(),
+		UpdatedAt:              createdAt.UTC(),
 	}, nil
 }
 

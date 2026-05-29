@@ -320,6 +320,51 @@ func TestListTutoringAnalysisRequestsScopesStudentPrincipalToOwnRequests(t *test
 	}
 }
 
+func TestRecordTutoringAnalysisResultReturnsUpdatedResponse(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/tutoring-analysis-requests/tutor_req_http_3/worker-result",
+		bytes.NewBufferString(`{"status":"SUCCEEDED","resultSummary":" mastered fractions ","resultRef":"local://analysis/tutor_req_http_3/result.json","questionBankDraftRef":"local://question-bank-drafts/tutor_req_http_3.json"}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, servicePrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"status":"SUCCEEDED"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"resultSummary":"mastered fractions"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"completedAt"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+}
+
+func TestRecordTutoringAnalysisResultRejectsTeacherPrincipal(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/tutoring-analysis-requests/tutor_req_http_3/worker-result",
+		bytes.NewBufferString(`{"status":"SUCCEEDED","resultSummary":"summary","resultRef":"local://analysis/tutor_req_http_3/result.json"}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, teacherPrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
 func newTestHandler() http.Handler {
 	store := &fakeRepository{
 		items: []domain.ArchiveItem{
@@ -347,7 +392,18 @@ func newTestHandler() http.Handler {
 		fixedIDs{id: "tutor_req_http"},
 		fixedClock{now: time.Date(2026, 5, 29, 8, 30, 0, 0, time.UTC)},
 	)
-	return httpapi.NewServer(uc, list, createTutoringRequest, listTutoringRequests, "ueacd").Handler()
+	recordTutoringResult := usecase.NewRecordTutoringAnalysisResult(
+		store,
+		fixedClock{now: time.Date(2026, 5, 29, 8, 45, 0, 0, time.UTC)},
+	)
+	return httpapi.NewServer(
+		uc,
+		list,
+		createTutoringRequest,
+		listTutoringRequests,
+		recordTutoringResult,
+		"ueacd",
+	).Handler()
 }
 
 func setPrincipalHeader(t *testing.T, request *http.Request, principal domain.PrincipalContext) {
@@ -416,6 +472,21 @@ func remotePrincipal() domain.PrincipalContext {
 		SessionID:               "grant_remote",
 		IssuedAt:                time.Now().Add(-time.Minute).UTC(),
 		ExpiresAt:               time.Now().Add(time.Hour).UTC(),
+	}
+}
+
+func servicePrincipal() domain.PrincipalContext {
+	return domain.PrincipalContext{
+		PrincipalID:     "svc_tutoring_worker",
+		SubjectType:     domain.SubjectService,
+		Role:            domain.RoleService,
+		EntryPoint:      domain.EntryPointAgentInternal,
+		Scopes:          []domain.Scope{domain.ScopeTeachingRead, domain.ScopeTeachingWrite},
+		KnowledgeAccess: domain.KnowledgeAccess{Public: true, Private: domain.PrivateAccessNone},
+		StudentAccess:   domain.StudentAccess{Mode: domain.StudentAccessNone},
+		SessionID:       "svc_session",
+		IssuedAt:        time.Now().Add(-time.Minute).UTC(),
+		ExpiresAt:       time.Now().Add(time.Hour).UTC(),
 	}
 }
 
@@ -492,6 +563,32 @@ func (f *fakeRepository) ListTutoringAnalysisRequests(
 		}
 	}
 	return requests, nil
+}
+
+func (f *fakeRepository) GetTutoringAnalysisRequestByID(
+	_ context.Context,
+	id string,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	for _, request := range f.requests {
+		if request.ID == id {
+			return request, true, nil
+		}
+	}
+	return domain.TutoringAnalysisRequest{}, false, nil
+}
+
+func (f *fakeRepository) RecordTutoringAnalysisResult(
+	_ context.Context,
+	updated domain.TutoringAnalysisRequest,
+) error {
+	for index, request := range f.requests {
+		if request.ID == updated.ID {
+			f.requests[index] = updated
+			return nil
+		}
+	}
+	f.requests = append(f.requests, updated)
+	return nil
 }
 
 func containsString(values []string, target string) bool {

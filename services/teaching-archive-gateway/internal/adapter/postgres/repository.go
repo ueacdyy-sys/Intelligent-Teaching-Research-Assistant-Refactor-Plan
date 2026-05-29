@@ -137,8 +137,15 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_material,
-			created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, $10)
+			result_summary,
+			result_ref,
+			question_bank_draft_ref,
+			error_code,
+			error_message,
+			created_at,
+			completed_at,
+			updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), $15, NULL, $16)
 	`,
 		request.ID,
 		request.ArchiveItemID,
@@ -149,9 +156,102 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 		request.SourceArchiveOwnerType,
 		request.SourceArchiveStudentID,
 		request.SourceArchiveMaterial,
+		request.ResultSummary,
+		request.ResultRef,
+		request.QuestionBankDraftRef,
+		request.ErrorCode,
+		request.ErrorMessage,
 		request.CreatedAt,
+		request.UpdatedAt,
 	)
 	return err
+}
+
+func (r *ArchiveRepository) GetTutoringAnalysisRequestByID(
+	ctx context.Context,
+	id string,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			id,
+			archive_item_id,
+			requested_by_principal_id,
+			analysis_goal,
+			question_bank_intent,
+			status,
+			source_archive_owner_type,
+			source_archive_student_id,
+			source_archive_material,
+			result_summary,
+			result_ref,
+			question_bank_draft_ref,
+			error_code,
+			error_message,
+			created_at,
+			completed_at,
+			updated_at
+		FROM teaching_tutoring_analysis_requests
+		WHERE id = $1
+		LIMIT 1
+	`, id)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.TutoringAnalysisRequest{}, false, err
+		}
+		return domain.TutoringAnalysisRequest{}, false, nil
+	}
+	request, err := scanTutoringAnalysisRequest(rows)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	return request, true, nil
+}
+
+func (r *ArchiveRepository) RecordTutoringAnalysisResult(
+	ctx context.Context,
+	request domain.TutoringAnalysisRequest,
+) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE teaching_tutoring_analysis_requests
+		SET
+			status = $1,
+			result_summary = NULLIF($2, ''),
+			result_ref = NULLIF($3, ''),
+			question_bank_draft_ref = NULLIF($4, ''),
+			error_code = NULLIF($5, ''),
+			error_message = NULLIF($6, ''),
+			completed_at = $7,
+			updated_at = $8
+		WHERE id = $9
+			AND status NOT IN ($10, $11)
+	`,
+		request.Status,
+		request.ResultSummary,
+		request.ResultRef,
+		request.QuestionBankDraftRef,
+		request.ErrorCode,
+		request.ErrorMessage,
+		request.CompletedAt,
+		request.UpdatedAt,
+		request.ID,
+		domain.TutoringAnalysisStatusSucceeded,
+		domain.TutoringAnalysisStatusFailed,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrConflict
+	}
+	return nil
 }
 
 func (r *ArchiveRepository) ListTutoringAnalysisRequests(
@@ -197,7 +297,14 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_material,
-			created_at
+			result_summary,
+			result_ref,
+			question_bank_draft_ref,
+			error_code,
+			error_message,
+			created_at,
+			completed_at,
+			updated_at
 		FROM teaching_tutoring_analysis_requests
 		WHERE `+strings.Join(clauses, " AND ")+`
 		ORDER BY created_at DESC, id DESC
@@ -333,12 +440,19 @@ func scanArchiveItem(rows Rows) (domain.ArchiveItem, error) {
 
 func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, error) {
 	var (
-		request      domain.TutoringAnalysisRequest
-		questionBank string
-		status       string
-		ownerType    string
-		studentID    sql.NullString
-		material     string
+		request       domain.TutoringAnalysisRequest
+		questionBank  string
+		status        string
+		ownerType     string
+		studentID     sql.NullString
+		material      string
+		resultSummary sql.NullString
+		resultRef     sql.NullString
+		draftRef      sql.NullString
+		errorCode     sql.NullString
+		errorMessage  sql.NullString
+		completedAt   sql.NullTime
+		updatedAt     sql.NullTime
 	)
 	if err := rows.Scan(
 		&request.ID,
@@ -350,7 +464,14 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 		&ownerType,
 		&studentID,
 		&material,
+		&resultSummary,
+		&resultRef,
+		&draftRef,
+		&errorCode,
+		&errorMessage,
 		&request.CreatedAt,
+		&completedAt,
+		&updatedAt,
 	); err != nil {
 		return domain.TutoringAnalysisRequest{}, err
 	}
@@ -361,6 +482,27 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 		request.SourceArchiveStudentID = studentID.String
 	}
 	request.SourceArchiveMaterial = domain.MaterialType(material)
+	if resultSummary.Valid {
+		request.ResultSummary = resultSummary.String
+	}
+	if resultRef.Valid {
+		request.ResultRef = resultRef.String
+	}
+	if draftRef.Valid {
+		request.QuestionBankDraftRef = draftRef.String
+	}
+	if errorCode.Valid {
+		request.ErrorCode = errorCode.String
+	}
+	if errorMessage.Valid {
+		request.ErrorMessage = errorMessage.String
+	}
+	if completedAt.Valid {
+		request.CompletedAt = completedAt.Time
+	}
+	if updatedAt.Valid {
+		request.UpdatedAt = updatedAt.Time
+	}
 	return request, nil
 }
 
@@ -404,8 +546,29 @@ var schemaStatements = []string{
 		source_archive_owner_type TEXT NOT NULL,
 		source_archive_student_id TEXT,
 		source_archive_material TEXT NOT NULL,
-		created_at TIMESTAMPTZ NOT NULL
+		result_summary TEXT,
+		result_ref TEXT,
+		question_bank_draft_ref TEXT,
+		error_code TEXT,
+		error_message TEXT,
+		created_at TIMESTAMPTZ NOT NULL,
+		completed_at TIMESTAMPTZ,
+		updated_at TIMESTAMPTZ
 	)`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS result_summary TEXT`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS result_ref TEXT`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS question_bank_draft_ref TEXT`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS error_code TEXT`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS error_message TEXT`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_archive_created
 		ON teaching_tutoring_analysis_requests (archive_item_id, created_at DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_principal_created

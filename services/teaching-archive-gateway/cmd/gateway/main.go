@@ -40,6 +40,10 @@ func main() {
 		platform.Clock{},
 	)
 	listTutoringAnalysisRequests := usecase.NewListTutoringAnalysisRequests(archiveRepository)
+	recordTutoringAnalysisResult := usecase.NewRecordTutoringAnalysisResult(
+		archiveRepository,
+		platform.Clock{},
+	)
 
 	server := &http.Server{
 		Addr: ":" + getenv("PORT", "18120"),
@@ -48,6 +52,7 @@ func main() {
 			listArchiveItems,
 			createTutoringAnalysisRequest,
 			listTutoringAnalysisRequests,
+			recordTutoringAnalysisResult,
 			getenv("AGENT_API_KEY", "ueacd"),
 		).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,

@@ -88,3 +88,18 @@ func remotePrincipal() domain.PrincipalContext {
 		ExpiresAt:       time.Now().Add(time.Hour).UTC(),
 	}
 }
+
+func servicePrincipal() domain.PrincipalContext {
+	return domain.PrincipalContext{
+		PrincipalID:     "svc_tutoring_worker",
+		SubjectType:     domain.SubjectService,
+		Role:            domain.RoleService,
+		EntryPoint:      domain.EntryPointAgentInternal,
+		Scopes:          []domain.Scope{domain.ScopeTeachingRead, domain.ScopeTeachingWrite},
+		KnowledgeAccess: domain.KnowledgeAccess{Public: true, Private: domain.PrivateAccessNone},
+		StudentAccess:   domain.StudentAccess{Mode: domain.StudentAccessNone},
+		SessionID:       "svc_session",
+		IssuedAt:        time.Now().Add(-time.Minute).UTC(),
+		ExpiresAt:       time.Now().Add(time.Hour).UTC(),
+	}
+}

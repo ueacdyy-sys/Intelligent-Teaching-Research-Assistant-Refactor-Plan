@@ -18,6 +18,7 @@ type Server struct {
 	listArchiveItems              *usecase.ListArchiveItems
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
 	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
+	recordTutoringAnalysisResult  *usecase.RecordTutoringAnalysisResult
 	agentAPIKey                   string
 }
 
@@ -36,6 +37,15 @@ type createArchiveItemRequest struct {
 type createTutoringAnalysisRequestRequest struct {
 	AnalysisGoal       string                    `json:"analysisGoal"`
 	QuestionBankIntent domain.QuestionBankIntent `json:"questionBankIntent,omitempty"`
+}
+
+type recordTutoringAnalysisResultRequest struct {
+	Status               domain.TutoringAnalysisStatus `json:"status"`
+	ResultSummary        string                        `json:"resultSummary,omitempty"`
+	ResultRef            string                        `json:"resultRef,omitempty"`
+	QuestionBankDraftRef string                        `json:"questionBankDraftRef,omitempty"`
+	ErrorCode            string                        `json:"errorCode,omitempty"`
+	ErrorMessage         string                        `json:"errorMessage,omitempty"`
 }
 
 type archiveItemResponse struct {
@@ -72,7 +82,14 @@ type tutoringAnalysisRequestResponse struct {
 	SourceArchiveOwnerType domain.OwnerType              `json:"sourceArchiveOwnerType"`
 	SourceArchiveStudentID *string                       `json:"sourceArchiveStudentId,omitempty"`
 	SourceArchiveMaterial  domain.MaterialType           `json:"sourceArchiveMaterial"`
+	ResultSummary          *string                       `json:"resultSummary,omitempty"`
+	ResultRef              *string                       `json:"resultRef,omitempty"`
+	QuestionBankDraftRef   *string                       `json:"questionBankDraftRef,omitempty"`
+	ErrorCode              *string                       `json:"errorCode,omitempty"`
+	ErrorMessage           *string                       `json:"errorMessage,omitempty"`
 	CreatedAt              string                        `json:"createdAt"`
+	CompletedAt            *string                       `json:"completedAt,omitempty"`
+	UpdatedAt              *string                       `json:"updatedAt,omitempty"`
 }
 
 type pageInfoResponse struct {
@@ -95,6 +112,7 @@ func NewServer(
 	listArchiveItems *usecase.ListArchiveItems,
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
 	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
+	recordTutoringAnalysisResult *usecase.RecordTutoringAnalysisResult,
 	agentAPIKey string,
 ) *Server {
 	return &Server{
@@ -102,6 +120,7 @@ func NewServer(
 		listArchiveItems:              listArchiveItems,
 		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
 		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
+		recordTutoringAnalysisResult:  recordTutoringAnalysisResult,
 		agentAPIKey:                   agentAPIKey,
 	}
 }
@@ -112,6 +131,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/teaching/archive-items", s.archiveItems)
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests", s.tutoringAnalysisRequests)
+	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests/", s.tutoringAnalysisRequestSubresources)
 	return mux
 }
 
@@ -153,6 +173,19 @@ func (s *Server) tutoringAnalysisRequests(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.listTutoringRequests(w, r)
+}
+
+func (s *Server) tutoringAnalysisRequestSubresources(w http.ResponseWriter, r *http.Request) {
+	requestID, ok := parseTutoringAnalysisWorkerResultPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "tutoring analysis request subresource not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	s.recordTutoringResult(w, r, requestID)
 }
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
@@ -279,6 +312,38 @@ func (s *Server) createTutoringRequest(w http.ResponseWriter, r *http.Request, a
 	writeJSON(w, http.StatusCreated, toTutoringAnalysisRequestResponse(created))
 }
 
+func (s *Server) recordTutoringResult(w http.ResponseWriter, r *http.Request, requestID string) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request recordTutoringAnalysisResultRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+
+	updated, err := s.recordTutoringAnalysisResult.Execute(r.Context(), domain.RecordTutoringAnalysisResultInput{
+		Principal:            principal,
+		RequestID:            requestID,
+		Status:               request.Status,
+		ResultSummary:        request.ResultSummary,
+		ResultRef:            request.ResultRef,
+		QuestionBankDraftRef: request.QuestionBankDraftRef,
+		ErrorCode:            request.ErrorCode,
+		ErrorMessage:         request.ErrorMessage,
+	})
+	if handleArchiveError(w, err, "failed to record tutoring analysis result") {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toTutoringAnalysisRequestResponse(updated))
+}
+
 func (s *Server) authorized(r *http.Request) bool {
 	if s.agentAPIKey == "" {
 		return true
@@ -297,6 +362,19 @@ func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
 		return "", false
 	}
 	return archiveItemID, true
+}
+
+func parseTutoringAnalysisWorkerResultPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/tutoring-analysis-requests/"
+	const suffix = "/worker-result"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	requestID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if requestID == "" || strings.Contains(requestID, "/") {
+		return "", false
+	}
+	return requestID, true
 }
 
 func parsePrincipalContext(w http.ResponseWriter, r *http.Request) (domain.PrincipalContext, bool) {
@@ -342,6 +420,8 @@ func handleArchiveError(w http.ResponseWriter, err error, internalMessage string
 		writeError(w, http.StatusForbidden, "FORBIDDEN", err.Error())
 	case errors.Is(err, domain.ErrNotFound):
 		writeError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+	case errors.Is(err, domain.ErrConflict):
+		writeError(w, http.StatusConflict, "CONFLICT", err.Error())
 	default:
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", internalMessage)
 	}
@@ -427,7 +507,14 @@ func toTutoringAnalysisRequestResponse(request domain.TutoringAnalysisRequest) t
 		SourceArchiveOwnerType: request.SourceArchiveOwnerType,
 		SourceArchiveStudentID: optionalString(request.SourceArchiveStudentID),
 		SourceArchiveMaterial:  request.SourceArchiveMaterial,
+		ResultSummary:          optionalString(request.ResultSummary),
+		ResultRef:              optionalString(request.ResultRef),
+		QuestionBankDraftRef:   optionalString(request.QuestionBankDraftRef),
+		ErrorCode:              optionalString(request.ErrorCode),
+		ErrorMessage:           optionalString(request.ErrorMessage),
 		CreatedAt:              formatTime(request.CreatedAt),
+		CompletedAt:            optionalTime(request.CompletedAt),
+		UpdatedAt:              optionalTime(request.UpdatedAt),
 	}
 }
 
@@ -440,6 +527,14 @@ func optionalString(value string) *string {
 
 func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func optionalTime(value time.Time) *string {
+	if value.IsZero() {
+		return nil
+	}
+	formatted := formatTime(value)
+	return &formatted
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

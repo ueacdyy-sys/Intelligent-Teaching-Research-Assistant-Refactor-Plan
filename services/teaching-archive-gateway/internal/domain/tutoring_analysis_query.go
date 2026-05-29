@@ -204,7 +204,9 @@ func DecodeTutoringAnalysisRequestCursor(value string) (TutoringAnalysisRequestC
 }
 
 func validTutoringAnalysisStatus(value TutoringAnalysisStatus) bool {
-	return value == TutoringAnalysisStatusQueued
+	return value == TutoringAnalysisStatusQueued ||
+		value == TutoringAnalysisStatusSucceeded ||
+		value == TutoringAnalysisStatusFailed
 }
 
 func canListTeachingTutoringAnalysisRequests(principal PrincipalContext) bool {
