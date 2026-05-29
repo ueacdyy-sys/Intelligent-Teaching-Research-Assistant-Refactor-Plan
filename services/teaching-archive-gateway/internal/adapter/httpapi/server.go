@@ -18,6 +18,7 @@ type Server struct {
 	listArchiveItems              *usecase.ListArchiveItems
 	createAIGradingRequest        *usecase.CreateAIGradingRequest
 	listAIGradingRequests         *usecase.ListAIGradingRequests
+	claimAIGradingRequest         *usecase.ClaimAIGradingRequest
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
 	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
 	claimTutoringAnalysisRequest  *usecase.ClaimTutoringAnalysisRequest
@@ -97,6 +98,8 @@ type aiGradingRequestResponse struct {
 	SourceArchiveStudentID *string                `json:"sourceArchiveStudentId,omitempty"`
 	SourceArchiveMaterial  domain.MaterialType    `json:"sourceArchiveMaterial"`
 	SourceArchiveOCRStatus domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
+	ClaimedByWorkerID      *string                `json:"claimedByWorkerId,omitempty"`
+	ClaimExpiresAt         *string                `json:"claimExpiresAt,omitempty"`
 	CreatedAt              string                 `json:"createdAt"`
 	UpdatedAt              string                 `json:"updatedAt"`
 }
@@ -156,6 +159,7 @@ func NewServer(
 	listArchiveItems *usecase.ListArchiveItems,
 	createAIGradingRequest *usecase.CreateAIGradingRequest,
 	listAIGradingRequests *usecase.ListAIGradingRequests,
+	claimAIGradingRequest *usecase.ClaimAIGradingRequest,
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
 	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
 	claimTutoringAnalysisRequest *usecase.ClaimTutoringAnalysisRequest,
@@ -167,6 +171,7 @@ func NewServer(
 		listArchiveItems:              listArchiveItems,
 		createAIGradingRequest:        createAIGradingRequest,
 		listAIGradingRequests:         listAIGradingRequests,
+		claimAIGradingRequest:         claimAIGradingRequest,
 		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
 		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
 		claimTutoringAnalysisRequest:  claimTutoringAnalysisRequest,
@@ -181,6 +186,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/teaching/archive-items", s.archiveItems)
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests", s.aiGradingRequests)
+	mux.HandleFunc("/v1/teaching/ai-grading-requests/", s.aiGradingRequestSubresources)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests", s.tutoringAnalysisRequests)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests/", s.tutoringAnalysisRequestSubresources)
 	return mux
@@ -643,6 +649,8 @@ func toAIGradingRequestResponse(request domain.AIGradingRequest) aiGradingReques
 		SourceArchiveStudentID: optionalString(request.SourceArchiveStudentID),
 		SourceArchiveMaterial:  request.SourceArchiveMaterial,
 		SourceArchiveOCRStatus: request.SourceArchiveOCRStatus,
+		ClaimedByWorkerID:      optionalString(request.ClaimedByWorkerID),
+		ClaimExpiresAt:         optionalTime(request.ClaimExpiresAt),
 		CreatedAt:              formatTime(request.CreatedAt),
 		UpdatedAt:              formatTime(request.UpdatedAt),
 	}

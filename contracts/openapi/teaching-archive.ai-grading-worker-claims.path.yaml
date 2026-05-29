@@ -1,0 +1,92 @@
+post:
+  operationId: claimTeachingAIGradingWorkerRequest
+  summary: Claim one metadata-only AI grading request for an internal worker.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - workerId
+          properties:
+            workerId:
+              type: string
+              minLength: 1
+              maxLength: 128
+            leaseSeconds:
+              type: integer
+              minimum: 30
+              maximum: 3600
+              default: 300
+  responses:
+    '200':
+      description: AI grading request claimed for worker processing.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - archiveItemId
+              - gradingInstructions
+              - status
+              - sourceArchiveOwnerType
+              - sourceArchiveMaterial
+              - sourceArchiveOcrStatus
+              - claimedByWorkerId
+              - claimExpiresAt
+              - createdAt
+              - updatedAt
+            properties:
+              id:
+                type: string
+                pattern: '^grading_req_[A-Za-z0-9_-]+$'
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              gradingInstructions:
+                type: string
+              rubricRef:
+                type:
+                  - string
+                  - 'null'
+              status:
+                type: string
+                const: IN_PROGRESS
+              sourceArchiveOwnerType:
+                $ref: './teaching-archive.yaml#/components/schemas/ArchiveOwnerType'
+              sourceArchiveStudentId:
+                type:
+                  - string
+                  - 'null'
+              sourceArchiveMaterial:
+                $ref: './teaching-archive.yaml#/components/schemas/ArchiveMaterialType'
+              sourceArchiveOcrStatus:
+                type: string
+                enum: [RESERVED, NOT_REQUIRED]
+              claimedByWorkerId:
+                type: string
+              claimExpiresAt:
+                type: string
+                format: date-time
+              createdAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+    '204':
+      description: No eligible AI grading request is available.
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

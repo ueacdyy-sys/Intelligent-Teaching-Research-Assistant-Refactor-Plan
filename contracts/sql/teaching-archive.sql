@@ -46,9 +46,17 @@ CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
     source_archive_student_id TEXT,
     source_archive_material TEXT NOT NULL,
     source_archive_ocr_status TEXT NOT NULL,
+    claimed_by_worker_id TEXT,
+    claim_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE teaching_ai_grading_requests
+    ADD COLUMN IF NOT EXISTS claimed_by_worker_id TEXT;
+
+ALTER TABLE teaching_ai_grading_requests
+    ADD COLUMN IF NOT EXISTS claim_expires_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_archive_created
     ON teaching_ai_grading_requests (archive_item_id, created_at DESC);
@@ -68,6 +76,9 @@ CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_source_student_creat
 
 CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_created_page
     ON teaching_ai_grading_requests (created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_claim_eligible
+    ON teaching_ai_grading_requests (status, claim_expires_at, created_at, id);
 
 CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
     id TEXT PRIMARY KEY,

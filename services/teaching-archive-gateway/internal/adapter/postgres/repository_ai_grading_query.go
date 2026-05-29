@@ -50,6 +50,8 @@ func (r *ArchiveRepository) ListAIGradingRequests(
 			source_archive_student_id,
 			source_archive_material,
 			source_archive_ocr_status,
+			claimed_by_worker_id,
+			claim_expires_at,
 			created_at,
 			updated_at
 		FROM teaching_ai_grading_requests
@@ -86,6 +88,8 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		student  sql.NullString
 		material string
 		ocr      string
+		workerID sql.NullString
+		claim    sql.NullTime
 	)
 	if err := rows.Scan(
 		&request.ID,
@@ -98,6 +102,8 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		&student,
 		&material,
 		&ocr,
+		&workerID,
+		&claim,
 		&request.CreatedAt,
 		&request.UpdatedAt,
 	); err != nil {
@@ -113,5 +119,11 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 	}
 	request.SourceArchiveMaterial = domain.MaterialType(material)
 	request.SourceArchiveOCRStatus = domain.OCRStatus(ocr)
+	if workerID.Valid {
+		request.ClaimedByWorkerID = workerID.String
+	}
+	if claim.Valid {
+		request.ClaimExpiresAt = claim.Time
+	}
 	return request, nil
 }

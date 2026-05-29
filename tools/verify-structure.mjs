@@ -45,12 +45,14 @@ const required = [
   "docs/sdd/0037-teaching-archive-tutoring-analysis-result-lease-guard.md",
   "docs/sdd/0038-teaching-archive-ai-grading-request.md",
   "docs/sdd/0039-teaching-archive-ai-grading-query-view.md",
+  "docs/sdd/0040-teaching-archive-ai-grading-worker-claim.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
   "contracts/openapi/conversation-write-gateway.yaml",
   "contracts/openapi/teaching-archive.yaml",
   "contracts/openapi/teaching-archive.ai-grading-requests.path.yaml",
+  "contracts/openapi/teaching-archive.ai-grading-worker-claims.path.yaml",
   "contracts/auth/principal-context.schema.json",
   "contracts/auth/access-matrix.json",
   "contracts/sql/identity-sessions.sql",
@@ -93,6 +95,8 @@ const required = [
   "services/teaching-archive-gateway/internal/domain/ai_grading_request.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_query.go",
+  "services/teaching-archive-gateway/internal/domain/ai_grading_claim.go",
+  "services/teaching-archive-gateway/internal/domain/ai_grading_claim_test.go",
   "services/teaching-archive-gateway/internal/domain/archive_query.go",
   "services/teaching-archive-gateway/internal/domain/principal.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_query.go",
@@ -107,6 +111,8 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/create_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests_test.go",
+  "services/teaching-archive-gateway/internal/usecase/claim_ai_grading_request.go",
+  "services/teaching-archive-gateway/internal/usecase/claim_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/create_tutoring_analysis_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_archive_items.go",
   "services/teaching-archive-gateway/internal/usecase/list_archive_items_test.go",
@@ -121,10 +127,14 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query_test.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_claim.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_claim_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_query.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_query_test.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_claim.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_claim_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/pool_db.go",
   "services/teaching-archive-gateway/internal/platform/runtime.go",
@@ -529,6 +539,17 @@ const teachingArchiveAIGradingQuerySdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveAIGradingQuerySdd.includes(heading)) {
     console.error(`SDD 0039 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveAIGradingClaimSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0040-teaching-archive-ai-grading-worker-claim.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveAIGradingClaimSdd.includes(heading)) {
+    console.error(`SDD 0040 missing heading: ${heading}`);
     process.exit(1);
   }
 }

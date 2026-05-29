@@ -159,6 +159,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
   /v1/teaching/ai-grading-requests:
     $ref: './teaching-archive.ai-grading-requests.path.yaml'
+  /v1/teaching/ai-grading-requests/worker-claims:
+    $ref: './teaching-archive.ai-grading-worker-claims.path.yaml'
   /v1/teaching/tutoring-analysis-requests:
     get:
       operationId: listTeachingTutoringAnalysisRequests
@@ -622,6 +624,15 @@ components:
         sourceArchiveOcrStatus:
           type: string
           enum: [RESERVED, NOT_REQUIRED]
+        claimedByWorkerId:
+          type:
+            - string
+            - 'null'
+        claimExpiresAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
         createdAt:
           type: string
           format: date-time
@@ -763,7 +774,7 @@ components:
       enum: [NONE, GENERATE_PERSONALIZED_CHECK]
     AIGradingStatus:
       type: string
-      enum: [QUEUED]
+      enum: [QUEUED, IN_PROGRESS]
     TutoringAnalysisStatus:
       type: string
       enum: [QUEUED, IN_PROGRESS, SUCCEEDED, FAILED]

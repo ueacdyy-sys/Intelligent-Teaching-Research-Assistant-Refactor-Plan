@@ -172,7 +172,7 @@ func DecodeAIGradingRequestCursor(value string) (AIGradingRequestCursor, error) 
 }
 
 func validAIGradingStatus(value AIGradingStatus) bool {
-	return value == AIGradingStatusQueued
+	return value == AIGradingStatusQueued || value == AIGradingStatusInProgress
 }
 
 func scopeStudentAIGradingRequestQuery(

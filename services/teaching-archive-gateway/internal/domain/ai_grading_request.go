@@ -15,7 +15,8 @@ const (
 type AIGradingStatus string
 
 const (
-	AIGradingStatusQueued AIGradingStatus = "QUEUED"
+	AIGradingStatusQueued     AIGradingStatus = "QUEUED"
+	AIGradingStatusInProgress AIGradingStatus = "IN_PROGRESS"
 )
 
 type AIGradingRequest struct {
@@ -29,6 +30,8 @@ type AIGradingRequest struct {
 	SourceArchiveStudentID string
 	SourceArchiveMaterial  MaterialType
 	SourceArchiveOCRStatus OCRStatus
+	ClaimedByWorkerID      string
+	ClaimExpiresAt         time.Time
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 }

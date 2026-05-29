@@ -53,7 +53,11 @@ func TestListAIGradingRequestsBuildsScopedIndexedQuery(t *testing.T) {
 }
 
 type singleAIGradingRequestRow struct {
-	advanced bool
+	advanced            bool
+	status              domain.AIGradingStatus
+	claimedByWorkerID   string
+	claimExpiresAt      time.Time
+	claimExpiresAtValid bool
 }
 
 func (r *singleAIGradingRequestRow) Close() {}
@@ -72,13 +76,19 @@ func (r *singleAIGradingRequestRow) Scan(dest ...any) error {
 	*(dest[2].(*string)) = "teacher_001"
 	*(dest[3].(*string)) = "grade short answers"
 	*(dest[4].(*sql.NullString)) = sql.NullString{String: "local://rubrics/week-3.json", Valid: true}
-	*(dest[5].(*string)) = string(domain.AIGradingStatusQueued)
+	status := r.status
+	if status == "" {
+		status = domain.AIGradingStatusQueued
+	}
+	*(dest[5].(*string)) = string(status)
 	*(dest[6].(*string)) = string(domain.OwnerTypeStudent)
 	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
 	*(dest[8].(*string)) = string(domain.MaterialTypeQuiz)
 	*(dest[9].(*string)) = string(domain.OCRStatusReserved)
-	*(dest[10].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[11].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[10].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
+	*(dest[11].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
+	*(dest[12].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[13].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
 	return nil
 }
 
