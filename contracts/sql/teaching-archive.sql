@@ -53,3 +53,16 @@ CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_archive_creat
 
 CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_principal_created
     ON teaching_tutoring_analysis_requests (requested_by_principal_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_status_created
+    ON teaching_tutoring_analysis_requests (status, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_owner_created
+    ON teaching_tutoring_analysis_requests (source_archive_owner_type, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_student_created
+    ON teaching_tutoring_analysis_requests (source_archive_student_id, created_at DESC, id DESC)
+    WHERE source_archive_student_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_created_page
+    ON teaching_tutoring_analysis_requests (created_at DESC, id DESC);

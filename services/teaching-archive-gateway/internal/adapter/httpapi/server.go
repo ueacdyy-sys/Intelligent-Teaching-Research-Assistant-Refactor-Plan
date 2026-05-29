@@ -17,6 +17,7 @@ type Server struct {
 	createArchiveItem             *usecase.CreateArchiveItem
 	listArchiveItems              *usecase.ListArchiveItems
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
+	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
 	agentAPIKey                   string
 }
 
@@ -56,6 +57,11 @@ type archiveItemListResponse struct {
 	PageInfo pageInfoResponse      `json:"pageInfo"`
 }
 
+type tutoringAnalysisRequestListResponse struct {
+	Data     []tutoringAnalysisRequestResponse `json:"data"`
+	PageInfo pageInfoResponse                  `json:"pageInfo"`
+}
+
 type tutoringAnalysisRequestResponse struct {
 	ID                     string                        `json:"id"`
 	ArchiveItemID          string                        `json:"archiveItemId"`
@@ -88,12 +94,14 @@ func NewServer(
 	createArchiveItem *usecase.CreateArchiveItem,
 	listArchiveItems *usecase.ListArchiveItems,
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
+	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
 	agentAPIKey string,
 ) *Server {
 	return &Server{
 		createArchiveItem:             createArchiveItem,
 		listArchiveItems:              listArchiveItems,
 		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
+		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
 		agentAPIKey:                   agentAPIKey,
 	}
 }
@@ -103,6 +111,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/v1/teaching/archive-items", s.archiveItems)
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
+	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests", s.tutoringAnalysisRequests)
 	return mux
 }
 
@@ -136,6 +145,14 @@ func (s *Server) archiveItemSubresources(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	s.createTutoringRequest(w, r, archiveItemID)
+}
+
+func (s *Server) tutoringAnalysisRequests(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	s.listTutoringRequests(w, r)
 }
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
@@ -199,6 +216,36 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, toListResponse(page))
+}
+
+func (s *Server) listTutoringRequests(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	pageSize, ok := parseOptionalInt(w, r.URL.Query().Get("pageSize"), "pageSize")
+	if !ok {
+		return
+	}
+	page, err := s.listTutoringAnalysisRequests.Execute(r.Context(), domain.ListTutoringAnalysisRequestsInput{
+		Principal:              principal,
+		Status:                 domain.TutoringAnalysisStatus(r.URL.Query().Get("status")),
+		ArchiveItemID:          r.URL.Query().Get("archiveItemId"),
+		SourceArchiveOwnerType: domain.OwnerType(r.URL.Query().Get("sourceArchiveOwnerType")),
+		StudentID:              r.URL.Query().Get("studentId"),
+		PageSize:               pageSize,
+		Cursor:                 r.URL.Query().Get("cursor"),
+	})
+	if handleArchiveError(w, err, "failed to list tutoring analysis requests") {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toTutoringAnalysisRequestListResponse(page))
 }
 
 func (s *Server) createTutoringRequest(w http.ResponseWriter, r *http.Request, archiveItemID string) {
@@ -351,6 +398,21 @@ func toResponse(item domain.ArchiveItem) archiveItemResponse {
 		AnalysisIntents: item.AnalysisIntents,
 		OCRStatus:       item.OCRStatus,
 		CreatedAt:       formatTime(item.CreatedAt),
+	}
+}
+
+func toTutoringAnalysisRequestListResponse(page domain.TutoringAnalysisRequestPage) tutoringAnalysisRequestListResponse {
+	requests := make([]tutoringAnalysisRequestResponse, 0, len(page.Items))
+	for _, request := range page.Items {
+		requests = append(requests, toTutoringAnalysisRequestResponse(request))
+	}
+	return tutoringAnalysisRequestListResponse{
+		Data: requests,
+		PageInfo: pageInfoResponse{
+			PageSize:   page.PageInfo.PageSize,
+			HasMore:    page.PageInfo.HasMore,
+			NextCursor: optionalString(page.PageInfo.NextCursor),
+		},
 	}
 }
 

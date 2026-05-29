@@ -154,6 +154,75 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 	return err
 }
 
+func (r *ArchiveRepository) ListTutoringAnalysisRequests(
+	ctx context.Context,
+	query domain.TutoringAnalysisRequestQuery,
+) ([]domain.TutoringAnalysisRequest, error) {
+	args := make([]any, 0, 8)
+	clauses := []string{"TRUE"}
+
+	if query.Status != "" {
+		clauses = append(clauses, "status = "+nextArg(&args, string(query.Status)))
+	}
+	if query.ArchiveItemID != "" {
+		clauses = append(clauses, "archive_item_id = "+nextArg(&args, query.ArchiveItemID))
+	}
+	if query.RequestedByPrincipalID != "" {
+		clauses = append(clauses, "requested_by_principal_id = "+nextArg(&args, query.RequestedByPrincipalID))
+	}
+	if query.SourceArchiveOwnerType != "" {
+		clauses = append(clauses, "source_archive_owner_type = "+nextArg(&args, string(query.SourceArchiveOwnerType)))
+	}
+	if query.StudentID != "" {
+		clauses = append(clauses, "source_archive_student_id = "+nextArg(&args, query.StudentID))
+	}
+	if len(query.StudentIDs) > 0 {
+		clauses = append(clauses, "source_archive_student_id = ANY("+nextArg(&args, query.StudentIDs)+")")
+	}
+	if query.Cursor != nil {
+		createdAtArg := nextArg(&args, query.Cursor.CreatedAt)
+		idArg := nextArg(&args, query.Cursor.ID)
+		clauses = append(clauses, fmt.Sprintf("(created_at, id) < (%s, %s)", createdAtArg, idArg))
+	}
+	limitArg := nextArg(&args, query.FetchLimit)
+
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			id,
+			archive_item_id,
+			requested_by_principal_id,
+			analysis_goal,
+			question_bank_intent,
+			status,
+			source_archive_owner_type,
+			source_archive_student_id,
+			source_archive_material,
+			created_at
+		FROM teaching_tutoring_analysis_requests
+		WHERE `+strings.Join(clauses, " AND ")+`
+		ORDER BY created_at DESC, id DESC
+		LIMIT `+limitArg,
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	requests := make([]domain.TutoringAnalysisRequest, 0, query.FetchLimit)
+	for rows.Next() {
+		request, err := scanTutoringAnalysisRequest(rows)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, request)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return requests, nil
+}
+
 func (r *ArchiveRepository) List(ctx context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
 	args := make([]any, 0, 6)
 	clauses := []string{"TRUE"}
@@ -262,6 +331,39 @@ func scanArchiveItem(rows Rows) (domain.ArchiveItem, error) {
 	return item, nil
 }
 
+func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, error) {
+	var (
+		request      domain.TutoringAnalysisRequest
+		questionBank string
+		status       string
+		ownerType    string
+		studentID    sql.NullString
+		material     string
+	)
+	if err := rows.Scan(
+		&request.ID,
+		&request.ArchiveItemID,
+		&request.RequestedByPrincipalID,
+		&request.AnalysisGoal,
+		&questionBank,
+		&status,
+		&ownerType,
+		&studentID,
+		&material,
+		&request.CreatedAt,
+	); err != nil {
+		return domain.TutoringAnalysisRequest{}, err
+	}
+	request.QuestionBankIntent = domain.QuestionBankIntent(questionBank)
+	request.Status = domain.TutoringAnalysisStatus(status)
+	request.SourceArchiveOwnerType = domain.OwnerType(ownerType)
+	if studentID.Valid {
+		request.SourceArchiveStudentID = studentID.String
+	}
+	request.SourceArchiveMaterial = domain.MaterialType(material)
+	return request, nil
+}
+
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS teaching_archive_items (
 		id TEXT PRIMARY KEY,
@@ -308,4 +410,13 @@ var schemaStatements = []string{
 		ON teaching_tutoring_analysis_requests (archive_item_id, created_at DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_principal_created
 		ON teaching_tutoring_analysis_requests (requested_by_principal_id, created_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_status_created
+		ON teaching_tutoring_analysis_requests (status, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_owner_created
+		ON teaching_tutoring_analysis_requests (source_archive_owner_type, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_student_created
+		ON teaching_tutoring_analysis_requests (source_archive_student_id, created_at DESC, id DESC)
+		WHERE source_archive_student_id IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_created_page
+		ON teaching_tutoring_analysis_requests (created_at DESC, id DESC)`,
 }

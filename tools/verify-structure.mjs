@@ -39,6 +39,7 @@ const required = [
   "docs/sdd/0031-teaching-archive-principal-authorization.md",
   "docs/sdd/0032-teaching-archive-student-query-scope.md",
   "docs/sdd/0033-teaching-archive-tutoring-analysis-request.md",
+  "docs/sdd/0034-teaching-archive-tutoring-analysis-query-view.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -85,6 +86,7 @@ const required = [
   "services/teaching-archive-gateway/internal/domain/archive.go",
   "services/teaching-archive-gateway/internal/domain/archive_query.go",
   "services/teaching-archive-gateway/internal/domain/principal.go",
+  "services/teaching-archive-gateway/internal/domain/tutoring_analysis_query.go",
   "services/teaching-archive-gateway/internal/domain/archive_authorization_test.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/create_archive_item.go",
@@ -92,10 +94,13 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/create_tutoring_analysis_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_archive_items.go",
   "services/teaching-archive-gateway/internal/usecase/list_archive_items_test.go",
+  "services/teaching-archive-gateway/internal/usecase/list_tutoring_analysis_requests.go",
+  "services/teaching-archive-gateway/internal/usecase/list_tutoring_analysis_requests_test.go",
   "services/teaching-archive-gateway/internal/usecase/principal_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/pool_db.go",
   "services/teaching-archive-gateway/internal/platform/runtime.go",
   "tools/identity-session-runtime-profile-audit.mjs",
@@ -433,6 +438,17 @@ const teachingArchiveTutoringAnalysisSdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveTutoringAnalysisSdd.includes(heading)) {
     console.error(`SDD 0033 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveTutoringAnalysisQuerySdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0034-teaching-archive-tutoring-analysis-query-view.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveTutoringAnalysisQuerySdd.includes(heading)) {
+    console.error(`SDD 0034 missing heading: ${heading}`);
     process.exit(1);
   }
 }
