@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS teaching_tutoring_analysis_requests (
     question_bank_draft_ref TEXT,
     error_code TEXT,
     error_message TEXT,
+    claimed_by_worker_id TEXT,
+    claim_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL,
     completed_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ
@@ -71,6 +73,12 @@ ALTER TABLE teaching_tutoring_analysis_requests
     ADD COLUMN IF NOT EXISTS error_message TEXT;
 
 ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS claimed_by_worker_id TEXT;
+
+ALTER TABLE teaching_tutoring_analysis_requests
+    ADD COLUMN IF NOT EXISTS claim_expires_at TIMESTAMPTZ;
+
+ALTER TABLE teaching_tutoring_analysis_requests
     ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
 ALTER TABLE teaching_tutoring_analysis_requests
@@ -84,6 +92,9 @@ CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_principal_cre
 
 CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_status_created
     ON teaching_tutoring_analysis_requests (status, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_claim_eligible
+    ON teaching_tutoring_analysis_requests (status, claim_expires_at, created_at, id);
 
 CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_owner_created
     ON teaching_tutoring_analysis_requests (source_archive_owner_type, created_at DESC, id DESC);

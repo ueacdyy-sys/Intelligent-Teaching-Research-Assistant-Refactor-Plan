@@ -107,6 +107,53 @@ func TestRecordTutoringAnalysisResultRejectsAtomicFinalOverwrite(t *testing.T) {
 	}
 }
 
+func TestClaimNextTutoringAnalysisRequestUsesAtomicSkipLockedUpdate(t *testing.T) {
+	db := &recordingDB{rows: &singleTutoringAnalysisRequestRow{
+		status:              domain.TutoringAnalysisStatusInProgress,
+		claimedByWorkerID:   "worker_teaching_ai_01",
+		claimExpiresAt:      time.Date(2026, 5, 29, 16, 5, 0, 0, time.UTC),
+		claimExpiresAtValid: true,
+	}}
+	repository := postgres.NewArchiveRepository(db)
+
+	request, ok, err := repository.ClaimNextTutoringAnalysisRequest(
+		context.Background(),
+		domain.ClaimTutoringAnalysisRequestInput{
+			WorkerID:     "worker_teaching_ai_01",
+			LeaseSeconds: 300,
+		},
+		time.Date(2026, 5, 29, 16, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("ClaimNextTutoringAnalysisRequest returned error: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected a claimed request")
+	}
+	if request.Status != domain.TutoringAnalysisStatusInProgress {
+		t.Fatalf("Status = %q", request.Status)
+	}
+
+	for _, fragment := range []string{
+		"UPDATE teaching_tutoring_analysis_requests",
+		"status = $1",
+		"claimed_by_worker_id = $2",
+		"claim_expires_at = $3",
+		"WHERE status = $5",
+		"OR (status = $6 AND claim_expires_at <= $4)",
+		"ORDER BY created_at ASC, id ASC",
+		"FOR UPDATE SKIP LOCKED",
+		"RETURNING",
+	} {
+		if !strings.Contains(db.lastSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastSQL)
+		}
+	}
+	if len(db.args) != 6 {
+		t.Fatalf("args = %d, want 6", len(db.args))
+	}
+}
+
 type recordingDB struct {
 	lastSQL     string
 	lastExecSQL string
@@ -132,7 +179,11 @@ func (db *recordingDB) Query(_ context.Context, query string, args ...any) (post
 }
 
 type singleTutoringAnalysisRequestRow struct {
-	advanced bool
+	advanced            bool
+	status              domain.TutoringAnalysisStatus
+	claimedByWorkerID   string
+	claimExpiresAt      time.Time
+	claimExpiresAtValid bool
 }
 
 func (r *singleTutoringAnalysisRequestRow) Close() {}
@@ -151,7 +202,11 @@ func (r *singleTutoringAnalysisRequestRow) Scan(dest ...any) error {
 	*(dest[2].(*string)) = "teacher_001"
 	*(dest[3].(*string)) = "find weak skills"
 	*(dest[4].(*string)) = string(domain.QuestionBankIntentGeneratePersonalizedCheck)
-	*(dest[5].(*string)) = string(domain.TutoringAnalysisStatusQueued)
+	status := r.status
+	if status == "" {
+		status = domain.TutoringAnalysisStatusQueued
+	}
+	*(dest[5].(*string)) = string(status)
 	*(dest[6].(*string)) = string(domain.OwnerTypeStudent)
 	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
 	*(dest[8].(*string)) = string(domain.MaterialTypeQuiz)
@@ -160,9 +215,11 @@ func (r *singleTutoringAnalysisRequestRow) Scan(dest ...any) error {
 	*(dest[11].(*sql.NullString)) = sql.NullString{}
 	*(dest[12].(*sql.NullString)) = sql.NullString{}
 	*(dest[13].(*sql.NullString)) = sql.NullString{}
-	*(dest[14].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[15].(*sql.NullTime)) = sql.NullTime{}
-	*(dest[16].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[14].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
+	*(dest[15].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
+	*(dest[16].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[17].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[18].(*sql.NullTime)) = sql.NullTime{}
 	return nil
 }
 

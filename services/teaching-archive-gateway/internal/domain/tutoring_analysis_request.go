@@ -26,9 +26,10 @@ const (
 type TutoringAnalysisStatus string
 
 const (
-	TutoringAnalysisStatusQueued    TutoringAnalysisStatus = "QUEUED"
-	TutoringAnalysisStatusSucceeded TutoringAnalysisStatus = "SUCCEEDED"
-	TutoringAnalysisStatusFailed    TutoringAnalysisStatus = "FAILED"
+	TutoringAnalysisStatusQueued     TutoringAnalysisStatus = "QUEUED"
+	TutoringAnalysisStatusInProgress TutoringAnalysisStatus = "IN_PROGRESS"
+	TutoringAnalysisStatusSucceeded  TutoringAnalysisStatus = "SUCCEEDED"
+	TutoringAnalysisStatusFailed     TutoringAnalysisStatus = "FAILED"
 )
 
 type TutoringAnalysisRequest struct {
@@ -46,6 +47,8 @@ type TutoringAnalysisRequest struct {
 	QuestionBankDraftRef   string
 	ErrorCode              string
 	ErrorMessage           string
+	ClaimedByWorkerID      string
+	ClaimExpiresAt         time.Time
 	CreatedAt              time.Time
 	CompletedAt            time.Time
 	UpdatedAt              time.Time

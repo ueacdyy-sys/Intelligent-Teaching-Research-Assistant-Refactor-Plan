@@ -40,6 +40,10 @@ func main() {
 		platform.Clock{},
 	)
 	listTutoringAnalysisRequests := usecase.NewListTutoringAnalysisRequests(archiveRepository)
+	claimTutoringAnalysisRequest := usecase.NewClaimTutoringAnalysisRequest(
+		archiveRepository,
+		platform.Clock{},
+	)
 	recordTutoringAnalysisResult := usecase.NewRecordTutoringAnalysisResult(
 		archiveRepository,
 		platform.Clock{},
@@ -52,6 +56,7 @@ func main() {
 			listArchiveItems,
 			createTutoringAnalysisRequest,
 			listTutoringAnalysisRequests,
+			claimTutoringAnalysisRequest,
 			recordTutoringAnalysisResult,
 			getenv("AGENT_API_KEY", "ueacd"),
 		).Handler(),

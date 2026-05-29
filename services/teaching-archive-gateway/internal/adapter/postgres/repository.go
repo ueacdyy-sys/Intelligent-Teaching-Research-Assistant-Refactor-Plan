@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 )
@@ -142,10 +143,12 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 			question_bank_draft_ref,
 			error_code,
 			error_message,
+			claimed_by_worker_id,
+			claim_expires_at,
 			created_at,
 			completed_at,
 			updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), $15, NULL, $16)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), NULLIF($15, ''), $16, $17, NULL, $18)
 	`,
 		request.ID,
 		request.ArchiveItemID,
@@ -161,6 +164,8 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 		request.QuestionBankDraftRef,
 		request.ErrorCode,
 		request.ErrorMessage,
+		request.ClaimedByWorkerID,
+		nullTime(request.ClaimExpiresAt),
 		request.CreatedAt,
 		request.UpdatedAt,
 	)
@@ -187,6 +192,8 @@ func (r *ArchiveRepository) GetTutoringAnalysisRequestByID(
 			question_bank_draft_ref,
 			error_code,
 			error_message,
+			claimed_by_worker_id,
+			claim_expires_at,
 			created_at,
 			completed_at,
 			updated_at
@@ -194,6 +201,82 @@ func (r *ArchiveRepository) GetTutoringAnalysisRequestByID(
 		WHERE id = $1
 		LIMIT 1
 	`, id)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.TutoringAnalysisRequest{}, false, err
+		}
+		return domain.TutoringAnalysisRequest{}, false, nil
+	}
+	request, err := scanTutoringAnalysisRequest(rows)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	return request, true, nil
+}
+
+func (r *ArchiveRepository) ClaimNextTutoringAnalysisRequest(
+	ctx context.Context,
+	input domain.ClaimTutoringAnalysisRequestInput,
+	now time.Time,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	normalized, claimExpiresAt, err := domain.BuildTutoringAnalysisClaimLease(input, now)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	claimedAt := now.UTC()
+
+	rows, err := r.db.Query(ctx, `
+		UPDATE teaching_tutoring_analysis_requests
+		SET
+			status = $1,
+			claimed_by_worker_id = $2,
+			claim_expires_at = $3,
+			updated_at = $4
+		WHERE id = (
+			SELECT id
+			FROM teaching_tutoring_analysis_requests
+			WHERE status = $5
+				OR (status = $6 AND claim_expires_at <= $4)
+			ORDER BY created_at ASC, id ASC
+			LIMIT 1
+			FOR UPDATE SKIP LOCKED
+		)
+		RETURNING
+			id,
+			archive_item_id,
+			requested_by_principal_id,
+			analysis_goal,
+			question_bank_intent,
+			status,
+			source_archive_owner_type,
+			source_archive_student_id,
+			source_archive_material,
+			result_summary,
+			result_ref,
+			question_bank_draft_ref,
+			error_code,
+			error_message,
+			claimed_by_worker_id,
+			claim_expires_at,
+			created_at,
+			completed_at,
+			updated_at
+	`,
+		domain.TutoringAnalysisStatusInProgress,
+		normalized.WorkerID,
+		claimExpiresAt,
+		claimedAt,
+		domain.TutoringAnalysisStatusQueued,
+		domain.TutoringAnalysisStatusInProgress,
+	)
 	if err != nil {
 		return domain.TutoringAnalysisRequest{}, false, err
 	}
@@ -302,6 +385,8 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 			question_bank_draft_ref,
 			error_code,
 			error_message,
+			claimed_by_worker_id,
+			claim_expires_at,
 			created_at,
 			completed_at,
 			updated_at
@@ -451,6 +536,8 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 		draftRef      sql.NullString
 		errorCode     sql.NullString
 		errorMessage  sql.NullString
+		claimWorkerID sql.NullString
+		claimExpires  sql.NullTime
 		completedAt   sql.NullTime
 		updatedAt     sql.NullTime
 	)
@@ -469,6 +556,8 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 		&draftRef,
 		&errorCode,
 		&errorMessage,
+		&claimWorkerID,
+		&claimExpires,
 		&request.CreatedAt,
 		&completedAt,
 		&updatedAt,
@@ -496,6 +585,12 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 	}
 	if errorMessage.Valid {
 		request.ErrorMessage = errorMessage.String
+	}
+	if claimWorkerID.Valid {
+		request.ClaimedByWorkerID = claimWorkerID.String
+	}
+	if claimExpires.Valid {
+		request.ClaimExpiresAt = claimExpires.Time
 	}
 	if completedAt.Valid {
 		request.CompletedAt = completedAt.Time
@@ -551,6 +646,8 @@ var schemaStatements = []string{
 		question_bank_draft_ref TEXT,
 		error_code TEXT,
 		error_message TEXT,
+		claimed_by_worker_id TEXT,
+		claim_expires_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ NOT NULL,
 		completed_at TIMESTAMPTZ,
 		updated_at TIMESTAMPTZ
@@ -566,6 +663,10 @@ var schemaStatements = []string{
 	`ALTER TABLE teaching_tutoring_analysis_requests
 		ADD COLUMN IF NOT EXISTS error_message TEXT`,
 	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS claimed_by_worker_id TEXT`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS claim_expires_at TIMESTAMPTZ`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
 		ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
 	`ALTER TABLE teaching_tutoring_analysis_requests
 		ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ`,
@@ -575,6 +676,8 @@ var schemaStatements = []string{
 		ON teaching_tutoring_analysis_requests (requested_by_principal_id, created_at DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_status_created
 		ON teaching_tutoring_analysis_requests (status, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_claim_eligible
+		ON teaching_tutoring_analysis_requests (status, claim_expires_at, created_at, id)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_owner_created
 		ON teaching_tutoring_analysis_requests (source_archive_owner_type, created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_student_created
@@ -582,4 +685,11 @@ var schemaStatements = []string{
 		WHERE source_archive_student_id IS NOT NULL`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_created_page
 		ON teaching_tutoring_analysis_requests (created_at DESC, id DESC)`,
+}
+
+func nullTime(value time.Time) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value.UTC()
 }

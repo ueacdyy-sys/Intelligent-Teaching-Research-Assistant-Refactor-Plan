@@ -180,6 +180,35 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /v1/teaching/tutoring-analysis-requests/worker-claims:
+    post:
+      operationId: claimTeachingTutoringAnalysisWorkerRequest
+      summary: Claim one metadata-only tutoring analysis request for an internal worker.
+      tags: [teaching-archive]
+      security:
+        - AgentApiKey: []
+          PrincipalContextHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimTutoringAnalysisRequest'
+      responses:
+        '200':
+          description: Tutoring analysis request claimed for worker processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutoringAnalysisWorkerClaimResponse'
+        '204':
+          description: No eligible tutoring analysis request is available.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /v1/teaching/tutoring-analysis-requests/{requestId}/worker-result:
     post:
       operationId: recordTeachingTutoringAnalysisWorkerResult
@@ -320,6 +349,21 @@ components:
         questionBankIntent:
           $ref: '#/components/schemas/QuestionBankIntent'
           default: NONE
+    ClaimTutoringAnalysisRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - workerId
+      properties:
+        workerId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        leaseSeconds:
+          type: integer
+          minimum: 30
+          maximum: 3600
+          default: 300
     RecordTutoringAnalysisResultRequest:
       oneOf:
         - $ref: '#/components/schemas/RecordTutoringAnalysisSucceededRequest'
@@ -460,6 +504,54 @@ components:
             $ref: '#/components/schemas/TutoringAnalysisRequestResponse'
         pageInfo:
           $ref: '#/components/schemas/ArchivePageInfo'
+    TutoringAnalysisWorkerClaimResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - archiveItemId
+        - analysisGoal
+        - questionBankIntent
+        - status
+        - sourceArchiveOwnerType
+        - sourceArchiveMaterial
+        - claimedByWorkerId
+        - claimExpiresAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+        archiveItemId:
+          type: string
+          pattern: '^tarch_[A-Za-z0-9_-]+$'
+        analysisGoal:
+          type: string
+        questionBankIntent:
+          $ref: '#/components/schemas/QuestionBankIntent'
+        status:
+          type: string
+          const: IN_PROGRESS
+        sourceArchiveOwnerType:
+          $ref: '#/components/schemas/ArchiveOwnerType'
+        sourceArchiveStudentId:
+          type:
+            - string
+            - 'null'
+        sourceArchiveMaterial:
+          $ref: '#/components/schemas/ArchiveMaterialType'
+        claimedByWorkerId:
+          type: string
+        claimExpiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     TutoringAnalysisRequestResponse:
       type: object
       additionalProperties: false
@@ -547,7 +639,7 @@ components:
       enum: [NONE, GENERATE_PERSONALIZED_CHECK]
     TutoringAnalysisStatus:
       type: string
-      enum: [QUEUED, SUCCEEDED, FAILED]
+      enum: [QUEUED, IN_PROGRESS, SUCCEEDED, FAILED]
     ErrorResponse:
       type: object
       additionalProperties: false

@@ -73,6 +73,18 @@ func TestAuthorizeArchiveRejectsRemoteSocialPrincipal(t *testing.T) {
 	}
 }
 
+func TestAuthorizeClaimTutoringAnalysisRequestAllowsOnlyInternalService(t *testing.T) {
+	err := domain.AuthorizeClaimTutoringAnalysisRequest(servicePrincipal())
+	if err != nil {
+		t.Fatalf("service claim error: %v", err)
+	}
+
+	err = domain.AuthorizeClaimTutoringAnalysisRequest(teacherPrincipal())
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("teacher claim error = %v, want ErrForbidden", err)
+	}
+}
+
 func TestAuthorizeListArchiveItemsPreventsStudentReadingOtherArchive(t *testing.T) {
 	err := domain.AuthorizeListArchiveItems(studentPrincipal("student_001"), domain.ArchiveItemQuery{
 		OwnerType: domain.OwnerTypeStudent,

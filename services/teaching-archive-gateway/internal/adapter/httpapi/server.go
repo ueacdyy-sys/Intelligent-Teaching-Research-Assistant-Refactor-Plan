@@ -18,6 +18,7 @@ type Server struct {
 	listArchiveItems              *usecase.ListArchiveItems
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest
 	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
+	claimTutoringAnalysisRequest  *usecase.ClaimTutoringAnalysisRequest
 	recordTutoringAnalysisResult  *usecase.RecordTutoringAnalysisResult
 	agentAPIKey                   string
 }
@@ -46,6 +47,11 @@ type recordTutoringAnalysisResultRequest struct {
 	QuestionBankDraftRef string                        `json:"questionBankDraftRef,omitempty"`
 	ErrorCode            string                        `json:"errorCode,omitempty"`
 	ErrorMessage         string                        `json:"errorMessage,omitempty"`
+}
+
+type claimTutoringAnalysisRequestRequest struct {
+	WorkerID     string `json:"workerId"`
+	LeaseSeconds int    `json:"leaseSeconds,omitempty"`
 }
 
 type archiveItemResponse struct {
@@ -92,6 +98,21 @@ type tutoringAnalysisRequestResponse struct {
 	UpdatedAt              *string                       `json:"updatedAt,omitempty"`
 }
 
+type tutoringAnalysisWorkerClaimResponse struct {
+	ID                     string                        `json:"id"`
+	ArchiveItemID          string                        `json:"archiveItemId"`
+	AnalysisGoal           string                        `json:"analysisGoal"`
+	QuestionBankIntent     domain.QuestionBankIntent     `json:"questionBankIntent"`
+	Status                 domain.TutoringAnalysisStatus `json:"status"`
+	SourceArchiveOwnerType domain.OwnerType              `json:"sourceArchiveOwnerType"`
+	SourceArchiveStudentID *string                       `json:"sourceArchiveStudentId,omitempty"`
+	SourceArchiveMaterial  domain.MaterialType           `json:"sourceArchiveMaterial"`
+	ClaimedByWorkerID      string                        `json:"claimedByWorkerId"`
+	ClaimExpiresAt         string                        `json:"claimExpiresAt"`
+	CreatedAt              string                        `json:"createdAt"`
+	UpdatedAt              string                        `json:"updatedAt"`
+}
+
 type pageInfoResponse struct {
 	PageSize   int     `json:"pageSize"`
 	HasMore    bool    `json:"hasMore"`
@@ -112,6 +133,7 @@ func NewServer(
 	listArchiveItems *usecase.ListArchiveItems,
 	createTutoringAnalysisRequest *usecase.CreateTutoringAnalysisRequest,
 	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
+	claimTutoringAnalysisRequest *usecase.ClaimTutoringAnalysisRequest,
 	recordTutoringAnalysisResult *usecase.RecordTutoringAnalysisResult,
 	agentAPIKey string,
 ) *Server {
@@ -120,6 +142,7 @@ func NewServer(
 		listArchiveItems:              listArchiveItems,
 		createTutoringAnalysisRequest: createTutoringAnalysisRequest,
 		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
+		claimTutoringAnalysisRequest:  claimTutoringAnalysisRequest,
 		recordTutoringAnalysisResult:  recordTutoringAnalysisResult,
 		agentAPIKey:                   agentAPIKey,
 	}
@@ -176,6 +199,15 @@ func (s *Server) tutoringAnalysisRequests(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) tutoringAnalysisRequestSubresources(w http.ResponseWriter, r *http.Request) {
+	if parseTutoringAnalysisWorkerClaimPath(r.URL.Path) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.claimTutoringRequest(w, r)
+		return
+	}
+
 	requestID, ok := parseTutoringAnalysisWorkerResultPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "tutoring analysis request subresource not found")
@@ -312,6 +344,40 @@ func (s *Server) createTutoringRequest(w http.ResponseWriter, r *http.Request, a
 	writeJSON(w, http.StatusCreated, toTutoringAnalysisRequestResponse(created))
 }
 
+func (s *Server) claimTutoringRequest(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request claimTutoringAnalysisRequestRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+
+	claimed, found, err := s.claimTutoringAnalysisRequest.Execute(
+		r.Context(),
+		domain.ClaimTutoringAnalysisRequestInput{
+			Principal:    principal,
+			WorkerID:     request.WorkerID,
+			LeaseSeconds: request.LeaseSeconds,
+		},
+	)
+	if handleArchiveError(w, err, "failed to claim tutoring analysis request") {
+		return
+	}
+	if !found {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toTutoringAnalysisWorkerClaimResponse(claimed))
+}
+
 func (s *Server) recordTutoringResult(w http.ResponseWriter, r *http.Request, requestID string) {
 	if !s.authorized(r) {
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
@@ -362,6 +428,10 @@ func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
 		return "", false
 	}
 	return archiveItemID, true
+}
+
+func parseTutoringAnalysisWorkerClaimPath(path string) bool {
+	return path == "/v1/teaching/tutoring-analysis-requests/worker-claims"
 }
 
 func parseTutoringAnalysisWorkerResultPath(path string) (string, bool) {
@@ -515,6 +585,23 @@ func toTutoringAnalysisRequestResponse(request domain.TutoringAnalysisRequest) t
 		CreatedAt:              formatTime(request.CreatedAt),
 		CompletedAt:            optionalTime(request.CompletedAt),
 		UpdatedAt:              optionalTime(request.UpdatedAt),
+	}
+}
+
+func toTutoringAnalysisWorkerClaimResponse(request domain.TutoringAnalysisRequest) tutoringAnalysisWorkerClaimResponse {
+	return tutoringAnalysisWorkerClaimResponse{
+		ID:                     request.ID,
+		ArchiveItemID:          request.ArchiveItemID,
+		AnalysisGoal:           request.AnalysisGoal,
+		QuestionBankIntent:     request.QuestionBankIntent,
+		Status:                 request.Status,
+		SourceArchiveOwnerType: request.SourceArchiveOwnerType,
+		SourceArchiveStudentID: optionalString(request.SourceArchiveStudentID),
+		SourceArchiveMaterial:  request.SourceArchiveMaterial,
+		ClaimedByWorkerID:      request.ClaimedByWorkerID,
+		ClaimExpiresAt:         formatTime(request.ClaimExpiresAt),
+		CreatedAt:              formatTime(request.CreatedAt),
+		UpdatedAt:              formatTime(request.UpdatedAt),
 	}
 }
 

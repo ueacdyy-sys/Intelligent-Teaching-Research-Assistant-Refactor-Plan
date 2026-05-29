@@ -41,6 +41,7 @@ const required = [
   "docs/sdd/0033-teaching-archive-tutoring-analysis-request.md",
   "docs/sdd/0034-teaching-archive-tutoring-analysis-query-view.md",
   "docs/sdd/0035-teaching-archive-tutoring-analysis-worker-result.md",
+  "docs/sdd/0036-teaching-archive-tutoring-analysis-worker-claim.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -88,6 +89,8 @@ const required = [
   "services/teaching-archive-gateway/internal/domain/archive_query.go",
   "services/teaching-archive-gateway/internal/domain/principal.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_query.go",
+  "services/teaching-archive-gateway/internal/domain/tutoring_analysis_claim.go",
+  "services/teaching-archive-gateway/internal/domain/tutoring_analysis_claim_test.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_result.go",
   "services/teaching-archive-gateway/internal/domain/archive_authorization_test.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_request_test.go",
@@ -98,6 +101,8 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/list_archive_items_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_tutoring_analysis_requests.go",
   "services/teaching-archive-gateway/internal/usecase/list_tutoring_analysis_requests_test.go",
+  "services/teaching-archive-gateway/internal/usecase/claim_tutoring_analysis_request.go",
+  "services/teaching-archive-gateway/internal/usecase/claim_tutoring_analysis_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/record_tutoring_analysis_result.go",
   "services/teaching-archive-gateway/internal/usecase/record_tutoring_analysis_result_test.go",
   "services/teaching-archive-gateway/internal/usecase/principal_test.go",
@@ -464,6 +469,17 @@ const teachingArchiveTutoringAnalysisWorkerResultSdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveTutoringAnalysisWorkerResultSdd.includes(heading)) {
     console.error(`SDD 0035 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveTutoringAnalysisWorkerClaimSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0036-teaching-archive-tutoring-analysis-worker-claim.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveTutoringAnalysisWorkerClaimSdd.includes(heading)) {
+    console.error(`SDD 0036 missing heading: ${heading}`);
     process.exit(1);
   }
 }

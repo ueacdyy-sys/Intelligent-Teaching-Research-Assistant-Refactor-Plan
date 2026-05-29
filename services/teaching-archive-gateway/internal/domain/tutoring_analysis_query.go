@@ -205,6 +205,7 @@ func DecodeTutoringAnalysisRequestCursor(value string) (TutoringAnalysisRequestC
 
 func validTutoringAnalysisStatus(value TutoringAnalysisStatus) bool {
 	return value == TutoringAnalysisStatusQueued ||
+		value == TutoringAnalysisStatusInProgress ||
 		value == TutoringAnalysisStatusSucceeded ||
 		value == TutoringAnalysisStatusFailed
 }

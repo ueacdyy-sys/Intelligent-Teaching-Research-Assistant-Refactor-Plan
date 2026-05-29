@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -347,6 +348,56 @@ func TestRecordTutoringAnalysisResultReturnsUpdatedResponse(t *testing.T) {
 	}
 }
 
+func TestClaimTutoringAnalysisRequestReturnsWorkerClaim(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/tutoring-analysis-requests/worker-claims",
+		bytes.NewBufferString(`{"workerId":" worker_teaching_ai_01 ","leaseSeconds":120}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, servicePrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"status":"IN_PROGRESS"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"claimedByWorkerId":"worker_teaching_ai_01"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"claimExpiresAt"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+}
+
+func TestClaimTutoringAnalysisRequestReturnsNoContentWhenQueueEmpty(t *testing.T) {
+	handler := newTestHandlerWithRequests([]domain.TutoringAnalysisRequest{
+		completedTutoringAnalysisRequest("tutor_req_http_done", "tarch_http_3", "student_001", time.Date(2026, 5, 29, 10, 3, 0, 0, time.UTC)),
+	})
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/tutoring-analysis-requests/worker-claims",
+		bytes.NewBufferString(`{"workerId":"worker_teaching_ai_01","leaseSeconds":120}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, servicePrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if response.Body.Len() != 0 {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+}
+
 func TestRecordTutoringAnalysisResultRejectsTeacherPrincipal(t *testing.T) {
 	handler := newTestHandler()
 	request := httptest.NewRequest(
@@ -396,11 +447,57 @@ func newTestHandler() http.Handler {
 		store,
 		fixedClock{now: time.Date(2026, 5, 29, 8, 45, 0, 0, time.UTC)},
 	)
+	claimTutoringRequest := usecase.NewClaimTutoringAnalysisRequest(
+		store,
+		fixedClock{now: time.Date(2026, 5, 29, 8, 40, 0, 0, time.UTC)},
+	)
 	return httpapi.NewServer(
 		uc,
 		list,
 		createTutoringRequest,
 		listTutoringRequests,
+		claimTutoringRequest,
+		recordTutoringResult,
+		"ueacd",
+	).Handler()
+}
+
+func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.Handler {
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			archiveItem("tarch_http_3", "student_001", time.Date(2026, 5, 29, 10, 3, 0, 0, time.UTC)),
+			archiveItem("tarch_http_other", "student_002", time.Date(2026, 5, 29, 10, 2, 30, 0, time.UTC)),
+			archiveItem("tarch_http_2", "student_001", time.Date(2026, 5, 29, 10, 2, 0, 0, time.UTC)),
+			archiveItem("tarch_http_1", "student_001", time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)),
+		},
+		requests: append([]domain.TutoringAnalysisRequest(nil), requests...),
+	}
+	uc := usecase.NewCreateArchiveItem(
+		store,
+		fixedIDs{id: "tarch_http"},
+		fixedClock{now: time.Date(2026, 5, 29, 8, 0, 0, 0, time.UTC)},
+	)
+	list := usecase.NewListArchiveItems(store)
+	listTutoringRequests := usecase.NewListTutoringAnalysisRequests(store)
+	createTutoringRequest := usecase.NewCreateTutoringAnalysisRequest(
+		store,
+		fixedIDs{id: "tutor_req_http"},
+		fixedClock{now: time.Date(2026, 5, 29, 8, 30, 0, 0, time.UTC)},
+	)
+	recordTutoringResult := usecase.NewRecordTutoringAnalysisResult(
+		store,
+		fixedClock{now: time.Date(2026, 5, 29, 8, 45, 0, 0, time.UTC)},
+	)
+	claimTutoringRequest := usecase.NewClaimTutoringAnalysisRequest(
+		store,
+		fixedClock{now: time.Date(2026, 5, 29, 8, 40, 0, 0, time.UTC)},
+	)
+	return httpapi.NewServer(
+		uc,
+		list,
+		createTutoringRequest,
+		listTutoringRequests,
+		claimTutoringRequest,
 		recordTutoringResult,
 		"ueacd",
 	).Handler()
@@ -577,6 +674,24 @@ func (f *fakeRepository) GetTutoringAnalysisRequestByID(
 	return domain.TutoringAnalysisRequest{}, false, nil
 }
 
+func (f *fakeRepository) ClaimNextTutoringAnalysisRequest(
+	_ context.Context,
+	input domain.ClaimTutoringAnalysisRequestInput,
+	now time.Time,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	for index, request := range f.requests {
+		claimed, err := domain.ApplyTutoringAnalysisClaim(request, input, now)
+		if err == nil {
+			f.requests[index] = claimed
+			return claimed, true, nil
+		}
+		if !errors.Is(err, domain.ErrConflict) {
+			return domain.TutoringAnalysisRequest{}, false, err
+		}
+	}
+	return domain.TutoringAnalysisRequest{}, false, nil
+}
+
 func (f *fakeRepository) RecordTutoringAnalysisResult(
 	_ context.Context,
 	updated domain.TutoringAnalysisRequest,
@@ -613,6 +728,16 @@ func tutoringAnalysisRequest(id string, archiveItemID string, studentID string, 
 		SourceArchiveMaterial:  domain.MaterialTypeQuiz,
 		CreatedAt:              createdAt,
 	}
+}
+
+func completedTutoringAnalysisRequest(id string, archiveItemID string, studentID string, createdAt time.Time) domain.TutoringAnalysisRequest {
+	request := tutoringAnalysisRequest(id, archiveItemID, studentID, createdAt)
+	request.Status = domain.TutoringAnalysisStatusSucceeded
+	request.ResultSummary = "completed"
+	request.ResultRef = "local://analysis/" + id + "/result.json"
+	request.CompletedAt = createdAt.Add(time.Hour)
+	request.UpdatedAt = request.CompletedAt
+	return request
 }
 
 func archiveItem(id string, studentID string, createdAt time.Time) domain.ArchiveItem {
