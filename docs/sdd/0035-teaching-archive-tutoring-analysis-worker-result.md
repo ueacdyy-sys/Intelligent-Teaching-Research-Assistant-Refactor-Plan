@@ -29,6 +29,8 @@ In scope:
 - Store result metadata, `completedAt`, and `updatedAt`.
 - Keep model execution, OCR/RAG, generated questions, and training artifacts out of this slice.
 
+Note: SDD 0037 tightens this result writeback so a worker result must match an active worker claim lease.
+
 Out of scope:
 
 - Worker queue claiming.
@@ -51,7 +53,7 @@ Go service:
 
 ## Acceptance Criteria
 
-- Domain tests prove success metadata marks a queued request as `SUCCEEDED`.
+- Domain tests prove success metadata marks an eligible tutoring analysis request as `SUCCEEDED`.
 - Domain tests prove failed metadata requires an error message.
 - Domain/use-case tests prove only an internal service principal can write worker results.
 - Use-case tests prove final requests cannot be overwritten.

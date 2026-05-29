@@ -322,11 +322,13 @@ func TestListTutoringAnalysisRequestsScopesStudentPrincipalToOwnRequests(t *test
 }
 
 func TestRecordTutoringAnalysisResultReturnsUpdatedResponse(t *testing.T) {
-	handler := newTestHandler()
+	handler := newTestHandlerWithRequests([]domain.TutoringAnalysisRequest{
+		claimedTutoringAnalysisRequest("tutor_req_http_3", "tarch_http_3", "student_001", time.Date(2026, 5, 29, 8, 40, 0, 0, time.UTC)),
+	})
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/v1/teaching/tutoring-analysis-requests/tutor_req_http_3/worker-result",
-		bytes.NewBufferString(`{"status":"SUCCEEDED","resultSummary":" mastered fractions ","resultRef":"local://analysis/tutor_req_http_3/result.json","questionBankDraftRef":"local://question-bank-drafts/tutor_req_http_3.json"}`),
+		bytes.NewBufferString(`{"status":"SUCCEEDED","workerId":"worker_teaching_ai_01","resultSummary":" mastered fractions ","resultRef":"local://analysis/tutor_req_http_3/result.json","questionBankDraftRef":"local://question-bank-drafts/tutor_req_http_3.json"}`),
 	)
 	request.Header.Set("X-Agent-Api-Key", "ueacd")
 	setPrincipalHeader(t, request, servicePrincipal())

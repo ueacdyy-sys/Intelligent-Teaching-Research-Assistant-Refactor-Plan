@@ -64,6 +64,8 @@ func TestRecordTutoringAnalysisResultUpdatesMetadataOnly(t *testing.T) {
 		ResultSummary:        "mastered fractions",
 		ResultRef:            "local://analysis/tutor_req_row/result.json",
 		QuestionBankDraftRef: "local://question-bank-drafts/tutor_req_row.json",
+		ClaimedByWorkerID:    "worker_teaching_ai_01",
+		ClaimExpiresAt:       time.Date(2026, 5, 29, 11, 5, 0, 0, time.UTC),
 		CompletedAt:          time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC),
 		UpdatedAt:            time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC),
 	})
@@ -80,14 +82,16 @@ func TestRecordTutoringAnalysisResultUpdatesMetadataOnly(t *testing.T) {
 		"completed_at = $7",
 		"updated_at = $8",
 		"WHERE id = $9",
-		"status NOT IN ($10, $11)",
+		"status = $10",
+		"claimed_by_worker_id = $11",
+		"claim_expires_at > $12",
 	} {
 		if !strings.Contains(db.lastExecSQL, fragment) {
 			t.Fatalf("SQL missing %q in: %s", fragment, db.lastExecSQL)
 		}
 	}
-	if len(db.execArgs) != 11 {
-		t.Fatalf("args = %d, want 11", len(db.execArgs))
+	if len(db.execArgs) != 12 {
+		t.Fatalf("args = %d, want 12", len(db.execArgs))
 	}
 }
 

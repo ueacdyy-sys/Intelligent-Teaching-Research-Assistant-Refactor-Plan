@@ -36,7 +36,7 @@ Out of scope:
 - Python worker implementation.
 - Running OCR/RAG/model calls.
 - Generated personalized question content.
-- Result writeback ownership validation by worker lease.
+- Result writeback ownership validation by worker lease; this is implemented by SDD 0037.
 - Dead-letter queues and retry policy.
 
 ## Contracts

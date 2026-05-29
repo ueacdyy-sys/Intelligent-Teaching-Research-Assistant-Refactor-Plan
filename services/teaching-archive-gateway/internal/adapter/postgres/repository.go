@@ -314,7 +314,9 @@ func (r *ArchiveRepository) RecordTutoringAnalysisResult(
 			completed_at = $7,
 			updated_at = $8
 		WHERE id = $9
-			AND status NOT IN ($10, $11)
+			AND status = $10
+			AND claimed_by_worker_id = $11
+			AND claim_expires_at > $12
 	`,
 		request.Status,
 		request.ResultSummary,
@@ -325,8 +327,9 @@ func (r *ArchiveRepository) RecordTutoringAnalysisResult(
 		request.CompletedAt,
 		request.UpdatedAt,
 		request.ID,
-		domain.TutoringAnalysisStatusSucceeded,
-		domain.TutoringAnalysisStatusFailed,
+		domain.TutoringAnalysisStatusInProgress,
+		request.ClaimedByWorkerID,
+		request.CompletedAt,
 	)
 	if err != nil {
 		return err

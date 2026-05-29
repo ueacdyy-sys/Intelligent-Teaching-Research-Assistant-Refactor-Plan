@@ -42,6 +42,7 @@ const required = [
   "docs/sdd/0034-teaching-archive-tutoring-analysis-query-view.md",
   "docs/sdd/0035-teaching-archive-tutoring-analysis-worker-result.md",
   "docs/sdd/0036-teaching-archive-tutoring-analysis-worker-claim.md",
+  "docs/sdd/0037-teaching-archive-tutoring-analysis-result-lease-guard.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -480,6 +481,17 @@ const teachingArchiveTutoringAnalysisWorkerClaimSdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveTutoringAnalysisWorkerClaimSdd.includes(heading)) {
     console.error(`SDD 0036 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveTutoringAnalysisResultLeaseGuardSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0037-teaching-archive-tutoring-analysis-result-lease-guard.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveTutoringAnalysisResultLeaseGuardSdd.includes(heading)) {
+    console.error(`SDD 0037 missing heading: ${heading}`);
     process.exit(1);
   }
 }

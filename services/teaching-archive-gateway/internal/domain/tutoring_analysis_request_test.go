@@ -94,8 +94,10 @@ func TestBuildTutoringAnalysisRequestPageBuildsNextCursor(t *testing.T) {
 func TestApplyTutoringAnalysisResultMarksSucceededMetadata(t *testing.T) {
 	request := domain.TutoringAnalysisRequest{
 		ID:                 "tutor_req_001",
-		Status:             domain.TutoringAnalysisStatusQueued,
+		Status:             domain.TutoringAnalysisStatusInProgress,
 		QuestionBankIntent: domain.QuestionBankIntentGeneratePersonalizedCheck,
+		ClaimedByWorkerID:  "worker_teaching_ai_01",
+		ClaimExpiresAt:     time.Date(2026, 5, 29, 15, 5, 0, 0, time.UTC),
 		CreatedAt:          time.Date(2026, 5, 29, 14, 0, 0, 0, time.UTC),
 	}
 
@@ -104,6 +106,7 @@ func TestApplyTutoringAnalysisResultMarksSucceededMetadata(t *testing.T) {
 		domain.RecordTutoringAnalysisResultInput{
 			Principal:            servicePrincipal(),
 			RequestID:            " tutor_req_001 ",
+			WorkerID:             " worker_teaching_ai_01 ",
 			Status:               domain.TutoringAnalysisStatusSucceeded,
 			ResultSummary:        "  mastered fractions  ",
 			ResultRef:            " local://analysis/tutor_req_001/result.json ",
@@ -129,12 +132,82 @@ func TestApplyTutoringAnalysisResultMarksSucceededMetadata(t *testing.T) {
 	}
 }
 
-func TestApplyTutoringAnalysisResultRequiresFailureMessage(t *testing.T) {
+func TestApplyTutoringAnalysisResultRejectsQueuedWithoutClaim(t *testing.T) {
 	_, err := domain.ApplyTutoringAnalysisResult(
 		domain.TutoringAnalysisRequest{ID: "tutor_req_001", Status: domain.TutoringAnalysisStatusQueued},
 		domain.RecordTutoringAnalysisResultInput{
+			Principal:     servicePrincipal(),
+			RequestID:     "tutor_req_001",
+			WorkerID:      "worker_teaching_ai_01",
+			Status:        domain.TutoringAnalysisStatusSucceeded,
+			ResultSummary: "summary",
+			ResultRef:     "local://analysis/tutor_req_001/result.json",
+		},
+		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
+	)
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("error = %v, want ErrConflict", err)
+	}
+}
+
+func TestApplyTutoringAnalysisResultRejectsMismatchedWorker(t *testing.T) {
+	_, err := domain.ApplyTutoringAnalysisResult(
+		domain.TutoringAnalysisRequest{
+			ID:                "tutor_req_001",
+			Status:            domain.TutoringAnalysisStatusInProgress,
+			ClaimedByWorkerID: "worker_owner",
+			ClaimExpiresAt:    time.Date(2026, 5, 29, 15, 5, 0, 0, time.UTC),
+		},
+		domain.RecordTutoringAnalysisResultInput{
+			Principal:     servicePrincipal(),
+			RequestID:     "tutor_req_001",
+			WorkerID:      "worker_other",
+			Status:        domain.TutoringAnalysisStatusSucceeded,
+			ResultSummary: "summary",
+			ResultRef:     "local://analysis/tutor_req_001/result.json",
+		},
+		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
+	)
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("error = %v, want ErrConflict", err)
+	}
+}
+
+func TestApplyTutoringAnalysisResultRejectsExpiredLease(t *testing.T) {
+	_, err := domain.ApplyTutoringAnalysisResult(
+		domain.TutoringAnalysisRequest{
+			ID:                "tutor_req_001",
+			Status:            domain.TutoringAnalysisStatusInProgress,
+			ClaimedByWorkerID: "worker_teaching_ai_01",
+			ClaimExpiresAt:    time.Date(2026, 5, 29, 14, 59, 0, 0, time.UTC),
+		},
+		domain.RecordTutoringAnalysisResultInput{
+			Principal:     servicePrincipal(),
+			RequestID:     "tutor_req_001",
+			WorkerID:      "worker_teaching_ai_01",
+			Status:        domain.TutoringAnalysisStatusSucceeded,
+			ResultSummary: "summary",
+			ResultRef:     "local://analysis/tutor_req_001/result.json",
+		},
+		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
+	)
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("error = %v, want ErrConflict", err)
+	}
+}
+
+func TestApplyTutoringAnalysisResultRequiresFailureMessage(t *testing.T) {
+	_, err := domain.ApplyTutoringAnalysisResult(
+		domain.TutoringAnalysisRequest{
+			ID:                "tutor_req_001",
+			Status:            domain.TutoringAnalysisStatusInProgress,
+			ClaimedByWorkerID: "worker_teaching_ai_01",
+			ClaimExpiresAt:    time.Date(2026, 5, 29, 15, 5, 0, 0, time.UTC),
+		},
+		domain.RecordTutoringAnalysisResultInput{
 			Principal: servicePrincipal(),
 			RequestID: "tutor_req_001",
+			WorkerID:  "worker_teaching_ai_01",
 			Status:    domain.TutoringAnalysisStatusFailed,
 		},
 		time.Date(2026, 5, 29, 15, 0, 0, 0, time.UTC),
@@ -146,10 +219,16 @@ func TestApplyTutoringAnalysisResultRequiresFailureMessage(t *testing.T) {
 
 func TestApplyTutoringAnalysisResultRejectsErrorFieldsOnSuccess(t *testing.T) {
 	_, err := domain.ApplyTutoringAnalysisResult(
-		domain.TutoringAnalysisRequest{ID: "tutor_req_001", Status: domain.TutoringAnalysisStatusQueued},
+		domain.TutoringAnalysisRequest{
+			ID:                "tutor_req_001",
+			Status:            domain.TutoringAnalysisStatusInProgress,
+			ClaimedByWorkerID: "worker_teaching_ai_01",
+			ClaimExpiresAt:    time.Date(2026, 5, 29, 15, 5, 0, 0, time.UTC),
+		},
 		domain.RecordTutoringAnalysisResultInput{
 			Principal:     servicePrincipal(),
 			RequestID:     "tutor_req_001",
+			WorkerID:      "worker_teaching_ai_01",
 			Status:        domain.TutoringAnalysisStatusSucceeded,
 			ResultSummary: "summary",
 			ResultRef:     "local://analysis/tutor_req_001/result.json",
@@ -164,10 +243,16 @@ func TestApplyTutoringAnalysisResultRejectsErrorFieldsOnSuccess(t *testing.T) {
 
 func TestApplyTutoringAnalysisResultRejectsResultFieldsOnFailure(t *testing.T) {
 	_, err := domain.ApplyTutoringAnalysisResult(
-		domain.TutoringAnalysisRequest{ID: "tutor_req_001", Status: domain.TutoringAnalysisStatusQueued},
+		domain.TutoringAnalysisRequest{
+			ID:                "tutor_req_001",
+			Status:            domain.TutoringAnalysisStatusInProgress,
+			ClaimedByWorkerID: "worker_teaching_ai_01",
+			ClaimExpiresAt:    time.Date(2026, 5, 29, 15, 5, 0, 0, time.UTC),
+		},
 		domain.RecordTutoringAnalysisResultInput{
 			Principal:     servicePrincipal(),
 			RequestID:     "tutor_req_001",
+			WorkerID:      "worker_teaching_ai_01",
 			Status:        domain.TutoringAnalysisStatusFailed,
 			ResultSummary: "should not be accepted",
 			ErrorMessage:  "worker failed",

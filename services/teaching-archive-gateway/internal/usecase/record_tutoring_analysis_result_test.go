@@ -15,7 +15,10 @@ func TestRecordTutoringAnalysisResultAllowsInternalService(t *testing.T) {
 		request: tutoringRequest("tutor_req_queued", "tarch_1", "student_001", time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)),
 		found:   true,
 	}
+	repo.request.Status = domain.TutoringAnalysisStatusInProgress
 	repo.request.QuestionBankIntent = domain.QuestionBankIntentGeneratePersonalizedCheck
+	repo.request.ClaimedByWorkerID = "worker_teaching_ai_01"
+	repo.request.ClaimExpiresAt = time.Date(2026, 5, 29, 11, 5, 0, 0, time.UTC)
 	uc := usecase.NewRecordTutoringAnalysisResult(
 		repo,
 		fixedClock{now: time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC)},
@@ -24,6 +27,7 @@ func TestRecordTutoringAnalysisResultAllowsInternalService(t *testing.T) {
 	got, err := uc.Execute(context.Background(), domain.RecordTutoringAnalysisResultInput{
 		Principal:            servicePrincipal(),
 		RequestID:            " tutor_req_queued ",
+		WorkerID:             " worker_teaching_ai_01 ",
 		Status:               domain.TutoringAnalysisStatusSucceeded,
 		ResultSummary:        " mastered fractions, needs algebra practice ",
 		ResultRef:            "local://analysis/tutor_req_queued/result.json",
@@ -43,6 +47,30 @@ func TestRecordTutoringAnalysisResultAllowsInternalService(t *testing.T) {
 		t.Fatalf("completion timestamps missing: %#v", got)
 	}
 	if repo.updates != 1 {
+		t.Fatalf("updates = %d", repo.updates)
+	}
+}
+
+func TestRecordTutoringAnalysisResultRejectsMismatchedWorkerBeforeUpdate(t *testing.T) {
+	request := tutoringRequest("tutor_req_claimed", "tarch_1", "student_001", time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC))
+	request.Status = domain.TutoringAnalysisStatusInProgress
+	request.ClaimedByWorkerID = "worker_owner"
+	request.ClaimExpiresAt = time.Date(2026, 5, 29, 11, 5, 0, 0, time.UTC)
+	repo := &fakeTutoringAnalysisResultRepository{request: request, found: true}
+	uc := usecase.NewRecordTutoringAnalysisResult(repo, fixedClock{now: time.Date(2026, 5, 29, 11, 0, 0, 0, time.UTC)})
+
+	_, err := uc.Execute(context.Background(), domain.RecordTutoringAnalysisResultInput{
+		Principal:     servicePrincipal(),
+		RequestID:     "tutor_req_claimed",
+		WorkerID:      "worker_other",
+		Status:        domain.TutoringAnalysisStatusSucceeded,
+		ResultSummary: "summary",
+		ResultRef:     "local://analysis/tutor_req_claimed/result.json",
+	})
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("error = %v, want ErrConflict", err)
+	}
+	if repo.updates != 0 {
 		t.Fatalf("updates = %d", repo.updates)
 	}
 }
@@ -75,6 +103,7 @@ func TestRecordTutoringAnalysisResultRejectsFinalOverwrite(t *testing.T) {
 	_, err := uc.Execute(context.Background(), domain.RecordTutoringAnalysisResultInput{
 		Principal:    servicePrincipal(),
 		RequestID:    "tutor_req_done",
+		WorkerID:     "worker_teaching_ai_01",
 		Status:       domain.TutoringAnalysisStatusFailed,
 		ErrorMessage: "retry failed",
 	})

@@ -17,6 +17,7 @@ const (
 type RecordTutoringAnalysisResultInput struct {
 	Principal            PrincipalContext
 	RequestID            string
+	WorkerID             string
 	Status               TutoringAnalysisStatus
 	ResultSummary        string
 	ResultRef            string
@@ -39,6 +40,9 @@ func ApplyTutoringAnalysisResult(
 		return TutoringAnalysisRequest{}, err
 	}
 	if request.Status == TutoringAnalysisStatusSucceeded || request.Status == TutoringAnalysisStatusFailed {
+		return TutoringAnalysisRequest{}, ErrConflict
+	}
+	if !canRecordTutoringAnalysisResult(request, normalized.WorkerID, completedAt.UTC()) {
 		return TutoringAnalysisRequest{}, ErrConflict
 	}
 
@@ -65,6 +69,11 @@ func NormalizeRecordTutoringAnalysisResultInput(
 	if request.ID != "" && request.ID != requestID {
 		return RecordTutoringAnalysisResultInput{}, validationError("requestId does not match tutoring analysis request")
 	}
+	workerID, err := normalizeRequiredText(input.WorkerID, maxTutoringAnalysisWorkerIDLength, "workerId")
+	if err != nil {
+		return RecordTutoringAnalysisResultInput{}, err
+	}
+	input.WorkerID = workerID
 
 	switch input.Status {
 	case TutoringAnalysisStatusSucceeded:
@@ -87,6 +96,13 @@ func AuthorizeRecordTutoringAnalysisResult(principal PrincipalContext) error {
 		return nil
 	}
 	return ErrForbidden
+}
+
+func canRecordTutoringAnalysisResult(request TutoringAnalysisRequest, workerID string, now time.Time) bool {
+	return request.Status == TutoringAnalysisStatusInProgress &&
+		request.ClaimedByWorkerID == workerID &&
+		!request.ClaimExpiresAt.IsZero() &&
+		request.ClaimExpiresAt.After(now.UTC())
 }
 
 func NormalizeTutoringAnalysisRequestID(value string) (string, error) {
@@ -135,6 +151,7 @@ func normalizeSuccessfulTutoringAnalysisResult(
 	return RecordTutoringAnalysisResultInput{
 		Principal:            input.Principal,
 		RequestID:            requestID,
+		WorkerID:             input.WorkerID,
 		Status:               TutoringAnalysisStatusSucceeded,
 		ResultSummary:        resultSummary,
 		ResultRef:            resultRef,
@@ -167,6 +184,7 @@ func normalizeFailedTutoringAnalysisResult(
 	return RecordTutoringAnalysisResultInput{
 		Principal:    input.Principal,
 		RequestID:    requestID,
+		WorkerID:     input.WorkerID,
 		Status:       TutoringAnalysisStatusFailed,
 		ErrorCode:    errorCode,
 		ErrorMessage: errorMessage,

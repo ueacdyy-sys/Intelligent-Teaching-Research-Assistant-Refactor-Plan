@@ -42,6 +42,7 @@ type createTutoringAnalysisRequestRequest struct {
 
 type recordTutoringAnalysisResultRequest struct {
 	Status               domain.TutoringAnalysisStatus `json:"status"`
+	WorkerID             string                        `json:"workerId"`
 	ResultSummary        string                        `json:"resultSummary,omitempty"`
 	ResultRef            string                        `json:"resultRef,omitempty"`
 	QuestionBankDraftRef string                        `json:"questionBankDraftRef,omitempty"`
@@ -396,6 +397,7 @@ func (s *Server) recordTutoringResult(w http.ResponseWriter, r *http.Request, re
 	updated, err := s.recordTutoringAnalysisResult.Execute(r.Context(), domain.RecordTutoringAnalysisResultInput{
 		Principal:            principal,
 		RequestID:            requestID,
+		WorkerID:             request.WorkerID,
 		Status:               request.Status,
 		ResultSummary:        request.ResultSummary,
 		ResultRef:            request.ResultRef,
