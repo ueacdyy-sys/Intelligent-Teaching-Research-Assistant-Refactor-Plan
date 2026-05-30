@@ -79,6 +79,7 @@ import (
       "AI worker job admission audit",
       "knowledge retrieval benchmark audit",
       "AI worker runtime dependency audit",
+      "performance evidence registry audit",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);

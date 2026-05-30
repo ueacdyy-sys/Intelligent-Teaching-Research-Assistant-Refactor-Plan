@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "2026-05-30.ops.performance-evidence-registry.v1",
+  "registryId": "current_refactor_performance_evidence",
+  "updatedAt": "2026-05-30T15:40:00Z",
+  "entries": [
+    {
+      "evidenceId": "pgbouncer_perf_profile_current",
+      "moduleSlice": "Runtime Foundation / Connection And Write Path",
+      "workloadType": "CONFIG_PROFILE",
+      "sourceCommand": "npm run audit:pgbouncer-perf:current",
+      "sourceReportPath": "reports/pgbouncer-perf-profile.current.json",
+      "runtimeProfile": {
+        "name": "legacy_backend_postgres_pgbouncer_perf_profile",
+        "executionEnvironment": "Docker performance compose profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "NEEDS_REMEDIATION",
+      "metrics": [
+        {
+          "name": "postgres.max_connections",
+          "value": 300,
+          "unit": "connections",
+          "interpretation": "Meets the current high-concurrency performance profile floor."
+        },
+        {
+          "name": "pgbouncer.max_db_connections",
+          "value": 90,
+          "unit": "connections",
+          "interpretation": "Stays below the safe PostgreSQL server connection budget."
+        },
+        {
+          "name": "backend.db_pool_size",
+          "value": 3,
+          "unit": "connections_per_worker",
+          "interpretation": "Exceeds the proposed combined-test target and is recorded as a current bottleneck."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "postgres-perf",
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
+        },
+        "pgbouncer": {
+          "serviceName": "pgbouncer-perf",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 90
+        },
+        "applicationPool": {
+          "postgresHost": "postgres-perf",
+          "postgresPort": 5432,
+          "dbPoolSize": 3,
+          "dbMaxOverflow": 0,
+          "workerCount": 24
+        }
+      },
+      "rollbackOrNextAction": "Apply the PgBouncer performance override, route backend traffic to pgbouncer-perf:6432, and cap DB_POOL_SIZE at 2 before treating this profile as ready."
+    },
+    {
+      "evidenceId": "knowledge_hybrid_retrieval_policy_smoke",
+      "moduleSlice": "Knowledge And Data / Retrieval Policy",
+      "workloadType": "RETRIEVAL_BENCHMARK",
+      "sourceCommand": "npm run audit:knowledge-retrieval-benchmark",
+      "sourceReportPath": "reports/knowledge-retrieval-benchmark.current.json",
+      "runtimeProfile": {
+        "name": "docker_free_policy_benchmark",
+        "executionEnvironment": "Node deterministic benchmark audit",
+        "dockerRequiredForEvidence": false,
+        "includedInNpmTest": false
+      },
+      "status": "READY",
+      "metrics": [
+        {
+          "name": "benchmark.p95_query_plan_ms",
+          "value": 2.55,
+          "unit": "ms",
+          "interpretation": "Current deterministic hybrid retrieval planning stays below the 120ms P95 budget."
+        },
+        {
+          "name": "benchmark.max_directory_candidates",
+          "value": 1,
+          "unit": "candidates",
+          "interpretation": "Directory-intent candidate path is exercised without broad scans."
+        },
+        {
+          "name": "benchmark.max_chunk_candidates",
+          "value": 2,
+          "unit": "candidates",
+          "interpretation": "Legacy chunk candidate path remains exercised and bounded."
+        }
+      ],
+      "databaseEvidence": {
+        "required": false,
+        "notRequiredReason": "This is a deterministic policy benchmark over an embedded corpus and does not touch PostgreSQL."
+      },
+      "rollbackOrNextAction": "Keep this as the Docker-free npm quality evidence and add live datastore retrieval benchmarks in a later operations slice."
+    },
+    {
+      "evidenceId": "ai_worker_runtime_dependency_profile",
+      "moduleSlice": "AI Workers / Runtime Dependency Isolation",
+      "workloadType": "DEPENDENCY_PROFILE",
+      "sourceCommand": "npm run audit:ai-worker-runtime-dependencies",
+      "sourceReportPath": "reports/ai-worker-runtime-dependency-profile.current.json",
+      "runtimeProfile": {
+        "name": "baseline_runtime_dependency_scan",
+        "executionEnvironment": "Node manifest audit over baseline Node, Go, and Rust manifests",
+        "dockerRequiredForEvidence": false,
+        "includedInNpmTest": false
+      },
+      "status": "READY",
+      "metrics": [
+        {
+          "name": "baseline.dependencies_scanned",
+          "value": 23,
+          "unit": "dependencies",
+          "interpretation": "Baseline runtime manifests are scanned for forbidden model, OCR, RAG, vector, embedding, and training packages."
+        },
+        {
+          "name": "baseline.forbidden_ai_package_hits",
+          "value": 0,
+          "unit": "packages",
+          "interpretation": "No optional AI worker dependency is installed into the baseline runtime."
+        }
+      ],
+      "databaseEvidence": {
+        "required": false,
+        "notRequiredReason": "This dependency profile reads package manifests only and does not touch PostgreSQL."
+      },
+      "rollbackOrNextAction": "Keep optional AI dependency bundles as profile metadata until an isolated Python worker environment is introduced."
+    },
+    {
+      "evidenceId": "strict_quality_gate_current",
+      "moduleSlice": "Observability And Operations / Pre-Merge Quality",
+      "workloadType": "QUALITY_GATE",
+      "sourceCommand": "npm run quality",
+      "sourceReportPath": "reports/quality-gate.current.json",
+      "runtimeProfile": {
+        "name": "strict_pre_merge_gate",
+        "executionEnvironment": "Local Node, Go, and Rust quality gate",
+        "dockerRequiredForEvidence": false,
+        "includedInNpmTest": false
+      },
+      "status": "PASSED",
+      "metrics": [
+        {
+          "name": "quality.command_results_passed",
+          "value": 18,
+          "unit": "commands",
+          "interpretation": "The previous strict quality report recorded every command gate as passed."
+        },
+        {
+          "name": "quality.static_findings",
+          "value": 0,
+          "unit": "findings",
+          "interpretation": "The previous strict quality report recorded no static quality findings."
+        }
+      ],
+      "databaseEvidence": {
+        "required": false,
+        "notRequiredReason": "This is a local pre-merge quality rollup; database-backed performance evidence is registered separately."
+      },
+      "rollbackOrNextAction": "Keep this gate mandatory before committing each refactor slice and add this registry audit to the command plan."
+    }
+  ]
+}

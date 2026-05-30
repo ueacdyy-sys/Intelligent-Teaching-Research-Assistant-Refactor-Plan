@@ -1,0 +1,102 @@
+{
+  "generatedAt": "2026-05-30T15:40:04.574Z",
+  "readiness": "READY",
+  "registryId": "current_refactor_performance_evidence",
+  "evidenceCount": 4,
+  "sourceReports": [
+    "reports/pgbouncer-perf-profile.current.json",
+    "reports/knowledge-retrieval-benchmark.current.json",
+    "reports/ai-worker-runtime-dependency-profile.current.json",
+    "reports/quality-gate.current.json"
+  ],
+  "findings": [
+    {
+      "id": "registry.entries_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "entries=4",
+      "expected": "entries>0",
+      "remediation": "Performance evidence registry must contain current evidence entries."
+    },
+    {
+      "id": "registry.required_report_coverage",
+      "passed": true,
+      "severity": "info",
+      "actual": "reports/pgbouncer-perf-profile.current.json,reports/knowledge-retrieval-benchmark.current.json,reports/ai-worker-runtime-dependency-profile.current.json,reports/quality-gate.current.json",
+      "expected": "reports/pgbouncer-perf-profile.current.json,reports/knowledge-retrieval-benchmark.current.json,reports/ai-worker-runtime-dependency-profile.current.json,reports/quality-gate.current.json",
+      "remediation": "Register every current required performance or performance-adjacent report."
+    },
+    {
+      "id": "sources.current_reports_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "reports/pgbouncer-perf-profile.current.json:present;reports/knowledge-retrieval-benchmark.current.json:present;reports/ai-worker-runtime-dependency-profile.current.json:present;reports/quality-gate.current.json:present",
+      "expected": "every sourceReportPath is present and readable",
+      "remediation": "Generate or restore the current source report before citing it as performance evidence."
+    },
+    {
+      "id": "sources.current_reports_parseable",
+      "passed": true,
+      "severity": "info",
+      "actual": "reports/pgbouncer-perf-profile.current.json:json;reports/knowledge-retrieval-benchmark.current.json:json;reports/ai-worker-runtime-dependency-profile.current.json:json;reports/quality-gate.current.json:json",
+      "expected": "every source report is valid JSON",
+      "remediation": "Performance evidence source reports must be machine-readable JSON."
+    },
+    {
+      "id": "entries.core_fields",
+      "passed": true,
+      "severity": "info",
+      "actual": "pgbouncer_perf_profile_current:complete;knowledge_hybrid_retrieval_policy_smoke:complete;ai_worker_runtime_dependency_profile:complete;strict_quality_gate_current:complete",
+      "expected": "each entry has id, module, workload, command, report, runtime, status, and action",
+      "remediation": "Fill every registry entry with the operational context needed to interpret the evidence."
+    },
+    {
+      "id": "entries.metric_summary",
+      "passed": true,
+      "severity": "info",
+      "actual": "pgbouncer_perf_profile_current:metrics=3;knowledge_hybrid_retrieval_policy_smoke:metrics=3;ai_worker_runtime_dependency_profile:metrics=2;strict_quality_gate_current:metrics=2",
+      "expected": "each entry has at least one named metric with interpretation",
+      "remediation": "Every performance evidence entry needs a metric summary or explicit contract-only metric."
+    },
+    {
+      "id": "database.database_evidence_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "databaseEntries=1",
+      "expected": "databaseEntries>0",
+      "remediation": "At least one current performance evidence entry must record database performance settings."
+    },
+    {
+      "id": "database.postgres_settings",
+      "passed": true,
+      "severity": "info",
+      "actual": "pgbouncer_perf_profile_current:postgres-perf:300:1GB",
+      "expected": "database entries include PostgreSQL serviceName, maxConnections, and sharedBuffers",
+      "remediation": "Record PostgreSQL settings in database-backed performance evidence."
+    },
+    {
+      "id": "database.pgbouncer_settings",
+      "passed": true,
+      "severity": "info",
+      "actual": "pgbouncer_perf_profile_current:pgbouncer-perf:transaction:6432:90",
+      "expected": "database entries include PgBouncer serviceName, poolMode, listenPort, and maxDbConnections",
+      "remediation": "Record PgBouncer settings in database-backed performance evidence."
+    },
+    {
+      "id": "database.non_database_rationale",
+      "passed": true,
+      "severity": "info",
+      "actual": "knowledge_hybrid_retrieval_policy_smoke:present;ai_worker_runtime_dependency_profile:present;strict_quality_gate_current:present",
+      "expected": "non-database entries explain why PostgreSQL settings are not required",
+      "remediation": "Contract-only and dependency-only evidence must state why database settings do not apply."
+    },
+    {
+      "id": "sources.status_matches_registry",
+      "passed": true,
+      "severity": "info",
+      "actual": "pgbouncer_perf_profile_current:registry=NEEDS_REMEDIATION:source=NEEDS_REMEDIATION;knowledge_hybrid_retrieval_policy_smoke:registry=READY:source=READY;ai_worker_runtime_dependency_profile:registry=READY:source=READY;strict_quality_gate_current:registry=PASSED:source=current_run_rollup",
+      "expected": "non-quality registry status matches source readiness; quality gate report is present",
+      "remediation": "Update the registry status when the underlying current report status changes."
+    }
+  ]
+}

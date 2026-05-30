@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita-refactor.local/contracts/ops/performance-evidence-registry.schema.json",
+  "title": "Performance Evidence Registry",
+  "type": "object",
+  "required": ["schemaVersion", "registryId", "updatedAt", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "registryId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidenceEntry"
+      }
+    }
+  },
+  "$defs": {
+    "evidenceEntry": {
+      "type": "object",
+      "required": [
+        "evidenceId",
+        "moduleSlice",
+        "workloadType",
+        "sourceCommand",
+        "sourceReportPath",
+        "runtimeProfile",
+        "status",
+        "metrics",
+        "databaseEvidence",
+        "rollbackOrNextAction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "moduleSlice": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workloadType": {
+          "enum": [
+            "CONFIG_PROFILE",
+            "CONNECTION_BUDGET",
+            "CONTRACT_GATE",
+            "DEPENDENCY_PROFILE",
+            "QUALITY_GATE",
+            "RETRIEVAL_BENCHMARK"
+          ]
+        },
+        "sourceCommand": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceReportPath": {
+          "type": "string",
+          "pattern": "^reports/.+\\.json$"
+        },
+        "runtimeProfile": {
+          "type": "object",
+          "required": ["name", "executionEnvironment", "dockerRequiredForEvidence", "includedInNpmTest"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "executionEnvironment": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dockerRequiredForEvidence": {
+              "type": "boolean"
+            },
+            "includedInNpmTest": {
+              "type": "boolean"
+            }
+          }
+        },
+        "status": {
+          "enum": ["READY", "NEEDS_REMEDIATION", "PASSED", "FAILED"]
+        },
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/metric"
+          }
+        },
+        "databaseEvidence": {
+          "$ref": "#/$defs/databaseEvidence"
+        },
+        "rollbackOrNextAction": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "required": ["name", "value", "interpretation"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {},
+        "unit": {
+          "type": "string"
+        },
+        "interpretation": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "databaseEvidence": {
+      "type": "object",
+      "required": ["required"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "notRequiredReason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "postgres": {
+          "$ref": "#/$defs/postgresSettings"
+        },
+        "pgbouncer": {
+          "$ref": "#/$defs/pgbouncerSettings"
+        },
+        "applicationPool": {
+          "$ref": "#/$defs/applicationPoolSettings"
+        }
+      }
+    },
+    "postgresSettings": {
+      "type": "object",
+      "required": ["serviceName", "maxConnections", "sharedBuffers"],
+      "additionalProperties": false,
+      "properties": {
+        "serviceName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maxConnections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sharedBuffers": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "pgbouncerSettings": {
+      "type": "object",
+      "required": ["serviceName", "poolMode", "listenPort", "maxDbConnections"],
+      "additionalProperties": false,
+      "properties": {
+        "serviceName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "poolMode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "listenPort": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxDbConnections": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "applicationPoolSettings": {
+      "type": "object",
+      "required": ["postgresHost", "postgresPort", "dbPoolSize", "dbMaxOverflow", "workerCount"],
+      "additionalProperties": false,
+      "properties": {
+        "postgresHost": {
+          "type": "string",
+          "minLength": 1
+        },
+        "postgresPort": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "dbPoolSize": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dbMaxOverflow": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "workerCount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}
