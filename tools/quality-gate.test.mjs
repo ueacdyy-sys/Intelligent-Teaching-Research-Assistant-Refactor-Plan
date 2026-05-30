@@ -72,6 +72,7 @@ import (
       "student app flow audit",
       "agent harness flow audit",
       "workflow plugin flow audit",
+      "workflow plugin registry admission",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);
