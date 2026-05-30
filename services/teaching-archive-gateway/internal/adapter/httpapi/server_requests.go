@@ -24,6 +24,11 @@ type createAIGradingRequestRequest struct {
 	RubricRef           string `json:"rubricRef,omitempty"`
 }
 
+type createQuizSubmissionRequest struct {
+	StudentID string `json:"studentId,omitempty"`
+	AnswerRef string `json:"answerRef"`
+}
+
 type recordTutoringAnalysisResultRequest struct {
 	Status               domain.TutoringAnalysisStatus `json:"status"`
 	WorkerID             string                        `json:"workerId"`

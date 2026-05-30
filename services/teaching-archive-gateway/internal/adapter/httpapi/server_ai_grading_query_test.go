@@ -114,6 +114,7 @@ func newTestHandlerWithAIGradingRequests(requests []domain.AIGradingRequest) htt
 		listTutoringRequests,
 		claimTutoringRequest,
 		recordTutoringResult,
+		nil,
 		"ueacd",
 	).Handler()
 }

@@ -10,6 +10,7 @@ import (
 type Server struct {
 	createArchiveItem             *usecase.CreateArchiveItem
 	listArchiveItems              *usecase.ListArchiveItems
+	createQuizSubmission          *usecase.CreateQuizSubmission
 	createAIGradingRequest        *usecase.CreateAIGradingRequest
 	listAIGradingRequests         *usecase.ListAIGradingRequests
 	claimAIGradingRequest         *usecase.ClaimAIGradingRequest
@@ -32,11 +33,13 @@ func NewServer(
 	listTutoringAnalysisRequests *usecase.ListTutoringAnalysisRequests,
 	claimTutoringAnalysisRequest *usecase.ClaimTutoringAnalysisRequest,
 	recordTutoringAnalysisResult *usecase.RecordTutoringAnalysisResult,
+	createQuizSubmission *usecase.CreateQuizSubmission,
 	agentAPIKey string,
 ) *Server {
 	return &Server{
 		createArchiveItem:             createArchiveItem,
 		listArchiveItems:              listArchiveItems,
+		createQuizSubmission:          createQuizSubmission,
 		createAIGradingRequest:        createAIGradingRequest,
 		listAIGradingRequests:         listAIGradingRequests,
 		claimAIGradingRequest:         claimAIGradingRequest,
@@ -95,6 +98,14 @@ func (s *Server) archiveItemSubresources(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		s.createAIGrading(w, r, archiveItemID)
+		return
+	}
+	if archiveItemID, ok := parseArchiveItemQuizSubmissionPath(r.URL.Path); ok {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.createQuizSubmissionMetadata(w, r, archiveItemID)
 		return
 	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND", "archive item subresource not found")
@@ -283,6 +294,38 @@ func (s *Server) createAIGrading(w http.ResponseWriter, r *http.Request, archive
 	}
 
 	writeJSON(w, http.StatusCreated, toAIGradingRequestResponse(created))
+}
+
+func (s *Server) createQuizSubmissionMetadata(w http.ResponseWriter, r *http.Request, archiveItemID string) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request createQuizSubmissionRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if s.createQuizSubmission == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "quiz submission use case is not configured")
+		return
+	}
+
+	created, err := s.createQuizSubmission.Execute(r.Context(), domain.CreateQuizSubmissionInput{
+		Principal:         principal,
+		QuizArchiveItemID: archiveItemID,
+		StudentID:         request.StudentID,
+		AnswerRef:         request.AnswerRef,
+	})
+	if handleArchiveError(w, err, "failed to create quiz submission") {
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, toQuizSubmissionResponse(created))
 }
 
 func (s *Server) claimTutoringRequest(w http.ResponseWriter, r *http.Request) {

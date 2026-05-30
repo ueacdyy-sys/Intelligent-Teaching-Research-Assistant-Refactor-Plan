@@ -50,11 +50,13 @@ const required = [
   "docs/sdd/0042-teaching-archive-http-runtime-headroom-split.md",
   "docs/sdd/0043-teaching-archive-postgres-repository-headroom-split.md",
   "docs/sdd/0044-teaching-archive-ai-grading-worker-result.md",
+  "docs/sdd/0045-teaching-archive-quiz-submission-intake.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
   "contracts/openapi/conversation-write-gateway.yaml",
   "contracts/openapi/teaching-archive.yaml",
+  "contracts/openapi/teaching-archive.quiz-submissions.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-worker-claims.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-worker-result.path.yaml",
@@ -100,6 +102,8 @@ const required = [
   "services/teaching-archive-gateway/go.sum",
   "services/teaching-archive-gateway/cmd/gateway/main.go",
   "services/teaching-archive-gateway/internal/domain/archive.go",
+  "services/teaching-archive-gateway/internal/domain/quiz_submission.go",
+  "services/teaching-archive-gateway/internal/domain/quiz_submission_test.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_request.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_query.go",
@@ -117,6 +121,8 @@ const required = [
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/create_archive_item.go",
   "services/teaching-archive-gateway/internal/usecase/create_archive_item_test.go",
+  "services/teaching-archive-gateway/internal/usecase/create_quiz_submission.go",
+  "services/teaching-archive-gateway/internal/usecase/create_quiz_submission_test.go",
   "services/teaching-archive-gateway/internal/usecase/create_ai_grading_request.go",
   "services/teaching-archive-gateway/internal/usecase/create_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests.go",
@@ -142,6 +148,7 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_claim.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_claim_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_result_test.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_quiz_submission_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_test_helpers_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_requests.go",
@@ -152,6 +159,8 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/postgres/repository.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_schema.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_archive_items.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_quiz_submission.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_quiz_submission_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_tutoring_analysis.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_request.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_scanners.go",
@@ -620,6 +629,17 @@ const teachingArchiveAIGradingWorkerResultSdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveAIGradingWorkerResultSdd.includes(heading)) {
     console.error(`SDD 0044 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveQuizSubmissionSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0045-teaching-archive-quiz-submission-intake.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveQuizSubmissionSdd.includes(heading)) {
+    console.error(`SDD 0045 missing heading: ${heading}`);
     process.exit(1);
   }
 }

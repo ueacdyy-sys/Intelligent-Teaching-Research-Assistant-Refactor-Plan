@@ -34,6 +34,11 @@ func main() {
 		platform.Clock{},
 	)
 	listArchiveItems := usecase.NewListArchiveItems(archiveRepository)
+	createQuizSubmission := usecase.NewCreateQuizSubmission(
+		archiveRepository,
+		platform.QuizSubmissionIDGenerator{},
+		platform.Clock{},
+	)
 	createAIGradingRequest := usecase.NewCreateAIGradingRequest(
 		archiveRepository,
 		platform.AIGradingRequestIDGenerator{},
@@ -76,6 +81,7 @@ func main() {
 			listTutoringAnalysisRequests,
 			claimTutoringAnalysisRequest,
 			recordTutoringAnalysisResult,
+			createQuizSubmission,
 			getenv("AGENT_API_KEY", "ueacd"),
 		).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,

@@ -41,3 +41,13 @@ func (AIGradingRequestIDGenerator) NewID() string {
 	}
 	return "grading_req_" + base64.RawURLEncoding.EncodeToString(buffer)
 }
+
+type QuizSubmissionIDGenerator struct{}
+
+func (QuizSubmissionIDGenerator) NewID() string {
+	buffer := make([]byte, 18)
+	if _, err := rand.Read(buffer); err != nil {
+		panic(err)
+	}
+	return "quiz_sub_" + base64.RawURLEncoding.EncodeToString(buffer)
+}

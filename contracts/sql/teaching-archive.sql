@@ -35,6 +35,22 @@ CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_page
 CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
     ON teaching_archive_items (material_type, created_at DESC, id DESC);
 
+CREATE TABLE IF NOT EXISTS teaching_quiz_submissions (
+    id TEXT PRIMARY KEY,
+    quiz_archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+    student_id TEXT NOT NULL,
+    submitted_by_principal_id TEXT NOT NULL,
+    answer_ref TEXT NOT NULL,
+    status TEXT NOT NULL,
+    submitted_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_quiz_submissions_quiz_submitted
+    ON teaching_quiz_submissions (quiz_archive_item_id, submitted_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_quiz_submissions_student_submitted
+    ON teaching_quiz_submissions (student_id, submitted_at DESC, id DESC);
+
 CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
     id TEXT PRIMARY KEY,
     archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),

@@ -37,6 +37,18 @@ func toResponse(item domain.ArchiveItem) archiveItemResponse {
 	}
 }
 
+func toQuizSubmissionResponse(submission domain.QuizSubmission) quizSubmissionResponse {
+	return quizSubmissionResponse{
+		ID:                     submission.ID,
+		QuizArchiveItemID:      submission.QuizArchiveItemID,
+		StudentID:              submission.StudentID,
+		SubmittedByPrincipalID: submission.SubmittedByPrincipalID,
+		AnswerRef:              submission.AnswerRef,
+		Status:                 submission.Status,
+		SubmittedAt:            formatTime(submission.SubmittedAt),
+	}
+}
+
 func toAIGradingRequestListResponse(page domain.AIGradingRequestPage) aiGradingRequestListResponse {
 	requests := make([]aiGradingRequestResponse, 0, len(page.Items))
 	for _, request := range page.Items {

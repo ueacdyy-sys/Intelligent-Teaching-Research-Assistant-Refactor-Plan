@@ -31,6 +31,16 @@ type aiGradingRequestListResponse struct {
 	PageInfo pageInfoResponse           `json:"pageInfo"`
 }
 
+type quizSubmissionResponse struct {
+	ID                     string                      `json:"id"`
+	QuizArchiveItemID      string                      `json:"quizArchiveItemId"`
+	StudentID              string                      `json:"studentId"`
+	SubmittedByPrincipalID string                      `json:"submittedByPrincipalId"`
+	AnswerRef              string                      `json:"answerRef"`
+	Status                 domain.QuizSubmissionStatus `json:"status"`
+	SubmittedAt            string                      `json:"submittedAt"`
+}
+
 type aiGradingRequestResponse struct {
 	ID                     string                 `json:"id"`
 	ArchiveItemID          string                 `json:"archiveItemId"`
