@@ -41,6 +41,7 @@ func TestCreateAttendanceRecordReturnsCreatedResponse(t *testing.T) {
 		nil,
 		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
 		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{now: time.Date(2026, 5, 30, 12, 5, 0, 0, time.UTC)}),
+		nil,
 		"ueacd",
 	).Handler()
 	request := httptest.NewRequest(

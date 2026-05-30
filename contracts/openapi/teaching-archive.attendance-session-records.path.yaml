@@ -1,3 +1,98 @@
+get:
+  operationId: listTeachingAttendanceRecords
+  summary: List metadata-only attendance records for a Teaching Mode rollcall session.
+  tags: [teaching-attendance]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^att_sess_[A-Za-z0-9_-]+$'
+    - name: studentId
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    - name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: Attendance record metadata page.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - data
+              - pageInfo
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - id
+                    - sessionId
+                    - studentId
+                    - status
+                    - recordedByPrincipalId
+                    - createdAt
+                  properties:
+                    id:
+                      type: string
+                      pattern: '^att_rec_[A-Za-z0-9_-]+$'
+                    sessionId:
+                      type: string
+                      pattern: '^att_sess_[A-Za-z0-9_-]+$'
+                    studentId:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    status:
+                      type: string
+                      enum: [PRESENT, ABSENT, LATE, LEAVE]
+                    recordedByPrincipalId:
+                      type: string
+                      minLength: 1
+                    signTime:
+                      type: [string, 'null']
+                      format: date-time
+                    note:
+                      type: [string, 'null']
+                      maxLength: 1000
+                    createdAt:
+                      type: string
+                      format: date-time
+              pageInfo:
+                $ref: './teaching-archive.yaml#/components/schemas/ArchivePageInfo'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
+
 post:
   operationId: createTeachingAttendanceRecord
   summary: Create or return a metadata-only attendance record for an active Teaching Mode rollcall session.

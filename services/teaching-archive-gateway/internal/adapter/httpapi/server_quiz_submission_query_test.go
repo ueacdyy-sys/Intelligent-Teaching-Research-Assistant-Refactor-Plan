@@ -70,6 +70,7 @@ func newTestHandlerWithQuizSubmissionRows(rows []domain.QuizSubmission) http.Han
 		usecase.NewListQuizSubmissions(store),
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
