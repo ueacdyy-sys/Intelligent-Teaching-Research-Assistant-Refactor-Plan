@@ -84,6 +84,7 @@ func main() {
 		platform.Clock{},
 	)
 	listAttendanceRecords := usecase.NewListAttendanceRecords(archiveRepository)
+	listStudentAttendanceRecords := usecase.NewListStudentAttendanceRecords(archiveRepository)
 
 	server := &http.Server{
 		Addr: ":" + getenv("PORT", "18120"),
@@ -104,6 +105,7 @@ func main() {
 			createAttendanceSession,
 			createAttendanceRecord,
 			listAttendanceRecords,
+			listStudentAttendanceRecords,
 			getenv("AGENT_API_KEY", "ueacd"),
 		).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,

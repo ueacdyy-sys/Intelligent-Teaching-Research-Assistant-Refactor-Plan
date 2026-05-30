@@ -71,6 +71,7 @@ func newTestHandlerWithQuizSubmissionRows(rows []domain.QuizSubmission) http.Han
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }

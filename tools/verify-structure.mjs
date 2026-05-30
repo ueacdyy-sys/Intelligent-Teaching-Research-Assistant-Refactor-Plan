@@ -58,6 +58,7 @@ const required = [
   "docs/sdd/0050-teaching-archive-contract-http-headroom-split.md",
   "docs/sdd/0051-teaching-attendance-record-intake.md",
   "docs/sdd/0052-teaching-attendance-record-query-view.md",
+  "docs/sdd/0053-teaching-attendance-student-history-query-view.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -68,6 +69,7 @@ const required = [
   "contracts/openapi/teaching-archive.archive-item-ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.attendance-sessions.path.yaml",
   "contracts/openapi/teaching-archive.attendance-session-records.path.yaml",
+  "contracts/openapi/teaching-archive.student-attendance-records.path.yaml",
   "contracts/openapi/teaching-archive.quiz-submissions.path.yaml",
   "contracts/openapi/teaching-archive.quiz-submission-ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-requests.path.yaml",
@@ -131,6 +133,8 @@ const required = [
   "services/teaching-archive-gateway/internal/domain/attendance_record_test.go",
   "services/teaching-archive-gateway/internal/domain/attendance_record_query.go",
   "services/teaching-archive-gateway/internal/domain/attendance_record_query_test.go",
+  "services/teaching-archive-gateway/internal/domain/student_attendance_record_query.go",
+  "services/teaching-archive-gateway/internal/domain/student_attendance_record_query_test.go",
   "services/teaching-archive-gateway/internal/domain/principal.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_query.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_claim.go",
@@ -154,6 +158,8 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/create_attendance_record_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_attendance_records.go",
   "services/teaching-archive-gateway/internal/usecase/list_attendance_records_test.go",
+  "services/teaching-archive-gateway/internal/usecase/list_student_attendance_records.go",
+  "services/teaching-archive-gateway/internal/usecase/list_student_attendance_records_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests_test.go",
   "services/teaching-archive-gateway/internal/usecase/claim_ai_grading_request.go",
@@ -177,6 +183,8 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_attendance_record.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_attendance_record_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_attendance_record_query_test.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_student_attendance_record.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_student_attendance_record_query_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query_test.go",
@@ -204,6 +212,8 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_attendance_record_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_attendance_record_query.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_attendance_record_query_test.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_student_attendance_record_query.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_student_attendance_record_query_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_request.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_scanners.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_helpers.go",
@@ -631,135 +641,27 @@ for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance 
   }
 }
 
-const teachingArchiveQualityHeadroomSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0041-teaching-archive-quality-headroom-split.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveQualityHeadroomSdd.includes(heading)) {
-    console.error(`SDD 0041 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveHTTPRuntimeHeadroomSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0042-teaching-archive-http-runtime-headroom-split.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveHTTPRuntimeHeadroomSdd.includes(heading)) {
-    console.error(`SDD 0042 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchivePostgresHeadroomSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0043-teaching-archive-postgres-repository-headroom-split.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchivePostgresHeadroomSdd.includes(heading)) {
-    console.error(`SDD 0043 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveAIGradingWorkerResultSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0044-teaching-archive-ai-grading-worker-result.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveAIGradingWorkerResultSdd.includes(heading)) {
-    console.error(`SDD 0044 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveQuizSubmissionSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0045-teaching-archive-quiz-submission-intake.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveQuizSubmissionSdd.includes(heading)) {
-    console.error(`SDD 0045 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveQuizSubmissionQuerySdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0046-teaching-archive-quiz-submission-query-view.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveQuizSubmissionQuerySdd.includes(heading)) {
-    console.error(`SDD 0046 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveAIGradingSourceContentRefSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0047-teaching-archive-ai-grading-source-content-ref.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveAIGradingSourceContentRefSdd.includes(heading)) {
-    console.error(`SDD 0047 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveQuizSubmissionAIGradingBridgeSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0048-teaching-archive-quiz-submission-ai-grading-bridge.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveQuizSubmissionAIGradingBridgeSdd.includes(heading)) {
-    console.error(`SDD 0048 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingAttendanceSessionSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0049-teaching-attendance-session-intake.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingAttendanceSessionSdd.includes(heading)) {
-    console.error(`SDD 0049 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveContractHTTPHeadroomSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0050-teaching-archive-contract-http-headroom-split.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveContractHTTPHeadroomSdd.includes(heading)) {
-    console.error(`SDD 0050 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingAttendanceRecordSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0051-teaching-attendance-record-intake.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingAttendanceRecordSdd.includes(heading)) {
-    console.error(`SDD 0051 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingAttendanceRecordQuerySdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0052-teaching-attendance-record-query-view.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingAttendanceRecordQuerySdd.includes(heading)) {
-    console.error(`SDD 0052 missing heading: ${heading}`);
-    process.exit(1);
+for (const [id, file] of [
+  ["0041", "0041-teaching-archive-quality-headroom-split.md"],
+  ["0042", "0042-teaching-archive-http-runtime-headroom-split.md"],
+  ["0043", "0043-teaching-archive-postgres-repository-headroom-split.md"],
+  ["0044", "0044-teaching-archive-ai-grading-worker-result.md"],
+  ["0045", "0045-teaching-archive-quiz-submission-intake.md"],
+  ["0046", "0046-teaching-archive-quiz-submission-query-view.md"],
+  ["0047", "0047-teaching-archive-ai-grading-source-content-ref.md"],
+  ["0048", "0048-teaching-archive-quiz-submission-ai-grading-bridge.md"],
+  ["0049", "0049-teaching-attendance-session-intake.md"],
+  ["0050", "0050-teaching-archive-contract-http-headroom-split.md"],
+  ["0051", "0051-teaching-attendance-record-intake.md"],
+  ["0052", "0052-teaching-attendance-record-query-view.md"],
+  ["0053", "0053-teaching-attendance-student-history-query-view.md"],
+]) {
+  const sdd = fs.readFileSync(path.join(root, "docs/sdd", file), "utf8");
+  for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+    if (!sdd.includes(heading)) {
+      console.error(`SDD ${id} missing heading: ${heading}`);
+      process.exit(1);
+    }
   }
 }
 
