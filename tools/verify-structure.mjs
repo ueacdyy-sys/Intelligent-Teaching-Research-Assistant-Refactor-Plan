@@ -1,74 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
 const required = [
   "docs/development/sdd-tdd.md",
   "docs/adr/0001-polyglot-boundaries.md",
-  "docs/sdd/0000-root-requirements-trace.md",
-  "docs/sdd/0001-conversation-write-gateway.md",
-  "docs/sdd/0002-connection-budget-gate.md",
-  "docs/sdd/0003-legacy-db-pool-audit.md",
-  "docs/sdd/0004-legacy-db-pool-remediation-plan.md",
-  "docs/sdd/0005-pgbouncer-perf-profile.md",
-  "docs/sdd/0006-identity-access-boundary.md",
-  "docs/sdd/0007-identity-access-gateway.md",
-  "docs/sdd/0008-identity-session-store.md",
-  "docs/sdd/0009-identity-session-runtime-evidence.md",
-  "docs/sdd/0010-identity-session-pgbouncer-runtime.md",
-  "docs/sdd/0011-identity-session-concurrency-benchmark.md",
-  "docs/sdd/0012-identity-http-gateway-benchmark.md",
-  "docs/sdd/0013-identity-self-revoke-fast-path.md",
-  "docs/sdd/0014-strict-quality-gate.md",
-  "docs/sdd/0015-identity-wechat-session-flow.md",
-  "docs/sdd/0016-identity-remote-command-replay-guard.md",
-  "docs/sdd/0017-agent-harness-permission-manifest.md",
-  "docs/sdd/0018-agent-harness-audit-evidence.md",
-  "docs/sdd/0019-agent-harness-dry-run-adapters.md",
-  "docs/sdd/0020-agent-harness-jsonl-evidence-store.md",
-  "docs/sdd/0021-agent-harness-filesystem-metadata-dry-run.md",
-  "docs/sdd/0022-agent-harness-persistent-dry-run-evidence.md",
-  "docs/sdd/0023-agent-harness-persistent-filesystem-metadata-dry-run.md",
-  "docs/sdd/0024-agent-harness-approval-artifact.md",
-  "docs/sdd/0025-agent-harness-approval-decision.md",
-  "docs/sdd/0026-agent-harness-approval-decision-correlation.md",
-  "docs/sdd/0027-agent-harness-approval-queue-reader.md",
-  "docs/sdd/0028-agent-harness-execution-candidate-view.md",
-  "docs/sdd/0029-teaching-archive-material-intake.md",
-  "docs/sdd/0030-teaching-archive-query-view.md",
-  "docs/sdd/0031-teaching-archive-principal-authorization.md",
-  "docs/sdd/0032-teaching-archive-student-query-scope.md",
-  "docs/sdd/0033-teaching-archive-tutoring-analysis-request.md",
-  "docs/sdd/0034-teaching-archive-tutoring-analysis-query-view.md",
-  "docs/sdd/0035-teaching-archive-tutoring-analysis-worker-result.md",
-  "docs/sdd/0036-teaching-archive-tutoring-analysis-worker-claim.md",
-  "docs/sdd/0037-teaching-archive-tutoring-analysis-result-lease-guard.md",
-  "docs/sdd/0038-teaching-archive-ai-grading-request.md",
-  "docs/sdd/0039-teaching-archive-ai-grading-query-view.md",
-  "docs/sdd/0040-teaching-archive-ai-grading-worker-claim.md",
-  "docs/sdd/0041-teaching-archive-quality-headroom-split.md",
-  "docs/sdd/0042-teaching-archive-http-runtime-headroom-split.md",
-  "docs/sdd/0043-teaching-archive-postgres-repository-headroom-split.md",
-  "docs/sdd/0044-teaching-archive-ai-grading-worker-result.md",
-  "docs/sdd/0045-teaching-archive-quiz-submission-intake.md",
-  "docs/sdd/0046-teaching-archive-quiz-submission-query-view.md",
-  "docs/sdd/0047-teaching-archive-ai-grading-source-content-ref.md",
-  "docs/sdd/0048-teaching-archive-quiz-submission-ai-grading-bridge.md",
-  "docs/sdd/0049-teaching-attendance-session-intake.md",
-  "docs/sdd/0050-teaching-archive-contract-http-headroom-split.md",
-  "docs/sdd/0051-teaching-attendance-record-intake.md",
-  "docs/sdd/0052-teaching-attendance-record-query-view.md",
-  "docs/sdd/0053-teaching-attendance-student-history-query-view.md",
-  "docs/sdd/0054-teaching-attendance-statistics-query-view.md",
-  "docs/sdd/0055-teaching-attendance-student-sign-in.md",
-  "docs/sdd/0056-teaching-attendance-session-end.md",
-  "docs/sdd/0057-teaching-attendance-random-selection.md",
-  "docs/sdd/0058-teaching-quiz-scan-submission.md",
-  "docs/sdd/0059-teaching-archive-server-config-refactor.md",
-  "docs/sdd/0060-student-app-teaching-materials-list.md",
-  "docs/sdd/0061-student-app-ai-tutor-request.md",
-  "docs/sdd/0062-student-app-archive-items-list.md",
-  "docs/sdd/0063-student-app-ai-tutor-requests-list.md", "docs/sdd/0064-student-app-quiz-submissions-list.md", "docs/sdd/0065-student-app-question-bank-drafts-list.md", "docs/sdd/0066-student-app-quiz-scan-submission.md", "docs/sdd/0067-student-app-profile-read-model.md", "docs/sdd/0068-student-app-contract-flow-gate.md", "docs/sdd/0069-agent-harness-contract-flow-gate.md", "docs/sdd/0070-agent-harness-rollback-review.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -304,7 +241,7 @@ const required = [
   "tools/run-identity-http-benchmark.mjs",
   "services/identity-access-gateway/cmd/httpbench/main.go",
   "tools/quality-gate.mjs",
-  "tools/quality-gate.test.mjs", "tools/student-app-flow-audit.mjs", "tools/student-app-flow-audit.test.mjs", "tools/agent-harness-flow-audit.mjs", "tools/agent-harness-flow-audit.test.mjs",
+  "tools/quality-gate.test.mjs", "tools/student-app-flow-audit.mjs", "tools/student-app-flow-audit.test.mjs", "tools/agent-harness-flow-audit.mjs", "tools/agent-harness-flow-audit.test.mjs", "tools/verify-structure-sdd-discovery.test.mjs",
   "services/identity-access-gateway/internal/adapter/bootstrap/wechat_authenticator.go", "services/identity-access-gateway/internal/domain/student_app_profile.go", "services/identity-access-gateway/internal/domain/student_app_profile_test.go", "services/identity-access-gateway/internal/usecase/student_app_profile.go", "services/identity-access-gateway/internal/usecase/student_app_profile_test.go", "services/identity-access-gateway/internal/adapter/httpapi/server_student_app_profile.go", "services/identity-access-gateway/internal/adapter/httpapi/server_student_app_profile_test.go",
   "services/agent-harness/Cargo.toml",
   "services/agent-harness/Cargo.lock",
@@ -327,473 +264,139 @@ const required = [
   "services/agent-harness/tests/execution_candidate_view.rs", "services/agent-harness/tests/rollback_review.rs",
 ];
 
-const missing = required.filter((file) => !fs.existsSync(path.join(root, file)));
-if (missing.length > 0) {
-  console.error("Missing required refactor files:");
-  for (const file of missing) console.error(`- ${file}`);
-  process.exit(1);
+export function discoverSddDocuments(rootDir = root) {
+  const sddDir = path.join(rootDir, "docs", "sdd");
+  if (!fs.existsSync(sddDir)) return [];
+  return fs.readdirSync(sddDir)
+    .filter((file) => /^\d{4}-.+\.md$/.test(file))
+    .map((file) => ({
+      id: file.slice(0, 4),
+      number: Number(file.slice(0, 4)),
+      file,
+      path: path.join(sddDir, file),
+    }))
+    .sort((left, right) => left.number - right.number || left.file.localeCompare(right.file));
 }
 
-const sdd = fs.readFileSync(path.join(root, "docs/sdd/0001-conversation-write-gateway.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contract", "## Acceptance Criteria", "## Rollback"]) {
-  if (!sdd.includes(heading)) {
-    console.error(`SDD 0001 missing heading: ${heading}`);
-    process.exit(1);
+export function verifySddDocuments(rootDir = root) {
+  const findings = [];
+  const docs = discoverSddDocuments(rootDir);
+  if (docs.length === 0) {
+    return [{ message: "No SDD documents found in docs/sdd." }];
   }
-}
 
-const wholeSystemMap = fs.readFileSync(path.join(root, "docs/roadmap/whole-system-module-map.md"), "utf8");
-for (const invariant of [
-  "Root Requirements Are The Product Boundary",
-  "One Module At A Time",
-  "Teaching Mode",
-  "Research Mode",
-  "Student App",
-  "Agent Harness",
-]) {
-  if (!wholeSystemMap.includes(invariant)) {
-    console.error(`Whole system module map missing invariant: ${invariant}`);
-    process.exit(1);
+  const seen = new Set();
+  for (const doc of docs) {
+    if (seen.has(doc.id)) {
+      findings.push({ message: `Duplicate SDD id: ${doc.id}` });
+    }
+    seen.add(doc.id);
   }
-}
 
-const identitySdd = fs.readFileSync(path.join(root, "docs/sdd/0006-identity-access-boundary.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identitySdd.includes(heading)) {
-    console.error(`SDD 0006 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identityGatewaySdd = fs.readFileSync(path.join(root, "docs/sdd/0007-identity-access-gateway.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identityGatewaySdd.includes(heading)) {
-    console.error(`SDD 0007 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identitySessionStoreSdd = fs.readFileSync(path.join(root, "docs/sdd/0008-identity-session-store.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identitySessionStoreSdd.includes(heading)) {
-    console.error(`SDD 0008 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identitySessionRuntimeSdd = fs.readFileSync(path.join(root, "docs/sdd/0009-identity-session-runtime-evidence.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identitySessionRuntimeSdd.includes(heading)) {
-    console.error(`SDD 0009 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identitySessionPgbouncerSdd = fs.readFileSync(path.join(root, "docs/sdd/0010-identity-session-pgbouncer-runtime.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identitySessionPgbouncerSdd.includes(heading)) {
-    console.error(`SDD 0010 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identitySessionBenchmarkSdd = fs.readFileSync(path.join(root, "docs/sdd/0011-identity-session-concurrency-benchmark.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identitySessionBenchmarkSdd.includes(heading)) {
-    console.error(`SDD 0011 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identityHTTPBenchmarkSdd = fs.readFileSync(path.join(root, "docs/sdd/0012-identity-http-gateway-benchmark.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identityHTTPBenchmarkSdd.includes(heading)) {
-    console.error(`SDD 0012 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identitySelfRevokeSdd = fs.readFileSync(path.join(root, "docs/sdd/0013-identity-self-revoke-fast-path.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identitySelfRevokeSdd.includes(heading)) {
-    console.error(`SDD 0013 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const strictQualitySdd = fs.readFileSync(path.join(root, "docs/sdd/0014-strict-quality-gate.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!strictQualitySdd.includes(heading)) {
-    console.error(`SDD 0014 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identityWeChatSdd = fs.readFileSync(path.join(root, "docs/sdd/0015-identity-wechat-session-flow.md"), "utf8");
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identityWeChatSdd.includes(heading)) {
-    console.error(`SDD 0015 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const identityRemoteReplaySdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0016-identity-remote-command-replay-guard.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!identityRemoteReplaySdd.includes(heading)) {
-    console.error(`SDD 0016 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessPermissionSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0017-agent-harness-permission-manifest.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessPermissionSdd.includes(heading)) {
-    console.error(`SDD 0017 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessEvidenceSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0018-agent-harness-audit-evidence.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessEvidenceSdd.includes(heading)) {
-    console.error(`SDD 0018 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessDryRunSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0019-agent-harness-dry-run-adapters.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessDryRunSdd.includes(heading)) {
-    console.error(`SDD 0019 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessJsonlEvidenceSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0020-agent-harness-jsonl-evidence-store.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessJsonlEvidenceSdd.includes(heading)) {
-    console.error(`SDD 0020 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessFilesystemMetadataSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0021-agent-harness-filesystem-metadata-dry-run.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessFilesystemMetadataSdd.includes(heading)) {
-    console.error(`SDD 0021 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessPersistentDryRunSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0022-agent-harness-persistent-dry-run-evidence.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessPersistentDryRunSdd.includes(heading)) {
-    console.error(`SDD 0022 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessPersistentFilesystemMetadataSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0023-agent-harness-persistent-filesystem-metadata-dry-run.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessPersistentFilesystemMetadataSdd.includes(heading)) {
-    console.error(`SDD 0023 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessApprovalArtifactSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0024-agent-harness-approval-artifact.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessApprovalArtifactSdd.includes(heading)) {
-    console.error(`SDD 0024 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessApprovalDecisionSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0025-agent-harness-approval-decision.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessApprovalDecisionSdd.includes(heading)) {
-    console.error(`SDD 0025 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessApprovalDecisionCorrelationSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0026-agent-harness-approval-decision-correlation.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessApprovalDecisionCorrelationSdd.includes(heading)) {
-    console.error(`SDD 0026 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessApprovalQueueReaderSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0027-agent-harness-approval-queue-reader.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessApprovalQueueReaderSdd.includes(heading)) {
-    console.error(`SDD 0027 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const agentHarnessExecutionCandidateViewSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0028-agent-harness-execution-candidate-view.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!agentHarnessExecutionCandidateViewSdd.includes(heading)) {
-    console.error(`SDD 0028 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0029-teaching-archive-material-intake.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveSdd.includes(heading)) {
-    console.error(`SDD 0029 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveQuerySdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0030-teaching-archive-query-view.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveQuerySdd.includes(heading)) {
-    console.error(`SDD 0030 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchivePrincipalSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0031-teaching-archive-principal-authorization.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchivePrincipalSdd.includes(heading)) {
-    console.error(`SDD 0031 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveStudentScopeSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0032-teaching-archive-student-query-scope.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveStudentScopeSdd.includes(heading)) {
-    console.error(`SDD 0032 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveTutoringAnalysisSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0033-teaching-archive-tutoring-analysis-request.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveTutoringAnalysisSdd.includes(heading)) {
-    console.error(`SDD 0033 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveTutoringAnalysisQuerySdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0034-teaching-archive-tutoring-analysis-query-view.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveTutoringAnalysisQuerySdd.includes(heading)) {
-    console.error(`SDD 0034 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveTutoringAnalysisWorkerResultSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0035-teaching-archive-tutoring-analysis-worker-result.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveTutoringAnalysisWorkerResultSdd.includes(heading)) {
-    console.error(`SDD 0035 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveTutoringAnalysisWorkerClaimSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0036-teaching-archive-tutoring-analysis-worker-claim.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveTutoringAnalysisWorkerClaimSdd.includes(heading)) {
-    console.error(`SDD 0036 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveTutoringAnalysisResultLeaseGuardSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0037-teaching-archive-tutoring-analysis-result-lease-guard.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveTutoringAnalysisResultLeaseGuardSdd.includes(heading)) {
-    console.error(`SDD 0037 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveAIGradingRequestSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0038-teaching-archive-ai-grading-request.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveAIGradingRequestSdd.includes(heading)) {
-    console.error(`SDD 0038 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveAIGradingQuerySdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0039-teaching-archive-ai-grading-query-view.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveAIGradingQuerySdd.includes(heading)) {
-    console.error(`SDD 0039 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-const teachingArchiveAIGradingClaimSdd = fs.readFileSync(
-  path.join(root, "docs/sdd/0040-teaching-archive-ai-grading-worker-claim.md"),
-  "utf8",
-);
-for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-  if (!teachingArchiveAIGradingClaimSdd.includes(heading)) {
-    console.error(`SDD 0040 missing heading: ${heading}`);
-    process.exit(1);
-  }
-}
-
-for (const [id, file] of [
-  ["0041", "0041-teaching-archive-quality-headroom-split.md"], ["0042", "0042-teaching-archive-http-runtime-headroom-split.md"],
-  ["0043", "0043-teaching-archive-postgres-repository-headroom-split.md"], ["0044", "0044-teaching-archive-ai-grading-worker-result.md"],
-  ["0045", "0045-teaching-archive-quiz-submission-intake.md"], ["0046", "0046-teaching-archive-quiz-submission-query-view.md"],
-  ["0047", "0047-teaching-archive-ai-grading-source-content-ref.md"], ["0048", "0048-teaching-archive-quiz-submission-ai-grading-bridge.md"],
-  ["0049", "0049-teaching-attendance-session-intake.md"], ["0050", "0050-teaching-archive-contract-http-headroom-split.md"],
-  ["0051", "0051-teaching-attendance-record-intake.md"], ["0052", "0052-teaching-attendance-record-query-view.md"],
-  ["0053", "0053-teaching-attendance-student-history-query-view.md"], ["0054", "0054-teaching-attendance-statistics-query-view.md"],
-  ["0055", "0055-teaching-attendance-student-sign-in.md"], ["0056", "0056-teaching-attendance-session-end.md"],
-  ["0057", "0057-teaching-attendance-random-selection.md"], ["0058", "0058-teaching-quiz-scan-submission.md"],
-  ["0059", "0059-teaching-archive-server-config-refactor.md"], ["0060", "0060-student-app-teaching-materials-list.md"],
-  ["0061", "0061-student-app-ai-tutor-request.md"], ["0062", "0062-student-app-archive-items-list.md"],
-  ["0063", "0063-student-app-ai-tutor-requests-list.md"], ["0064", "0064-student-app-quiz-submissions-list.md"], ["0065", "0065-student-app-question-bank-drafts-list.md"], ["0066", "0066-student-app-quiz-scan-submission.md"], ["0067", "0067-student-app-profile-read-model.md"], ["0068", "0068-student-app-contract-flow-gate.md"], ["0069", "0069-agent-harness-contract-flow-gate.md"], ["0070", "0070-agent-harness-rollback-review.md"],
-]) {
-  const sdd = fs.readFileSync(path.join(root, "docs/sdd", file), "utf8");
-  for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
-    if (!sdd.includes(heading)) {
-      console.error(`SDD ${id} missing heading: ${heading}`);
-      process.exit(1);
+  for (let index = 0; index < docs.length; index += 1) {
+    if (docs[index].number !== index) {
+      findings.push({ message: `missing SDD ${formatSddId(index)} before ${docs[index].file}` });
+      break;
     }
   }
+
+  for (const doc of docs) {
+    const text = fs.readFileSync(doc.path, "utf8");
+    const requiredHeadings = doc.id === "0000"
+      ? ["## Authoritative Source", "## Product Capabilities", "## Non-Negotiable Invariants"]
+      : ["## Problem", "## Scope", "## Acceptance Criteria", "## Rollback"];
+    for (const heading of requiredHeadings) {
+      if (!text.includes(heading)) {
+        findings.push({ message: `SDD ${doc.id} missing heading: ${heading}` });
+      }
+    }
+    if (doc.id !== "0000" && !text.includes("## Contract") && !text.includes("## Contracts")) {
+      findings.push({ message: `SDD ${doc.id} missing heading: ## Contracts` });
+    }
+  }
+
+  return findings;
 }
 
-const teachingArchiveServerGo = fs.readFileSync(
-  path.join(root, "services/teaching-archive-gateway/internal/adapter/httpapi/server.go"),
-  "utf8",
-);
-if (!teachingArchiveServerGo.includes("func NewServer(config ServerConfig) *Server")) {
-  console.error("Teaching Archive HTTP server constructor must accept ServerConfig.");
+export function formatSddId(value) {
+  return String(value).padStart(4, "0");
+}
+
+function fail(message) {
+  console.error(message);
   process.exit(1);
 }
 
-const teachingArchiveServerConfigGo = fs.readFileSync(
-  path.join(root, "services/teaching-archive-gateway/internal/adapter/httpapi/server_config.go"),
-  "utf8",
-);
-for (const field of [
-  "CreateArchiveItem",
-  "ListArchiveItems",
-  "ListStudentAppTeachingMaterials",
-  "ListStudentAppArchiveItems",
-  "CreateStudentAppAITutorRequest",
-  "ListStudentAppAITutorRequests", "ListStudentAppQuizSubmissions", "ListStudentAppQuestionBankDrafts",
-  "CreateQuizSubmission",
-  "CreateScannedQuizSubmission",
-  "CreateAttendanceSession",
-  "SelectAttendanceRandomStudents",
-  "AgentAPIKey",
-]) {
-  if (!teachingArchiveServerConfigGo.includes(field)) {
-    console.error(`Teaching Archive ServerConfig missing field: ${field}`);
+function main() {
+  const missing = required.filter((file) => !fs.existsSync(path.join(root, file)));
+  if (missing.length > 0) {
+    console.error("Missing required refactor files:");
+    for (const file of missing) console.error(`- ${file}`);
     process.exit(1);
   }
-}
 
-const lineCount = (file) => fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/).length;
-const qualityHeadroomLimits = [
-  ["contracts/openapi/teaching-archive.yaml", 620],
-  ["services/teaching-archive-gateway/internal/adapter/httpapi/server.go", 140],
-  ["services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go", 500],
-  ["services/teaching-archive-gateway/internal/adapter/postgres/repository.go", 180],
-];
-for (const [file, maxLines] of qualityHeadroomLimits) {
-  const lines = lineCount(file);
-  if (lines > maxLines) {
-    console.error(`${file} exceeds quality headroom: ${lines} lines > ${maxLines}`);
-    process.exit(1);
+  for (const finding of verifySddDocuments(root)) {
+    fail(finding.message);
   }
+
+  const teachingArchiveServerGo = fs.readFileSync(
+    path.join(root, "services/teaching-archive-gateway/internal/adapter/httpapi/server.go"),
+    "utf8",
+  );
+  if (!teachingArchiveServerGo.includes("func NewServer(config ServerConfig) *Server")) {
+    fail("Teaching Archive HTTP server constructor must accept ServerConfig.");
+  }
+
+  const teachingArchiveServerConfigGo = fs.readFileSync(
+    path.join(root, "services/teaching-archive-gateway/internal/adapter/httpapi/server_config.go"),
+    "utf8",
+  );
+  for (const field of [
+    "CreateArchiveItem",
+    "ListArchiveItems",
+    "ListStudentAppTeachingMaterials",
+    "ListStudentAppArchiveItems",
+    "CreateStudentAppAITutorRequest",
+    "ListStudentAppAITutorRequests", "ListStudentAppQuizSubmissions", "ListStudentAppQuestionBankDrafts",
+    "CreateQuizSubmission",
+    "CreateScannedQuizSubmission",
+    "CreateAttendanceSession",
+    "SelectAttendanceRandomStudents",
+    "AgentAPIKey",
+  ]) {
+    if (!teachingArchiveServerConfigGo.includes(field)) {
+      fail(`Teaching Archive ServerConfig missing field: ${field}`);
+    }
+  }
+
+  const lineCount = (file) => fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/).length;
+  const qualityHeadroomLimits = [
+    ["contracts/openapi/teaching-archive.yaml", 620],
+    ["services/teaching-archive-gateway/internal/adapter/httpapi/server.go", 140],
+    ["services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go", 500],
+    ["services/teaching-archive-gateway/internal/adapter/postgres/repository.go", 180],
+  ];
+  for (const [file, maxLines] of qualityHeadroomLimits) {
+    const lines = lineCount(file);
+    if (lines > maxLines) {
+      fail(`${file} exceeds quality headroom: ${lines} lines > ${maxLines}`);
+    }
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  if (packageJson.scripts?.quality !== "node tools/quality-gate.mjs") {
+    fail("package.json missing strict quality script.");
+  }
+  if (!packageJson.scripts?.["test:go"]?.includes("./services/teaching-archive-gateway/...")) {
+    fail("package.json test:go does not include Teaching Archive Gateway.");
+  }
+  if (packageJson.scripts?.["test:rust"] !== "cargo test --manifest-path services/agent-harness/Cargo.toml") {
+    fail("package.json missing Rust harness test script.");
+  }
+
+  console.log("Refactor structure verified.");
 }
 
-const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-if (packageJson.scripts?.quality !== "node tools/quality-gate.mjs") {
-  console.error("package.json missing strict quality script.");
-  process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
 }
-if (!packageJson.scripts?.["test:go"]?.includes("./services/teaching-archive-gateway/...")) {
-  console.error("package.json test:go does not include Teaching Archive Gateway.");
-  process.exit(1);
-}
-if (packageJson.scripts?.["test:rust"] !== "cargo test --manifest-path services/agent-harness/Cargo.toml") {
-  console.error("package.json missing Rust harness test script.");
-  process.exit(1);
-}
-
-console.log("Refactor structure verified.");

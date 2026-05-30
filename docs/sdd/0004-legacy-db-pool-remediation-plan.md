@@ -21,6 +21,27 @@ Out of scope:
 - Deploying PgBouncer in this slice.
 - Running combined load tests before the budget gate passes.
 
+## Contracts
+
+Plan schema:
+
+`contracts/config/legacy-db-pool-remediation.schema.json`
+
+Budget profiles:
+
+- `contracts/config/connection-budget.proposed-direct-limited.json`
+- `contracts/config/connection-budget.proposed-pgbouncer-transaction.json`
+
+Plan command:
+
+```powershell
+npm run plan:legacy-db-pools
+```
+
+Output report:
+
+`reports/legacy-db-pool-remediation.current.json`
+
 ## Candidate Modes
 
 ### Direct-Limited Mode
@@ -42,6 +63,13 @@ This is the recommended performance-test mode before combined high concurrency.
 - Proposed profile passes the connection budget gate.
 - Root `npm test` passes.
 - The generated plan is written to `reports/legacy-db-pool-remediation.current.json`.
+
+## Rollback
+
+Remove the remediation schema, remediation tool, remediation tests, proposed
+connection-budget profiles, generated remediation report, and
+`plan:legacy-db-pools` script. Keep the legacy backend unchanged and return to
+the SDD 0003 audit-only state.
 
 ## Follow-Up
 

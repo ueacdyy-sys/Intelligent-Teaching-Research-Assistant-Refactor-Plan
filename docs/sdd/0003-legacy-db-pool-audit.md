@@ -47,6 +47,12 @@ Output report:
 - Report identifies sync default QueuePool sites as high risk.
 - Root `npm test` continues to pass.
 
+## Rollback
+
+Remove the audit schema, audit tool, audit tests, generated audit report, and
+`audit:legacy-db-pools` script. Restore the previous manual connection-budget
+review process. No legacy runtime files are changed by this slice.
+
 ## Follow-Up
 
 Use audit findings to create a proposed safe connection profile and then decide whether each sync research helper should become:
