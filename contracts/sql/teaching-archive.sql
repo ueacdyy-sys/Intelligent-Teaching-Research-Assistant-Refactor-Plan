@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
     status TEXT NOT NULL,
     source_archive_owner_type TEXT NOT NULL,
     source_archive_student_id TEXT,
+    source_archive_content_ref TEXT NOT NULL,
     source_archive_material TEXT NOT NULL,
     source_archive_ocr_status TEXT NOT NULL,
     score_summary TEXT,
@@ -72,6 +73,18 @@ CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
     completed_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE teaching_ai_grading_requests
+    ADD COLUMN IF NOT EXISTS source_archive_content_ref TEXT;
+
+UPDATE teaching_ai_grading_requests AS request
+    SET source_archive_content_ref = item.content_ref
+    FROM teaching_archive_items AS item
+    WHERE request.archive_item_id = item.id
+        AND (request.source_archive_content_ref IS NULL OR request.source_archive_content_ref = '');
+
+ALTER TABLE teaching_ai_grading_requests
+    ALTER COLUMN source_archive_content_ref SET NOT NULL;
 
 ALTER TABLE teaching_ai_grading_requests
     ADD COLUMN IF NOT EXISTS score_summary TEXT;

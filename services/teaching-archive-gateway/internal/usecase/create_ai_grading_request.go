@@ -54,6 +54,7 @@ func (uc *CreateAIGradingRequest) Execute(
 	input.ArchiveItemID = archiveItemID
 	input.SourceArchiveOwnerType = archiveItem.OwnerType
 	input.SourceArchiveStudentID = archiveItem.StudentID
+	input.SourceArchiveContentRef = archiveItem.ContentRef
 	input.SourceArchiveMaterial = archiveItem.MaterialType
 	input.SourceArchiveOCRStatus = archiveItem.OCRStatus
 	input.SourceAnalysisIntents = archiveItem.AnalysisIntents

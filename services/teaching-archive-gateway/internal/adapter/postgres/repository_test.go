@@ -163,18 +163,19 @@ func TestCreateAIGradingRequestInsertsMetadataOnly(t *testing.T) {
 	repository := postgres.NewArchiveRepository(db)
 
 	err := repository.CreateAIGradingRequest(context.Background(), domain.AIGradingRequest{
-		ID:                     "grading_req_row",
-		ArchiveItemID:          "tarch_row",
-		RequestedByPrincipalID: "student_001",
-		GradingInstructions:    "grade short answers",
-		RubricRef:              "local://rubrics/week-3.json",
-		Status:                 domain.AIGradingStatusQueued,
-		SourceArchiveOwnerType: domain.OwnerTypeStudent,
-		SourceArchiveStudentID: "student_001",
-		SourceArchiveMaterial:  domain.MaterialTypeQuiz,
-		SourceArchiveOCRStatus: domain.OCRStatusReserved,
-		CreatedAt:              time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
-		UpdatedAt:              time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
+		ID:                      "grading_req_row",
+		ArchiveItemID:           "tarch_row",
+		RequestedByPrincipalID:  "student_001",
+		GradingInstructions:     "grade short answers",
+		RubricRef:               "local://rubrics/week-3.json",
+		Status:                  domain.AIGradingStatusQueued,
+		SourceArchiveOwnerType:  domain.OwnerTypeStudent,
+		SourceArchiveStudentID:  "student_001",
+		SourceArchiveContentRef: "local://archive/student/quiz.pdf",
+		SourceArchiveMaterial:   domain.MaterialTypeQuiz,
+		SourceArchiveOCRStatus:  domain.OCRStatusReserved,
+		CreatedAt:               time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
+		UpdatedAt:               time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
 		t.Fatalf("CreateAIGradingRequest returned error: %v", err)
@@ -185,15 +186,16 @@ func TestCreateAIGradingRequestInsertsMetadataOnly(t *testing.T) {
 		"archive_item_id",
 		"grading_instructions",
 		"rubric_ref",
+		"source_archive_content_ref",
 		"source_archive_ocr_status",
-		"VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, $10, $11, $12)",
+		"VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, $10, $11, $12, $13)",
 	} {
 		if !strings.Contains(db.lastExecSQL, fragment) {
 			t.Fatalf("SQL missing %q in: %s", fragment, db.lastExecSQL)
 		}
 	}
-	if len(db.execArgs) != 12 {
-		t.Fatalf("args = %d, want 12", len(db.execArgs))
+	if len(db.execArgs) != 13 {
+		t.Fatalf("args = %d, want 13", len(db.execArgs))
 	}
 }
 

@@ -52,6 +52,7 @@ const required = [
   "docs/sdd/0044-teaching-archive-ai-grading-worker-result.md",
   "docs/sdd/0045-teaching-archive-quiz-submission-intake.md",
   "docs/sdd/0046-teaching-archive-quiz-submission-query-view.md",
+  "docs/sdd/0047-teaching-archive-ai-grading-source-content-ref.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -659,6 +660,17 @@ const teachingArchiveQuizSubmissionQuerySdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveQuizSubmissionQuerySdd.includes(heading)) {
     console.error(`SDD 0046 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveAIGradingSourceContentRefSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0047-teaching-archive-ai-grading-source-content-ref.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveAIGradingSourceContentRefSdd.includes(heading)) {
+    console.error(`SDD 0047 missing heading: ${heading}`);
     process.exit(1);
   }
 }

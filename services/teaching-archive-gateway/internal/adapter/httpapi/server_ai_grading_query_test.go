@@ -39,6 +39,9 @@ func TestListAIGradingRequestsReturnsPaginatedResponse(t *testing.T) {
 	if !bytes.Contains(response.Body.Bytes(), []byte(`"hasMore":true`)) {
 		t.Fatalf("body = %s", response.Body.String())
 	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"sourceArchiveContentRef":"local://archive/student/quiz.pdf"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
 }
 
 func TestListAIGradingRequestsScopesStudentPrincipalToOwnRequests(t *testing.T) {
@@ -151,17 +154,18 @@ func (f *fakeRepository) ListAIGradingRequests(
 
 func httpAIGradingRequest(id string, archiveItemID string, studentID string, createdAt time.Time) domain.AIGradingRequest {
 	return domain.AIGradingRequest{
-		ID:                     id,
-		ArchiveItemID:          archiveItemID,
-		RequestedByPrincipalID: studentID,
-		GradingInstructions:    "grade short answers",
-		RubricRef:              "local://rubrics/week-3.json",
-		Status:                 domain.AIGradingStatusQueued,
-		SourceArchiveOwnerType: domain.OwnerTypeStudent,
-		SourceArchiveStudentID: studentID,
-		SourceArchiveMaterial:  domain.MaterialTypeQuiz,
-		SourceArchiveOCRStatus: domain.OCRStatusReserved,
-		CreatedAt:              createdAt,
-		UpdatedAt:              createdAt,
+		ID:                      id,
+		ArchiveItemID:           archiveItemID,
+		RequestedByPrincipalID:  studentID,
+		GradingInstructions:     "grade short answers",
+		RubricRef:               "local://rubrics/week-3.json",
+		Status:                  domain.AIGradingStatusQueued,
+		SourceArchiveOwnerType:  domain.OwnerTypeStudent,
+		SourceArchiveStudentID:  studentID,
+		SourceArchiveContentRef: "local://archive/student/quiz.pdf",
+		SourceArchiveMaterial:   domain.MaterialTypeQuiz,
+		SourceArchiveOCRStatus:  domain.OCRStatusReserved,
+		CreatedAt:               createdAt,
+		UpdatedAt:               createdAt,
 	}
 }

@@ -13,15 +13,16 @@ func TestNewAIGradingRequestQueuesEligibleArchiveMetadata(t *testing.T) {
 	request, err := domain.NewAIGradingRequest(
 		"grading_req_fixed",
 		domain.CreateAIGradingRequestInput{
-			Principal:              teacherPrincipal(),
-			ArchiveItemID:          "tarch_quiz",
-			GradingInstructions:    " grade short answers against the rubric ",
-			RubricRef:              " local://rubrics/week-3.json ",
-			SourceArchiveOwnerType: domain.OwnerTypeStudent,
-			SourceArchiveStudentID: "student_001",
-			SourceArchiveMaterial:  domain.MaterialTypeQuiz,
-			SourceArchiveOCRStatus: domain.OCRStatusReserved,
-			SourceAnalysisIntents:  []domain.AnalysisIntent{domain.AnalysisIntentAIGrading},
+			Principal:               teacherPrincipal(),
+			ArchiveItemID:           "tarch_quiz",
+			GradingInstructions:     " grade short answers against the rubric ",
+			RubricRef:               " local://rubrics/week-3.json ",
+			SourceArchiveOwnerType:  domain.OwnerTypeStudent,
+			SourceArchiveStudentID:  "student_001",
+			SourceArchiveContentRef: " local://archive/student/quiz.pdf ",
+			SourceArchiveMaterial:   domain.MaterialTypeQuiz,
+			SourceArchiveOCRStatus:  domain.OCRStatusReserved,
+			SourceAnalysisIntents:   []domain.AnalysisIntent{domain.AnalysisIntentAIGrading},
 		},
 		createdAt,
 	)
@@ -44,6 +45,9 @@ func TestNewAIGradingRequestQueuesEligibleArchiveMetadata(t *testing.T) {
 	if request.RubricRef != "local://rubrics/week-3.json" {
 		t.Fatalf("RubricRef = %q", request.RubricRef)
 	}
+	if request.SourceArchiveContentRef != "local://archive/student/quiz.pdf" {
+		t.Fatalf("SourceArchiveContentRef = %q", request.SourceArchiveContentRef)
+	}
 	if request.SourceArchiveOCRStatus != domain.OCRStatusReserved {
 		t.Fatalf("SourceArchiveOCRStatus = %q", request.SourceArchiveOCRStatus)
 	}
@@ -52,7 +56,7 @@ func TestNewAIGradingRequestQueuesEligibleArchiveMetadata(t *testing.T) {
 	}
 }
 
-func TestNewAIGradingRequestRejectsArchiveWithoutAIGradingIntent(t *testing.T) {
+func TestNewAIGradingRequestRejectsMissingSourceContentRef(t *testing.T) {
 	_, err := domain.NewAIGradingRequest(
 		"grading_req_fixed",
 		domain.CreateAIGradingRequestInput{
@@ -62,8 +66,29 @@ func TestNewAIGradingRequestRejectsArchiveWithoutAIGradingIntent(t *testing.T) {
 			SourceArchiveOwnerType: domain.OwnerTypeStudent,
 			SourceArchiveStudentID: "student_001",
 			SourceArchiveMaterial:  domain.MaterialTypeQuiz,
-			SourceArchiveOCRStatus: domain.OCRStatusNotRequired,
-			SourceAnalysisIntents:  []domain.AnalysisIntent{domain.AnalysisIntentTutoring},
+			SourceArchiveOCRStatus: domain.OCRStatusReserved,
+			SourceAnalysisIntents:  []domain.AnalysisIntent{domain.AnalysisIntentAIGrading},
+		},
+		time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
+	)
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
+func TestNewAIGradingRequestRejectsArchiveWithoutAIGradingIntent(t *testing.T) {
+	_, err := domain.NewAIGradingRequest(
+		"grading_req_fixed",
+		domain.CreateAIGradingRequestInput{
+			Principal:               teacherPrincipal(),
+			ArchiveItemID:           "tarch_quiz",
+			GradingInstructions:     "grade it",
+			SourceArchiveOwnerType:  domain.OwnerTypeStudent,
+			SourceArchiveStudentID:  "student_001",
+			SourceArchiveContentRef: "local://archive/student/quiz.pdf",
+			SourceArchiveMaterial:   domain.MaterialTypeQuiz,
+			SourceArchiveOCRStatus:  domain.OCRStatusNotRequired,
+			SourceAnalysisIntents:   []domain.AnalysisIntent{domain.AnalysisIntentTutoring},
 		},
 		time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
 	)
@@ -76,13 +101,14 @@ func TestNewAIGradingRequestRejectsTeachingMaterial(t *testing.T) {
 	_, err := domain.NewAIGradingRequest(
 		"grading_req_fixed",
 		domain.CreateAIGradingRequestInput{
-			Principal:              teacherPrincipal(),
-			ArchiveItemID:          "tarch_lesson",
-			GradingInstructions:    "grade it",
-			SourceArchiveOwnerType: domain.OwnerTypeTeaching,
-			SourceArchiveMaterial:  domain.MaterialTypeTeachingMaterial,
-			SourceArchiveOCRStatus: domain.OCRStatusReserved,
-			SourceAnalysisIntents:  []domain.AnalysisIntent{domain.AnalysisIntentAIGrading},
+			Principal:               teacherPrincipal(),
+			ArchiveItemID:           "tarch_lesson",
+			GradingInstructions:     "grade it",
+			SourceArchiveOwnerType:  domain.OwnerTypeTeaching,
+			SourceArchiveContentRef: "local://archive/teaching/lesson.pdf",
+			SourceArchiveMaterial:   domain.MaterialTypeTeachingMaterial,
+			SourceArchiveOCRStatus:  domain.OCRStatusReserved,
+			SourceAnalysisIntents:   []domain.AnalysisIntent{domain.AnalysisIntentAIGrading},
 		},
 		time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
 	)

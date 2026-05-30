@@ -32,4 +32,7 @@ func TestCreateAIGradingRequestReturnsCreatedResponse(t *testing.T) {
 	if !bytes.Contains(response.Body.Bytes(), []byte(`"rubricRef":"local://rubrics/week-3.json"`)) {
 		t.Fatalf("body = %s", response.Body.String())
 	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"sourceArchiveContentRef":"local://archive/student/quiz.pdf"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
 }

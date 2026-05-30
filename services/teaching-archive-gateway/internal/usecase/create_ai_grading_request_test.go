@@ -33,6 +33,12 @@ func TestCreateAIGradingRequestAllowsStudentOwnArchive(t *testing.T) {
 	if got.SourceArchiveStudentID != "student_001" {
 		t.Fatalf("SourceArchiveStudentID = %q", got.SourceArchiveStudentID)
 	}
+	if got.SourceArchiveContentRef != "local://archive/student/quiz.pdf" {
+		t.Fatalf("SourceArchiveContentRef = %q", got.SourceArchiveContentRef)
+	}
+	if repo.created.SourceArchiveContentRef != "local://archive/student/quiz.pdf" {
+		t.Fatalf("created SourceArchiveContentRef = %q", repo.created.SourceArchiveContentRef)
+	}
 	if repo.creates != 1 {
 		t.Fatalf("creates = %d", repo.creates)
 	}
@@ -106,6 +112,7 @@ func TestCreateAIGradingRequestRejectsArchiveWithoutAIGradingIntent(t *testing.T
 type fakeAIGradingRepository struct {
 	items   map[string]domain.ArchiveItem
 	creates int
+	created domain.AIGradingRequest
 }
 
 func (f *fakeAIGradingRepository) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {
@@ -113,8 +120,9 @@ func (f *fakeAIGradingRepository) GetByID(_ context.Context, id string) (domain.
 	return item, ok, nil
 }
 
-func (f *fakeAIGradingRepository) CreateAIGradingRequest(_ context.Context, _ domain.AIGradingRequest) error {
+func (f *fakeAIGradingRepository) CreateAIGradingRequest(_ context.Context, request domain.AIGradingRequest) error {
 	f.creates++
+	f.created = request
 	return nil
 }
 

@@ -47,41 +47,43 @@ type quizSubmissionListResponse struct {
 }
 
 type aiGradingRequestResponse struct {
-	ID                     string                 `json:"id"`
-	ArchiveItemID          string                 `json:"archiveItemId"`
-	RequestedByPrincipalID string                 `json:"requestedByPrincipalId"`
-	GradingInstructions    string                 `json:"gradingInstructions"`
-	RubricRef              *string                `json:"rubricRef,omitempty"`
-	Status                 domain.AIGradingStatus `json:"status"`
-	SourceArchiveOwnerType domain.OwnerType       `json:"sourceArchiveOwnerType"`
-	SourceArchiveStudentID *string                `json:"sourceArchiveStudentId,omitempty"`
-	SourceArchiveMaterial  domain.MaterialType    `json:"sourceArchiveMaterial"`
-	SourceArchiveOCRStatus domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
-	ScoreSummary           *string                `json:"scoreSummary,omitempty"`
-	ResultRef              *string                `json:"resultRef,omitempty"`
-	ErrorCode              *string                `json:"errorCode,omitempty"`
-	ErrorMessage           *string                `json:"errorMessage,omitempty"`
-	ClaimedByWorkerID      *string                `json:"claimedByWorkerId,omitempty"`
-	ClaimExpiresAt         *string                `json:"claimExpiresAt,omitempty"`
-	CreatedAt              string                 `json:"createdAt"`
-	CompletedAt            *string                `json:"completedAt,omitempty"`
-	UpdatedAt              string                 `json:"updatedAt"`
+	ID                      string                 `json:"id"`
+	ArchiveItemID           string                 `json:"archiveItemId"`
+	RequestedByPrincipalID  string                 `json:"requestedByPrincipalId"`
+	GradingInstructions     string                 `json:"gradingInstructions"`
+	RubricRef               *string                `json:"rubricRef,omitempty"`
+	Status                  domain.AIGradingStatus `json:"status"`
+	SourceArchiveOwnerType  domain.OwnerType       `json:"sourceArchiveOwnerType"`
+	SourceArchiveStudentID  *string                `json:"sourceArchiveStudentId,omitempty"`
+	SourceArchiveContentRef string                 `json:"sourceArchiveContentRef"`
+	SourceArchiveMaterial   domain.MaterialType    `json:"sourceArchiveMaterial"`
+	SourceArchiveOCRStatus  domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
+	ScoreSummary            *string                `json:"scoreSummary,omitempty"`
+	ResultRef               *string                `json:"resultRef,omitempty"`
+	ErrorCode               *string                `json:"errorCode,omitempty"`
+	ErrorMessage            *string                `json:"errorMessage,omitempty"`
+	ClaimedByWorkerID       *string                `json:"claimedByWorkerId,omitempty"`
+	ClaimExpiresAt          *string                `json:"claimExpiresAt,omitempty"`
+	CreatedAt               string                 `json:"createdAt"`
+	CompletedAt             *string                `json:"completedAt,omitempty"`
+	UpdatedAt               string                 `json:"updatedAt"`
 }
 
 type aiGradingWorkerClaimResponse struct {
-	ID                     string                 `json:"id"`
-	ArchiveItemID          string                 `json:"archiveItemId"`
-	GradingInstructions    string                 `json:"gradingInstructions"`
-	RubricRef              *string                `json:"rubricRef,omitempty"`
-	Status                 domain.AIGradingStatus `json:"status"`
-	SourceArchiveOwnerType domain.OwnerType       `json:"sourceArchiveOwnerType"`
-	SourceArchiveStudentID *string                `json:"sourceArchiveStudentId,omitempty"`
-	SourceArchiveMaterial  domain.MaterialType    `json:"sourceArchiveMaterial"`
-	SourceArchiveOCRStatus domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
-	ClaimedByWorkerID      string                 `json:"claimedByWorkerId"`
-	ClaimExpiresAt         string                 `json:"claimExpiresAt"`
-	CreatedAt              string                 `json:"createdAt"`
-	UpdatedAt              string                 `json:"updatedAt"`
+	ID                      string                 `json:"id"`
+	ArchiveItemID           string                 `json:"archiveItemId"`
+	GradingInstructions     string                 `json:"gradingInstructions"`
+	RubricRef               *string                `json:"rubricRef,omitempty"`
+	Status                  domain.AIGradingStatus `json:"status"`
+	SourceArchiveOwnerType  domain.OwnerType       `json:"sourceArchiveOwnerType"`
+	SourceArchiveStudentID  *string                `json:"sourceArchiveStudentId,omitempty"`
+	SourceArchiveContentRef string                 `json:"sourceArchiveContentRef"`
+	SourceArchiveMaterial   domain.MaterialType    `json:"sourceArchiveMaterial"`
+	SourceArchiveOCRStatus  domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
+	ClaimedByWorkerID       string                 `json:"claimedByWorkerId"`
+	ClaimExpiresAt          string                 `json:"claimExpiresAt"`
+	CreatedAt               string                 `json:"createdAt"`
+	UpdatedAt               string                 `json:"updatedAt"`
 }
 
 type tutoringAnalysisRequestResponse struct {

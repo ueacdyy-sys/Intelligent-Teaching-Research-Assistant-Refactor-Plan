@@ -50,6 +50,9 @@ func TestListAIGradingRequestsBuildsScopedIndexedQuery(t *testing.T) {
 	if len(requests) != 1 || requests[0].ID != "grading_req_row" {
 		t.Fatalf("requests = %#v", requests)
 	}
+	if requests[0].SourceArchiveContentRef != "local://archive/student/quiz.pdf" {
+		t.Fatalf("SourceArchiveContentRef = %q", requests[0].SourceArchiveContentRef)
+	}
 }
 
 type singleAIGradingRequestRow struct {
@@ -83,17 +86,18 @@ func (r *singleAIGradingRequestRow) Scan(dest ...any) error {
 	*(dest[5].(*string)) = string(status)
 	*(dest[6].(*string)) = string(domain.OwnerTypeStudent)
 	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
-	*(dest[8].(*string)) = string(domain.MaterialTypeQuiz)
-	*(dest[9].(*string)) = string(domain.OCRStatusReserved)
-	*(dest[10].(*sql.NullString)) = sql.NullString{}
+	*(dest[8].(*string)) = "local://archive/student/quiz.pdf"
+	*(dest[9].(*string)) = string(domain.MaterialTypeQuiz)
+	*(dest[10].(*string)) = string(domain.OCRStatusReserved)
 	*(dest[11].(*sql.NullString)) = sql.NullString{}
 	*(dest[12].(*sql.NullString)) = sql.NullString{}
 	*(dest[13].(*sql.NullString)) = sql.NullString{}
-	*(dest[14].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
-	*(dest[15].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
-	*(dest[16].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[17].(*sql.NullTime)) = sql.NullTime{}
-	*(dest[18].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[14].(*sql.NullString)) = sql.NullString{}
+	*(dest[15].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
+	*(dest[16].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
+	*(dest[17].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[18].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[19].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
 	return nil
 }
 
