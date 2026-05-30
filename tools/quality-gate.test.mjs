@@ -69,6 +69,7 @@ import (
       "cargo test",
       "identity session runtime audit",
       "identity access contract audit",
+      "student app flow audit",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);
