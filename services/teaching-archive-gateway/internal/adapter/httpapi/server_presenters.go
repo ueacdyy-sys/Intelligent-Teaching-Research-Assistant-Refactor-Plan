@@ -64,6 +64,38 @@ func toQuizSubmissionListResponse(page domain.QuizSubmissionPage) quizSubmission
 	}
 }
 
+func toStudentAppQuestionBankDraftListResponse(
+	page domain.StudentAppQuestionBankDraftPage,
+) studentAppQuestionBankDraftListResponse {
+	drafts := make([]studentAppQuestionBankDraftResponse, 0, len(page.Items))
+	for _, draft := range page.Items {
+		drafts = append(drafts, toStudentAppQuestionBankDraftResponse(draft))
+	}
+	return studentAppQuestionBankDraftListResponse{
+		Data: drafts,
+		PageInfo: pageInfoResponse{
+			PageSize:   page.PageInfo.PageSize,
+			HasMore:    page.PageInfo.HasMore,
+			NextCursor: optionalString(page.PageInfo.NextCursor),
+		},
+	}
+}
+
+func toStudentAppQuestionBankDraftResponse(
+	draft domain.StudentAppQuestionBankDraft,
+) studentAppQuestionBankDraftResponse {
+	return studentAppQuestionBankDraftResponse{
+		TutoringAnalysisRequestID: draft.TutoringAnalysisRequestID,
+		ArchiveItemID:             draft.ArchiveItemID,
+		SourceArchiveMaterial:     draft.SourceArchiveMaterial,
+		ResultSummary:             draft.ResultSummary,
+		ResultRef:                 draft.ResultRef,
+		QuestionBankDraftRef:      draft.QuestionBankDraftRef,
+		CreatedAt:                 formatTime(draft.CreatedAt),
+		CompletedAt:               formatTime(draft.CompletedAt),
+	}
+}
+
 func toAIGradingRequestListResponse(page domain.AIGradingRequestPage) aiGradingRequestListResponse {
 	requests := make([]aiGradingRequestResponse, 0, len(page.Items))
 	for _, request := range page.Items {

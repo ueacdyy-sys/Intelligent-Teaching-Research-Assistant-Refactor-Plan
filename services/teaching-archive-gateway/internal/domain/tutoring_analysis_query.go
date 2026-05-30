@@ -24,15 +24,16 @@ type TutoringAnalysisRequestCursor struct {
 }
 
 type TutoringAnalysisRequestQuery struct {
-	Status                 TutoringAnalysisStatus
-	ArchiveItemID          string
-	SourceArchiveOwnerType OwnerType
-	StudentID              string
-	StudentIDs             []string
-	RequestedByPrincipalID string
-	PageSize               int
-	FetchLimit             int
-	Cursor                 *TutoringAnalysisRequestCursor
+	Status                      TutoringAnalysisStatus
+	ArchiveItemID               string
+	SourceArchiveOwnerType      OwnerType
+	StudentID                   string
+	StudentIDs                  []string
+	RequestedByPrincipalID      string
+	RequireQuestionBankDraftRef bool
+	PageSize                    int
+	FetchLimit                  int
+	Cursor                      *TutoringAnalysisRequestCursor
 }
 
 type TutoringAnalysisRequestPage struct {

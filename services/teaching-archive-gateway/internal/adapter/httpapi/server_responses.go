@@ -46,6 +46,22 @@ type quizSubmissionListResponse struct {
 	PageInfo pageInfoResponse         `json:"pageInfo"`
 }
 
+type studentAppQuestionBankDraftResponse struct {
+	TutoringAnalysisRequestID string              `json:"tutoringAnalysisRequestId"`
+	ArchiveItemID             string              `json:"archiveItemId"`
+	SourceArchiveMaterial     domain.MaterialType `json:"sourceArchiveMaterial"`
+	ResultSummary             string              `json:"resultSummary"`
+	ResultRef                 string              `json:"resultRef"`
+	QuestionBankDraftRef      string              `json:"questionBankDraftRef"`
+	CreatedAt                 string              `json:"createdAt"`
+	CompletedAt               string              `json:"completedAt"`
+}
+
+type studentAppQuestionBankDraftListResponse struct {
+	Data     []studentAppQuestionBankDraftResponse `json:"data"`
+	PageInfo pageInfoResponse                      `json:"pageInfo"`
+}
+
 type aiGradingRequestResponse struct {
 	ID                      string                 `json:"id"`
 	ArchiveItemID           string                 `json:"archiveItemId"`

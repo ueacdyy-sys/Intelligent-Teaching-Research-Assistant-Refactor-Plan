@@ -54,6 +54,34 @@ func TestListTutoringAnalysisRequestsBuildsScopedIndexedQuery(t *testing.T) {
 	}
 }
 
+func TestListTutoringAnalysisRequestsBuildsQuestionBankDraftPredicate(t *testing.T) {
+	db := &recordingDB{rows: &singleTutoringAnalysisRequestRow{}}
+	repository := postgres.NewArchiveRepository(db)
+
+	_, err := repository.ListTutoringAnalysisRequests(context.Background(), domain.TutoringAnalysisRequestQuery{
+		Status:                      domain.TutoringAnalysisStatusSucceeded,
+		SourceArchiveOwnerType:      domain.OwnerTypeStudent,
+		StudentID:                   "student_001",
+		RequireQuestionBankDraftRef: true,
+		FetchLimit:                  3,
+	})
+	if err != nil {
+		t.Fatalf("ListTutoringAnalysisRequests returned error: %v", err)
+	}
+
+	for _, fragment := range []string{
+		"status = $1",
+		"source_archive_owner_type = $2",
+		"source_archive_student_id = $3",
+		"question_bank_draft_ref IS NOT NULL",
+		"LIMIT $4",
+	} {
+		if !strings.Contains(db.lastSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastSQL)
+		}
+	}
+}
+
 func TestRecordTutoringAnalysisResultUpdatesMetadataOnly(t *testing.T) {
 	db := &recordingDB{tag: commandTag{rowsAffected: 1}}
 	repository := postgres.NewArchiveRepository(db)

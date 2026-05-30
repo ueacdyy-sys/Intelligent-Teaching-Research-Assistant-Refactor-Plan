@@ -344,6 +344,9 @@ func (f *fakeRepository) ListTutoringAnalysisRequests(
 		if len(query.StudentIDs) > 0 && !containsString(query.StudentIDs, request.SourceArchiveStudentID) {
 			continue
 		}
+		if query.RequireQuestionBankDraftRef && request.QuestionBankDraftRef == "" {
+			continue
+		}
 		requests = append(requests, request)
 		if query.FetchLimit > 0 && len(requests) >= query.FetchLimit {
 			break

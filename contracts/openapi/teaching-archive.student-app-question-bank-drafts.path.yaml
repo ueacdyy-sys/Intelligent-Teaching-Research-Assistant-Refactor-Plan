@@ -1,0 +1,83 @@
+get:
+  operationId: listStudentAppQuestionBankDrafts
+  summary: List personalized question-bank draft metadata for the authenticated student.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: Student-owned personalized question-bank draft metadata page.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - data
+              - pageInfo
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - tutoringAnalysisRequestId
+                    - archiveItemId
+                    - sourceArchiveMaterial
+                    - resultSummary
+                    - resultRef
+                    - questionBankDraftRef
+                    - createdAt
+                    - completedAt
+                  properties:
+                    tutoringAnalysisRequestId:
+                      type: string
+                      pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+                    archiveItemId:
+                      type: string
+                      pattern: '^tarch_[A-Za-z0-9_-]+$'
+                    sourceArchiveMaterial:
+                      $ref: './teaching-archive.yaml#/components/schemas/StudentArchiveMaterialType'
+                    resultSummary:
+                      type: string
+                      minLength: 1
+                      maxLength: 2000
+                    resultRef:
+                      type: string
+                      minLength: 1
+                      maxLength: 1000
+                    questionBankDraftRef:
+                      type: string
+                      minLength: 1
+                      maxLength: 1000
+                    createdAt:
+                      type: string
+                      format: date-time
+                    completedAt:
+                      type: string
+                      format: date-time
+              pageInfo:
+                $ref: './teaching-archive.yaml#/components/schemas/ArchivePageInfo'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

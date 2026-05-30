@@ -251,6 +251,9 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 	if len(query.StudentIDs) > 0 {
 		clauses = append(clauses, "source_archive_student_id = ANY("+nextArg(&args, query.StudentIDs)+")")
 	}
+	if query.RequireQuestionBankDraftRef {
+		clauses = append(clauses, "question_bank_draft_ref IS NOT NULL")
+	}
 	if query.Cursor != nil {
 		createdAtArg := nextArg(&args, query.Cursor.CreatedAt)
 		idArg := nextArg(&args, query.Cursor.ID)
