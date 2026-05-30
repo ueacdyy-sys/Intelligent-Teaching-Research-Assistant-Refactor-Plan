@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "2026-05-30.ai-worker.runtime-dependency-profile.v1",
+  "baselineManifests": [
+    {
+      "path": "package.json",
+      "runtime": "NODE_BASELINE"
+    },
+    {
+      "path": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE"
+    },
+    {
+      "path": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE"
+    },
+    {
+      "path": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE"
+    },
+    {
+      "path": "services/agent-harness/Cargo.toml",
+      "runtime": "RUST_BASELINE"
+    }
+  ],
+  "forbiddenBaselinePackages": [
+    "@xenova/transformers",
+    "chromadb",
+    "easyocr",
+    "faiss-cpu",
+    "langchain",
+    "llama-cpp-python",
+    "llama-index",
+    "onnxruntime",
+    "opencv-python",
+    "opencv-python-headless",
+    "paddleocr",
+    "peft",
+    "sentence-transformers",
+    "tensorflow",
+    "torch",
+    "transformers",
+    "candle-core",
+    "ort"
+  ],
+  "optionalWorkerBundles": [
+    {
+      "bundleId": "rag_retrieval_worker_optional",
+      "capabilityKind": "RAG_RETRIEVAL",
+      "executionOwner": "PYTHON_WORKER",
+      "installMode": "OPTIONAL_WORKER_ENV",
+      "baselineRuntimeDependencyAllowed": false,
+      "packages": [
+        {
+          "packageName": "sentence-transformers",
+          "purpose": "optional embedding model support inside isolated RAG worker"
+        },
+        {
+          "packageName": "faiss-cpu",
+          "purpose": "optional local vector candidate index inside isolated RAG worker"
+        }
+      ]
+    },
+    {
+      "bundleId": "ocr_recognition_worker_optional",
+      "capabilityKind": "OCR_RECOGNITION",
+      "executionOwner": "PYTHON_WORKER",
+      "installMode": "OPTIONAL_WORKER_ENV",
+      "baselineRuntimeDependencyAllowed": false,
+      "packages": [
+        {
+          "packageName": "paddleocr",
+          "purpose": "optional OCR recognition inside isolated grading worker"
+        },
+        {
+          "packageName": "opencv-python-headless",
+          "purpose": "optional image preprocessing inside isolated OCR worker"
+        }
+      ]
+    },
+    {
+      "bundleId": "fine_tuning_worker_optional",
+      "capabilityKind": "FINE_TUNING",
+      "executionOwner": "PYTHON_WORKER",
+      "installMode": "OPTIONAL_WORKER_ENV",
+      "baselineRuntimeDependencyAllowed": false,
+      "packages": [
+        {
+          "packageName": "transformers",
+          "purpose": "optional fine-tuning orchestration inside isolated worker"
+        },
+        {
+          "packageName": "peft",
+          "purpose": "optional parameter-efficient fine-tuning inside isolated worker"
+        },
+        {
+          "packageName": "llama-cpp-python",
+          "purpose": "optional local GGUF export validation inside isolated worker"
+        }
+      ]
+    }
+  ],
+  "updatedAt": "2026-05-30T16:00:00Z"
+}

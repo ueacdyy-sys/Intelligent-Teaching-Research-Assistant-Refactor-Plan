@@ -1,0 +1,186 @@
+{
+  "generatedAt": "2026-05-30T15:13:56.256Z",
+  "readiness": "READY",
+  "baselineDependencies": [
+    {
+      "name": "github.com/jackc/pgx/v5",
+      "manifestPath": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgpassfile",
+      "manifestPath": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgservicefile",
+      "manifestPath": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/puddle/v2",
+      "manifestPath": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/crypto",
+      "manifestPath": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/sync",
+      "manifestPath": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/text",
+      "manifestPath": "services/conversation-write-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgx/v5",
+      "manifestPath": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgpassfile",
+      "manifestPath": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgservicefile",
+      "manifestPath": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/puddle/v2",
+      "manifestPath": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/crypto",
+      "manifestPath": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/sync",
+      "manifestPath": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/text",
+      "manifestPath": "services/identity-access-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgx/v5",
+      "manifestPath": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgpassfile",
+      "manifestPath": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/pgservicefile",
+      "manifestPath": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "github.com/jackc/puddle/v2",
+      "manifestPath": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/crypto",
+      "manifestPath": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/sync",
+      "manifestPath": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "golang.org/x/text",
+      "manifestPath": "services/teaching-archive-gateway/go.mod",
+      "runtime": "GO_BASELINE",
+      "section": "require"
+    },
+    {
+      "name": "serde",
+      "manifestPath": "services/agent-harness/Cargo.toml",
+      "runtime": "RUST_BASELINE",
+      "section": "dependencies"
+    },
+    {
+      "name": "serde_json",
+      "manifestPath": "services/agent-harness/Cargo.toml",
+      "runtime": "RUST_BASELINE",
+      "section": "dependencies"
+    }
+  ],
+  "findings": [
+    {
+      "id": "baseline.manifests_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "package.json:present;services/conversation-write-gateway/go.mod:present;services/identity-access-gateway/go.mod:present;services/teaching-archive-gateway/go.mod:present;services/agent-harness/Cargo.toml:present",
+      "expected": "all baseline manifests present and readable",
+      "remediation": "Runtime dependency audit must read every baseline manifest before claiming worker isolation."
+    },
+    {
+      "id": "baseline.no_forbidden_ai_packages",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
+      "expected": "no model/OCR/RAG/vector/training package in baseline manifests",
+      "remediation": "Move AI packages into optional Python worker environments instead of baseline runtime manifests."
+    },
+    {
+      "id": "profile.required_capability_bundles",
+      "passed": true,
+      "severity": "info",
+      "actual": "RAG_RETRIEVAL,OCR_RECOGNITION,FINE_TUNING",
+      "expected": "RAG_RETRIEVAL,OCR_RECOGNITION,FINE_TUNING",
+      "remediation": "Optional worker dependency bundles must cover RAG retrieval, OCR recognition, and fine-tuning."
+    },
+    {
+      "id": "profile.worker_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "rag_retrieval_worker_optional:RAG_RETRIEVAL:PYTHON_WORKER:OPTIONAL_WORKER_ENV:baseline=false;ocr_recognition_worker_optional:OCR_RECOGNITION:PYTHON_WORKER:OPTIONAL_WORKER_ENV:baseline=false;fine_tuning_worker_optional:FINE_TUNING:PYTHON_WORKER:OPTIONAL_WORKER_ENV:baseline=false",
+      "expected": "all bundles PYTHON_WORKER OPTIONAL_WORKER_ENV baseline=false",
+      "remediation": "AI worker dependencies must remain optional Python-worker dependencies, never baseline runtime dependencies."
+    },
+    {
+      "id": "baseline.optional_packages_absent",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
+      "expected": "optional worker package names absent from baseline manifests",
+      "remediation": "Optional worker packages must be declared only as profile metadata until an isolated worker environment exists."
+    }
+  ]
+}

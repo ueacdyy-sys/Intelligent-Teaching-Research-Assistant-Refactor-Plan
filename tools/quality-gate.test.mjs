@@ -78,6 +78,7 @@ import (
       "knowledge access policy audit",
       "AI worker job admission audit",
       "knowledge retrieval benchmark audit",
+      "AI worker runtime dependency audit",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);
