@@ -61,31 +61,21 @@ func newTestHandlerWithAttendanceRows(rows []domain.AttendanceRecord) http.Handl
 		},
 		attendanceRecords: append([]domain.AttendanceRecord(nil), rows...),
 	}
-	return httpapi.NewServer(
-		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
-		usecase.NewListArchiveItems(store),
-		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewListAIGradingRequests(store),
-		nil,
-		nil,
-		usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
-		usecase.NewListTutoringAnalysisRequests(store),
-		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
-		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
-		nil,
-		nil,
-		nil,
-		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
-		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
-		nil,
-		nil,
-		nil,
-		usecase.NewListAttendanceRecords(store),
-		nil,
-		nil,
-		"ueacd",
-	).Handler()
+	return httpapi.NewServer(httpapi.ServerConfig{
+		CreateArchiveItem:             usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
+		ListArchiveItems:              usecase.NewListArchiveItems(store),
+		CreateAIGradingRequest:        usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		CreateQuizSubmissionAIGrading: usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		ListAIGradingRequests:         usecase.NewListAIGradingRequests(store),
+		CreateTutoringAnalysisRequest: usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
+		ListTutoringAnalysisRequests:  usecase.NewListTutoringAnalysisRequests(store),
+		ClaimTutoringAnalysisRequest:  usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
+		RecordTutoringAnalysisResult:  usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
+		CreateAttendanceSession:       usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
+		CreateAttendanceRecord:        usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
+		ListAttendanceRecords:         usecase.NewListAttendanceRecords(store),
+		AgentAPIKey:                   "ueacd",
+	}).Handler()
 }
 
 func (f *fakeRepository) ListAttendanceRecords(

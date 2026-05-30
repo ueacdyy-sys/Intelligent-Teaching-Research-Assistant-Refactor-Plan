@@ -74,29 +74,19 @@ func TestSelectAttendanceRandomStudentsRejectsUnsupportedMethod(t *testing.T) {
 }
 
 func newAttendanceRandomSelectionHandler(store *fakeRepository) http.Handler {
-	return httpapi.NewServer(
-		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
-		usecase.NewListArchiveItems(store),
-		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		listAIGradingRequestsNoop(store),
-		nil,
-		nil,
-		usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
-		usecase.NewListTutoringAnalysisRequests(store),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
-		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
-		usecase.NewSignInAttendance(store, fixedIDs{id: "att_rec_signin_http"}, fixedClock{}),
-		usecase.NewEndAttendanceSession(store, fixedClock{}),
-		usecase.NewSelectAttendanceRandomStudents(store, &fixedRandomFloats{values: []float64{0.99, 0}}),
-		nil,
-		nil,
-		nil,
-		"ueacd",
-	).Handler()
+	return httpapi.NewServer(httpapi.ServerConfig{
+		CreateArchiveItem:              usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
+		ListArchiveItems:               usecase.NewListArchiveItems(store),
+		CreateAIGradingRequest:         usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		CreateQuizSubmissionAIGrading:  usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		ListAIGradingRequests:          listAIGradingRequestsNoop(store),
+		CreateTutoringAnalysisRequest:  usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
+		ListTutoringAnalysisRequests:   usecase.NewListTutoringAnalysisRequests(store),
+		CreateAttendanceSession:        usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
+		CreateAttendanceRecord:         usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
+		SignInAttendance:               usecase.NewSignInAttendance(store, fixedIDs{id: "att_rec_signin_http"}, fixedClock{}),
+		EndAttendanceSession:           usecase.NewEndAttendanceSession(store, fixedClock{}),
+		SelectAttendanceRandomStudents: usecase.NewSelectAttendanceRandomStudents(store, &fixedRandomFloats{values: []float64{0.99, 0}}),
+		AgentAPIKey:                    "ueacd",
+	}).Handler()
 }

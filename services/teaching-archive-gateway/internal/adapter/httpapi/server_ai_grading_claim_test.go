@@ -106,31 +106,20 @@ func newTestHandlerWithAIGradingClaimRequests(requests []domain.AIGradingRequest
 		},
 		gradingRequests: append([]domain.AIGradingRequest(nil), requests...),
 	}
-	return httpapi.NewServer(
-		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
-		usecase.NewListArchiveItems(store),
-		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewListAIGradingRequests(store),
-		usecase.NewClaimAIGradingRequest(store, fixedClock{now: time.Date(2026, 5, 29, 18, 0, 0, 0, time.UTC)}),
-		usecase.NewRecordAIGradingResult(store, fixedClock{now: time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)}),
-		usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
-		usecase.NewListTutoringAnalysisRequests(store),
-		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
-		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		"ueacd",
-	).Handler()
+	return httpapi.NewServer(httpapi.ServerConfig{
+		CreateArchiveItem:             usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
+		ListArchiveItems:              usecase.NewListArchiveItems(store),
+		CreateAIGradingRequest:        usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		CreateQuizSubmissionAIGrading: usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		ListAIGradingRequests:         usecase.NewListAIGradingRequests(store),
+		ClaimAIGradingRequest:         usecase.NewClaimAIGradingRequest(store, fixedClock{now: time.Date(2026, 5, 29, 18, 0, 0, 0, time.UTC)}),
+		RecordAIGradingResult:         usecase.NewRecordAIGradingResult(store, fixedClock{now: time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)}),
+		CreateTutoringAnalysisRequest: usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
+		ListTutoringAnalysisRequests:  usecase.NewListTutoringAnalysisRequests(store),
+		ClaimTutoringAnalysisRequest:  usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
+		RecordTutoringAnalysisResult:  usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
+		AgentAPIKey:                   "ueacd",
+	}).Handler()
 }
 
 func (f *fakeRepository) ClaimNextAIGradingRequest(

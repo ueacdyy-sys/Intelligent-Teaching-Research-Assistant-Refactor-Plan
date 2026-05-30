@@ -54,31 +54,20 @@ func newTestHandlerWithQuizSubmissionRows(rows []domain.QuizSubmission) http.Han
 		},
 		quizSubmissions: append([]domain.QuizSubmission(nil), rows...),
 	}
-	return httpapi.NewServer(
-		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
-		usecase.NewListArchiveItems(store),
-		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewListAIGradingRequests(store),
-		nil,
-		nil,
-		usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
-		usecase.NewListTutoringAnalysisRequests(store),
-		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
-		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
-		usecase.NewCreateQuizSubmission(store, fixedIDs{id: "quiz_sub_http"}, fixedClock{}),
-		nil,
-		usecase.NewListQuizSubmissions(store),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		"ueacd",
-	).Handler()
+	return httpapi.NewServer(httpapi.ServerConfig{
+		CreateArchiveItem:             usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
+		ListArchiveItems:              usecase.NewListArchiveItems(store),
+		CreateAIGradingRequest:        usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		CreateQuizSubmissionAIGrading: usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		ListAIGradingRequests:         usecase.NewListAIGradingRequests(store),
+		CreateTutoringAnalysisRequest: usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
+		ListTutoringAnalysisRequests:  usecase.NewListTutoringAnalysisRequests(store),
+		ClaimTutoringAnalysisRequest:  usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
+		RecordTutoringAnalysisResult:  usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
+		CreateQuizSubmission:          usecase.NewCreateQuizSubmission(store, fixedIDs{id: "quiz_sub_http"}, fixedClock{}),
+		ListQuizSubmissions:           usecase.NewListQuizSubmissions(store),
+		AgentAPIKey:                   "ueacd",
+	}).Handler()
 }
 
 func (f *fakeRepository) ListQuizSubmissions(

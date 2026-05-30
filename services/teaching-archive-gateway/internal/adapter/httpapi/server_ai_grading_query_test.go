@@ -106,31 +106,18 @@ func newTestHandlerWithAIGradingRequests(requests []domain.AIGradingRequest) htt
 		store,
 		fixedClock{now: time.Date(2026, 5, 29, 8, 45, 0, 0, time.UTC)},
 	)
-	return httpapi.NewServer(
-		createArchiveItem,
-		listArchiveItems,
-		createAIGradingRequest,
-		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		listAIGradingRequests,
-		nil,
-		nil,
-		createTutoringRequest,
-		listTutoringRequests,
-		claimTutoringRequest,
-		recordTutoringResult,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		"ueacd",
-	).Handler()
+	return httpapi.NewServer(httpapi.ServerConfig{
+		CreateArchiveItem:             createArchiveItem,
+		ListArchiveItems:              listArchiveItems,
+		CreateAIGradingRequest:        createAIGradingRequest,
+		CreateQuizSubmissionAIGrading: usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		ListAIGradingRequests:         listAIGradingRequests,
+		CreateTutoringAnalysisRequest: createTutoringRequest,
+		ListTutoringAnalysisRequests:  listTutoringRequests,
+		ClaimTutoringAnalysisRequest:  claimTutoringRequest,
+		RecordTutoringAnalysisResult:  recordTutoringResult,
+		AgentAPIKey:                   "ueacd",
+	}).Handler()
 }
 
 func (f *fakeRepository) ListAIGradingRequests(

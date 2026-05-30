@@ -64,6 +64,7 @@ const required = [
   "docs/sdd/0056-teaching-attendance-session-end.md",
   "docs/sdd/0057-teaching-attendance-random-selection.md",
   "docs/sdd/0058-teaching-quiz-scan-submission.md",
+  "docs/sdd/0059-teaching-archive-server-config-refactor.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -207,6 +208,7 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/record_tutoring_analysis_result_test.go",
   "services/teaching-archive-gateway/internal/usecase/principal_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_config.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_routes.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_archive_items.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_tutoring_analysis.go",
@@ -706,6 +708,7 @@ for (const [id, file] of [
   ["0056", "0056-teaching-attendance-session-end.md"],
   ["0057", "0057-teaching-attendance-random-selection.md"],
   ["0058", "0058-teaching-quiz-scan-submission.md"],
+  ["0059", "0059-teaching-archive-server-config-refactor.md"],
 ]) {
   const sdd = fs.readFileSync(path.join(root, "docs/sdd", file), "utf8");
   for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
@@ -713,6 +716,34 @@ for (const [id, file] of [
       console.error(`SDD ${id} missing heading: ${heading}`);
       process.exit(1);
     }
+  }
+}
+
+const teachingArchiveServerGo = fs.readFileSync(
+  path.join(root, "services/teaching-archive-gateway/internal/adapter/httpapi/server.go"),
+  "utf8",
+);
+if (!teachingArchiveServerGo.includes("func NewServer(config ServerConfig) *Server")) {
+  console.error("Teaching Archive HTTP server constructor must accept ServerConfig.");
+  process.exit(1);
+}
+
+const teachingArchiveServerConfigGo = fs.readFileSync(
+  path.join(root, "services/teaching-archive-gateway/internal/adapter/httpapi/server_config.go"),
+  "utf8",
+);
+for (const field of [
+  "CreateArchiveItem",
+  "ListArchiveItems",
+  "CreateQuizSubmission",
+  "CreateScannedQuizSubmission",
+  "CreateAttendanceSession",
+  "SelectAttendanceRandomStudents",
+  "AgentAPIKey",
+]) {
+  if (!teachingArchiveServerConfigGo.includes(field)) {
+    console.error(`Teaching Archive ServerConfig missing field: ${field}`);
+    process.exit(1);
   }
 }
 

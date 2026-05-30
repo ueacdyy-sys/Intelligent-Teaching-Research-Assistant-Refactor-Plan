@@ -13,31 +13,17 @@ import (
 
 func TestCreateAttendanceSessionReturnsCreatedResponse(t *testing.T) {
 	store := &fakeRepository{}
-	handler := httpapi.NewServer(
-		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
-		usecase.NewListArchiveItems(store),
-		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
-		listAIGradingRequestsNoop(store),
-		nil,
-		nil,
-		usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
-		usecase.NewListTutoringAnalysisRequests(store),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{now: time.Date(2026, 5, 30, 12, 0, 0, 0, time.UTC)}),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		"ueacd",
-	).Handler()
+	handler := httpapi.NewServer(httpapi.ServerConfig{
+		CreateArchiveItem:             usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
+		ListArchiveItems:              usecase.NewListArchiveItems(store),
+		CreateAIGradingRequest:        usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		CreateQuizSubmissionAIGrading: usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		ListAIGradingRequests:         listAIGradingRequestsNoop(store),
+		CreateTutoringAnalysisRequest: usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
+		ListTutoringAnalysisRequests:  usecase.NewListTutoringAnalysisRequests(store),
+		CreateAttendanceSession:       usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{now: time.Date(2026, 5, 30, 12, 0, 0, 0, time.UTC)}),
+		AgentAPIKey:                   "ueacd",
+	}).Handler()
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/v1/teaching/attendance-sessions",
