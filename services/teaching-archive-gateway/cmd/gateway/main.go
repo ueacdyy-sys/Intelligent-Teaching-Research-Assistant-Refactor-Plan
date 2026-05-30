@@ -85,6 +85,7 @@ func main() {
 	)
 	listAttendanceRecords := usecase.NewListAttendanceRecords(archiveRepository)
 	listStudentAttendanceRecords := usecase.NewListStudentAttendanceRecords(archiveRepository)
+	getAttendanceStatistics := usecase.NewGetAttendanceStatistics(archiveRepository)
 
 	server := &http.Server{
 		Addr: ":" + getenv("PORT", "18120"),
@@ -106,6 +107,7 @@ func main() {
 			createAttendanceRecord,
 			listAttendanceRecords,
 			listStudentAttendanceRecords,
+			getAttendanceStatistics,
 			getenv("AGENT_API_KEY", "ueacd"),
 		).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,

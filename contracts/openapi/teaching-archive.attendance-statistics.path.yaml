@@ -1,0 +1,56 @@
+get:
+  operationId: getTeachingAttendanceStatistics
+  summary: Get metadata-only Teaching Mode rollcall attendance statistics.
+  tags: [teaching-attendance]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: className
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+  responses:
+    '200':
+      description: Attendance statistics summary.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - totalStudents
+              - totalRecords
+              - attendanceCount
+              - absenceCount
+              - lateCount
+              - attendanceRate
+            properties:
+              totalStudents:
+                type: integer
+                minimum: 0
+              totalRecords:
+                type: integer
+                minimum: 0
+              attendanceCount:
+                type: integer
+                minimum: 0
+              absenceCount:
+                type: integer
+                minimum: 0
+              lateCount:
+                type: integer
+                minimum: 0
+              attendanceRate:
+                type: number
+                minimum: 0
+                maximum: 1
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

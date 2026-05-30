@@ -20,6 +20,7 @@ type Server struct {
 	createAttendanceRecord        *usecase.CreateAttendanceRecord
 	listAttendanceRecords         *usecase.ListAttendanceRecords
 	listStudentAttendanceRecords  *usecase.ListStudentAttendanceRecords
+	getAttendanceStatistics       *usecase.GetAttendanceStatistics
 	agentAPIKey                   string
 }
 
@@ -41,6 +42,7 @@ func NewServer(
 	createAttendanceRecord *usecase.CreateAttendanceRecord,
 	listAttendanceRecords *usecase.ListAttendanceRecords,
 	listStudentAttendanceRecords *usecase.ListStudentAttendanceRecords,
+	getAttendanceStatistics *usecase.GetAttendanceStatistics,
 	agentAPIKey string,
 ) *Server {
 	return &Server{
@@ -61,6 +63,7 @@ func NewServer(
 		createAttendanceRecord:        createAttendanceRecord,
 		listAttendanceRecords:         listAttendanceRecords,
 		listStudentAttendanceRecords:  listStudentAttendanceRecords,
+		getAttendanceStatistics:       getAttendanceStatistics,
 		agentAPIKey:                   agentAPIKey,
 	}
 }

@@ -73,6 +73,7 @@ func newTestHandler() http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
@@ -125,6 +126,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		listTutoringRequests,
 		claimTutoringRequest,
 		recordTutoringResult,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -226,6 +228,9 @@ type fakeRepository struct {
 	quizSubmissions    []domain.QuizSubmission
 	attendanceSessions []domain.AttendanceSession
 	attendanceRecords  []domain.AttendanceRecord
+	attendanceStats    domain.AttendanceStatistics
+
+	lastAttendanceStatsQuery domain.AttendanceStatisticsQuery
 }
 
 func (f *fakeRepository) Create(_ context.Context, _ domain.ArchiveItem) error {
