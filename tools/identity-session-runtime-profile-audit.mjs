@@ -15,7 +15,9 @@ const expected = {
   pgbouncerHostPort: 16432,
   pgbouncerListenPort: 6432,
   pgbouncerPoolMode: "transaction",
-  maxDbConnectionsCeiling: 40,
+  postgresMinMaxConnections: 300,
+  postgresMinSharedBuffers: "1GB",
+  pgbouncerMaxDbConnections: 90,
   databaseName: "intelligent_teaching_assistant",
   databaseUser: "app_user",
   secretValue: "ueacd",
@@ -65,6 +67,20 @@ export function auditIdentitySessionRuntimeProfile(sourceTexts) {
     expected: "/var/lib/postgresql",
     remediation: "PostgreSQL 18 images need the volume mounted at /var/lib/postgresql, not /var/lib/postgresql/data.",
   });
+  addFinding(findings, {
+    id: "postgres.max_connections",
+    passed: compose.postgres.maxConnections >= expected.postgresMinMaxConnections,
+    actual: compose.postgres.maxConnections,
+    expected: `>=${expected.postgresMinMaxConnections}`,
+    remediation: "Set identity runtime PostgreSQL max_connections to 300 or higher before claiming a high-concurrency ceiling.",
+  });
+  addFinding(findings, {
+    id: "postgres.shared_buffers",
+    passed: compareSize(compose.postgres.sharedBuffers, expected.postgresMinSharedBuffers) >= 0,
+    actual: compose.postgres.sharedBuffers,
+    expected: `>=${expected.postgresMinSharedBuffers}`,
+    remediation: "Set identity runtime PostgreSQL shared_buffers to 1GB or higher for performance evidence runs.",
+  });
 
   addFinding(findings, {
     id: "pgbouncer.service_present",
@@ -110,10 +126,10 @@ export function auditIdentitySessionRuntimeProfile(sourceTexts) {
   });
   addFinding(findings, {
     id: "pgbouncer.max_db_connections",
-    passed: toInteger(pgbouncerSection.max_db_connections) <= expected.maxDbConnectionsCeiling,
+    passed: toInteger(pgbouncerSection.max_db_connections) === expected.pgbouncerMaxDbConnections,
     actual: toInteger(pgbouncerSection.max_db_connections),
-    expected: `<=${expected.maxDbConnectionsCeiling}`,
-    remediation: "Keep identity runtime PgBouncer server connections bounded.",
+    expected: expected.pgbouncerMaxDbConnections,
+    remediation: "Set identity runtime PgBouncer max_db_connections to 90 to match the current performance profile.",
   });
   addFinding(findings, {
     id: "pgbouncer.userlist_secret",
@@ -166,6 +182,8 @@ function observeCompose(text) {
       present: postgresBlock.length > 0,
       hostPort: firstHostPort(postgresBlock, 5432),
       environment: extractMappingSection(postgresBlock, "environment"),
+      maxConnections: toInteger(matchFirst(postgresBlock, /-c\s+max_connections=(\S+)/)),
+      sharedBuffers: matchFirst(postgresBlock, /-c\s+shared_buffers=(\S+)/),
       volumeTargets: extractVolumeTargets(postgresBlock),
     },
     pgbouncer: {
@@ -288,6 +306,32 @@ function parsePgbouncerUserlist(text) {
     }
   }
   return users;
+}
+
+function matchFirst(text, pattern) {
+  const match = text.match(pattern);
+  return match ? match[1] : "";
+}
+
+function compareSize(actual, expectedValue) {
+  return parseSizeBytes(actual) - parseSizeBytes(expectedValue);
+}
+
+function parseSizeBytes(value) {
+  const match = String(value ?? "").trim().match(/^(\d+(?:\.\d+)?)([KMG]B?)?$/i);
+  if (!match) return Number.NEGATIVE_INFINITY;
+  const number = Number.parseFloat(match[1]);
+  const unit = (match[2] ?? "B").toUpperCase();
+  const multipliers = {
+    B: 1,
+    KB: 1024,
+    K: 1024,
+    MB: 1024 ** 2,
+    M: 1024 ** 2,
+    GB: 1024 ** 3,
+    G: 1024 ** 3,
+  };
+  return number * (multipliers[unit] ?? Number.NEGATIVE_INFINITY);
 }
 
 function addFinding(findings, finding) {

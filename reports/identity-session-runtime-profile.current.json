@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T14:11:09.618Z",
+  "generatedAt": "2026-05-30T17:01:01.551Z",
   "readiness": "READY",
   "expected": {
     "postgresService": "identity-session-postgres",
@@ -8,7 +8,9 @@
     "pgbouncerHostPort": 16432,
     "pgbouncerListenPort": 6432,
     "pgbouncerPoolMode": "transaction",
-    "maxDbConnectionsCeiling": 40,
+    "postgresMinMaxConnections": 300,
+    "postgresMinSharedBuffers": "1GB",
+    "pgbouncerMaxDbConnections": 90,
     "databaseName": "intelligent_teaching_assistant",
     "databaseUser": "app_user",
     "secretValue": "ueacd"
@@ -23,6 +25,8 @@
         "POSTGRES_DB": "intelligent_teaching_assistant",
         "POSTGRES_INITDB_ARGS": "-E UTF8"
       },
+      "maxConnections": 300,
+      "sharedBuffers": "1GB",
       "volumeTargets": [
         "/var/lib/postgresql"
       ]
@@ -73,6 +77,22 @@
       "actual": "/var/lib/postgresql",
       "expected": "/var/lib/postgresql",
       "remediation": "PostgreSQL 18 images need the volume mounted at /var/lib/postgresql, not /var/lib/postgresql/data."
+    },
+    {
+      "id": "postgres.max_connections",
+      "passed": true,
+      "severity": "info",
+      "actual": 300,
+      "expected": ">=300",
+      "remediation": "Set identity runtime PostgreSQL max_connections to 300 or higher before claiming a high-concurrency ceiling."
+    },
+    {
+      "id": "postgres.shared_buffers",
+      "passed": true,
+      "severity": "info",
+      "actual": "1GB",
+      "expected": ">=1GB",
+      "remediation": "Set identity runtime PostgreSQL shared_buffers to 1GB or higher for performance evidence runs."
     },
     {
       "id": "pgbouncer.service_present",
@@ -126,9 +146,9 @@
       "id": "pgbouncer.max_db_connections",
       "passed": true,
       "severity": "info",
-      "actual": 32,
-      "expected": "<=40",
-      "remediation": "Keep identity runtime PgBouncer server connections bounded."
+      "actual": 90,
+      "expected": 90,
+      "remediation": "Set identity runtime PgBouncer max_db_connections to 90 to match the current performance profile."
     },
     {
       "id": "pgbouncer.userlist_secret",

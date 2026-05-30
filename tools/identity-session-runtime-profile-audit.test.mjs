@@ -14,6 +14,12 @@ services:
       POSTGRES_USER: app_user
       POSTGRES_PASSWORD: ueacd
       POSTGRES_DB: intelligent_teaching_assistant
+    command: >
+      postgres
+      -c max_connections=300
+      -c shared_buffers=1GB
+      -c effective_cache_size=3GB
+      -c work_mem=16MB
     ports:
       - "15432:5432"
     volumes:
@@ -35,7 +41,7 @@ intelligent_teaching_assistant = host=identity-session-postgres port=5432 dbname
 [pgbouncer]
 listen_port = 6432
 pool_mode = transaction
-max_db_connections = 32
+max_db_connections = 90
 `;
 
 const userlistText = `"app_user" "ueacd"\n`;
@@ -80,6 +86,26 @@ describe("identity session runtime profile audit", () => {
     );
   });
 
+  it("fails when PostgreSQL capacity is below the tuned performance profile", () => {
+    const report = auditIdentitySessionRuntimeProfile({
+      composeText: composeText
+        .replace("max_connections=300", "max_connections=120")
+        .replace("shared_buffers=1GB", "shared_buffers=256MB"),
+      pgbouncerIniText: pgbouncerIni,
+      userlistText,
+    });
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(
+      report.findings.find((finding) => finding.id === "postgres.max_connections").passed,
+      false,
+    );
+    assert.equal(
+      report.findings.find((finding) => finding.id === "postgres.shared_buffers").passed,
+      false,
+    );
+  });
+
   it("fails when PgBouncer is not in transaction mode", () => {
     const report = auditIdentitySessionRuntimeProfile({
       composeText,
@@ -90,6 +116,20 @@ describe("identity session runtime profile audit", () => {
     assert.equal(report.readiness, "NEEDS_REMEDIATION");
     assert.equal(
       report.findings.find((finding) => finding.id === "pgbouncer.pool_mode").passed,
+      false,
+    );
+  });
+
+  it("fails when PgBouncer server capacity is below the tuned performance profile", () => {
+    const report = auditIdentitySessionRuntimeProfile({
+      composeText,
+      pgbouncerIniText: pgbouncerIni.replace("max_db_connections = 90", "max_db_connections = 32"),
+      userlistText,
+    });
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(
+      report.findings.find((finding) => finding.id === "pgbouncer.max_db_connections").passed,
       false,
     );
   });

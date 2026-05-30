@@ -1,7 +1,7 @@
 {
   "schemaVersion": "2026-05-30.ops.performance-evidence-registry.v1",
   "registryId": "current_refactor_performance_evidence",
-  "updatedAt": "2026-05-30T16:35:30Z",
+  "updatedAt": "2026-05-30T16:55:00Z",
   "entries": [
     {
       "evidenceId": "pgbouncer_perf_profile_current",
@@ -86,19 +86,19 @@
         },
         {
           "name": "passwordLogin.p95_ms",
-          "value": 135.1,
+          "value": 326.37,
           "unit": "ms",
-          "interpretation": "Login write path stayed below 150ms P95 at 320 concurrent clients in this local run."
+          "interpretation": "Login write path completed without errors at 320 concurrent clients, but tuned database capacity did not improve login tail latency."
         },
         {
           "name": "refreshRotation.p95_ms",
-          "value": 188.81,
+          "value": 185.43,
           "unit": "ms",
           "interpretation": "Refresh rotation remains the heavier write path but completed without errors."
         },
         {
           "name": "revokeCycle.p95_ms",
-          "value": 248.49,
+          "value": 266.16,
           "unit": "ms",
           "interpretation": "Revoke cycle is the slowest mixed write/read phase and the first path to watch in higher-load tuning."
         },
@@ -113,14 +113,14 @@
         "required": true,
         "postgres": {
           "serviceName": "ita-identity-session-postgres",
-          "maxConnections": 120,
-          "sharedBuffers": "256MB"
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
         },
         "pgbouncer": {
           "serviceName": "ita-identity-session-pgbouncer",
           "poolMode": "transaction",
           "listenPort": 6432,
-          "maxDbConnections": 32
+          "maxDbConnections": 90
         },
         "applicationPool": {
           "postgresHost": "127.0.0.1",
@@ -130,7 +130,7 @@
           "workerCount": 1
         }
       },
-      "rollbackOrNextAction": "Keep 320 as the current repeatable local pass point and tune the identity runtime profile before raising the claimed ceiling."
+      "rollbackOrNextAction": "Keep 320 as the current repeatable local pass point; the next performance slice should test multi-worker or load-balanced gateway ingress."
     },
     {
       "evidenceId": "identity_http_gateway_limit_probe_360",
@@ -154,9 +154,9 @@
         },
         {
           "name": "passwordLogin.errors",
-          "value": 118,
+          "value": 209,
           "unit": "errors",
-          "interpretation": "The benchmark reported connection refusals while the gateway process was still alive before cleanup."
+          "interpretation": "The tuned database profile still reported connection refusals in the login phase."
         },
         {
           "name": "gateway.exit_code_before_cleanup",
@@ -168,14 +168,14 @@
         "required": true,
         "postgres": {
           "serviceName": "ita-identity-session-postgres",
-          "maxConnections": 120,
-          "sharedBuffers": "256MB"
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
         },
         "pgbouncer": {
           "serviceName": "ita-identity-session-pgbouncer",
           "poolMode": "transaction",
           "listenPort": 6432,
-          "maxDbConnections": 32
+          "maxDbConnections": 90
         },
         "applicationPool": {
           "postgresHost": "127.0.0.1",
@@ -185,7 +185,7 @@
           "workerCount": 1
         }
       },
-      "rollbackOrNextAction": "Treat this as a local single-gateway accept/connect limit until a tuned identity runtime profile and multi-worker/load-balanced gateway run prove a higher ceiling."
+      "rollbackOrNextAction": "Treat this as a local single-gateway accept/connect limit because the tuned database profile did not move the 360-concurrency failure point."
     },
     {
       "evidenceId": "knowledge_hybrid_retrieval_policy_smoke",
