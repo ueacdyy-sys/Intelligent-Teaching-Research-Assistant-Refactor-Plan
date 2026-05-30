@@ -76,6 +76,7 @@ import (
       "workflow plugin revision feedback",
       "AI worker job contract audit",
       "knowledge access policy audit",
+      "AI worker job admission audit",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);

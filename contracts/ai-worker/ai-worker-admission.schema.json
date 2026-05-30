@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/ai-worker/ai-worker-admission.schema.json",
+  "title": "AI Worker Job Admission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "sourcePolicyVersion",
+    "decision",
+    "admissions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.ai-worker.admission.v1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourcePolicyVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["ALLOW_DISPATCH", "BLOCK_DISPATCH"]
+    },
+    "admissions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "jobId",
+          "nodeType",
+          "capabilityKind",
+          "decision",
+          "reasons",
+          "sourcePolicyVersion",
+          "dataAccess"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": ["CLOUD", "LOCAL", "REMOTE_DEVICE"]
+          },
+          "capabilityKind": {
+            "type": "string",
+            "enum": ["RAG_RETRIEVAL", "OCR_RECOGNITION", "FINE_TUNING"]
+          },
+          "decision": {
+            "type": "string",
+            "enum": ["ALLOW_DISPATCH", "BLOCK_DISPATCH"]
+          },
+          "reasons": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "sourcePolicyVersion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dataAccess": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sourceLocation",
+              "classification",
+              "ownership"
+            ],
+            "properties": {
+              "sourceLocation": {
+                "type": "string",
+                "enum": [
+                  "PUBLIC_KNOWLEDGE",
+                  "LOCAL_PRIVATE_KNOWLEDGE",
+                  "LOCAL_STUDENT_ARCHIVE",
+                  "REMOTE_DEVICE_OWNED_KNOWLEDGE"
+                ]
+              },
+              "classification": {
+                "type": "string",
+                "enum": ["PUBLIC", "PRIVATE", "STUDENT_ARCHIVE", "REMOTE_DEVICE_OWNED"]
+              },
+              "ownership": {
+                "type": "string",
+                "enum": ["LOCAL_MACHINE", "REMOTE_DEVICE_OWNED"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
