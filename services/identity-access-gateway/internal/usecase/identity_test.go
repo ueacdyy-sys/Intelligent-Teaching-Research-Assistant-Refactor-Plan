@@ -57,6 +57,9 @@ func TestCreatePasswordSessionProjectsStudentAppPrincipalWithoutPrivateKnowledge
 	if session.Principal.StudentAccess.Mode != domain.StudentAccessOwn {
 		t.Fatalf("student access = %s", session.Principal.StudentAccess.Mode)
 	}
+	if len(session.Principal.StudentAccess.StudentIDs) != 1 || session.Principal.StudentAccess.StudentIDs[0] != "user_student" {
+		t.Fatalf("student ids = %#v", session.Principal.StudentAccess.StudentIDs)
+	}
 	if session.Principal.KnowledgeAccess.Private != domain.PrivateAccessNone {
 		t.Fatalf("private knowledge access = %s", session.Principal.KnowledgeAccess.Private)
 	}

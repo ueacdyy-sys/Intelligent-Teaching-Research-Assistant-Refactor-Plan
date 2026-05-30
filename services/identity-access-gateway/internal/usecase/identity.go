@@ -404,7 +404,7 @@ func projectUserPrincipal(
 			domain.ScopeKnowledgePublicRead,
 		}
 		base.KnowledgeAccess = domain.KnowledgeAccess{Public: true, Private: domain.PrivateAccessNone}
-		base.StudentAccess = domain.StudentAccess{Mode: domain.StudentAccessOwn}
+		base.StudentAccess = domain.StudentAccess{Mode: domain.StudentAccessOwn, StudentIDs: []string{account.ID}}
 	case role == domain.RoleAdmin:
 		base.Scopes = []domain.Scope{
 			domain.ScopeIdentityRead,

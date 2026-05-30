@@ -129,6 +129,24 @@ paths:
                 $ref: '#/components/schemas/PrincipalResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /v1/student-app/profile:
+    get:
+      operationId: getStudentAppProfile
+      summary: Resolve the current Student App profile read model.
+      tags: [student-app, identity]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current Student App profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentAppProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /v1/identity/remote-command-grants:
     post:
       operationId: createRemoteCommandGrant
@@ -296,6 +314,36 @@ components:
       properties:
         principal:
           $ref: '#/components/schemas/PrincipalContext'
+    StudentAppProfileResponse:
+      type: object
+      additionalProperties: false
+      required: [studentId, principalId, role, entryPoint, sessionId, issuedAt, expiresAt]
+      properties:
+        studentId:
+          type: string
+          minLength: 1
+        principalId:
+          type: string
+          minLength: 1
+        displayName:
+          type:
+            - string
+            - 'null'
+        role:
+          type: string
+          const: STUDENT
+        entryPoint:
+          type: string
+          const: STUDENT_APP
+        sessionId:
+          type: string
+          minLength: 1
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
     RemoteCommandGrantResponse:
       type: object
       additionalProperties: false

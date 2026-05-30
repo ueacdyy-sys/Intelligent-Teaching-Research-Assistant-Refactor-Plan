@@ -124,6 +124,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/identity/sessions/refresh", s.refreshSession)
 	mux.HandleFunc("/v1/identity/sessions/", s.sessionByID)
 	mux.HandleFunc("/v1/identity/principal", s.getPrincipal)
+	mux.HandleFunc("/v1/student-app/profile", s.getStudentAppProfile)
 	mux.HandleFunc("/v1/identity/remote-command-grants", s.createRemoteCommandGrant)
 	return mux
 }
