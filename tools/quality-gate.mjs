@@ -117,6 +117,7 @@ export function buildQualityCommandPlan() {
     { name: "AI worker job admission audit", command: npmCommand(), args: ["run", "audit:ai-worker-job-admission"] },
     { name: "knowledge retrieval benchmark audit", command: npmCommand(), args: ["run", "audit:knowledge-retrieval-benchmark"] },
     { name: "AI worker runtime dependency audit", command: npmCommand(), args: ["run", "audit:ai-worker-runtime-dependencies"] },
+    { name: "pgbouncer current performance profile audit", command: npmCommand(), args: ["run", "audit:pgbouncer-perf:current"] },
     { name: "performance evidence registry audit", command: npmCommand(), args: ["run", "audit:performance-evidence"] },
     { name: "direct-limited connection budget", command: npmCommand(), args: ["run", "budget:connections:direct-limited"] },
     { name: "pgbouncer connection budget", command: npmCommand(), args: ["run", "budget:connections:pgbouncer"] },

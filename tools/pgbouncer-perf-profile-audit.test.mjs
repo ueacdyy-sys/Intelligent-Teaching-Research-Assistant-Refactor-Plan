@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
   auditPgbouncerPerfProfile,
   formatPgbouncerPerfProfileAudit,
+  loadJSON,
 } from "./pgbouncer-perf-profile-audit.mjs";
+
+const root = process.cwd();
 
 const profile = {
   sourceFiles: {
@@ -95,6 +99,18 @@ max_db_connections = 90
 const pgbouncerUserlist = `"app_user" "ueacd"\n`;
 
 describe("PgBouncer perf profile audit", () => {
+  it("passes the current routed PgBouncer performance profile", () => {
+    const report = auditPgbouncerPerfProfile(
+      loadJSON(path.join(root, "contracts/config/pgbouncer-perf-profile.current.json")),
+    );
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(report.observed.backend.environment.POSTGRES_HOST, "pgbouncer-perf");
+    assert.equal(report.observed.backend.environment.POSTGRES_PORT, "6432");
+    assert.equal(report.observed.backend.environment.DB_POOL_SIZE, "2");
+    assert.equal(report.observed.backend.dependsOnPgbouncer, true);
+  });
+
   it("detects a current profile that still routes backend traffic directly to PostgreSQL", () => {
     const report = auditPgbouncerPerfProfile(profile, {
       composeText: baseCompose,

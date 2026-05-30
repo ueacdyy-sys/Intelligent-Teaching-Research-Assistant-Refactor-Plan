@@ -1,11 +1,12 @@
 {
   "sourceFiles": {
     "composeFile": "../智能教研助手/docker-compose.perf.yml",
+    "composeOverrideFile": "infra/perf/docker-compose.pgbouncer.override.yml",
     "pgbouncerIni": "../智能教研助手/pgbouncer/perf.ini",
     "pgbouncerUserlist": "../智能教研助手/pgbouncer/perf-userlist.txt"
   },
-  "generatedAt": "2026-05-28T14:48:57.686Z",
-  "readiness": "NEEDS_REMEDIATION",
+  "generatedAt": "2026-05-30T15:53:52.503Z",
+  "readiness": "READY",
   "observed": {
     "postgres": {
       "present": true,
@@ -23,13 +24,13 @@
       "present": true,
       "environment": {
         "DATABASE_TYPE": "postgresql",
-        "POSTGRES_HOST": "postgres-perf",
-        "POSTGRES_PORT": "5432",
+        "POSTGRES_HOST": "pgbouncer-perf",
+        "POSTGRES_PORT": "6432",
         "POSTGRES_USER": "app_user",
         "POSTGRES_PASSWORD": "ueacd",
         "POSTGRES_DB": "intelligent_teaching_assistant",
-        "DB_POOL_SIZE": "${DB_POOL_SIZE:-3}",
-        "DB_MAX_OVERFLOW": "${DB_MAX_OVERFLOW:-0}",
+        "DB_POOL_SIZE": "2",
+        "DB_MAX_OVERFLOW": "0",
         "DB_POOL_TIMEOUT": "10",
         "DB_POOL_RECYCLE": "1800",
         "DB_POOL_PRE_PING": "true",
@@ -63,7 +64,7 @@
         "BOOTSTRAP_SUPER_ADMIN_PASSWORD": "ueacd",
         "SERPAPI_API_KEY": "ueacd"
       },
-      "dependsOnPgbouncer": false
+      "dependsOnPgbouncer": true
     }
   },
   "findings": [
@@ -132,28 +133,28 @@
     },
     {
       "id": "backend.postgres_host",
-      "passed": false,
-      "severity": "error",
+      "passed": true,
+      "severity": "info",
       "message": "Backend routes PostgreSQL traffic through PgBouncer.",
-      "actual": "postgres-perf",
+      "actual": "pgbouncer-perf",
       "expected": "pgbouncer-perf",
       "remediation": "Apply infra/perf/docker-compose.pgbouncer.override.yml or set POSTGRES_HOST=pgbouncer-perf."
     },
     {
       "id": "backend.postgres_port",
-      "passed": false,
-      "severity": "error",
+      "passed": true,
+      "severity": "info",
       "message": "Backend uses the PgBouncer port.",
-      "actual": "5432",
+      "actual": "6432",
       "expected": "6432",
       "remediation": "Apply the PgBouncer override or set POSTGRES_PORT=6432."
     },
     {
       "id": "backend.db_pool_size",
-      "passed": false,
-      "severity": "error",
+      "passed": true,
+      "severity": "info",
       "message": "Backend per-worker DB pool stays within the combined-test target.",
-      "actual": "3",
+      "actual": "2",
       "expected": "<=2",
       "remediation": "Set DB_POOL_SIZE=2 for combined legacy plus Go performance tests."
     },
@@ -177,10 +178,10 @@
     },
     {
       "id": "backend.depends_on_pgbouncer",
-      "passed": false,
-      "severity": "error",
+      "passed": true,
+      "severity": "info",
       "message": "Backend startup is ordered after PgBouncer in the proposed profile.",
-      "actual": false,
+      "actual": true,
       "expected": true,
       "remediation": "Add backend-perf depends_on pgbouncer-perf in the PgBouncer override."
     },
