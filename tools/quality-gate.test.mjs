@@ -73,6 +73,7 @@ import (
       "agent harness flow audit",
       "workflow plugin flow audit",
       "workflow plugin registry admission",
+      "workflow plugin revision feedback",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);
