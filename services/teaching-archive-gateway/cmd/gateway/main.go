@@ -41,6 +41,7 @@ func main() {
 		platform.TutoringRequestIDGenerator{},
 		platform.Clock{},
 	)
+	listStudentAppAITutorRequests := usecase.NewListStudentAppAITutorRequests(archiveRepository)
 	createQuizSubmission := usecase.NewCreateQuizSubmission(
 		archiveRepository,
 		platform.QuizSubmissionIDGenerator{},
@@ -120,6 +121,7 @@ func main() {
 			ListStudentAppTeachingMaterials: listStudentAppTeachingMaterials,
 			ListStudentAppArchiveItems:      listStudentAppArchiveItems,
 			CreateStudentAppAITutorRequest:  createStudentAppAITutorRequest,
+			ListStudentAppAITutorRequests:   listStudentAppAITutorRequests,
 			CreateAIGradingRequest:          createAIGradingRequest,
 			CreateQuizSubmissionAIGrading:   createQuizSubmissionAIGradingRequest,
 			ListAIGradingRequests:           listAIGradingRequests,

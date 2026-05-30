@@ -8,6 +8,7 @@ type ServerConfig struct {
 	ListStudentAppTeachingMaterials *usecase.ListStudentAppTeachingMaterials
 	ListStudentAppArchiveItems      *usecase.ListStudentAppArchiveItems
 	CreateStudentAppAITutorRequest  *usecase.CreateStudentAppAITutorRequest
+	ListStudentAppAITutorRequests   *usecase.ListStudentAppAITutorRequests
 	CreateQuizSubmission            *usecase.CreateQuizSubmission
 	ListQuizSubmissions             *usecase.ListQuizSubmissions
 	CreateAIGradingRequest          *usecase.CreateAIGradingRequest

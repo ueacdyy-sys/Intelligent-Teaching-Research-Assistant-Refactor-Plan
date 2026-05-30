@@ -44,7 +44,7 @@ func TestCreateStudentAppAITutorRequestReturnsCreatedResponse(t *testing.T) {
 
 func TestCreateStudentAppAITutorRequestRejectsUnsupportedMethod(t *testing.T) {
 	handler := newTestHandlerWithStudentAppAITutorRequest()
-	request := httptest.NewRequest(http.MethodGet, "/v1/student-app/ai-tutor-requests", http.NoBody)
+	request := httptest.NewRequest(http.MethodPut, "/v1/student-app/ai-tutor-requests", http.NoBody)
 	request.Header.Set("X-Agent-Api-Key", "ueacd")
 	setPrincipalHeader(t, request, studentPrincipal("student_001"))
 

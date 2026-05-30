@@ -1,3 +1,43 @@
+get:
+  operationId: listStudentAppAITutorRequests
+  summary: List AI tutor jobs for the authenticated student's own archive materials.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: status
+      in: query
+      required: false
+      schema:
+        $ref: './teaching-archive.yaml#/components/schemas/TutoringAnalysisStatus'
+    - name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: AI tutor job page visible to the Student App.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/TutoringAnalysisRequestListResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
 post:
   operationId: createStudentAppAITutorRequest
   summary: Queue an AI tutor analysis job for the authenticated student's archive material.

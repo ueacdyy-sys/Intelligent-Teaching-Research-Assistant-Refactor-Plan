@@ -7,11 +7,14 @@ import (
 )
 
 func (s *Server) studentAppAITutorRequests(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	switch r.Method {
+	case http.MethodGet:
+		s.listStudentAppAITutorRequestMetadata(w, r)
+	case http.MethodPost:
+		s.createStudentAppAITutorRequestMetadata(w, r)
+	default:
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
 	}
-	s.createStudentAppAITutorRequestMetadata(w, r)
 }
 
 func (s *Server) createStudentAppAITutorRequestMetadata(w http.ResponseWriter, r *http.Request) {
