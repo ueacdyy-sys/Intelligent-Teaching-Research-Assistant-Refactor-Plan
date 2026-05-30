@@ -108,6 +108,7 @@ export function buildQualityCommandPlan() {
     { name: "identity session runtime audit", command: npmCommand(), args: ["run", "audit:identity-session-runtime"] },
     { name: "identity access contract audit", command: npmCommand(), args: ["run", "audit:identity-access"] },
     { name: "student app flow audit", command: npmCommand(), args: ["run", "audit:student-app-flow"] },
+    { name: "agent harness flow audit", command: npmCommand(), args: ["run", "audit:agent-harness-flow"] },
     { name: "direct-limited connection budget", command: npmCommand(), args: ["run", "budget:connections:direct-limited"] },
     { name: "pgbouncer connection budget", command: npmCommand(), args: ["run", "budget:connections:pgbouncer"] },
   ];

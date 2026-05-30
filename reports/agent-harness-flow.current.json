@@ -1,0 +1,150 @@
+{
+  "generatedAt": "2026-05-30T12:26:09.166Z",
+  "readiness": "READY",
+  "findings": [
+    {
+      "id": "manifest.schema_version",
+      "passed": true,
+      "severity": "info",
+      "actual": "2026-05-29.agent-harness.permission-manifest.v1",
+      "expected": "2026-05-29.agent-harness.permission-manifest.v1",
+      "remediation": "Keep the Agent Harness permission manifest on the current v1 schema."
+    },
+    {
+      "id": "manifest.default_deny",
+      "passed": true,
+      "severity": "info",
+      "actual": "DENY",
+      "expected": "DENY",
+      "remediation": "Local control must remain default-deny unless a later SDD changes the safety model."
+    },
+    {
+      "id": "manifest.file_dry_run_rules",
+      "passed": true,
+      "severity": "info",
+      "actual": "1 rule(s)",
+      "expected": "at least one FILE_READ + FILE_WRITE dry-run rule",
+      "remediation": "Keep a bounded file dry-run rule for the refactor workspace."
+    },
+    {
+      "id": "manifest.process_dry_run_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "DRY_RUN_ONLY",
+      "expected": "DRY_RUN_ONLY",
+      "remediation": "Process rules must remain dry-run-only before real execution is explicitly enabled."
+    },
+    {
+      "id": "manifest.browser_local_origin",
+      "passed": true,
+      "severity": "info",
+      "actual": "http://127.0.0.1",
+      "expected": "local browser origin rule",
+      "remediation": "Keep a bounded local browser dry-run origin for Harness tests."
+    },
+    {
+      "id": "evidence.required_boundary_fields",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion,evidenceId,recordedAt,principalId,sessionId,action,target,outcome,reason,dryRun,manifestSchemaVersion",
+      "expected": "principal/session/action/target/outcome/dryRun/manifestSchemaVersion",
+      "remediation": "Audit evidence must keep enough fields for later rollback and incident review."
+    },
+    {
+      "id": "evidence.decision_vocabulary",
+      "passed": true,
+      "severity": "info",
+      "actual": "ALLOW_DRY_RUN,APPROVAL_REQUIRED,DENY",
+      "expected": "ALLOW_DRY_RUN,APPROVAL_REQUIRED,DENY",
+      "remediation": "Audit evidence must keep the same decision vocabulary as the permission evaluator."
+    },
+    {
+      "id": "evidence.action_vocabulary",
+      "passed": true,
+      "severity": "info",
+      "actual": "FILE_READ,FILE_WRITE,PROCESS_START,BROWSER_NAVIGATE",
+      "expected": "FILE_READ,FILE_WRITE,PROCESS_START,BROWSER_NAVIGATE",
+      "remediation": "Audit evidence must keep file, process, and browser action kinds visible."
+    },
+    {
+      "id": "approval.artifact.pending_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "PENDING",
+      "expected": "PENDING",
+      "remediation": "Approval artifacts must remain pending review records, not execution records."
+    },
+    {
+      "id": "approval.decision.execution_ready_false",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "Approval decisions must not become execution-ready until a later SDD changes the contract."
+    },
+    {
+      "id": "approval.correlation.execution_ready_guard",
+      "passed": true,
+      "severity": "info",
+      "actual": "MATCHED,MISSING_APPROVAL,DUPLICATE_APPROVAL_ID,CONTEXT_MISMATCH,EXECUTION_READY_DECISION",
+      "expected": "EXECUTION_READY_DECISION",
+      "remediation": "Correlation must flag approval decisions that try to become execution-ready."
+    },
+    {
+      "id": "approval.queue.no_execution_candidates",
+      "passed": true,
+      "severity": "info",
+      "actual": 0,
+      "expected": 0,
+      "remediation": "Approval queue snapshots must stay review-only and expose zero execution candidates."
+    },
+    {
+      "id": "execution.view.no_candidates",
+      "passed": true,
+      "severity": "info",
+      "actual": "candidateCount=0 maxItems=0",
+      "expected": "candidateCount=0 maxItems=0",
+      "remediation": "Execution candidate views must not expose local action candidates yet."
+    },
+    {
+      "id": "execution.view.future_sdd_precondition",
+      "passed": true,
+      "severity": "info",
+      "actual": "real local execution is disabled by current SDD",
+      "expected": "real local execution is disabled by current SDD",
+      "remediation": "The view must explicitly state that a future SDD is required before execution candidates exist."
+    },
+    {
+      "id": "rust.harness_facades_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "pub struct DryRunHarness=true,pub struct PersistentDryRunHarness=true,pub struct JsonlEvidenceStore=true,pub struct JsonlApprovalStore=true",
+      "expected": "dry-run, persistent dry-run, evidence, and approval stores",
+      "remediation": "Keep Harness review flow behind explicit facades and append-only stores."
+    },
+    {
+      "id": "rust.approval_decision.execution_ready_false",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Rust approval decisions must keep execution_ready false."
+    },
+    {
+      "id": "rust.approval_queue.review_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "execution_candidate_count: 0=true,approval queue is review-only; execution candidates are disabled=true",
+      "expected": "review-only queue with zero execution candidates",
+      "remediation": "Approval queue snapshots must not project executable local actions."
+    },
+    {
+      "id": "rust.execution_candidate.empty_projection",
+      "passed": true,
+      "severity": "info",
+      "actual": "candidate_count: 0=true,candidates: Vec::new()=true,real local execution is disabled by current SDD=true",
+      "expected": "candidate_count: 0 + candidates: Vec::new() + disabled reason",
+      "remediation": "Execution candidate projection must stay empty until a later SDD explicitly enables it."
+    }
+  ]
+}

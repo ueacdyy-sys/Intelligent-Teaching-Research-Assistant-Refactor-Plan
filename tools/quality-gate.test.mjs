@@ -70,6 +70,7 @@ import (
       "identity session runtime audit",
       "identity access contract audit",
       "student app flow audit",
+      "agent harness flow audit",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);
