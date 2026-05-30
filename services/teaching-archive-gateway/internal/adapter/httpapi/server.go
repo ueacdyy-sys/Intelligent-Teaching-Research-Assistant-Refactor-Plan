@@ -24,6 +24,7 @@ type Server struct {
 	listAttendanceRecords          *usecase.ListAttendanceRecords
 	listStudentAttendanceRecords   *usecase.ListStudentAttendanceRecords
 	getAttendanceStatistics        *usecase.GetAttendanceStatistics
+	createScannedQuizSubmission    *usecase.CreateScannedQuizSubmission
 	agentAPIKey                    string
 }
 
@@ -40,6 +41,7 @@ func NewServer(
 	claimTutoringAnalysisRequest *usecase.ClaimTutoringAnalysisRequest,
 	recordTutoringAnalysisResult *usecase.RecordTutoringAnalysisResult,
 	createQuizSubmission *usecase.CreateQuizSubmission,
+	createScannedQuizSubmission *usecase.CreateScannedQuizSubmission,
 	listQuizSubmissions *usecase.ListQuizSubmissions,
 	createAttendanceSession *usecase.CreateAttendanceSession,
 	createAttendanceRecord *usecase.CreateAttendanceRecord,
@@ -73,6 +75,7 @@ func NewServer(
 		listAttendanceRecords:          listAttendanceRecords,
 		listStudentAttendanceRecords:   listStudentAttendanceRecords,
 		getAttendanceStatistics:        getAttendanceStatistics,
+		createScannedQuizSubmission:    createScannedQuizSubmission,
 		agentAPIKey:                    agentAPIKey,
 	}
 }

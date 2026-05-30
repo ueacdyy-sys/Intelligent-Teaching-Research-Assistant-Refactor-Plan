@@ -29,6 +29,11 @@ type createQuizSubmissionRequest struct {
 	AnswerRef string `json:"answerRef"`
 }
 
+type createScannedQuizSubmissionRequest struct {
+	ScanCode  string `json:"scanCode"`
+	AnswerRef string `json:"answerRef"`
+}
+
 type recordTutoringAnalysisResultRequest struct {
 	Status               domain.TutoringAnalysisStatus `json:"status"`
 	WorkerID             string                        `json:"workerId"`

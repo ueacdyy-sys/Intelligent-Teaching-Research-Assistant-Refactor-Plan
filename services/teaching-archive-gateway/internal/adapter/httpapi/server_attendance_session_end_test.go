@@ -80,6 +80,7 @@ func newAttendanceSessionEndHandler(store *fakeRepository) http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
 		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
 		usecase.NewSignInAttendance(store, fixedIDs{id: "att_rec_signin_http"}, fixedClock{}),

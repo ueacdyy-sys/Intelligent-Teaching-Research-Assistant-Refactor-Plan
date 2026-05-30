@@ -1,0 +1,75 @@
+post:
+  operationId: createTeachingQuizScanSubmission
+  summary: Record a Student App answer submission from a scanned teaching quiz payload.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - scanCode
+            - answerRef
+          properties:
+            scanCode:
+              type: string
+              minLength: 1
+              maxLength: 256
+              pattern: '^teaching-quiz:tarch_[A-Za-z0-9_-]+$'
+            answerRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+  responses:
+    '201':
+      description: Quiz submission metadata recorded from a scanned quiz payload.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - quizArchiveItemId
+              - studentId
+              - submittedByPrincipalId
+              - answerRef
+              - status
+              - submittedAt
+            properties:
+              id:
+                type: string
+                pattern: '^quiz_sub_[A-Za-z0-9_-]+$'
+              quizArchiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              studentId:
+                type: string
+                minLength: 1
+                maxLength: 128
+              submittedByPrincipalId:
+                type: string
+                minLength: 1
+              answerRef:
+                type: string
+                minLength: 1
+                maxLength: 1000
+              status:
+                type: string
+                const: SUBMITTED
+              submittedAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

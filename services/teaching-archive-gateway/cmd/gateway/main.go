@@ -39,6 +39,11 @@ func main() {
 		platform.QuizSubmissionIDGenerator{},
 		platform.Clock{},
 	)
+	createScannedQuizSubmission := usecase.NewCreateScannedQuizSubmission(
+		archiveRepository,
+		platform.QuizSubmissionIDGenerator{},
+		platform.Clock{},
+	)
 	listQuizSubmissions := usecase.NewListQuizSubmissions(archiveRepository)
 	createAIGradingRequest := usecase.NewCreateAIGradingRequest(
 		archiveRepository,
@@ -115,6 +120,7 @@ func main() {
 			claimTutoringAnalysisRequest,
 			recordTutoringAnalysisResult,
 			createQuizSubmission,
+			createScannedQuizSubmission,
 			listQuizSubmissions,
 			createAttendanceSession,
 			createAttendanceRecord,

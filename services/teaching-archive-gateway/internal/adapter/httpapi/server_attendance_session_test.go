@@ -27,6 +27,7 @@ func TestCreateAttendanceSessionReturnsCreatedResponse(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{now: time.Date(2026, 5, 30, 12, 0, 0, 0, time.UTC)}),
 		nil,
 		nil,

@@ -97,6 +97,7 @@ func newAttendanceSignInHandler(store *fakeRepository) http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
 		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
 		usecase.NewSignInAttendance(store, fixedIDs{id: "att_rec_signin_http"}, fixedClock{now: time.Date(2026, 5, 30, 12, 5, 0, 0, time.UTC)}),
