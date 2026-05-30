@@ -58,6 +58,34 @@ func TestCreateQuizSubmissionRejectsOtherStudent(t *testing.T) {
 	}
 }
 
+func TestCreateQuizSubmissionAIGradingRequestReturnsCreatedResponse(t *testing.T) {
+	handler := newTestHandlerWithTeachingQuizSubmission()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/archive-items/tarch_http_quiz/quiz-submissions/quiz_sub_http_answer/ai-grading-requests",
+		bytes.NewBufferString(`{"gradingInstructions":" grade submitted answers ","rubricRef":"local://rubrics/week-3.json"}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, teacherPrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"id":"grading_req_http"`),
+		[]byte(`"sourceArchiveContentRef":"local://teaching/quizzes/week-3.pdf"`),
+		[]byte(`"sourceQuizSubmissionId":"quiz_sub_http_answer"`),
+		[]byte(`"sourceAnswerRef":"local://answers/student_001/week-3.json"`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+}
+
 func newTestHandlerWithTeachingQuiz() http.Handler {
 	store := &fakeRepository{
 		items: []domain.ArchiveItem{
@@ -68,6 +96,7 @@ func newTestHandlerWithTeachingQuiz() http.Handler {
 		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
 		usecase.NewListArchiveItems(store),
 		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
 		usecase.NewListAIGradingRequests(store),
 		nil,
 		nil,
@@ -81,12 +110,63 @@ func newTestHandlerWithTeachingQuiz() http.Handler {
 	).Handler()
 }
 
+func newTestHandlerWithTeachingQuizSubmission() http.Handler {
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			teachingQuizHTTPItem("tarch_http_quiz", time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)),
+		},
+		quizSubmissions: []domain.QuizSubmission{
+			quizSubmissionHTTP("quiz_sub_http_answer", "tarch_http_quiz", "student_001"),
+		},
+	}
+	return httpapi.NewServer(
+		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
+		usecase.NewListArchiveItems(store),
+		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{now: time.Date(2026, 5, 30, 11, 0, 0, 0, time.UTC)}),
+		usecase.NewListAIGradingRequests(store),
+		nil,
+		nil,
+		usecase.NewCreateTutoringAnalysisRequest(store, fixedIDs{id: "tutor_req_http"}, fixedClock{}),
+		usecase.NewListTutoringAnalysisRequests(store),
+		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
+		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
+		usecase.NewCreateQuizSubmission(store, fixedIDs{id: "quiz_sub_http"}, fixedClock{}),
+		nil,
+		"ueacd",
+	).Handler()
+}
+
 func (f *fakeRepository) CreateQuizSubmission(
 	_ context.Context,
 	submission domain.QuizSubmission,
 ) error {
 	f.quizSubmissions = append(f.quizSubmissions, submission)
 	return nil
+}
+
+func (f *fakeRepository) GetQuizSubmissionByID(
+	_ context.Context,
+	id string,
+) (domain.QuizSubmission, bool, error) {
+	for _, submission := range f.quizSubmissions {
+		if submission.ID == id {
+			return submission, true, nil
+		}
+	}
+	return domain.QuizSubmission{}, false, nil
+}
+
+func quizSubmissionHTTP(id string, quizArchiveItemID string, studentID string) domain.QuizSubmission {
+	return domain.QuizSubmission{
+		ID:                     id,
+		QuizArchiveItemID:      quizArchiveItemID,
+		StudentID:              studentID,
+		SubmittedByPrincipalID: studentID,
+		AnswerRef:              "local://answers/" + studentID + "/week-3.json",
+		Status:                 domain.QuizSubmissionStatusSubmitted,
+		SubmittedAt:            time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC),
+	}
 }
 
 func teachingQuizHTTPItem(id string, createdAt time.Time) domain.ArchiveItem {

@@ -49,6 +49,8 @@ func (r *ArchiveRepository) ListAIGradingRequests(
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_content_ref,
+			source_quiz_submission_id,
+			source_answer_ref,
 			source_archive_material,
 			source_archive_ocr_status,
 			score_summary,
@@ -92,6 +94,8 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		status   string
 		owner    string
 		student  sql.NullString
+		subID    sql.NullString
+		answer   sql.NullString
 		material string
 		ocr      string
 		score    sql.NullString
@@ -112,6 +116,8 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		&owner,
 		&student,
 		&request.SourceArchiveContentRef,
+		&subID,
+		&answer,
 		&material,
 		&ocr,
 		&score,
@@ -133,6 +139,12 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 	request.SourceArchiveOwnerType = domain.OwnerType(owner)
 	if student.Valid {
 		request.SourceArchiveStudentID = student.String
+	}
+	if subID.Valid {
+		request.SourceQuizSubmissionID = subID.String
+	}
+	if answer.Valid {
+		request.SourceAnswerRef = answer.String
 	}
 	request.SourceArchiveMaterial = domain.MaterialType(material)
 	request.SourceArchiveOCRStatus = domain.OCRStatus(ocr)

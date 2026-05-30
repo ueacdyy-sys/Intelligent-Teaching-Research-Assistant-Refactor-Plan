@@ -172,6 +172,8 @@ func TestCreateAIGradingRequestInsertsMetadataOnly(t *testing.T) {
 		SourceArchiveOwnerType:  domain.OwnerTypeStudent,
 		SourceArchiveStudentID:  "student_001",
 		SourceArchiveContentRef: "local://archive/student/quiz.pdf",
+		SourceQuizSubmissionID:  "quiz_sub_row",
+		SourceAnswerRef:         "local://answers/student_001/week-3.json",
 		SourceArchiveMaterial:   domain.MaterialTypeQuiz,
 		SourceArchiveOCRStatus:  domain.OCRStatusReserved,
 		CreatedAt:               time.Date(2026, 5, 29, 17, 0, 0, 0, time.UTC),
@@ -187,15 +189,17 @@ func TestCreateAIGradingRequestInsertsMetadataOnly(t *testing.T) {
 		"grading_instructions",
 		"rubric_ref",
 		"source_archive_content_ref",
+		"source_quiz_submission_id",
+		"source_answer_ref",
 		"source_archive_ocr_status",
-		"VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, $10, $11, $12, $13)",
+		"VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), $12, $13, $14, $15)",
 	} {
 		if !strings.Contains(db.lastExecSQL, fragment) {
 			t.Fatalf("SQL missing %q in: %s", fragment, db.lastExecSQL)
 		}
 	}
-	if len(db.execArgs) != 13 {
-		t.Fatalf("args = %d, want 13", len(db.execArgs))
+	if len(db.execArgs) != 15 {
+		t.Fatalf("args = %d, want 15", len(db.execArgs))
 	}
 }
 

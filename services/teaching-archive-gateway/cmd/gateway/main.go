@@ -45,6 +45,11 @@ func main() {
 		platform.AIGradingRequestIDGenerator{},
 		platform.Clock{},
 	)
+	createQuizSubmissionAIGradingRequest := usecase.NewCreateQuizSubmissionAIGradingRequest(
+		archiveRepository,
+		platform.AIGradingRequestIDGenerator{},
+		platform.Clock{},
+	)
 	listAIGradingRequests := usecase.NewListAIGradingRequests(archiveRepository)
 	claimAIGradingRequest := usecase.NewClaimAIGradingRequest(
 		archiveRepository,
@@ -75,6 +80,7 @@ func main() {
 			createArchiveItem,
 			listArchiveItems,
 			createAIGradingRequest,
+			createQuizSubmissionAIGradingRequest,
 			listAIGradingRequests,
 			claimAIGradingRequest,
 			recordAIGradingResult,

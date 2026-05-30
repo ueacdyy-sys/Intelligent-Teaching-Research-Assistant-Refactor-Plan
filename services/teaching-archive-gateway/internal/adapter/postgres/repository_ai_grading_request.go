@@ -21,11 +21,13 @@ func (r *ArchiveRepository) CreateAIGradingRequest(
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_content_ref,
+			source_quiz_submission_id,
+			source_answer_ref,
 			source_archive_material,
 			source_archive_ocr_status,
 			created_at,
 			updated_at
-		) VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, $10, $11, $12, $13)
+		) VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), $12, $13, $14, $15)
 	`,
 		request.ID,
 		request.ArchiveItemID,
@@ -36,6 +38,8 @@ func (r *ArchiveRepository) CreateAIGradingRequest(
 		request.SourceArchiveOwnerType,
 		request.SourceArchiveStudentID,
 		request.SourceArchiveContentRef,
+		request.SourceQuizSubmissionID,
+		request.SourceAnswerRef,
 		request.SourceArchiveMaterial,
 		request.SourceArchiveOCRStatus,
 		request.CreatedAt,

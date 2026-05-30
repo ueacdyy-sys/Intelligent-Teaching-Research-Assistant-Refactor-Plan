@@ -62,6 +62,44 @@ func (r *ArchiveRepository) ListQuizSubmissions(
 	return submissions, nil
 }
 
+func (r *ArchiveRepository) GetQuizSubmissionByID(
+	ctx context.Context,
+	id string,
+) (domain.QuizSubmission, bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			id,
+			quiz_archive_item_id,
+			student_id,
+			submitted_by_principal_id,
+			answer_ref,
+			status,
+			submitted_at
+		FROM teaching_quiz_submissions
+		WHERE id = $1
+		LIMIT 1
+	`, id)
+	if err != nil {
+		return domain.QuizSubmission{}, false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.QuizSubmission{}, false, err
+		}
+		return domain.QuizSubmission{}, false, nil
+	}
+	submission, err := scanQuizSubmission(rows)
+	if err != nil {
+		return domain.QuizSubmission{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.QuizSubmission{}, false, err
+	}
+	return submission, true, nil
+}
+
 func scanQuizSubmission(rows Rows) (domain.QuizSubmission, error) {
 	var submission domain.QuizSubmission
 	var status string

@@ -58,6 +58,7 @@ func newTestHandlerWithQuizSubmissionRows(rows []domain.QuizSubmission) http.Han
 		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
 		usecase.NewListArchiveItems(store),
 		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
 		usecase.NewListAIGradingRequests(store),
 		nil,
 		nil,

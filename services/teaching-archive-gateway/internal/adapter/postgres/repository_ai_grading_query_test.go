@@ -53,6 +53,12 @@ func TestListAIGradingRequestsBuildsScopedIndexedQuery(t *testing.T) {
 	if requests[0].SourceArchiveContentRef != "local://archive/student/quiz.pdf" {
 		t.Fatalf("SourceArchiveContentRef = %q", requests[0].SourceArchiveContentRef)
 	}
+	if requests[0].SourceQuizSubmissionID != "quiz_sub_row" {
+		t.Fatalf("SourceQuizSubmissionID = %q", requests[0].SourceQuizSubmissionID)
+	}
+	if requests[0].SourceAnswerRef != "local://answers/student_001/week-3.json" {
+		t.Fatalf("SourceAnswerRef = %q", requests[0].SourceAnswerRef)
+	}
 }
 
 type singleAIGradingRequestRow struct {
@@ -87,17 +93,19 @@ func (r *singleAIGradingRequestRow) Scan(dest ...any) error {
 	*(dest[6].(*string)) = string(domain.OwnerTypeStudent)
 	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
 	*(dest[8].(*string)) = "local://archive/student/quiz.pdf"
-	*(dest[9].(*string)) = string(domain.MaterialTypeQuiz)
-	*(dest[10].(*string)) = string(domain.OCRStatusReserved)
-	*(dest[11].(*sql.NullString)) = sql.NullString{}
-	*(dest[12].(*sql.NullString)) = sql.NullString{}
+	*(dest[9].(*sql.NullString)) = sql.NullString{String: "quiz_sub_row", Valid: true}
+	*(dest[10].(*sql.NullString)) = sql.NullString{String: "local://answers/student_001/week-3.json", Valid: true}
+	*(dest[11].(*string)) = string(domain.MaterialTypeQuiz)
+	*(dest[12].(*string)) = string(domain.OCRStatusReserved)
 	*(dest[13].(*sql.NullString)) = sql.NullString{}
 	*(dest[14].(*sql.NullString)) = sql.NullString{}
-	*(dest[15].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
-	*(dest[16].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
-	*(dest[17].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[18].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[15].(*sql.NullString)) = sql.NullString{}
+	*(dest[16].(*sql.NullString)) = sql.NullString{}
+	*(dest[17].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
+	*(dest[18].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
 	*(dest[19].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[20].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[21].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
 	return nil
 }
 

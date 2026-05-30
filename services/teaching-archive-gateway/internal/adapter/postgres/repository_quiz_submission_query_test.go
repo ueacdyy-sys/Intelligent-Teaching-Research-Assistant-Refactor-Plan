@@ -47,6 +47,31 @@ func TestListQuizSubmissionsBuildsScopedIndexedQuery(t *testing.T) {
 	}
 }
 
+func TestGetQuizSubmissionByIDSelectsMetadataOnly(t *testing.T) {
+	db := &recordingDB{rows: &singleQuizSubmissionRow{}}
+	repository := postgres.NewArchiveRepository(db)
+
+	submission, ok, err := repository.GetQuizSubmissionByID(context.Background(), "quiz_sub_row")
+	if err != nil {
+		t.Fatalf("GetQuizSubmissionByID returned error: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected submission")
+	}
+	for _, fragment := range []string{
+		"FROM teaching_quiz_submissions",
+		"WHERE id = $1",
+		"LIMIT 1",
+	} {
+		if !strings.Contains(db.lastSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastSQL)
+		}
+	}
+	if submission.AnswerRef != "local://answers/student_001/week-3.json" {
+		t.Fatalf("AnswerRef = %q", submission.AnswerRef)
+	}
+}
+
 type singleQuizSubmissionRow struct {
 	advanced bool
 }

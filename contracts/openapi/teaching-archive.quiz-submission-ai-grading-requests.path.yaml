@@ -1,0 +1,41 @@
+post:
+  operationId: createTeachingQuizSubmissionAIGradingRequest
+  summary: Queue an AI grading request for a submitted teaching quiz answer.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+    - name: submissionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^quiz_sub_[A-Za-z0-9_-]+$'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: './teaching-archive.yaml#/components/schemas/CreateAIGradingRequest'
+  responses:
+    '201':
+      description: AI grading request queued for a quiz submission.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/AIGradingRequestResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

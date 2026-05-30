@@ -46,6 +46,38 @@ func TestClaimAIGradingRequestReturnsWorkerClaim(t *testing.T) {
 	}
 }
 
+func TestClaimAIGradingRequestReturnsQuizSubmissionSourceRefs(t *testing.T) {
+	request := httpAIGradingRequest(
+		"grading_req_http_claim",
+		"tarch_http_3",
+		"student_001",
+		time.Date(2026, 5, 29, 10, 3, 0, 0, time.UTC),
+	)
+	request.SourceQuizSubmissionID = "quiz_sub_http_answer"
+	request.SourceAnswerRef = "local://answers/student_001/week-3.json"
+	handler := newTestHandlerWithAIGradingClaimRequests([]domain.AIGradingRequest{request})
+	httpRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/ai-grading-requests/worker-claims",
+		bytes.NewBufferString(`{"workerId":" worker_ai_grading_01 ","leaseSeconds":120}`),
+	)
+	httpRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, httpRequest, servicePrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httpRequest)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"sourceQuizSubmissionId":"quiz_sub_http_answer"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"sourceAnswerRef":"local://answers/student_001/week-3.json"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+}
+
 func TestClaimAIGradingRequestReturnsNoContentWhenQueueEmpty(t *testing.T) {
 	handler := newTestHandlerWithAIGradingClaimRequests(nil)
 	request := httptest.NewRequest(
@@ -78,6 +110,7 @@ func newTestHandlerWithAIGradingClaimRequests(requests []domain.AIGradingRequest
 		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
 		usecase.NewListArchiveItems(store),
 		usecase.NewCreateAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
+		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
 		usecase.NewListAIGradingRequests(store),
 		usecase.NewClaimAIGradingRequest(store, fixedClock{now: time.Date(2026, 5, 29, 18, 0, 0, 0, time.UTC)}),
 		usecase.NewRecordAIGradingResult(store, fixedClock{now: time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)}),

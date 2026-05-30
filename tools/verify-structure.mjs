@@ -53,12 +53,14 @@ const required = [
   "docs/sdd/0045-teaching-archive-quiz-submission-intake.md",
   "docs/sdd/0046-teaching-archive-quiz-submission-query-view.md",
   "docs/sdd/0047-teaching-archive-ai-grading-source-content-ref.md",
+  "docs/sdd/0048-teaching-archive-quiz-submission-ai-grading-bridge.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
   "contracts/openapi/conversation-write-gateway.yaml",
   "contracts/openapi/teaching-archive.yaml",
   "contracts/openapi/teaching-archive.quiz-submissions.path.yaml",
+  "contracts/openapi/teaching-archive.quiz-submission-ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-worker-claims.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-worker-result.path.yaml",
@@ -131,6 +133,8 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/list_quiz_submissions_test.go",
   "services/teaching-archive-gateway/internal/usecase/create_ai_grading_request.go",
   "services/teaching-archive-gateway/internal/usecase/create_ai_grading_request_test.go",
+  "services/teaching-archive-gateway/internal/usecase/create_quiz_submission_ai_grading_request.go",
+  "services/teaching-archive-gateway/internal/usecase/create_quiz_submission_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests_test.go",
   "services/teaching-archive-gateway/internal/usecase/claim_ai_grading_request.go",
@@ -671,6 +675,17 @@ const teachingArchiveAIGradingSourceContentRefSdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveAIGradingSourceContentRefSdd.includes(heading)) {
     console.error(`SDD 0047 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingArchiveQuizSubmissionAIGradingBridgeSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0048-teaching-archive-quiz-submission-ai-grading-bridge.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveQuizSubmissionAIGradingBridgeSdd.includes(heading)) {
+    console.error(`SDD 0048 missing heading: ${heading}`);
     process.exit(1);
   }
 }

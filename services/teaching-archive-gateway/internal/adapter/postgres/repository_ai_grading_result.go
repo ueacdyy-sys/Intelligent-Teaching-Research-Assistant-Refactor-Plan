@@ -21,6 +21,8 @@ func (r *ArchiveRepository) GetAIGradingRequestByID(
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_content_ref,
+			source_quiz_submission_id,
+			source_answer_ref,
 			source_archive_material,
 			source_archive_ocr_status,
 			score_summary,

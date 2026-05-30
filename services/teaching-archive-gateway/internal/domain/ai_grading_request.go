@@ -31,6 +31,8 @@ type AIGradingRequest struct {
 	SourceArchiveOwnerType  OwnerType
 	SourceArchiveStudentID  string
 	SourceArchiveContentRef string
+	SourceQuizSubmissionID  string
+	SourceAnswerRef         string
 	SourceArchiveMaterial   MaterialType
 	SourceArchiveOCRStatus  OCRStatus
 	ScoreSummary            string
@@ -52,6 +54,8 @@ type CreateAIGradingRequestInput struct {
 	SourceArchiveOwnerType  OwnerType
 	SourceArchiveStudentID  string
 	SourceArchiveContentRef string
+	SourceQuizSubmissionID  string
+	SourceAnswerRef         string
 	SourceArchiveMaterial   MaterialType
 	SourceArchiveOCRStatus  OCRStatus
 	SourceAnalysisIntents   []AnalysisIntent
@@ -81,6 +85,8 @@ func NewAIGradingRequest(
 		SourceArchiveOwnerType:  normalized.SourceArchiveOwnerType,
 		SourceArchiveStudentID:  normalized.SourceArchiveStudentID,
 		SourceArchiveContentRef: normalized.SourceArchiveContentRef,
+		SourceQuizSubmissionID:  normalized.SourceQuizSubmissionID,
+		SourceAnswerRef:         normalized.SourceAnswerRef,
 		SourceArchiveMaterial:   normalized.SourceArchiveMaterial,
 		SourceArchiveOCRStatus:  normalized.SourceArchiveOCRStatus,
 		CreatedAt:               createdAt,
@@ -105,6 +111,17 @@ func NormalizeCreateAIGradingRequestInput(input CreateAIGradingRequestInput) (Cr
 	if err != nil {
 		return CreateAIGradingRequestInput{}, err
 	}
+	sourceQuizSubmissionID, sourceAnswerRef, err := normalizeAIGradingSubmissionSource(
+		input.SourceQuizSubmissionID,
+		input.SourceAnswerRef,
+	)
+	if err != nil {
+		return CreateAIGradingRequestInput{}, err
+	}
+	input.SourceArchiveStudentID = strings.TrimSpace(input.SourceArchiveStudentID)
+	input.SourceArchiveContentRef = contentRef
+	input.SourceQuizSubmissionID = sourceQuizSubmissionID
+	input.SourceAnswerRef = sourceAnswerRef
 	if !eligibleAIGradingArchive(input) {
 		return CreateAIGradingRequestInput{}, validationError("archive item is not eligible for AI grading")
 	}
@@ -115,8 +132,10 @@ func NormalizeCreateAIGradingRequestInput(input CreateAIGradingRequestInput) (Cr
 		GradingInstructions:     instructions,
 		RubricRef:               rubricRef,
 		SourceArchiveOwnerType:  input.SourceArchiveOwnerType,
-		SourceArchiveStudentID:  strings.TrimSpace(input.SourceArchiveStudentID),
+		SourceArchiveStudentID:  input.SourceArchiveStudentID,
 		SourceArchiveContentRef: contentRef,
+		SourceQuizSubmissionID:  sourceQuizSubmissionID,
+		SourceAnswerRef:         sourceAnswerRef,
 		SourceArchiveMaterial:   input.SourceArchiveMaterial,
 		SourceArchiveOCRStatus:  input.SourceArchiveOCRStatus,
 		SourceAnalysisIntents:   append([]AnalysisIntent(nil), input.SourceAnalysisIntents...),
@@ -139,11 +158,39 @@ func AuthorizeCreateAIGradingRequest(principal PrincipalContext, item ArchiveIte
 }
 
 func eligibleAIGradingArchive(input CreateAIGradingRequestInput) bool {
+	if input.SourceQuizSubmissionID != "" || input.SourceAnswerRef != "" {
+		return input.SourceArchiveOwnerType == OwnerTypeTeaching &&
+			input.SourceArchiveMaterial == MaterialTypeQuiz &&
+			strings.TrimSpace(input.SourceArchiveStudentID) != "" &&
+			strings.TrimSpace(input.SourceArchiveContentRef) != "" &&
+			input.SourceQuizSubmissionID != "" &&
+			input.SourceAnswerRef != ""
+	}
 	return input.SourceArchiveOwnerType == OwnerTypeStudent &&
 		strings.TrimSpace(input.SourceArchiveStudentID) != "" &&
 		strings.TrimSpace(input.SourceArchiveContentRef) != "" &&
 		validAIGradingMaterial(input.SourceArchiveMaterial) &&
 		hasAIGradingIntent(input.SourceAnalysisIntents)
+}
+
+func normalizeAIGradingSubmissionSource(
+	sourceQuizSubmissionID string,
+	sourceAnswerRef string,
+) (string, string, error) {
+	sourceQuizSubmissionID = strings.TrimSpace(sourceQuizSubmissionID)
+	sourceAnswerRef = strings.TrimSpace(sourceAnswerRef)
+	if sourceQuizSubmissionID == "" && sourceAnswerRef == "" {
+		return "", "", nil
+	}
+	normalizedSubmissionID, err := NormalizeQuizSubmissionID(sourceQuizSubmissionID)
+	if err != nil {
+		return "", "", err
+	}
+	normalizedAnswerRef, err := normalizeRequiredText(sourceAnswerRef, maxQuizAnswerRefLength, "sourceAnswerRef")
+	if err != nil {
+		return "", "", err
+	}
+	return normalizedSubmissionID, normalizedAnswerRef, nil
 }
 
 func validAIGradingMaterial(value MaterialType) bool {

@@ -90,13 +90,15 @@ func TestCreateQuizSubmissionRejectsNonQuizArchive(t *testing.T) {
 }
 
 type fakeQuizSubmissionRepository struct {
-	items       map[string]domain.ArchiveItem
-	submissions []domain.QuizSubmission
-	gets        int
-	lists       int
-	creates     int
-	listQuery   domain.QuizSubmissionQuery
-	submission  domain.QuizSubmission
+	items          map[string]domain.ArchiveItem
+	submissions    []domain.QuizSubmission
+	gets           int
+	lists          int
+	creates        int
+	listQuery      domain.QuizSubmissionQuery
+	submission     domain.QuizSubmission
+	createdGrading domain.AIGradingRequest
+	gradingCreates int
 }
 
 func (f *fakeQuizSubmissionRepository) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {
@@ -111,6 +113,27 @@ func (f *fakeQuizSubmissionRepository) CreateQuizSubmission(
 ) error {
 	f.submission = submission
 	f.creates++
+	return nil
+}
+
+func (f *fakeQuizSubmissionRepository) GetQuizSubmissionByID(
+	_ context.Context,
+	id string,
+) (domain.QuizSubmission, bool, error) {
+	for _, submission := range f.submissions {
+		if submission.ID == id {
+			return submission, true, nil
+		}
+	}
+	return domain.QuizSubmission{}, false, nil
+}
+
+func (f *fakeQuizSubmissionRepository) CreateAIGradingRequest(
+	_ context.Context,
+	request domain.AIGradingRequest,
+) error {
+	f.createdGrading = request
+	f.gradingCreates++
 	return nil
 }
 

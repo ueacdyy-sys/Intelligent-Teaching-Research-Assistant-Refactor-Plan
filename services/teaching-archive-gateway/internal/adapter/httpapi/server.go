@@ -13,6 +13,7 @@ type Server struct {
 	createQuizSubmission          *usecase.CreateQuizSubmission
 	listQuizSubmissions           *usecase.ListQuizSubmissions
 	createAIGradingRequest        *usecase.CreateAIGradingRequest
+	createQuizSubmissionAIGrading *usecase.CreateQuizSubmissionAIGradingRequest
 	listAIGradingRequests         *usecase.ListAIGradingRequests
 	claimAIGradingRequest         *usecase.ClaimAIGradingRequest
 	recordAIGradingResult         *usecase.RecordAIGradingResult
@@ -27,6 +28,7 @@ func NewServer(
 	createArchiveItem *usecase.CreateArchiveItem,
 	listArchiveItems *usecase.ListArchiveItems,
 	createAIGradingRequest *usecase.CreateAIGradingRequest,
+	createQuizSubmissionAIGrading *usecase.CreateQuizSubmissionAIGradingRequest,
 	listAIGradingRequests *usecase.ListAIGradingRequests,
 	claimAIGradingRequest *usecase.ClaimAIGradingRequest,
 	recordAIGradingResult *usecase.RecordAIGradingResult,
@@ -44,6 +46,7 @@ func NewServer(
 		createQuizSubmission:          createQuizSubmission,
 		listQuizSubmissions:           listQuizSubmissions,
 		createAIGradingRequest:        createAIGradingRequest,
+		createQuizSubmissionAIGrading: createQuizSubmissionAIGrading,
 		listAIGradingRequests:         listAIGradingRequests,
 		claimAIGradingRequest:         claimAIGradingRequest,
 		recordAIGradingResult:         recordAIGradingResult,
@@ -101,6 +104,14 @@ func (s *Server) archiveItemSubresources(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		s.createAIGrading(w, r, archiveItemID)
+		return
+	}
+	if archiveItemID, submissionID, ok := parseQuizSubmissionAIGradingRequestPath(r.URL.Path); ok {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.createQuizSubmissionAIGradingMetadata(w, r, archiveItemID, submissionID)
 		return
 	}
 	if archiveItemID, ok := parseArchiveItemQuizSubmissionPath(r.URL.Path); ok {
@@ -296,6 +307,47 @@ func (s *Server) createAIGrading(w http.ResponseWriter, r *http.Request, archive
 		},
 	)
 	if handleArchiveError(w, err, "failed to create ai grading request") {
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, toAIGradingRequestResponse(created))
+}
+
+func (s *Server) createQuizSubmissionAIGradingMetadata(
+	w http.ResponseWriter,
+	r *http.Request,
+	archiveItemID string,
+	submissionID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.createQuizSubmissionAIGrading == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "quiz submission ai grading use case is not configured")
+		return
+	}
+
+	var request createAIGradingRequestRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+
+	created, err := s.createQuizSubmissionAIGrading.Execute(
+		r.Context(),
+		domain.CreateQuizSubmissionAIGradingRequestInput{
+			Principal:           principal,
+			QuizArchiveItemID:   archiveItemID,
+			SubmissionID:        submissionID,
+			GradingInstructions: request.GradingInstructions,
+			RubricRef:           request.RubricRef,
+		},
+	)
+	if handleArchiveError(w, err, "failed to create quiz submission ai grading request") {
 		return
 	}
 

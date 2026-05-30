@@ -56,6 +56,8 @@ type aiGradingRequestResponse struct {
 	SourceArchiveOwnerType  domain.OwnerType       `json:"sourceArchiveOwnerType"`
 	SourceArchiveStudentID  *string                `json:"sourceArchiveStudentId,omitempty"`
 	SourceArchiveContentRef string                 `json:"sourceArchiveContentRef"`
+	SourceQuizSubmissionID  *string                `json:"sourceQuizSubmissionId,omitempty"`
+	SourceAnswerRef         *string                `json:"sourceAnswerRef,omitempty"`
 	SourceArchiveMaterial   domain.MaterialType    `json:"sourceArchiveMaterial"`
 	SourceArchiveOCRStatus  domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
 	ScoreSummary            *string                `json:"scoreSummary,omitempty"`
@@ -78,6 +80,8 @@ type aiGradingWorkerClaimResponse struct {
 	SourceArchiveOwnerType  domain.OwnerType       `json:"sourceArchiveOwnerType"`
 	SourceArchiveStudentID  *string                `json:"sourceArchiveStudentId,omitempty"`
 	SourceArchiveContentRef string                 `json:"sourceArchiveContentRef"`
+	SourceQuizSubmissionID  *string                `json:"sourceQuizSubmissionId,omitempty"`
+	SourceAnswerRef         *string                `json:"sourceAnswerRef,omitempty"`
 	SourceArchiveMaterial   domain.MaterialType    `json:"sourceArchiveMaterial"`
 	SourceArchiveOCRStatus  domain.OCRStatus       `json:"sourceArchiveOcrStatus"`
 	ClaimedByWorkerID       string                 `json:"claimedByWorkerId"`

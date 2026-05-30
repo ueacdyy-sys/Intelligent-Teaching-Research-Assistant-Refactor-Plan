@@ -60,7 +60,7 @@ func NormalizeListAIGradingRequestsInput(input ListAIGradingRequestsInput) (AIGr
 	}
 
 	ownerType := input.SourceArchiveOwnerType
-	if ownerType != "" && ownerType != OwnerTypeStudent {
+	if ownerType != "" && ownerType != OwnerTypeStudent && ownerType != OwnerTypeTeaching {
 		return AIGradingRequestQuery{}, validationError("sourceArchiveOwnerType is unsupported for ai grading requests")
 	}
 
@@ -193,7 +193,6 @@ func scopeStudentAIGradingRequestQuery(
 	}
 
 	scoped := query
-	scoped.SourceArchiveOwnerType = OwnerTypeStudent
 	scoped.StudentID = archiveQuery.StudentID
 	scoped.StudentIDs = archiveQuery.StudentIDs
 	return scoped, nil

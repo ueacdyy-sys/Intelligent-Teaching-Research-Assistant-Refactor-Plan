@@ -110,6 +110,7 @@ func newTestHandlerWithAIGradingRequests(requests []domain.AIGradingRequest) htt
 		createArchiveItem,
 		listArchiveItems,
 		createAIGradingRequest,
+		usecase.NewCreateQuizSubmissionAIGradingRequest(store, fixedIDs{id: "grading_req_http"}, fixedClock{}),
 		listAIGradingRequests,
 		nil,
 		nil,

@@ -41,6 +41,20 @@ func parseArchiveItemQuizSubmissionPath(path string) (string, bool) {
 	return archiveItemID, true
 }
 
+func parseQuizSubmissionAIGradingRequestPath(path string) (string, string, bool) {
+	const prefix = "/v1/teaching/archive-items/"
+	const suffix = "/ai-grading-requests"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", "", false
+	}
+	inner := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	parts := strings.Split(inner, "/")
+	if len(parts) != 3 || parts[0] == "" || parts[1] != "quiz-submissions" || parts[2] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[2], true
+}
+
 func parseAIGradingWorkerClaimPath(path string) bool {
 	return path == "/v1/teaching/ai-grading-requests/worker-claims"
 }
