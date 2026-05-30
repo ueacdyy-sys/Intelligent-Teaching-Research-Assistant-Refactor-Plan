@@ -76,6 +76,7 @@ func newTestHandlerWithTeachingQuiz() http.Handler {
 		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
 		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
 		usecase.NewCreateQuizSubmission(store, fixedIDs{id: "quiz_sub_http"}, fixedClock{now: time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)}),
+		nil,
 		"ueacd",
 	).Handler()
 }

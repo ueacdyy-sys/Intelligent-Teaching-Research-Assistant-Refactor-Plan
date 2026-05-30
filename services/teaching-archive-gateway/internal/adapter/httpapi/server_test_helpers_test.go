@@ -67,6 +67,7 @@ func newTestHandler() http.Handler {
 		claimTutoringRequest,
 		recordTutoringResult,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
@@ -118,6 +119,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		listTutoringRequests,
 		claimTutoringRequest,
 		recordTutoringResult,
+		nil,
 		nil,
 		"ueacd",
 	).Handler()

@@ -1,3 +1,97 @@
+get:
+  operationId: listTeachingQuizSubmissions
+  summary: List metadata-only student answer submissions for a teaching quiz.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+    - name: studentId
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    - name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: Quiz submission metadata page.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - data
+              - pageInfo
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - id
+                    - quizArchiveItemId
+                    - studentId
+                    - submittedByPrincipalId
+                    - answerRef
+                    - status
+                    - submittedAt
+                  properties:
+                    id:
+                      type: string
+                      pattern: '^quiz_sub_[A-Za-z0-9_-]+$'
+                    quizArchiveItemId:
+                      type: string
+                      pattern: '^tarch_[A-Za-z0-9_-]+$'
+                    studentId:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    submittedByPrincipalId:
+                      type: string
+                      minLength: 1
+                    answerRef:
+                      type: string
+                      minLength: 1
+                      maxLength: 1000
+                    status:
+                      type: string
+                      const: SUBMITTED
+                    submittedAt:
+                      type: string
+                      format: date-time
+              pageInfo:
+                $ref: './teaching-archive.yaml#/components/schemas/ArchivePageInfo'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
+
 post:
   operationId: createTeachingQuizSubmission
   summary: Record metadata-only student answer submission for a teaching quiz.

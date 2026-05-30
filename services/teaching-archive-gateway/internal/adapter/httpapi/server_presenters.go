@@ -49,6 +49,21 @@ func toQuizSubmissionResponse(submission domain.QuizSubmission) quizSubmissionRe
 	}
 }
 
+func toQuizSubmissionListResponse(page domain.QuizSubmissionPage) quizSubmissionListResponse {
+	submissions := make([]quizSubmissionResponse, 0, len(page.Items))
+	for _, submission := range page.Items {
+		submissions = append(submissions, toQuizSubmissionResponse(submission))
+	}
+	return quizSubmissionListResponse{
+		Data: submissions,
+		PageInfo: pageInfoResponse{
+			PageSize:   page.PageInfo.PageSize,
+			HasMore:    page.PageInfo.HasMore,
+			NextCursor: optionalString(page.PageInfo.NextCursor),
+		},
+	}
+}
+
 func toAIGradingRequestListResponse(page domain.AIGradingRequestPage) aiGradingRequestListResponse {
 	requests := make([]aiGradingRequestResponse, 0, len(page.Items))
 	for _, request := range page.Items {

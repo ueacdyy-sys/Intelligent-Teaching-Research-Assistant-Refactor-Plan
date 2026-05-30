@@ -83,6 +83,7 @@ func newTestHandlerWithAIGradingClaimRequests(requests []domain.AIGradingRequest
 		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
 		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }

@@ -41,6 +41,11 @@ type quizSubmissionResponse struct {
 	SubmittedAt            string                      `json:"submittedAt"`
 }
 
+type quizSubmissionListResponse struct {
+	Data     []quizSubmissionResponse `json:"data"`
+	PageInfo pageInfoResponse         `json:"pageInfo"`
+}
+
 type aiGradingRequestResponse struct {
 	ID                     string                 `json:"id"`
 	ArchiveItemID          string                 `json:"archiveItemId"`
