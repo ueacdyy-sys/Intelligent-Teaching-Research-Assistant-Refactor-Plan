@@ -1,0 +1,169 @@
+{
+  "schemaVersion": "2026-05-30.ai-worker.examples.v1",
+  "jobs": [
+    {
+      "schemaVersion": "2026-05-30.ai-worker.job.v1",
+      "jobId": "ai_worker_job_public_rag_cloud_001",
+      "capabilityKind": "RAG_RETRIEVAL",
+      "executionOwner": "PYTHON_WORKER",
+      "baselineRuntimeDependencyAllowed": false,
+      "directMainDatabaseWriteAllowed": false,
+      "requestedByPrincipalId": "principal_research_desktop",
+      "principalContextRef": {
+        "principalId": "principal_research_desktop",
+        "sessionId": "session_research_001",
+        "accessProfile": "research-desktop"
+      },
+      "nodeType": "CLOUD",
+      "dataAccess": {
+        "knowledgeScope": "PUBLIC",
+        "studentDataScope": "NONE",
+        "sourceLocation": "PUBLIC_KNOWLEDGE"
+      },
+      "inputRefs": [
+        {
+          "kind": "KNOWLEDGE_DOCUMENT",
+          "refId": "public_kb_lesson_design"
+        }
+      ],
+      "outputPolicy": {
+        "artifactKind": "RETRIEVAL_CONTEXT",
+        "targetStore": "WORKER_ARTIFACT_STORE",
+        "requiresHumanApprovalBeforeUse": false
+      },
+      "createdAt": "2026-05-30T14:00:00Z"
+    },
+    {
+      "schemaVersion": "2026-05-30.ai-worker.job.v1",
+      "jobId": "ai_worker_job_private_rag_local_001",
+      "capabilityKind": "RAG_RETRIEVAL",
+      "executionOwner": "PYTHON_WORKER",
+      "baselineRuntimeDependencyAllowed": false,
+      "directMainDatabaseWriteAllowed": false,
+      "requestedByPrincipalId": "principal_research_desktop",
+      "principalContextRef": {
+        "principalId": "principal_research_desktop",
+        "sessionId": "session_research_002",
+        "accessProfile": "research-desktop"
+      },
+      "nodeType": "LOCAL",
+      "dataAccess": {
+        "knowledgeScope": "PRIVATE",
+        "studentDataScope": "NONE",
+        "sourceLocation": "LOCAL_PRIVATE_KNOWLEDGE"
+      },
+      "inputRefs": [
+        {
+          "kind": "KNOWLEDGE_DOCUMENT",
+          "refId": "private_kb_research_notes"
+        }
+      ],
+      "outputPolicy": {
+        "artifactKind": "RETRIEVAL_CONTEXT",
+        "targetStore": "WORKER_ARTIFACT_STORE",
+        "requiresHumanApprovalBeforeUse": false
+      },
+      "createdAt": "2026-05-30T14:01:00Z"
+    },
+    {
+      "schemaVersion": "2026-05-30.ai-worker.job.v1",
+      "jobId": "ai_worker_job_student_ocr_local_001",
+      "capabilityKind": "OCR_RECOGNITION",
+      "executionOwner": "PYTHON_WORKER",
+      "baselineRuntimeDependencyAllowed": false,
+      "directMainDatabaseWriteAllowed": false,
+      "requestedByPrincipalId": "principal_teacher_desktop",
+      "principalContextRef": {
+        "principalId": "principal_teacher_desktop",
+        "sessionId": "session_teacher_001",
+        "accessProfile": "teacher-desktop"
+      },
+      "nodeType": "LOCAL",
+      "dataAccess": {
+        "knowledgeScope": "NONE",
+        "studentDataScope": "OWN",
+        "sourceLocation": "LOCAL_STUDENT_ARCHIVE"
+      },
+      "inputRefs": [
+        {
+          "kind": "IMAGE",
+          "refId": "archive_scan_student_001"
+        }
+      ],
+      "outputPolicy": {
+        "artifactKind": "OCR_TEXT",
+        "targetStore": "WORKER_ARTIFACT_STORE",
+        "requiresHumanApprovalBeforeUse": true
+      },
+      "createdAt": "2026-05-30T14:02:00Z"
+    },
+    {
+      "schemaVersion": "2026-05-30.ai-worker.job.v1",
+      "jobId": "ai_worker_job_private_finetune_local_001",
+      "capabilityKind": "FINE_TUNING",
+      "executionOwner": "PYTHON_WORKER",
+      "baselineRuntimeDependencyAllowed": false,
+      "directMainDatabaseWriteAllowed": false,
+      "requestedByPrincipalId": "principal_research_desktop",
+      "principalContextRef": {
+        "principalId": "principal_research_desktop",
+        "sessionId": "session_research_003",
+        "accessProfile": "research-desktop"
+      },
+      "nodeType": "LOCAL",
+      "dataAccess": {
+        "knowledgeScope": "PRIVATE",
+        "studentDataScope": "NONE",
+        "sourceLocation": "LOCAL_PRIVATE_KNOWLEDGE"
+      },
+      "inputRefs": [
+        {
+          "kind": "FAVORITE_DATASET",
+          "refId": "favorite_cleaned_dataset_001"
+        },
+        {
+          "kind": "MODEL_BASE",
+          "refId": "local_base_model_ref_001"
+        }
+      ],
+      "outputPolicy": {
+        "artifactKind": "GGUF_MODEL_EXPORT",
+        "targetStore": "WORKER_ARTIFACT_STORE",
+        "requiresHumanApprovalBeforeUse": true
+      },
+      "createdAt": "2026-05-30T14:03:00Z"
+    },
+    {
+      "schemaVersion": "2026-05-30.ai-worker.job.v1",
+      "jobId": "ai_worker_job_remote_owned_rag_001",
+      "capabilityKind": "RAG_RETRIEVAL",
+      "executionOwner": "PYTHON_WORKER",
+      "baselineRuntimeDependencyAllowed": false,
+      "directMainDatabaseWriteAllowed": false,
+      "requestedByPrincipalId": "principal_remote_operator",
+      "principalContextRef": {
+        "principalId": "principal_remote_operator",
+        "sessionId": "session_remote_001",
+        "accessProfile": "remote-social-command"
+      },
+      "nodeType": "REMOTE_DEVICE",
+      "dataAccess": {
+        "knowledgeScope": "PRIVATE",
+        "studentDataScope": "NONE",
+        "sourceLocation": "REMOTE_DEVICE_OWNED_KNOWLEDGE"
+      },
+      "inputRefs": [
+        {
+          "kind": "KNOWLEDGE_DOCUMENT",
+          "refId": "remote_device_owned_kb_ref"
+        }
+      ],
+      "outputPolicy": {
+        "artifactKind": "RETRIEVAL_CONTEXT",
+        "targetStore": "WORKER_ARTIFACT_STORE",
+        "requiresHumanApprovalBeforeUse": true
+      },
+      "createdAt": "2026-05-30T14:04:00Z"
+    }
+  ]
+}

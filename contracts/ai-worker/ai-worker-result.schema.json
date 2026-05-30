@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/ai-worker/ai-worker-result.schema.json",
+  "title": "AI Worker Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "resultId",
+    "jobId",
+    "status",
+    "directMainDatabaseWriteAttempted",
+    "artifactRefs",
+    "completedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.ai-worker.result.v1"
+    },
+    "resultId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "jobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["SUCCEEDED", "FAILED", "RETRYABLE_FAILURE"]
+    },
+    "directMainDatabaseWriteAttempted": {
+      "type": "boolean",
+      "const": false
+    },
+    "artifactRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifactId", "artifactKind", "storageClass", "privatePayloadInline"],
+        "properties": {
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactKind": {
+            "type": "string",
+            "enum": ["RETRIEVAL_CONTEXT", "OCR_TEXT", "GGUF_MODEL_EXPORT", "ERROR_REPORT"]
+          },
+          "storageClass": {
+            "type": "string",
+            "enum": ["WORKER_ARTIFACT_STORE", "EPHEMERAL_SANDBOX"]
+          },
+          "privatePayloadInline": {
+            "type": "boolean",
+            "const": false
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["durationMs"],
+      "properties": {
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

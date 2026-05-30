@@ -1,0 +1,118 @@
+{
+  "generatedAt": "2026-05-30T13:58:20.296Z",
+  "readiness": "READY",
+  "findings": [
+    {
+      "id": "job.capability_vocab",
+      "passed": true,
+      "severity": "info",
+      "actual": "RAG_RETRIEVAL,OCR_RECOGNITION,FINE_TUNING",
+      "expected": "RAG_RETRIEVAL,OCR_RECOGNITION,FINE_TUNING",
+      "remediation": "AI worker jobs must cover RAG retrieval, OCR recognition, and fine-tuning as isolated worker capabilities."
+    },
+    {
+      "id": "job.python_worker_owner",
+      "passed": true,
+      "severity": "info",
+      "actual": "PYTHON_WORKER",
+      "expected": "PYTHON_WORKER",
+      "remediation": "RAG/OCR/training work must stay behind the Python worker boundary."
+    },
+    {
+      "id": "job.no_baseline_dependency",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "AI worker jobs must not make model, OCR, RAG, or training packages baseline runtime dependencies."
+    },
+    {
+      "id": "job.no_direct_db_write",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "Workers must return artifacts through the boundary rather than writing directly to the main database."
+    },
+    {
+      "id": "job.boundary_fields",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion,jobId,capabilityKind,executionOwner,baselineRuntimeDependencyAllowed,directMainDatabaseWriteAllowed,requestedByPrincipalId,principalContextRef,nodeType,dataAccess,inputRefs,outputPolicy,createdAt",
+      "expected": "nodeType,dataAccess,inputRefs,outputPolicy",
+      "remediation": "Worker jobs must declare node type, data access, inputs, and output policy."
+    },
+    {
+      "id": "result.no_direct_db_write",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "Worker results must prove that no direct main database write was attempted."
+    },
+    {
+      "id": "result.no_inline_private_payload",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "Worker results must return artifact references, not inline private payloads."
+    },
+    {
+      "id": "examples.worker_isolation",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_public_rag_cloud_001:PYTHON_WORKER:baseline=false:directDb=false;ai_worker_job_private_rag_local_001:PYTHON_WORKER:baseline=false:directDb=false;ai_worker_job_student_ocr_local_001:PYTHON_WORKER:baseline=false:directDb=false;ai_worker_job_private_finetune_local_001:PYTHON_WORKER:baseline=false:directDb=false;ai_worker_job_remote_owned_rag_001:PYTHON_WORKER:baseline=false:directDb=false",
+      "expected": "all examples PYTHON_WORKER baseline=false directDb=false",
+      "remediation": "Every example job must stay behind the isolated worker boundary."
+    },
+    {
+      "id": "examples.required_capabilities",
+      "passed": true,
+      "severity": "info",
+      "actual": "RAG_RETRIEVAL,OCR_RECOGNITION,FINE_TUNING",
+      "expected": "RAG_RETRIEVAL,OCR_RECOGNITION,FINE_TUNING",
+      "remediation": "Examples must cover RAG retrieval, OCR recognition, and fine-tuning."
+    },
+    {
+      "id": "examples.cloud_public_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
+      "expected": "cloud jobs only use PUBLIC_KNOWLEDGE and no student data",
+      "remediation": "Cloud workers must not receive private knowledge or student archive data."
+    },
+    {
+      "id": "examples.cloud_public_rag_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_public_rag_cloud_001:RAG_RETRIEVAL:PUBLIC:PUBLIC_KNOWLEDGE",
+      "expected": "at least one cloud RAG job over PUBLIC_KNOWLEDGE",
+      "remediation": "Examples must prove that cloud RAG remains limited to public knowledge."
+    },
+    {
+      "id": "examples.remote_no_local_private",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
+      "expected": "remote-device jobs do not use local private knowledge or local student archives",
+      "remediation": "Remote-device workers may use their own knowledge, not this machine's private knowledge base or student archive."
+    },
+    {
+      "id": "examples.local_private_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_private_rag_local_001:RAG_RETRIEVAL:PRIVATE:LOCAL_PRIVATE_KNOWLEDGE;ai_worker_job_student_ocr_local_001:OCR_RECOGNITION:NONE:LOCAL_STUDENT_ARCHIVE;ai_worker_job_private_finetune_local_001:FINE_TUNING:PRIVATE:LOCAL_PRIVATE_KNOWLEDGE",
+      "expected": "local private RAG, local OCR, and local fine-tuning examples",
+      "remediation": "Local worker examples must prove the private-data paths stay local."
+    },
+    {
+      "id": "result.example_artifact_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "directDb=false inlinePrivateArtifacts=0",
+      "expected": "directDb=false and all privatePayloadInline=false",
+      "remediation": "Result example must demonstrate artifact references only."
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/ai-worker/ai-worker-job.schema.json",
+  "title": "AI Worker Job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "jobId",
+    "capabilityKind",
+    "executionOwner",
+    "baselineRuntimeDependencyAllowed",
+    "directMainDatabaseWriteAllowed",
+    "requestedByPrincipalId",
+    "principalContextRef",
+    "nodeType",
+    "dataAccess",
+    "inputRefs",
+    "outputPolicy",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.ai-worker.job.v1"
+    },
+    "jobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilityKind": {
+      "type": "string",
+      "enum": ["RAG_RETRIEVAL", "OCR_RECOGNITION", "FINE_TUNING"]
+    },
+    "executionOwner": {
+      "type": "string",
+      "const": "PYTHON_WORKER"
+    },
+    "baselineRuntimeDependencyAllowed": {
+      "type": "boolean",
+      "const": false
+    },
+    "directMainDatabaseWriteAllowed": {
+      "type": "boolean",
+      "const": false
+    },
+    "requestedByPrincipalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "principalContextRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "sessionId", "accessProfile"],
+      "properties": {
+        "principalId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accessProfile": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "nodeType": {
+      "type": "string",
+      "enum": ["CLOUD", "LOCAL", "REMOTE_DEVICE"]
+    },
+    "dataAccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["knowledgeScope", "studentDataScope", "sourceLocation"],
+      "properties": {
+        "knowledgeScope": {
+          "type": "string",
+          "enum": ["NONE", "PUBLIC", "PRIVATE"]
+        },
+        "studentDataScope": {
+          "type": "string",
+          "enum": ["NONE", "OWN", "ASSIGNED", "ALL"]
+        },
+        "sourceLocation": {
+          "type": "string",
+          "enum": [
+            "PUBLIC_KNOWLEDGE",
+            "LOCAL_PRIVATE_KNOWLEDGE",
+            "LOCAL_STUDENT_ARCHIVE",
+            "REMOTE_DEVICE_OWNED_KNOWLEDGE"
+          ]
+        }
+      }
+    },
+    "inputRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "refId"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["KNOWLEDGE_DOCUMENT", "ARCHIVE_ITEM", "FAVORITE_DATASET", "MODEL_BASE", "IMAGE"]
+          },
+          "refId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "outputPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactKind", "targetStore", "requiresHumanApprovalBeforeUse"],
+      "properties": {
+        "artifactKind": {
+          "type": "string",
+          "enum": ["RETRIEVAL_CONTEXT", "OCR_TEXT", "GGUF_MODEL_EXPORT"]
+        },
+        "targetStore": {
+          "type": "string",
+          "const": "WORKER_ARTIFACT_STORE"
+        },
+        "requiresHumanApprovalBeforeUse": {
+          "type": "boolean"
+        }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
