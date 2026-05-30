@@ -5,6 +5,8 @@ import { pathToFileURL } from "node:url";
 const REGISTRY_PATH = "contracts/ops/performance-evidence-registry.current.json";
 const REQUIRED_SOURCE_REPORTS = [
   "reports/pgbouncer-perf-profile.current.json",
+  "reports/identity-http-benchmark.current.json",
+  "reports/identity-http-benchmark.concurrency360.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
   "reports/quality-gate.current.json",
@@ -192,6 +194,8 @@ function hasPgbouncerSettings(entry) {
 function sourceStatusMatches(entry, report) {
   if (!report || typeof report !== "object") return false;
   if (entry.workloadType === "QUALITY_GATE") return true;
+  if (typeof report.status === "string") return entry.status === report.status;
+  if (entry.workloadType === "HTTP_BENCHMARK") return false;
   if (typeof report.readiness === "string") return entry.status === report.readiness;
   if (typeof report.allPassed === "boolean") return entry.status === (report.allPassed ? "PASSED" : "FAILED");
   return true;
@@ -278,6 +282,8 @@ function summarizeSourceStatuses(entries, parsedReports) {
 function sourceReportStatus(entry, report) {
   if (!report || typeof report !== "object") return "missing";
   if (entry.workloadType === "QUALITY_GATE") return "current_run_rollup";
+  if (typeof report.status === "string") return report.status;
+  if (entry.workloadType === "HTTP_BENCHMARK") return "missing_status";
   if (typeof report.readiness === "string") return report.readiness;
   if (typeof report.allPassed === "boolean") return report.allPassed ? "PASSED" : "FAILED";
   return "not_applicable";

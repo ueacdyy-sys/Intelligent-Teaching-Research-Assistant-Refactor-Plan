@@ -1,7 +1,7 @@
 {
   "schemaVersion": "2026-05-30.ops.performance-evidence-registry.v1",
   "registryId": "current_refactor_performance_evidence",
-  "updatedAt": "2026-05-30T15:40:00Z",
+  "updatedAt": "2026-05-30T16:35:30Z",
   "entries": [
     {
       "evidenceId": "pgbouncer_perf_profile_current",
@@ -63,6 +63,129 @@
         }
       },
       "rollbackOrNextAction": "Run the live Docker-backed mixed read/write benchmark against this routed profile before claiming a concurrency ceiling."
+    },
+    {
+      "evidenceId": "identity_http_gateway_current_320",
+      "moduleSlice": "Identity And Access / HTTP Session Gateway",
+      "workloadType": "HTTP_BENCHMARK",
+      "sourceCommand": "npm run bench:identity-http:pgbouncer -- --concurrency 320 --operations 640 --out reports/identity-http-benchmark.current.json --timeout 300s --startup-timeout-ms 180000",
+      "sourceReportPath": "reports/identity-http-benchmark.current.json",
+      "runtimeProfile": {
+        "name": "identity_go_gateway_pgbouncer_live_320",
+        "executionEnvironment": "Local Go gateway with Docker identity PgBouncer profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "PASSED",
+      "metrics": [
+        {
+          "name": "benchmark.concurrency",
+          "value": 320,
+          "unit": "clients",
+          "interpretation": "Current strong local run used operations greater than concurrency and completed with zero phase errors."
+        },
+        {
+          "name": "passwordLogin.p95_ms",
+          "value": 135.1,
+          "unit": "ms",
+          "interpretation": "Login write path stayed below 150ms P95 at 320 concurrent clients in this local run."
+        },
+        {
+          "name": "refreshRotation.p95_ms",
+          "value": 188.81,
+          "unit": "ms",
+          "interpretation": "Refresh rotation remains the heavier write path but completed without errors."
+        },
+        {
+          "name": "revokeCycle.p95_ms",
+          "value": 248.49,
+          "unit": "ms",
+          "interpretation": "Revoke cycle is the slowest mixed write/read phase and the first path to watch in higher-load tuning."
+        },
+        {
+          "name": "phase.errors",
+          "value": 0,
+          "unit": "errors",
+          "interpretation": "All benchmark phases completed without reported errors."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "ita-identity-session-postgres",
+          "maxConnections": 120,
+          "sharedBuffers": "256MB"
+        },
+        "pgbouncer": {
+          "serviceName": "ita-identity-session-pgbouncer",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 32
+        },
+        "applicationPool": {
+          "postgresHost": "127.0.0.1",
+          "postgresPort": 16432,
+          "dbPoolSize": 16,
+          "dbMaxOverflow": 0,
+          "workerCount": 1
+        }
+      },
+      "rollbackOrNextAction": "Keep 320 as the current repeatable local pass point and tune the identity runtime profile before raising the claimed ceiling."
+    },
+    {
+      "evidenceId": "identity_http_gateway_limit_probe_360",
+      "moduleSlice": "Identity And Access / HTTP Session Gateway",
+      "workloadType": "HTTP_BENCHMARK",
+      "sourceCommand": "npm run bench:identity-http:pgbouncer -- --concurrency 360 --operations 720 --out reports/identity-http-benchmark.concurrency360.json --timeout 300s --startup-timeout-ms 180000",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency360.json",
+      "runtimeProfile": {
+        "name": "identity_go_gateway_pgbouncer_live_limit_probe",
+        "executionEnvironment": "Local Go gateway with Docker identity PgBouncer profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "FAILED",
+      "metrics": [
+        {
+          "name": "probe.concurrency",
+          "value": 360,
+          "unit": "clients",
+          "interpretation": "The first current local limit probe above the 320 pass point failed during the login write phase."
+        },
+        {
+          "name": "passwordLogin.errors",
+          "value": 118,
+          "unit": "errors",
+          "interpretation": "The benchmark reported connection refusals while the gateway process was still alive before cleanup."
+        },
+        {
+          "name": "gateway.exit_code_before_cleanup",
+          "value": null,
+          "interpretation": "The runner observed no gateway process exit before cleanup, pointing to accept/connect pressure rather than a captured gateway crash."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "ita-identity-session-postgres",
+          "maxConnections": 120,
+          "sharedBuffers": "256MB"
+        },
+        "pgbouncer": {
+          "serviceName": "ita-identity-session-pgbouncer",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 32
+        },
+        "applicationPool": {
+          "postgresHost": "127.0.0.1",
+          "postgresPort": 16432,
+          "dbPoolSize": 16,
+          "dbMaxOverflow": 0,
+          "workerCount": 1
+        }
+      },
+      "rollbackOrNextAction": "Treat this as a local single-gateway accept/connect limit until a tuned identity runtime profile and multi-worker/load-balanced gateway run prove a higher ceiling."
     },
     {
       "evidenceId": "knowledge_hybrid_retrieval_policy_smoke",

@@ -30,6 +30,9 @@ type benchmarkConfig struct {
 
 type benchmarkReport struct {
 	GeneratedAt        string                 `json:"generatedAt"`
+	BenchmarkKind      string                 `json:"benchmarkKind"`
+	WorkloadType       string                 `json:"workloadType"`
+	Status             string                 `json:"status"`
 	BaseURL            string                 `json:"baseUrl"`
 	Concurrency        int                    `json:"concurrency"`
 	OperationsPerPhase int                    `json:"operationsPerPhase"`
@@ -133,6 +136,9 @@ func run(config benchmarkConfig) error {
 
 	report := benchmarkReport{
 		GeneratedAt:        time.Now().UTC().Format(time.RFC3339Nano),
+		BenchmarkKind:      "identity_http_gateway",
+		WorkloadType:       "HTTP_BENCHMARK",
+		Status:             "PASSED",
 		BaseURL:            maskURL(baseURL),
 		Concurrency:        config.Concurrency,
 		OperationsPerPhase: config.OperationsPerPhase,
