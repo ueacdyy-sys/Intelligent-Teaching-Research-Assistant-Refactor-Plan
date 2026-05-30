@@ -92,6 +92,10 @@ func main() {
 		archiveRepository,
 		platform.Clock{},
 	)
+	selectAttendanceRandomStudents := usecase.NewSelectAttendanceRandomStudents(
+		archiveRepository,
+		platform.CryptoRandomSource{},
+	)
 	listAttendanceRecords := usecase.NewListAttendanceRecords(archiveRepository)
 	listStudentAttendanceRecords := usecase.NewListStudentAttendanceRecords(archiveRepository)
 	getAttendanceStatistics := usecase.NewGetAttendanceStatistics(archiveRepository)
@@ -116,6 +120,7 @@ func main() {
 			createAttendanceRecord,
 			signInAttendance,
 			endAttendanceSession,
+			selectAttendanceRandomStudents,
 			listAttendanceRecords,
 			listStudentAttendanceRecords,
 			getAttendanceStatistics,

@@ -76,6 +76,7 @@ func newTestHandler() http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
@@ -128,6 +129,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		listTutoringRequests,
 		claimTutoringRequest,
 		recordTutoringResult,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -332,6 +334,19 @@ func (f *fakeRepository) EndAttendanceSession(
 	return domain.AttendanceSession{}, false, nil
 }
 
+func (f *fakeRepository) ListAttendancePresentStudentIDs(
+	_ context.Context,
+	sessionID string,
+) ([]string, error) {
+	studentIDs := make([]string, 0, len(f.attendanceRecords))
+	for _, record := range f.attendanceRecords {
+		if record.SessionID == sessionID && record.Status == domain.AttendanceRecordStatusPresent {
+			studentIDs = append(studentIDs, record.StudentID)
+		}
+	}
+	return studentIDs, nil
+}
+
 func (f *fakeRepository) ListTutoringAnalysisRequests(
 	_ context.Context,
 	query domain.TutoringAnalysisRequestQuery,
@@ -469,4 +484,21 @@ type fixedClock struct {
 
 func (f fixedClock) Now() time.Time {
 	return f.now
+}
+
+type fixedRandomFloats struct {
+	values []float64
+	index  int
+}
+
+func (f *fixedRandomFloats) Float64() float64 {
+	if len(f.values) == 0 {
+		return 0
+	}
+	if f.index >= len(f.values) {
+		return f.values[len(f.values)-1]
+	}
+	value := f.values[f.index]
+	f.index++
+	return value
 }

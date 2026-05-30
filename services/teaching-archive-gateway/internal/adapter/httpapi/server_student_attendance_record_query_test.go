@@ -69,6 +69,7 @@ func newTestHandlerWithStudentAttendanceRows(rows []domain.AttendanceRecord) htt
 		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
 		nil,
 		nil,
+		nil,
 		usecase.NewListAttendanceRecords(store),
 		usecase.NewListStudentAttendanceRecords(store),
 		nil,

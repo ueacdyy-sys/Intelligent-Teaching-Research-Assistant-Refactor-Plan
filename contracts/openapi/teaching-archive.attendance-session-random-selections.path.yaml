@@ -1,0 +1,105 @@
+post:
+  operationId: selectTeachingAttendanceRandomStudents
+  summary: Select students for an active Teaching Mode rollcall session.
+  tags: [teaching-attendance]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^att_sess_[A-Za-z0-9_-]+$'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required: [candidates]
+          properties:
+            count:
+              type: integer
+              minimum: 1
+              maximum: 1000
+              default: 1
+            excludePresent:
+              type: boolean
+              default: true
+            weighted:
+              type: boolean
+              default: true
+            candidates:
+              type: array
+              maxItems: 10000
+              items:
+                type: object
+                additionalProperties: false
+                required: [studentId]
+                properties:
+                  studentId: { type: string, minLength: 1, maxLength: 128 }
+                  displayName: { type: string, minLength: 1, maxLength: 128 }
+                  attendanceCount: { type: integer, minimum: 0, default: 0 }
+                  absenceCount: { type: integer, minimum: 0, default: 0 }
+                  lateCount: { type: integer, minimum: 0, default: 0 }
+                  rollcallWeight:
+                    type: number
+                    exclusiveMinimum: 0
+                    maximum: 100
+                    default: 1
+  responses:
+    '200':
+      description: Random rollcall selection computed.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - sessionId
+              - requestedCount
+              - eligibleCount
+              - excludePresent
+              - weighted
+              - data
+            properties:
+              sessionId:
+                type: string
+                pattern: '^att_sess_[A-Za-z0-9_-]+$'
+              requestedCount:
+                type: integer
+                minimum: 1
+              eligibleCount:
+                type: integer
+                minimum: 0
+              excludePresent:
+                type: boolean
+              weighted:
+                type: boolean
+              data:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - studentId
+                    - selectionWeight
+                    - selectionProbability
+                  properties:
+                    studentId: { type: string, minLength: 1, maxLength: 128 }
+                    displayName: { type: [string, 'null'], maxLength: 128 }
+                    selectionWeight: { type: number, minimum: 0 }
+                    selectionProbability: { type: number, minimum: 0, maximum: 1 }
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '409':
+      $ref: './teaching-archive.yaml#/components/responses/Conflict'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

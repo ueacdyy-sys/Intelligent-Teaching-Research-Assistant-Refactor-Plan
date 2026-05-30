@@ -3,6 +3,8 @@ package platform
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
+	"math"
 	"time"
 )
 
@@ -70,4 +72,18 @@ func (AttendanceRecordIDGenerator) NewID() string {
 		panic(err)
 	}
 	return "att_rec_" + base64.RawURLEncoding.EncodeToString(buffer)
+}
+
+type CryptoRandomSource struct{}
+
+func (CryptoRandomSource) Float64() float64 {
+	var buffer [8]byte
+	if _, err := rand.Read(buffer[:]); err != nil {
+		panic(err)
+	}
+	value := float64(binary.BigEndian.Uint64(buffer[:])) / float64(^uint64(0))
+	if value >= 1 {
+		return math.Nextafter(1, 0)
+	}
+	return value
 }

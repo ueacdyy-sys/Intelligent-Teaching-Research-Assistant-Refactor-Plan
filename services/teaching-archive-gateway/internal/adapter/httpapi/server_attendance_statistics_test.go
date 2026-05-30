@@ -71,6 +71,7 @@ func newTestHandlerWithAttendanceStatistics(stats domain.AttendanceStatistics) h
 		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
 		nil,
 		nil,
+		nil,
 		usecase.NewListAttendanceRecords(store),
 		usecase.NewListStudentAttendanceRecords(store),
 		usecase.NewGetAttendanceStatistics(store),

@@ -34,6 +34,7 @@ func TestCreateAttendanceSessionReturnsCreatedResponse(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 	request := httptest.NewRequest(

@@ -12,17 +12,26 @@ import (
 	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
-func TestEndAttendanceSessionReturnsEndedResponse(t *testing.T) {
+func TestSelectAttendanceRandomStudentsReturnsSelection(t *testing.T) {
 	store := &fakeRepository{
 		attendanceSessions: []domain.AttendanceSession{
 			attendanceHTTPSession("att_sess_http"),
 		},
+		attendanceRecords: []domain.AttendanceRecord{
+			{
+				ID:        "att_rec_present",
+				SessionID: "att_sess_http",
+				StudentID: "student_001",
+				Status:    domain.AttendanceRecordStatusPresent,
+				CreatedAt: time.Date(2026, 5, 30, 12, 1, 0, 0, time.UTC),
+			},
+		},
 	}
-	handler := newAttendanceSessionEndHandler(store)
+	handler := newAttendanceRandomSelectionHandler(store)
 	request := httptest.NewRequest(
 		http.MethodPost,
-		"/v1/teaching/attendance-sessions/att_sess_http/end",
-		http.NoBody,
+		"/v1/teaching/attendance-sessions/att_sess_http/random-selections",
+		bytes.NewBufferString(`{"count":2,"candidates":[{"studentId":"student_001","displayName":"A"},{"studentId":"student_002","displayName":"B"},{"studentId":"student_003","displayName":"C","rollcallWeight":3}]}`),
 	)
 	request.Header.Set("X-Agent-Api-Key", "ueacd")
 	setPrincipalHeader(t, request, teacherPrincipal())
@@ -34,26 +43,25 @@ func TestEndAttendanceSessionReturnsEndedResponse(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`"id":"att_sess_http"`),
-		[]byte(`"status":"ENDED"`),
-		[]byte(`"endedAt":"2026-05-30T12:20:00Z"`),
+		[]byte(`"sessionId":"att_sess_http"`),
+		[]byte(`"eligibleCount":2`),
+		[]byte(`"studentId":"student_003"`),
+		[]byte(`"selectionWeight":3`),
 	} {
 		if !bytes.Contains(response.Body.Bytes(), fragment) {
 			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
 		}
 	}
+	if bytes.Contains(response.Body.Bytes(), []byte(`"studentId":"student_001"`)) {
+		t.Fatalf("present student leaked in body = %s", response.Body.String())
+	}
 }
 
-func TestEndAttendanceSessionRejectsUnsupportedMethod(t *testing.T) {
-	store := &fakeRepository{
-		attendanceSessions: []domain.AttendanceSession{
-			attendanceHTTPSession("att_sess_http"),
-		},
-	}
-	handler := newAttendanceSessionEndHandler(store)
+func TestSelectAttendanceRandomStudentsRejectsUnsupportedMethod(t *testing.T) {
+	handler := newAttendanceRandomSelectionHandler(&fakeRepository{})
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/v1/teaching/attendance-sessions/att_sess_http/end",
+		"/v1/teaching/attendance-sessions/att_sess_http/random-selections",
 		http.NoBody,
 	)
 
@@ -65,7 +73,7 @@ func TestEndAttendanceSessionRejectsUnsupportedMethod(t *testing.T) {
 	}
 }
 
-func newAttendanceSessionEndHandler(store *fakeRepository) http.Handler {
+func newAttendanceRandomSelectionHandler(store *fakeRepository) http.Handler {
 	return httpapi.NewServer(
 		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
 		usecase.NewListArchiveItems(store),
@@ -83,8 +91,8 @@ func newAttendanceSessionEndHandler(store *fakeRepository) http.Handler {
 		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
 		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{}),
 		usecase.NewSignInAttendance(store, fixedIDs{id: "att_rec_signin_http"}, fixedClock{}),
-		usecase.NewEndAttendanceSession(store, fixedClock{now: time.Date(2026, 5, 30, 12, 20, 0, 0, time.UTC)}),
-		nil,
+		usecase.NewEndAttendanceSession(store, fixedClock{}),
+		usecase.NewSelectAttendanceRandomStudents(store, &fixedRandomFloats{values: []float64{0.99, 0}}),
 		nil,
 		nil,
 		nil,
