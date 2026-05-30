@@ -12,6 +12,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     const {
       buildFailureReport,
       extractFailureMessage,
+      gatewayBaseUrls,
       inferFailurePhase,
       parseArgs,
       tailText,
@@ -24,6 +25,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "1024",
       "--session-db-max-conns",
       "16",
+      "--gateway-count",
+      "2",
       "--out",
       "reports/identity-http-benchmark.concurrency512.json",
     ]);
@@ -45,6 +48,9 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.concurrency, 512);
     assert.equal(report.operationsPerPhase, 1024);
     assert.equal(report.sessionDbMaxConns, 16);
+    assert.equal(report.gatewayCount, 2);
+    assert.deepEqual(report.gatewayBaseUrls, ["http://127.0.0.1:18100", "http://127.0.0.1:18101"]);
+    assert.equal(report.loadBalancingStrategy, "ROUND_ROBIN");
     assert.equal(report.dockerRequiredForEvidence, true);
     assert.equal(report.exitCode, 1);
     assert.equal(report.gatewayExitCode, null);
@@ -58,5 +64,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     );
     assert.equal(inferFailurePhase("refreshRotation failed with 2 errors"), "refreshRotation");
     assert.equal(tailText("a\nb\nc", 2), "b\nc");
+    assert.deepEqual(
+      gatewayBaseUrls(parseArgs([
+        "--base-url",
+        "http://127.0.0.1:18100",
+        "--gateway-count",
+        "3",
+      ])),
+      ["http://127.0.0.1:18100", "http://127.0.0.1:18101", "http://127.0.0.1:18102"],
+    );
   });
 });

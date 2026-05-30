@@ -38,3 +38,34 @@ func TestBuildPhaseReport(t *testing.T) {
 		t.Fatalf("phase = %#v", phase)
 	}
 }
+
+func TestParseBaseURLs(t *testing.T) {
+	got, err := parseBaseURLs("http://127.0.0.1:18100, http://127.0.0.1:18101/")
+	if err != nil {
+		t.Fatalf("parseBaseURLs() error = %v", err)
+	}
+	want := []string{"http://127.0.0.1:18100", "http://127.0.0.1:18101"}
+
+	if len(got) != len(want) {
+		t.Fatalf("base URLs = %#v want %#v", got, want)
+	}
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("base URL %d = %q want %q", index, got[index], want[index])
+		}
+	}
+}
+
+func TestBaseURLForOperationRoundRobin(t *testing.T) {
+	baseURLs := []string{"http://127.0.0.1:18100", "http://127.0.0.1:18101"}
+
+	if got := baseURLForOperation(baseURLs, 0); got != baseURLs[0] {
+		t.Fatalf("op 0 base URL = %q", got)
+	}
+	if got := baseURLForOperation(baseURLs, 1); got != baseURLs[1] {
+		t.Fatalf("op 1 base URL = %q", got)
+	}
+	if got := baseURLForOperation(baseURLs, 2); got != baseURLs[0] {
+		t.Fatalf("op 2 base URL = %q", got)
+	}
+}

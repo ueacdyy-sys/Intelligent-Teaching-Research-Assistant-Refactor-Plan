@@ -1,7 +1,7 @@
 {
   "schemaVersion": "2026-05-30.ops.performance-evidence-registry.v1",
   "registryId": "current_refactor_performance_evidence",
-  "updatedAt": "2026-05-30T16:55:00Z",
+  "updatedAt": "2026-05-30T17:18:30Z",
   "entries": [
     {
       "evidenceId": "pgbouncer_perf_profile_current",
@@ -186,6 +186,138 @@
         }
       },
       "rollbackOrNextAction": "Treat this as a local single-gateway accept/connect limit because the tuned database profile did not move the 360-concurrency failure point."
+    },
+    {
+      "evidenceId": "identity_http_gateway_multi2_current_640",
+      "moduleSlice": "Identity And Access / HTTP Session Gateway",
+      "workloadType": "HTTP_BENCHMARK",
+      "sourceCommand": "npm run bench:identity-http:pgbouncer -- --gateway-count 2 --concurrency 640 --operations 1280 --out reports/identity-http-benchmark.concurrency640-multi2.json --timeout 420s --startup-timeout-ms 180000",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency640-multi2.json",
+      "runtimeProfile": {
+        "name": "identity_go_gateway_pgbouncer_multi2_live_640",
+        "executionEnvironment": "Two local Go gateways with round-robin client routing and Docker identity PgBouncer profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "PASSED",
+      "metrics": [
+        {
+          "name": "benchmark.concurrency",
+          "value": 640,
+          "unit": "clients",
+          "interpretation": "Two local Go gateways completed the current higher-concurrency comparison point with zero phase errors."
+        },
+        {
+          "name": "gateway.count",
+          "value": 2,
+          "unit": "processes",
+          "interpretation": "The benchmark distributed requests across two local identity gateway processes."
+        },
+        {
+          "name": "passwordLogin.p95_ms",
+          "value": 184.03,
+          "unit": "ms",
+          "interpretation": "The login write path stayed error-free at 640 concurrent clients under the 2-gateway profile."
+        },
+        {
+          "name": "revokeCycle.p95_ms",
+          "value": 313.65,
+          "unit": "ms",
+          "interpretation": "Revoke cycle remained the slowest mixed write/read phase at the 2-gateway pass point."
+        },
+        {
+          "name": "phase.errors",
+          "value": 0,
+          "unit": "errors",
+          "interpretation": "All benchmark phases completed without reported errors."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "ita-identity-session-postgres",
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
+        },
+        "pgbouncer": {
+          "serviceName": "ita-identity-session-pgbouncer",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 90
+        },
+        "applicationPool": {
+          "postgresHost": "127.0.0.1",
+          "postgresPort": 16432,
+          "dbPoolSize": 16,
+          "dbMaxOverflow": 0,
+          "workerCount": 2
+        }
+      },
+      "rollbackOrNextAction": "Treat 640 as the current local 2-gateway pass point and use the 704 failed probe as the next ingress-capacity boundary."
+    },
+    {
+      "evidenceId": "identity_http_gateway_multi2_limit_probe_704",
+      "moduleSlice": "Identity And Access / HTTP Session Gateway",
+      "workloadType": "HTTP_BENCHMARK",
+      "sourceCommand": "npm run bench:identity-http:pgbouncer -- --gateway-count 2 --concurrency 704 --operations 1408 --out reports/identity-http-benchmark.concurrency704-multi2.json --timeout 450s --startup-timeout-ms 180000",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency704-multi2.json",
+      "runtimeProfile": {
+        "name": "identity_go_gateway_pgbouncer_multi2_live_limit_probe",
+        "executionEnvironment": "Two local Go gateways with round-robin client routing and Docker identity PgBouncer profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "FAILED",
+      "metrics": [
+        {
+          "name": "probe.concurrency",
+          "value": 704,
+          "unit": "clients",
+          "interpretation": "The nearest local 2-gateway probe above the 640 pass point failed during the login write phase."
+        },
+        {
+          "name": "gateway.count",
+          "value": 2,
+          "unit": "processes",
+          "interpretation": "The failure occurred after distributing requests across two local identity gateway processes."
+        },
+        {
+          "name": "passwordLogin.errors",
+          "value": 220,
+          "unit": "errors",
+          "interpretation": "The 2-gateway profile still hit connection refusals above the current pass point."
+        },
+        {
+          "name": "gateway.exit_code_before_cleanup",
+          "value": [
+            null,
+            null
+          ],
+          "interpretation": "The runner observed no gateway process exit before cleanup, pointing to local accept/connect pressure rather than a captured gateway crash."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "ita-identity-session-postgres",
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
+        },
+        "pgbouncer": {
+          "serviceName": "ita-identity-session-pgbouncer",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 90
+        },
+        "applicationPool": {
+          "postgresHost": "127.0.0.1",
+          "postgresPort": 16432,
+          "dbPoolSize": 16,
+          "dbMaxOverflow": 0,
+          "workerCount": 2
+        }
+      },
+      "rollbackOrNextAction": "Use this failed probe to justify the next slice: either a 3-gateway local profile or OS/socket backlog tuning, not more database pool increases."
     },
     {
       "evidenceId": "knowledge_hybrid_retrieval_policy_smoke",

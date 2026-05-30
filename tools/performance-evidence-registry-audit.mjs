@@ -7,6 +7,8 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/pgbouncer-perf-profile.current.json",
   "reports/identity-http-benchmark.current.json",
   "reports/identity-http-benchmark.concurrency360.json",
+  "reports/identity-http-benchmark.concurrency640-multi2.json",
+  "reports/identity-http-benchmark.concurrency704-multi2.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
   "reports/quality-gate.current.json",

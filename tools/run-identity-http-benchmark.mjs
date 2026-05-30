@@ -12,6 +12,7 @@ export const defaults = {
   concurrency: "64",
   operations: "300",
   sessionDbMaxConns: "16",
+  gatewayCount: "1",
   timeout: "120s",
   startupTimeoutMs: "120000",
 };
@@ -32,6 +33,7 @@ export function parseArgs(argv) {
     if (key === "--concurrency") parsed.concurrency = value;
     if (key === "--operations") parsed.operations = value;
     if (key === "--session-db-max-conns") parsed.sessionDbMaxConns = value;
+    if (key === "--gateway-count") parsed.gatewayCount = value;
     if (key === "--timeout") parsed.timeout = value;
     if (key === "--startup-timeout-ms") parsed.startupTimeoutMs = value;
     index += 1;
@@ -62,6 +64,9 @@ export function buildFailureReport({
     concurrency: parseIntegerOption(options.concurrency),
     operationsPerPhase: parseIntegerOption(options.operations),
     sessionDbMaxConns: parseIntegerOption(options.sessionDbMaxConns),
+    gatewayCount: gatewayCount(options),
+    gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
+    loadBalancingStrategy: gatewayCount(options) > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY",
     dockerRequiredForEvidence: true,
     exitCode,
     errorMessage: sanitizedError || `identity HTTP benchmark exited with code ${exitCode}`,
@@ -85,6 +90,15 @@ export function tailText(value, maxLines = 80) {
   return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
 }
 
+export function gatewayBaseUrls(options) {
+  const count = gatewayCount(options);
+  const urls = [];
+  for (let index = 0; index < count; index += 1) {
+    urls.push(gatewayBaseUrlAt(options, index));
+  }
+  return urls;
+}
+
 export function writeJsonReport(outPath, report) {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -92,49 +106,39 @@ export function writeJsonReport(outPath, report) {
 
 export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dependencies = {}) {
   const options = parseArgs(argv);
+  const baseUrls = gatewayBaseUrls(options);
   const spawnProcess = dependencies.spawn ?? spawn;
   const spawnCommandSync = dependencies.spawnSync ?? spawnSync;
   const sleepFn = dependencies.sleep ?? sleep;
   const fetchFn = dependencies.fetch ?? fetch;
-  const gateway = spawnProcess(
-    "go",
-    ["run", "./services/identity-access-gateway/cmd/gateway"],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        PORT: options.port,
-        SESSION_DATABASE_URL: options.dsn,
-        SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
-        BOOTSTRAP_PASSWORD: "ueacd",
-        CHANNEL_SIGNATURE_SECRET: "ueacd",
-      },
-    },
-  );
-
-  let gatewayOutput = "";
-  gateway.stdout?.on("data", (chunk) => {
-    gatewayOutput += chunk.toString();
-  });
-  gateway.stderr?.on("data", (chunk) => {
-    gatewayOutput += chunk.toString();
-  });
+  const gateways = baseUrls.map((baseUrl) => spawnGateway(baseUrl, options, spawnProcess));
+  const gatewayOutputs = gateways.map(() => "");
+  for (const [index, gateway] of gateways.entries()) {
+    gateway.stdout?.on("data", (chunk) => {
+      gatewayOutputs[index] += chunk.toString();
+    });
+    gateway.stderr?.on("data", (chunk) => {
+      gatewayOutputs[index] += chunk.toString();
+    });
+  }
 
   let exitCode = 1;
   try {
-    await waitForGateway(
-      options.baseUrl,
-      Number.parseInt(options.startupTimeoutMs, 10),
-      gateway,
-      { fetch: fetchFn, sleep: sleepFn },
-    );
+    for (const [index, gateway] of gateways.entries()) {
+      await waitForGateway(
+        baseUrls[index],
+        Number.parseInt(options.startupTimeoutMs, 10),
+        gateway,
+        { fetch: fetchFn, sleep: sleepFn },
+      );
+    }
     const result = spawnCommandSync(
       "go",
       [
         "run",
         "./services/identity-access-gateway/cmd/httpbench",
         "-base-url",
-        options.baseUrl,
+        baseUrls.join(","),
         "-out",
         options.out,
         "-concurrency",
@@ -158,15 +162,16 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
       writeFailureReport(options, {
         exitCode,
         errorMessage: message,
-        gatewayOutput,
+        gatewayOutput: combineGatewayOutput(gatewayOutputs),
         benchmarkOutput,
-        gatewayExitCode: gateway.exitCode,
-        gatewaySignal: gateway.signalCode,
+        gatewayExitCode: gatewayExitCodes(gateways),
+        gatewaySignal: gatewaySignals(gateways),
       });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(maskSensitive(message));
+    const gatewayOutput = combineGatewayOutput(gatewayOutputs);
     if (gatewayOutput.trim()) {
       console.error(maskSensitive(gatewayOutput.trim()));
     }
@@ -174,12 +179,14 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
       exitCode: 1,
       errorMessage: message,
       gatewayOutput,
-      gatewayExitCode: gateway.exitCode,
-      gatewaySignal: gateway.signalCode,
+      gatewayExitCode: gatewayExitCodes(gateways),
+      gatewaySignal: gatewaySignals(gateways),
     });
     exitCode = 1;
   } finally {
-    stopGateway(gateway, spawnCommandSync);
+    for (const gateway of gateways) {
+      stopGateway(gateway, spawnCommandSync);
+    }
     await sleepFn(500);
   }
 
@@ -210,6 +217,24 @@ export async function waitForGateway(baseUrl, startupTimeoutMs, processHandle, d
 function writeFailureReport(options, details) {
   const report = buildFailureReport({ options, ...details });
   writeJsonReport(options.out, report);
+}
+
+function spawnGateway(baseUrl, options, spawnProcess) {
+  return spawnProcess(
+    "go",
+    ["run", "./services/identity-access-gateway/cmd/gateway"],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        PORT: gatewayPort(baseUrl, options.port),
+        SESSION_DATABASE_URL: options.dsn,
+        SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
+        BOOTSTRAP_PASSWORD: "ueacd",
+        CHANNEL_SIGNATURE_SECRET: "ueacd",
+      },
+    },
+  );
 }
 
 function replayCapturedOutput(result) {
@@ -243,6 +268,53 @@ function maskURL(value) {
   } catch {
     return value;
   }
+}
+
+function gatewayCount(options) {
+  return Math.max(1, parseIntegerOption(options.gatewayCount));
+}
+
+function gatewayBaseUrlAt(options, index) {
+  try {
+    const parsed = new URL(options.baseUrl);
+    const basePort = Number.parseInt(parsed.port || options.port, 10);
+    if (!Number.isNaN(basePort)) {
+      parsed.port = String(basePort + index);
+    }
+    return trimURL(parsed.toString());
+  } catch {
+    return options.baseUrl;
+  }
+}
+
+function gatewayPort(baseUrl, fallback) {
+  try {
+    const parsed = new URL(baseUrl);
+    return parsed.port || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function gatewayExitCodes(gateways) {
+  const values = gateways.map((gateway) => gateway.exitCode);
+  return values.length === 1 ? values[0] : values;
+}
+
+function gatewaySignals(gateways) {
+  const values = gateways.map((gateway) => gateway.signalCode);
+  return values.length === 1 ? values[0] : values;
+}
+
+function combineGatewayOutput(outputs) {
+  return outputs
+    .map((output, index) => output.trim() ? `[gateway ${index + 1}]\n${output.trim()}` : "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+function trimURL(value) {
+  return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
 function maskSensitive(value) {

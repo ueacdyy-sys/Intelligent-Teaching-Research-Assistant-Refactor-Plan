@@ -34,6 +34,9 @@ type benchmarkReport struct {
 	WorkloadType       string                 `json:"workloadType"`
 	Status             string                 `json:"status"`
 	BaseURL            string                 `json:"baseUrl"`
+	GatewayCount       int                    `json:"gatewayCount"`
+	GatewayBaseURLs    []string               `json:"gatewayBaseUrls"`
+	LoadBalancing      string                 `json:"loadBalancingStrategy"`
 	Concurrency        int                    `json:"concurrency"`
 	OperationsPerPhase int                    `json:"operationsPerPhase"`
 	TotalDurationMS    float64                `json:"totalDurationMs"`
@@ -100,7 +103,10 @@ func run(config benchmarkConfig) error {
 	if config.OperationsPerPhase < 1 {
 		return errors.New("operations must be positive")
 	}
-	baseURL := strings.TrimRight(config.BaseURL, "/")
+	baseURLs, err := parseBaseURLs(config.BaseURL)
+	if err != nil {
+		return err
+	}
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
@@ -112,24 +118,26 @@ func run(config benchmarkConfig) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
-	if err := waitHealth(ctx, client, baseURL); err != nil {
-		return err
+	for _, baseURL := range baseURLs {
+		if err := waitHealth(ctx, client, baseURL); err != nil {
+			return err
+		}
 	}
 
 	start := time.Now()
-	loginPhase, err := runPasswordLoginPhase(ctx, client, baseURL, config)
+	loginPhase, err := runPasswordLoginPhase(ctx, client, baseURLs, config)
 	if err != nil {
 		return err
 	}
-	lookupPhase, err := runPrincipalLookupPhase(ctx, client, baseURL, config)
+	lookupPhase, err := runPrincipalLookupPhase(ctx, client, baseURLs, config)
 	if err != nil {
 		return err
 	}
-	refreshPhase, err := runRefreshRotationPhase(ctx, client, baseURL, config)
+	refreshPhase, err := runRefreshRotationPhase(ctx, client, baseURLs, config)
 	if err != nil {
 		return err
 	}
-	revokePhase, err := runRevokeCyclePhase(ctx, client, baseURL, config)
+	revokePhase, err := runRevokeCyclePhase(ctx, client, baseURLs, config)
 	if err != nil {
 		return err
 	}
@@ -139,7 +147,10 @@ func run(config benchmarkConfig) error {
 		BenchmarkKind:      "identity_http_gateway",
 		WorkloadType:       "HTTP_BENCHMARK",
 		Status:             "PASSED",
-		BaseURL:            maskURL(baseURL),
+		BaseURL:            maskURL(baseURLs[0]),
+		GatewayCount:       len(baseURLs),
+		GatewayBaseURLs:    maskURLs(baseURLs),
+		LoadBalancing:      loadBalancingStrategy(baseURLs),
 		Concurrency:        config.Concurrency,
 		OperationsPerPhase: config.OperationsPerPhase,
 		TotalDurationMS:    roundMillis(time.Since(start)),
@@ -166,11 +177,11 @@ func run(config benchmarkConfig) error {
 	return nil
 }
 
-func runPasswordLoginPhase(ctx context.Context, client *http.Client, baseURL string, config benchmarkConfig) (phaseReport, error) {
+func runPasswordLoginPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
 	var sessionsMu sync.Mutex
 	sessions := make([]sessionState, 0, config.OperationsPerPhase)
 	phase, firstErr := runPhase("passwordLogin", config.Concurrency, config.OperationsPerPhase, func(_ int, opIndex int) error {
-		session, err := login(ctx, client, baseURL, fmt.Sprintf("teacher-login-%d@example.com", opIndex), "TEACHER", "DESKTOP_TEACHER")
+		session, err := login(ctx, client, baseURLForOperation(baseURLs, opIndex), fmt.Sprintf("teacher-login-%d@example.com", opIndex), "TEACHER", "DESKTOP_TEACHER")
 		if err != nil {
 			return err
 		}
@@ -179,41 +190,41 @@ func runPasswordLoginPhase(ctx context.Context, client *http.Client, baseURL str
 		sessionsMu.Unlock()
 		return nil
 	})
-	cleanupByRevoke(ctx, client, baseURL, sessions)
+	cleanupByRevoke(ctx, client, baseURLs, sessions)
 	return phase, phaseError("passwordLogin", phase, firstErr)
 }
 
-func runPrincipalLookupPhase(ctx context.Context, client *http.Client, baseURL string, config benchmarkConfig) (phaseReport, error) {
+func runPrincipalLookupPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
 	tokenCount := maxInt(config.Concurrency*2, 128)
 	sessions := make([]sessionState, tokenCount)
 	for index := 0; index < tokenCount; index++ {
-		session, err := login(ctx, client, baseURL, fmt.Sprintf("teacher-lookup-%d@example.com", index), "TEACHER", "DESKTOP_TEACHER")
+		session, err := login(ctx, client, baseURLForOperation(baseURLs, index), fmt.Sprintf("teacher-lookup-%d@example.com", index), "TEACHER", "DESKTOP_TEACHER")
 		if err != nil {
 			return phaseReport{}, fmt.Errorf("seed lookup session: %w", err)
 		}
 		sessions[index] = session
 	}
-	defer cleanupByRevoke(context.Background(), client, baseURL, sessions)
+	defer cleanupByRevoke(context.Background(), client, baseURLs, sessions)
 
 	phase, firstErr := runPhase("principalLookup", config.Concurrency, config.OperationsPerPhase, func(_ int, opIndex int) error {
-		return getPrincipal(ctx, client, baseURL, sessions[opIndex%len(sessions)].AccessToken)
+		return getPrincipal(ctx, client, baseURLForOperation(baseURLs, opIndex), sessions[opIndex%len(sessions)].AccessToken)
 	})
 	return phase, phaseError("principalLookup", phase, firstErr)
 }
 
-func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURL string, config benchmarkConfig) (phaseReport, error) {
+func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
 	states := make([]sessionState, config.Concurrency)
 	for worker := range states {
-		session, err := login(ctx, client, baseURL, fmt.Sprintf("teacher-refresh-%d@example.com", worker), "TEACHER", "DESKTOP_RESEARCH")
+		session, err := login(ctx, client, baseURLForOperation(baseURLs, worker), fmt.Sprintf("teacher-refresh-%d@example.com", worker), "TEACHER", "DESKTOP_RESEARCH")
 		if err != nil {
 			return phaseReport{}, fmt.Errorf("seed refresh session: %w", err)
 		}
 		states[worker] = session
 	}
-	defer cleanupByRevoke(context.Background(), client, baseURL, states)
+	defer cleanupByRevoke(context.Background(), client, baseURLs, states)
 
 	phase, firstErr := runPhase("refreshRotation", config.Concurrency, config.OperationsPerPhase, func(workerID int, _ int) error {
-		session, err := refreshSession(ctx, client, baseURL, states[workerID].RefreshToken)
+		session, err := refreshSession(ctx, client, baseURLForOperation(baseURLs, workerID), states[workerID].RefreshToken)
 		if err != nil {
 			return err
 		}
@@ -223,8 +234,9 @@ func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURL s
 	return phase, phaseError("refreshRotation", phase, firstErr)
 }
 
-func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURL string, config benchmarkConfig) (phaseReport, error) {
+func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
 	phase, firstErr := runPhase("revokeCycle", config.Concurrency, config.OperationsPerPhase, func(_ int, opIndex int) error {
+		baseURL := baseURLForOperation(baseURLs, opIndex)
 		session, err := login(ctx, client, baseURL, fmt.Sprintf("student-revoke-%d", opIndex), "STUDENT", "STUDENT_APP")
 		if err != nil {
 			return err
@@ -465,12 +477,12 @@ func doJSON(ctx context.Context, client *http.Client, method string, endpoint st
 	return nil
 }
 
-func cleanupByRevoke(ctx context.Context, client *http.Client, baseURL string, sessions []sessionState) {
-	for _, session := range sessions {
+func cleanupByRevoke(ctx context.Context, client *http.Client, baseURLs []string, sessions []sessionState) {
+	for index, session := range sessions {
 		if session.AccessToken == "" || session.SessionID == "" {
 			continue
 		}
-		_ = revokeSession(ctx, client, baseURL, session)
+		_ = revokeSession(ctx, client, baseURLForOperation(baseURLs, index), session)
 	}
 }
 
@@ -494,6 +506,50 @@ func maskURL(value string) string {
 	withoutUser.User = nil
 	prefix := parsed.Scheme + "://"
 	return prefix + username + ":***@" + strings.TrimPrefix(withoutUser.String(), prefix)
+}
+
+func maskURLs(values []string) []string {
+	masked := make([]string, 0, len(values))
+	for _, value := range values {
+		masked = append(masked, maskURL(value))
+	}
+	return masked
+}
+
+func parseBaseURLs(value string) ([]string, error) {
+	var baseURLs []string
+	for _, part := range strings.Split(value, ",") {
+		baseURL := strings.TrimRight(strings.TrimSpace(part), "/")
+		if baseURL == "" {
+			continue
+		}
+		parsed, err := url.Parse(baseURL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return nil, fmt.Errorf("invalid base-url: %q", baseURL)
+		}
+		baseURLs = append(baseURLs, baseURL)
+	}
+	if len(baseURLs) == 0 {
+		return nil, errors.New("base-url or IDENTITY_HTTP_BENCHMARK_BASE_URL is required")
+	}
+	return baseURLs, nil
+}
+
+func baseURLForOperation(baseURLs []string, opIndex int) string {
+	if len(baseURLs) == 0 {
+		return ""
+	}
+	if opIndex < 0 {
+		return baseURLs[0]
+	}
+	return baseURLs[opIndex%len(baseURLs)]
+}
+
+func loadBalancingStrategy(baseURLs []string) string {
+	if len(baseURLs) > 1 {
+		return "ROUND_ROBIN"
+	}
+	return "SINGLE_GATEWAY"
 }
 
 func roundMillis(duration time.Duration) float64 {
