@@ -13,13 +13,23 @@ func (r *ArchiveRepository) ListQuizSubmissions(
 	query domain.QuizSubmissionQuery,
 ) ([]domain.QuizSubmission, error) {
 	args := make([]any, 0, 6)
-	clauses := []string{"quiz_archive_item_id = " + nextArg(&args, query.QuizArchiveItemID)}
+	clauses := make([]string, 0, 4)
+	scopeFilters := 0
 
+	if query.QuizArchiveItemID != "" {
+		clauses = append(clauses, "quiz_archive_item_id = "+nextArg(&args, query.QuizArchiveItemID))
+		scopeFilters++
+	}
 	if query.StudentID != "" {
 		clauses = append(clauses, "student_id = "+nextArg(&args, query.StudentID))
+		scopeFilters++
 	}
 	if len(query.StudentIDs) > 0 {
 		clauses = append(clauses, "student_id = ANY("+nextArg(&args, query.StudentIDs)+")")
+		scopeFilters++
+	}
+	if scopeFilters == 0 {
+		return nil, fmt.Errorf("quiz submission query requires at least one scope filter")
 	}
 	if query.Cursor != nil {
 		submittedAtArg := nextArg(&args, query.Cursor.SubmittedAt)

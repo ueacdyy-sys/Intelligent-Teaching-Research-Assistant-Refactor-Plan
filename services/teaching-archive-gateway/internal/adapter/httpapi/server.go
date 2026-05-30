@@ -9,6 +9,7 @@ type Server struct {
 	listStudentAppArchiveItems      *usecase.ListStudentAppArchiveItems
 	createStudentAppAITutorRequest  *usecase.CreateStudentAppAITutorRequest
 	listStudentAppAITutorRequests   *usecase.ListStudentAppAITutorRequests
+	listStudentAppQuizSubmissions   *usecase.ListStudentAppQuizSubmissions
 	createQuizSubmission            *usecase.CreateQuizSubmission
 	listQuizSubmissions             *usecase.ListQuizSubmissions
 	createAIGradingRequest          *usecase.CreateAIGradingRequest
@@ -40,6 +41,7 @@ func NewServer(config ServerConfig) *Server {
 		listStudentAppArchiveItems:      config.ListStudentAppArchiveItems,
 		createStudentAppAITutorRequest:  config.CreateStudentAppAITutorRequest,
 		listStudentAppAITutorRequests:   config.ListStudentAppAITutorRequests,
+		listStudentAppQuizSubmissions:   config.ListStudentAppQuizSubmissions,
 		createQuizSubmission:            config.CreateQuizSubmission,
 		listQuizSubmissions:             config.ListQuizSubmissions,
 		createAIGradingRequest:          config.CreateAIGradingRequest,

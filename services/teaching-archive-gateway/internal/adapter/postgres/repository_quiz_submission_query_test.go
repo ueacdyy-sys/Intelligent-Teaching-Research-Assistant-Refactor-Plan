@@ -47,6 +47,55 @@ func TestListQuizSubmissionsBuildsScopedIndexedQuery(t *testing.T) {
 	}
 }
 
+func TestListQuizSubmissionsBuildsStudentOnlyIndexedQuery(t *testing.T) {
+	db := &recordingDB{rows: &singleQuizSubmissionRow{}}
+	repository := postgres.NewArchiveRepository(db)
+
+	_, err := repository.ListQuizSubmissions(context.Background(), domain.QuizSubmissionQuery{
+		StudentID:  "student_001",
+		FetchLimit: 3,
+	})
+	if err != nil {
+		t.Fatalf("ListQuizSubmissions returned error: %v", err)
+	}
+
+	for _, fragment := range []string{
+		"FROM teaching_quiz_submissions",
+		"student_id = $1",
+		"ORDER BY submitted_at DESC, id DESC",
+		"LIMIT $2",
+	} {
+		if !strings.Contains(db.lastSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastSQL)
+		}
+	}
+	if strings.Contains(db.lastSQL, "quiz_archive_item_id =") {
+		t.Fatalf("SQL used unexpected quiz predicate: %s", db.lastSQL)
+	}
+	if len(db.args) != 2 {
+		t.Fatalf("args = %d, want 2", len(db.args))
+	}
+}
+
+func TestListQuizSubmissionsRejectsCursorOnlyQuery(t *testing.T) {
+	db := &recordingDB{rows: &singleQuizSubmissionRow{}}
+	repository := postgres.NewArchiveRepository(db)
+
+	_, err := repository.ListQuizSubmissions(context.Background(), domain.QuizSubmissionQuery{
+		FetchLimit: 3,
+		Cursor: &domain.QuizSubmissionCursor{
+			SubmittedAt: time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC),
+			ID:          "quiz_sub_cursor",
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected cursor-only query to fail")
+	}
+	if db.lastSQL != "" {
+		t.Fatalf("unexpected SQL executed: %s", db.lastSQL)
+	}
+}
+
 func TestGetQuizSubmissionByIDSelectsMetadataOnly(t *testing.T) {
 	db := &recordingDB{rows: &singleQuizSubmissionRow{}}
 	repository := postgres.NewArchiveRepository(db)

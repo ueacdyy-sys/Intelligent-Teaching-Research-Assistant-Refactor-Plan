@@ -9,6 +9,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	mux.HandleFunc("/v1/student-app/teaching-materials", s.studentAppTeachingMaterials)
 	mux.HandleFunc("/v1/student-app/archive-items", s.studentAppArchiveItems)
+	mux.HandleFunc("/v1/student-app/quiz-submissions", s.studentAppQuizSubmissions)
 	mux.HandleFunc("/v1/student-app/ai-tutor-requests", s.studentAppAITutorRequests)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests", s.aiGradingRequests)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests/", s.aiGradingRequestSubresources)

@@ -36,6 +36,7 @@ func main() {
 	listArchiveItems := usecase.NewListArchiveItems(archiveRepository)
 	listStudentAppTeachingMaterials := usecase.NewListStudentAppTeachingMaterials(archiveRepository)
 	listStudentAppArchiveItems := usecase.NewListStudentAppArchiveItems(archiveRepository)
+	listStudentAppQuizSubmissions := usecase.NewListStudentAppQuizSubmissions(archiveRepository)
 	createStudentAppAITutorRequest := usecase.NewCreateStudentAppAITutorRequest(
 		archiveRepository,
 		platform.TutoringRequestIDGenerator{},
@@ -120,6 +121,7 @@ func main() {
 			ListArchiveItems:                listArchiveItems,
 			ListStudentAppTeachingMaterials: listStudentAppTeachingMaterials,
 			ListStudentAppArchiveItems:      listStudentAppArchiveItems,
+			ListStudentAppQuizSubmissions:   listStudentAppQuizSubmissions,
 			CreateStudentAppAITutorRequest:  createStudentAppAITutorRequest,
 			ListStudentAppAITutorRequests:   listStudentAppAITutorRequests,
 			CreateAIGradingRequest:          createAIGradingRequest,
