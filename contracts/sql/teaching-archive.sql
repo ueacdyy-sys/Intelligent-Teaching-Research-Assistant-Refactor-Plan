@@ -73,6 +73,24 @@ CREATE INDEX IF NOT EXISTS idx_teaching_attendance_sessions_class_created
 CREATE INDEX IF NOT EXISTS idx_teaching_attendance_sessions_status_created
     ON teaching_attendance_sessions (status, created_at DESC, id DESC);
 
+CREATE TABLE IF NOT EXISTS teaching_attendance_records (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES teaching_attendance_sessions(id),
+    student_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    recorded_by_principal_id TEXT NOT NULL,
+    sign_time TIMESTAMPTZ,
+    note TEXT,
+    created_at TIMESTAMPTZ NOT NULL,
+    UNIQUE (session_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_attendance_records_session_created
+    ON teaching_attendance_records (session_id, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_attendance_records_student_created
+    ON teaching_attendance_records (student_id, created_at DESC, id DESC);
+
 CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
     id TEXT PRIMARY KEY,
     archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),

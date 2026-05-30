@@ -55,6 +55,19 @@ func parseQuizSubmissionAIGradingRequestPath(path string) (string, string, bool)
 	return parts[0], parts[2], true
 }
 
+func parseAttendanceSessionRecordsPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/attendance-sessions/"
+	const suffix = "/records"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	sessionID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if sessionID == "" || strings.Contains(sessionID, "/") {
+		return "", false
+	}
+	return sessionID, true
+}
+
 func parseAIGradingWorkerClaimPath(path string) bool {
 	return path == "/v1/teaching/ai-grading-requests/worker-claims"
 }

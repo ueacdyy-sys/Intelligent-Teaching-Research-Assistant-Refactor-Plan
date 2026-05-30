@@ -17,6 +17,7 @@ type Server struct {
 	claimTutoringAnalysisRequest  *usecase.ClaimTutoringAnalysisRequest
 	recordTutoringAnalysisResult  *usecase.RecordTutoringAnalysisResult
 	createAttendanceSession       *usecase.CreateAttendanceSession
+	createAttendanceRecord        *usecase.CreateAttendanceRecord
 	agentAPIKey                   string
 }
 
@@ -35,6 +36,7 @@ func NewServer(
 	createQuizSubmission *usecase.CreateQuizSubmission,
 	listQuizSubmissions *usecase.ListQuizSubmissions,
 	createAttendanceSession *usecase.CreateAttendanceSession,
+	createAttendanceRecord *usecase.CreateAttendanceRecord,
 	agentAPIKey string,
 ) *Server {
 	return &Server{
@@ -52,6 +54,7 @@ func NewServer(
 		claimTutoringAnalysisRequest:  claimTutoringAnalysisRequest,
 		recordTutoringAnalysisResult:  recordTutoringAnalysisResult,
 		createAttendanceSession:       createAttendanceSession,
+		createAttendanceRecord:        createAttendanceRecord,
 		agentAPIKey:                   agentAPIKey,
 	}
 }

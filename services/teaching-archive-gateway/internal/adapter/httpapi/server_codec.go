@@ -59,8 +59,12 @@ func handleArchiveError(w http.ResponseWriter, err error, internalMessage string
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid principal context")
 	case errors.Is(err, domain.ErrForbidden):
 		writeError(w, http.StatusForbidden, "FORBIDDEN", err.Error())
+	case errors.Is(err, domain.ErrAttendanceSessionNotFound):
+		writeError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrNotFound):
 		writeError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+	case errors.Is(err, domain.ErrAttendanceSessionNotActive):
+		writeError(w, http.StatusConflict, "CONFLICT", err.Error())
 	case errors.Is(err, domain.ErrConflict):
 		writeError(w, http.StatusConflict, "CONFLICT", err.Error())
 	default:

@@ -8,11 +8,23 @@ import (
 	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/adapter/httpapi"
+	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
-func TestCreateAttendanceSessionReturnsCreatedResponse(t *testing.T) {
-	store := &fakeRepository{}
+func TestCreateAttendanceRecordReturnsCreatedResponse(t *testing.T) {
+	store := &fakeRepository{
+		attendanceSessions: []domain.AttendanceSession{
+			{
+				ID:                   "att_sess_http",
+				SessionType:          domain.AttendanceSessionTypeQRCode,
+				ExpectedStudentCount: 42,
+				Status:               domain.AttendanceSessionStatusActive,
+				CreatedByPrincipalID: "teacher_001",
+				CreatedAt:            time.Date(2026, 5, 30, 12, 0, 0, 0, time.UTC),
+			},
+		},
+	}
 	handler := httpapi.NewServer(
 		usecase.NewCreateArchiveItem(store, fixedIDs{id: "tarch_http"}, fixedClock{}),
 		usecase.NewListArchiveItems(store),
@@ -27,14 +39,14 @@ func TestCreateAttendanceSessionReturnsCreatedResponse(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{now: time.Date(2026, 5, 30, 12, 0, 0, 0, time.UTC)}),
-		nil,
+		usecase.NewCreateAttendanceSession(store, fixedIDs{id: "att_sess_http"}, fixedClock{}),
+		usecase.NewCreateAttendanceRecord(store, fixedIDs{id: "att_rec_http"}, fixedClock{now: time.Date(2026, 5, 30, 12, 5, 0, 0, time.UTC)}),
 		"ueacd",
 	).Handler()
 	request := httptest.NewRequest(
 		http.MethodPost,
-		"/v1/teaching/attendance-sessions",
-		bytes.NewBufferString(`{"sessionType":"QRCODE","className":"Class A","expectedStudentCount":42,"configRef":"local://attendance/qrcode/class-a.json"}`),
+		"/v1/teaching/attendance-sessions/att_sess_http/records",
+		bytes.NewBufferString(`{"studentId":" student_001 ","status":"present","note":" Arrived "}`),
 	)
 	request.Header.Set("X-Agent-Api-Key", "ueacd")
 	setPrincipalHeader(t, request, teacherPrincipal())
@@ -46,23 +58,19 @@ func TestCreateAttendanceSessionReturnsCreatedResponse(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`"id":"att_sess_http"`),
-		[]byte(`"sessionType":"QRCODE"`),
-		[]byte(`"className":"Class A"`),
-		[]byte(`"expectedStudentCount":42`),
-		[]byte(`"presentCount":0`),
-		[]byte(`"status":"ACTIVE"`),
-		[]byte(`"createdByPrincipalId":"teacher_001"`),
+		[]byte(`"id":"att_rec_http"`),
+		[]byte(`"sessionId":"att_sess_http"`),
+		[]byte(`"studentId":"student_001"`),
+		[]byte(`"status":"PRESENT"`),
+		[]byte(`"recordedByPrincipalId":"teacher_001"`),
+		[]byte(`"signTime":"2026-05-30T12:05:00Z"`),
+		[]byte(`"note":"Arrived"`),
 	} {
 		if !bytes.Contains(response.Body.Bytes(), fragment) {
 			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
 		}
 	}
-	if len(store.attendanceSessions) != 1 {
-		t.Fatalf("attendanceSessions = %d", len(store.attendanceSessions))
+	if len(store.attendanceRecords) != 1 {
+		t.Fatalf("attendanceRecords = %d", len(store.attendanceRecords))
 	}
-}
-
-func listAIGradingRequestsNoop(store *fakeRepository) *usecase.ListAIGradingRequests {
-	return usecase.NewListAIGradingRequests(store)
 }

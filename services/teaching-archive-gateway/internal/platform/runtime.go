@@ -61,3 +61,13 @@ func (AttendanceSessionIDGenerator) NewID() string {
 	}
 	return "att_sess_" + base64.RawURLEncoding.EncodeToString(buffer)
 }
+
+type AttendanceRecordIDGenerator struct{}
+
+func (AttendanceRecordIDGenerator) NewID() string {
+	buffer := make([]byte, 18)
+	if _, err := rand.Read(buffer); err != nil {
+		panic(err)
+	}
+	return "att_rec_" + base64.RawURLEncoding.EncodeToString(buffer)
+}

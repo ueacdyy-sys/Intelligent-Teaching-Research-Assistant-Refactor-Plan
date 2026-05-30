@@ -70,6 +70,7 @@ func newTestHandler() http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
@@ -122,6 +123,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		listTutoringRequests,
 		claimTutoringRequest,
 		recordTutoringResult,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -219,6 +221,7 @@ type fakeRepository struct {
 	gradingRequests    []domain.AIGradingRequest
 	quizSubmissions    []domain.QuizSubmission
 	attendanceSessions []domain.AttendanceSession
+	attendanceRecords  []domain.AttendanceRecord
 }
 
 func (f *fakeRepository) Create(_ context.Context, _ domain.ArchiveItem) error {
@@ -270,6 +273,31 @@ func (f *fakeRepository) CreateAIGradingRequest(_ context.Context, request domai
 func (f *fakeRepository) CreateAttendanceSession(_ context.Context, session domain.AttendanceSession) error {
 	f.attendanceSessions = append(f.attendanceSessions, session)
 	return nil
+}
+
+func (f *fakeRepository) GetAttendanceSessionByID(
+	_ context.Context,
+	id string,
+) (domain.AttendanceSession, bool, error) {
+	for _, session := range f.attendanceSessions {
+		if session.ID == id {
+			return session, true, nil
+		}
+	}
+	return domain.AttendanceSession{}, false, nil
+}
+
+func (f *fakeRepository) CreateAttendanceRecord(
+	_ context.Context,
+	record domain.AttendanceRecord,
+) (domain.AttendanceRecord, bool, error) {
+	for _, existing := range f.attendanceRecords {
+		if existing.SessionID == record.SessionID && existing.StudentID == record.StudentID {
+			return existing, false, nil
+		}
+	}
+	f.attendanceRecords = append(f.attendanceRecords, record)
+	return record, true, nil
 }
 
 func (f *fakeRepository) ListTutoringAnalysisRequests(

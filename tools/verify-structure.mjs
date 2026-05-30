@@ -56,6 +56,7 @@ const required = [
   "docs/sdd/0048-teaching-archive-quiz-submission-ai-grading-bridge.md",
   "docs/sdd/0049-teaching-attendance-session-intake.md",
   "docs/sdd/0050-teaching-archive-contract-http-headroom-split.md",
+  "docs/sdd/0051-teaching-attendance-record-intake.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -65,6 +66,7 @@ const required = [
   "contracts/openapi/teaching-archive.archive-item-tutoring-analysis-requests.path.yaml",
   "contracts/openapi/teaching-archive.archive-item-ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.attendance-sessions.path.yaml",
+  "contracts/openapi/teaching-archive.attendance-session-records.path.yaml",
   "contracts/openapi/teaching-archive.quiz-submissions.path.yaml",
   "contracts/openapi/teaching-archive.quiz-submission-ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-requests.path.yaml",
@@ -124,6 +126,8 @@ const required = [
   "services/teaching-archive-gateway/internal/domain/ai_grading_result.go",
   "services/teaching-archive-gateway/internal/domain/ai_grading_result_test.go",
   "services/teaching-archive-gateway/internal/domain/archive_query.go",
+  "services/teaching-archive-gateway/internal/domain/attendance_record.go",
+  "services/teaching-archive-gateway/internal/domain/attendance_record_test.go",
   "services/teaching-archive-gateway/internal/domain/principal.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_query.go",
   "services/teaching-archive-gateway/internal/domain/tutoring_analysis_claim.go",
@@ -143,6 +147,8 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/create_quiz_submission_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/usecase/create_attendance_session.go",
   "services/teaching-archive-gateway/internal/usecase/create_attendance_session_test.go",
+  "services/teaching-archive-gateway/internal/usecase/create_attendance_record.go",
+  "services/teaching-archive-gateway/internal/usecase/create_attendance_record_test.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests.go",
   "services/teaching-archive-gateway/internal/usecase/list_ai_grading_requests_test.go",
   "services/teaching-archive-gateway/internal/usecase/claim_ai_grading_request.go",
@@ -163,6 +169,8 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_routes.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_archive_items.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_tutoring_analysis.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_attendance_record.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_attendance_record_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query_test.go",
@@ -186,6 +194,8 @@ const required = [
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_quiz_submission_query.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_quiz_submission_query_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_tutoring_analysis.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_attendance_record.go",
+  "services/teaching-archive-gateway/internal/adapter/postgres/repository_attendance_record_test.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_ai_grading_request.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_scanners.go",
   "services/teaching-archive-gateway/internal/adapter/postgres/repository_helpers.go",
@@ -719,6 +729,17 @@ const teachingArchiveContractHTTPHeadroomSdd = fs.readFileSync(
 for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
   if (!teachingArchiveContractHTTPHeadroomSdd.includes(heading)) {
     console.error(`SDD 0050 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
+const teachingAttendanceRecordSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0051-teaching-attendance-record-intake.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingAttendanceRecordSdd.includes(heading)) {
+    console.error(`SDD 0051 missing heading: ${heading}`);
     process.exit(1);
   }
 }
