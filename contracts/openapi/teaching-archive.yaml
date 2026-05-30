@@ -20,6 +20,8 @@ paths:
     $ref: './teaching-archive.quiz-scan-submissions.path.yaml'
   /v1/student-app/teaching-materials:
     $ref: './teaching-archive.student-app-teaching-materials.path.yaml'
+  /v1/student-app/ai-tutor-requests:
+    $ref: './teaching-archive.student-app-ai-tutor-requests.path.yaml'
   /v1/teaching/attendance-sessions:
     $ref: './teaching-archive.attendance-sessions.path.yaml'
   /v1/teaching/attendance-sessions/{sessionId}/records:
@@ -148,6 +150,24 @@ components:
         questionBankIntent:
           $ref: '#/components/schemas/QuestionBankIntent'
           default: NONE
+    CreateStudentAppAITutorRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - studentArchiveItemId
+        - analysisGoal
+      properties:
+        studentArchiveItemId:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        analysisGoal:
+          type: string
+          minLength: 1
+          maxLength: 500
+        questionBankIntent:
+          $ref: '#/components/schemas/QuestionBankIntent'
+          default: GENERATE_PERSONALIZED_CHECK
     CreateAIGradingRequest:
       type: object
       additionalProperties: false

@@ -6,6 +6,7 @@ type Server struct {
 	createArchiveItem               *usecase.CreateArchiveItem
 	listArchiveItems                *usecase.ListArchiveItems
 	listStudentAppTeachingMaterials *usecase.ListStudentAppTeachingMaterials
+	createStudentAppAITutorRequest  *usecase.CreateStudentAppAITutorRequest
 	createQuizSubmission            *usecase.CreateQuizSubmission
 	listQuizSubmissions             *usecase.ListQuizSubmissions
 	createAIGradingRequest          *usecase.CreateAIGradingRequest
@@ -34,6 +35,7 @@ func NewServer(config ServerConfig) *Server {
 		createArchiveItem:               config.CreateArchiveItem,
 		listArchiveItems:                config.ListArchiveItems,
 		listStudentAppTeachingMaterials: config.ListStudentAppTeachingMaterials,
+		createStudentAppAITutorRequest:  config.CreateStudentAppAITutorRequest,
 		createQuizSubmission:            config.CreateQuizSubmission,
 		listQuizSubmissions:             config.ListQuizSubmissions,
 		createAIGradingRequest:          config.CreateAIGradingRequest,

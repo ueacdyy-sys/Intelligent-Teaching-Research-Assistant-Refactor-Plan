@@ -6,6 +6,7 @@ type ServerConfig struct {
 	CreateArchiveItem               *usecase.CreateArchiveItem
 	ListArchiveItems                *usecase.ListArchiveItems
 	ListStudentAppTeachingMaterials *usecase.ListStudentAppTeachingMaterials
+	CreateStudentAppAITutorRequest  *usecase.CreateStudentAppAITutorRequest
 	CreateQuizSubmission            *usecase.CreateQuizSubmission
 	ListQuizSubmissions             *usecase.ListQuizSubmissions
 	CreateAIGradingRequest          *usecase.CreateAIGradingRequest

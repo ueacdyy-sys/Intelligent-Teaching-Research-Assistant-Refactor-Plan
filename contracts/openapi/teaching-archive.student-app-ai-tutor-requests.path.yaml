@@ -1,0 +1,28 @@
+post:
+  operationId: createStudentAppAITutorRequest
+  summary: Queue an AI tutor analysis job for the authenticated student's archive material.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: './teaching-archive.yaml#/components/schemas/CreateStudentAppAITutorRequest'
+  responses:
+    '201':
+      description: AI tutor job queued as a tutoring analysis request.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/TutoringAnalysisRequestResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
