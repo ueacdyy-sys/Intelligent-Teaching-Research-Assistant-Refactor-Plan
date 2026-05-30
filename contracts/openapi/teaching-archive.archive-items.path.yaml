@@ -1,0 +1,78 @@
+get:
+  operationId: listTeachingArchiveItems
+  summary: List archive metadata for student learning materials or teaching materials.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: ownerType
+      in: query
+      required: false
+      schema:
+        $ref: './teaching-archive.yaml#/components/schemas/ArchiveOwnerType'
+    - name: studentId
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    - name: materialType
+      in: query
+      required: false
+      schema:
+        $ref: './teaching-archive.yaml#/components/schemas/ArchiveMaterialType'
+    - name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: Archive item metadata page.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/ArchiveItemListResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
+post:
+  operationId: createTeachingArchiveItem
+  summary: Create archive metadata for student learning materials or teaching materials.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: './teaching-archive.yaml#/components/schemas/CreateArchiveItemRequest'
+  responses:
+    '201':
+      description: Archive item metadata created.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/ArchiveItemResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

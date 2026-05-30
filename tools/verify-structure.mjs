@@ -55,11 +55,15 @@ const required = [
   "docs/sdd/0047-teaching-archive-ai-grading-source-content-ref.md",
   "docs/sdd/0048-teaching-archive-quiz-submission-ai-grading-bridge.md",
   "docs/sdd/0049-teaching-attendance-session-intake.md",
+  "docs/sdd/0050-teaching-archive-contract-http-headroom-split.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
   "contracts/openapi/conversation-write-gateway.yaml",
   "contracts/openapi/teaching-archive.yaml",
+  "contracts/openapi/teaching-archive.archive-items.path.yaml",
+  "contracts/openapi/teaching-archive.archive-item-tutoring-analysis-requests.path.yaml",
+  "contracts/openapi/teaching-archive.archive-item-ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.attendance-sessions.path.yaml",
   "contracts/openapi/teaching-archive.quiz-submissions.path.yaml",
   "contracts/openapi/teaching-archive.quiz-submission-ai-grading-requests.path.yaml",
@@ -156,6 +160,9 @@ const required = [
   "services/teaching-archive-gateway/internal/usecase/record_tutoring_analysis_result_test.go",
   "services/teaching-archive-gateway/internal/usecase/principal_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_routes.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_archive_items.go",
+  "services/teaching-archive-gateway/internal/adapter/httpapi/server_tutoring_analysis.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_request_test.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query.go",
   "services/teaching-archive-gateway/internal/adapter/httpapi/server_ai_grading_query_test.go",
@@ -705,10 +712,21 @@ for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance 
   }
 }
 
+const teachingArchiveContractHTTPHeadroomSdd = fs.readFileSync(
+  path.join(root, "docs/sdd/0050-teaching-archive-contract-http-headroom-split.md"),
+  "utf8",
+);
+for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
+  if (!teachingArchiveContractHTTPHeadroomSdd.includes(heading)) {
+    console.error(`SDD 0050 missing heading: ${heading}`);
+    process.exit(1);
+  }
+}
+
 const lineCount = (file) => fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/).length;
 const qualityHeadroomLimits = [
-  ["contracts/openapi/teaching-archive.yaml", 700],
-  ["services/teaching-archive-gateway/internal/adapter/httpapi/server.go", 500],
+  ["contracts/openapi/teaching-archive.yaml", 620],
+  ["services/teaching-archive-gateway/internal/adapter/httpapi/server.go", 140],
   ["services/teaching-archive-gateway/internal/adapter/httpapi/server_test.go", 500],
   ["services/teaching-archive-gateway/internal/adapter/postgres/repository.go", 180],
 ];
