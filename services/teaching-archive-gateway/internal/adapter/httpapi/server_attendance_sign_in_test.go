@@ -103,6 +103,7 @@ func newAttendanceSignInHandler(store *fakeRepository) http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }

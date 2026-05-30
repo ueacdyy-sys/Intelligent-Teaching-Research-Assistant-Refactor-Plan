@@ -1,0 +1,59 @@
+post:
+  operationId: endTeachingAttendanceSession
+  summary: End an active Teaching Mode rollcall attendance session.
+  tags: [teaching-attendance]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^att_sess_[A-Za-z0-9_-]+$'
+  responses:
+    '200':
+      description: Attendance session ended or already ended.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - sessionType
+              - expectedStudentCount
+              - presentCount
+              - absentCount
+              - lateCount
+              - status
+              - createdByPrincipalId
+              - createdAt
+            properties:
+              id:
+                type: string
+                pattern: '^att_sess_[A-Za-z0-9_-]+$'
+              sessionType:
+                type: string
+                enum: [RANDOM, QRCODE, GESTURE, NUMBER]
+              className: { type: [string, 'null'], maxLength: 128 }
+              expectedStudentCount: { type: integer, minimum: 0, maximum: 10000 }
+              presentCount: { type: integer, minimum: 0 }
+              absentCount: { type: integer, minimum: 0 }
+              lateCount: { type: integer, minimum: 0 }
+              configRef: { type: [string, 'null'], maxLength: 1000 }
+              status:
+                type: string
+                const: ENDED
+              createdByPrincipalId: { type: string, minLength: 1 }
+              createdAt: { type: string, format: date-time }
+              endedAt: { type: [string, 'null'], format: date-time }
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

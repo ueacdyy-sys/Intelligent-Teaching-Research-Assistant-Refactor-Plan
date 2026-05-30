@@ -88,6 +88,10 @@ func main() {
 		platform.AttendanceRecordIDGenerator{},
 		platform.Clock{},
 	)
+	endAttendanceSession := usecase.NewEndAttendanceSession(
+		archiveRepository,
+		platform.Clock{},
+	)
 	listAttendanceRecords := usecase.NewListAttendanceRecords(archiveRepository)
 	listStudentAttendanceRecords := usecase.NewListStudentAttendanceRecords(archiveRepository)
 	getAttendanceStatistics := usecase.NewGetAttendanceStatistics(archiveRepository)
@@ -111,6 +115,7 @@ func main() {
 			createAttendanceSession,
 			createAttendanceRecord,
 			signInAttendance,
+			endAttendanceSession,
 			listAttendanceRecords,
 			listStudentAttendanceRecords,
 			getAttendanceStatistics,

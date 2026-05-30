@@ -75,6 +75,7 @@ func newTestHandler() http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
@@ -127,6 +128,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		listTutoringRequests,
 		claimTutoringRequest,
 		recordTutoringResult,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -309,6 +311,25 @@ func (f *fakeRepository) CreateAttendanceRecord(
 	}
 	f.attendanceRecords = append(f.attendanceRecords, record)
 	return record, true, nil
+}
+
+func (f *fakeRepository) EndAttendanceSession(
+	_ context.Context,
+	id string,
+	endedAt time.Time,
+) (domain.AttendanceSession, bool, error) {
+	for index, session := range f.attendanceSessions {
+		if session.ID != id {
+			continue
+		}
+		if session.Status == domain.AttendanceSessionStatusActive {
+			session.Status = domain.AttendanceSessionStatusEnded
+			session.EndedAt = endedAt.UTC()
+			f.attendanceSessions[index] = session
+		}
+		return session, true, nil
+	}
+	return domain.AttendanceSession{}, false, nil
 }
 
 func (f *fakeRepository) ListTutoringAnalysisRequests(
