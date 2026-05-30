@@ -9,6 +9,7 @@ mod approval_correlation;
 mod approval_decision;
 mod approval_queue;
 mod execution_candidate;
+mod rollback_review;
 pub use approval_correlation::{
     ApprovalDecisionCorrelationEntry, ApprovalDecisionCorrelationReport,
     ApprovalDecisionCorrelationStatus, correlate_approval_decisions,
@@ -18,6 +19,7 @@ pub use approval_decision::{
 };
 pub use approval_queue::{ApprovalQueueSnapshot, JsonlApprovalQueueReader};
 pub use execution_candidate::{ExecutionCandidate, ExecutionCandidateView};
+pub use rollback_review::{RollbackReviewReport, RollbackReviewState};
 
 const DEVICE_LOCAL_CONTROL: &str = "DEVICE_LOCAL_CONTROL";
 const AUDIT_EVIDENCE_SCHEMA_VERSION: &str = "2026-05-29.agent-harness.audit-evidence.v1";

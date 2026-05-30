@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/harness/rollback-review.schema.json",
+  "title": "Agent Harness Rollback Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "sourceQueueGeneratedAt",
+    "sourceViewGeneratedAt",
+    "sourceApprovalArtifactCount",
+    "sourceApprovalDecisionCount",
+    "sourceUncorrelatedDecisionCount",
+    "sourceExecutionCandidateCount",
+    "localExecutionEnabled",
+    "evidenceRetentionRequired",
+    "rollbackState",
+    "rollbackActions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.agent-harness.rollback-review.v1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceQueueGeneratedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceViewGeneratedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceApprovalArtifactCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sourceApprovalDecisionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sourceUncorrelatedDecisionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sourceExecutionCandidateCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "localExecutionEnabled": {
+      "type": "boolean",
+      "const": false
+    },
+    "evidenceRetentionRequired": {
+      "type": "boolean",
+      "const": true
+    },
+    "rollbackState": {
+      "type": "string",
+      "enum": [
+        "NO_LOCAL_SIDE_EFFECTS_READY",
+        "REVIEW_BLOCKED_UNCORRELATED_DECISIONS",
+        "ROLLBACK_BLOCKED_EXECUTION_CANDIDATES_PRESENT"
+      ]
+    },
+    "rollbackActions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "contains": {
+        "const": "keep local execution disabled"
+      }
+    }
+  }
+}

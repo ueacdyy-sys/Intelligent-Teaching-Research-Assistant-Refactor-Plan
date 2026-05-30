@@ -68,7 +68,7 @@ const required = [
   "docs/sdd/0060-student-app-teaching-materials-list.md",
   "docs/sdd/0061-student-app-ai-tutor-request.md",
   "docs/sdd/0062-student-app-archive-items-list.md",
-  "docs/sdd/0063-student-app-ai-tutor-requests-list.md", "docs/sdd/0064-student-app-quiz-submissions-list.md", "docs/sdd/0065-student-app-question-bank-drafts-list.md", "docs/sdd/0066-student-app-quiz-scan-submission.md", "docs/sdd/0067-student-app-profile-read-model.md", "docs/sdd/0068-student-app-contract-flow-gate.md", "docs/sdd/0069-agent-harness-contract-flow-gate.md",
+  "docs/sdd/0063-student-app-ai-tutor-requests-list.md", "docs/sdd/0064-student-app-quiz-submissions-list.md", "docs/sdd/0065-student-app-question-bank-drafts-list.md", "docs/sdd/0066-student-app-quiz-scan-submission.md", "docs/sdd/0067-student-app-profile-read-model.md", "docs/sdd/0068-student-app-contract-flow-gate.md", "docs/sdd/0069-agent-harness-contract-flow-gate.md", "docs/sdd/0070-agent-harness-rollback-review.md",
   "docs/roadmap/refactor-backlog.md",
   "docs/roadmap/whole-system-module-map.md",
   "contracts/openapi/identity-access.yaml",
@@ -114,7 +114,7 @@ const required = [
   "contracts/harness/approval-queue-snapshot.schema.json",
   "contracts/harness/approval-queue-snapshot.example.json",
   "contracts/harness/execution-candidate-view.schema.json",
-  "contracts/harness/execution-candidate-view.example.json",
+  "contracts/harness/execution-candidate-view.example.json", "contracts/harness/rollback-review.schema.json", "contracts/harness/rollback-review.example.json",
   "contracts/events/research-events.schema.json",
   "contracts/config/connection-budget.schema.json",
   "contracts/config/connection-budget.current.json",
@@ -312,7 +312,7 @@ const required = [
   "services/agent-harness/src/approval_decision.rs",
   "services/agent-harness/src/approval_correlation.rs",
   "services/agent-harness/src/approval_queue.rs",
-  "services/agent-harness/src/execution_candidate.rs",
+  "services/agent-harness/src/execution_candidate.rs", "services/agent-harness/src/rollback_review.rs",
   "services/agent-harness/tests/permission_manifest.rs",
   "services/agent-harness/tests/audit_evidence.rs",
   "services/agent-harness/tests/dry_run_harness.rs",
@@ -324,7 +324,7 @@ const required = [
   "services/agent-harness/tests/approval_decision.rs",
   "services/agent-harness/tests/approval_decision_correlation.rs",
   "services/agent-harness/tests/approval_queue_reader.rs",
-  "services/agent-harness/tests/execution_candidate_view.rs",
+  "services/agent-harness/tests/execution_candidate_view.rs", "services/agent-harness/tests/rollback_review.rs",
 ];
 
 const missing = required.filter((file) => !fs.existsSync(path.join(root, file)));
@@ -724,7 +724,7 @@ for (const [id, file] of [
   ["0057", "0057-teaching-attendance-random-selection.md"], ["0058", "0058-teaching-quiz-scan-submission.md"],
   ["0059", "0059-teaching-archive-server-config-refactor.md"], ["0060", "0060-student-app-teaching-materials-list.md"],
   ["0061", "0061-student-app-ai-tutor-request.md"], ["0062", "0062-student-app-archive-items-list.md"],
-  ["0063", "0063-student-app-ai-tutor-requests-list.md"], ["0064", "0064-student-app-quiz-submissions-list.md"], ["0065", "0065-student-app-question-bank-drafts-list.md"], ["0066", "0066-student-app-quiz-scan-submission.md"], ["0067", "0067-student-app-profile-read-model.md"], ["0068", "0068-student-app-contract-flow-gate.md"], ["0069", "0069-agent-harness-contract-flow-gate.md"],
+  ["0063", "0063-student-app-ai-tutor-requests-list.md"], ["0064", "0064-student-app-quiz-submissions-list.md"], ["0065", "0065-student-app-question-bank-drafts-list.md"], ["0066", "0066-student-app-quiz-scan-submission.md"], ["0067", "0067-student-app-profile-read-model.md"], ["0068", "0068-student-app-contract-flow-gate.md"], ["0069", "0069-agent-harness-contract-flow-gate.md"], ["0070", "0070-agent-harness-rollback-review.md"],
 ]) {
   const sdd = fs.readFileSync(path.join(root, "docs/sdd", file), "utf8");
   for (const heading of ["## Problem", "## Scope", "## Contracts", "## Acceptance Criteria", "## Rollback"]) {
