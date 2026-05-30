@@ -111,6 +111,7 @@ func newTestHandlerWithTeachingQuiz() http.Handler {
 		nil,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
@@ -137,6 +138,7 @@ func newTestHandlerWithTeachingQuizSubmission() http.Handler {
 		usecase.NewClaimTutoringAnalysisRequest(store, fixedClock{}),
 		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
 		usecase.NewCreateQuizSubmission(store, fixedIDs{id: "quiz_sub_http"}, fixedClock{}),
+		nil,
 		nil,
 		nil,
 		nil,

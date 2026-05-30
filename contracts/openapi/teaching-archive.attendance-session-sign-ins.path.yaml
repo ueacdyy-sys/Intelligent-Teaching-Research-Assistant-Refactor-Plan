@@ -1,0 +1,107 @@
+post:
+  operationId: signInTeachingAttendanceSession
+  summary: Create or return a student-app sign-in record for an active Teaching Mode rollcall session.
+  tags: [teaching-attendance]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^att_sess_[A-Za-z0-9_-]+$'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required: [method]
+          properties:
+            method:
+              type: string
+              enum: [QR, QRCODE, GESTURE, NUMBER, qr, qrcode, gesture, number]
+            timestampMillis:
+              type: integer
+              minimum: 1
+            code:
+              type: string
+              minLength: 1
+              maxLength: 256
+            gesture:
+              type: array
+              maxItems: 32
+              items:
+                type: integer
+  responses:
+    '201':
+      description: Student sign-in attendance record created.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - sessionId
+              - studentId
+              - status
+              - recordedByPrincipalId
+              - createdAt
+            properties:
+              id:
+                type: string
+                pattern: '^att_rec_[A-Za-z0-9_-]+$'
+              sessionId:
+                type: string
+                pattern: '^att_sess_[A-Za-z0-9_-]+$'
+              studentId: { type: string, minLength: 1, maxLength: 128 }
+              status:
+                type: string
+                const: PRESENT
+              recordedByPrincipalId: { type: string, minLength: 1 }
+              signTime: { type: [string, 'null'], format: date-time }
+              note: { type: [string, 'null'], maxLength: 1000 }
+              createdAt: { type: string, format: date-time }
+    '200':
+      description: Matching active-session student sign-in already exists and was returned without incrementing counters again.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - sessionId
+              - studentId
+              - status
+              - recordedByPrincipalId
+              - createdAt
+            properties:
+              id:
+                type: string
+                pattern: '^att_rec_[A-Za-z0-9_-]+$'
+              sessionId:
+                type: string
+                pattern: '^att_sess_[A-Za-z0-9_-]+$'
+              studentId: { type: string, minLength: 1, maxLength: 128 }
+              status:
+                type: string
+                const: PRESENT
+              recordedByPrincipalId: { type: string, minLength: 1 }
+              signTime: { type: [string, 'null'], format: date-time }
+              note: { type: [string, 'null'], maxLength: 1000 }
+              createdAt: { type: string, format: date-time }
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '409':
+      $ref: './teaching-archive.yaml#/components/responses/Conflict'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

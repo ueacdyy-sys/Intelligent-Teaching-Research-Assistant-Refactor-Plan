@@ -18,6 +18,7 @@ type Server struct {
 	recordTutoringAnalysisResult  *usecase.RecordTutoringAnalysisResult
 	createAttendanceSession       *usecase.CreateAttendanceSession
 	createAttendanceRecord        *usecase.CreateAttendanceRecord
+	signInAttendance              *usecase.SignInAttendance
 	listAttendanceRecords         *usecase.ListAttendanceRecords
 	listStudentAttendanceRecords  *usecase.ListStudentAttendanceRecords
 	getAttendanceStatistics       *usecase.GetAttendanceStatistics
@@ -40,6 +41,7 @@ func NewServer(
 	listQuizSubmissions *usecase.ListQuizSubmissions,
 	createAttendanceSession *usecase.CreateAttendanceSession,
 	createAttendanceRecord *usecase.CreateAttendanceRecord,
+	signInAttendance *usecase.SignInAttendance,
 	listAttendanceRecords *usecase.ListAttendanceRecords,
 	listStudentAttendanceRecords *usecase.ListStudentAttendanceRecords,
 	getAttendanceStatistics *usecase.GetAttendanceStatistics,
@@ -61,6 +63,7 @@ func NewServer(
 		recordTutoringAnalysisResult:  recordTutoringAnalysisResult,
 		createAttendanceSession:       createAttendanceSession,
 		createAttendanceRecord:        createAttendanceRecord,
+		signInAttendance:              signInAttendance,
 		listAttendanceRecords:         listAttendanceRecords,
 		listStudentAttendanceRecords:  listStudentAttendanceRecords,
 		getAttendanceStatistics:       getAttendanceStatistics,

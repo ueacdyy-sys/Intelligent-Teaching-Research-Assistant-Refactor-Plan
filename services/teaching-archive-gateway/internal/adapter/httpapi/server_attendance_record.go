@@ -24,6 +24,15 @@ type attendanceRecordResponse struct {
 }
 
 func (s *Server) attendanceSessionSubresources(w http.ResponseWriter, r *http.Request) {
+	if sessionID, ok := parseAttendanceSessionSignInsPath(r.URL.Path); ok {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.signInAttendanceMetadata(w, r, sessionID)
+		return
+	}
+
 	sessionID, ok := parseAttendanceSessionRecordsPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "attendance session subresource not found")

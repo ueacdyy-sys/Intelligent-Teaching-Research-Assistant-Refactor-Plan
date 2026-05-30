@@ -68,6 +68,19 @@ func parseAttendanceSessionRecordsPath(path string) (string, bool) {
 	return sessionID, true
 }
 
+func parseAttendanceSessionSignInsPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/attendance-sessions/"
+	const suffix = "/sign-ins"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	sessionID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if sessionID == "" || strings.Contains(sessionID, "/") {
+		return "", false
+	}
+	return sessionID, true
+}
+
 func parseStudentAttendanceRecordsPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/students/"
 	const suffix = "/attendance-records"
