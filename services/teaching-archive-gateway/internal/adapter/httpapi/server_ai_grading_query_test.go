@@ -120,6 +120,7 @@ func newTestHandlerWithAIGradingRequests(requests []domain.AIGradingRequest) htt
 		recordTutoringResult,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }

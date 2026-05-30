@@ -21,6 +21,7 @@ type Server struct {
 	listTutoringAnalysisRequests  *usecase.ListTutoringAnalysisRequests
 	claimTutoringAnalysisRequest  *usecase.ClaimTutoringAnalysisRequest
 	recordTutoringAnalysisResult  *usecase.RecordTutoringAnalysisResult
+	createAttendanceSession       *usecase.CreateAttendanceSession
 	agentAPIKey                   string
 }
 
@@ -38,6 +39,7 @@ func NewServer(
 	recordTutoringAnalysisResult *usecase.RecordTutoringAnalysisResult,
 	createQuizSubmission *usecase.CreateQuizSubmission,
 	listQuizSubmissions *usecase.ListQuizSubmissions,
+	createAttendanceSession *usecase.CreateAttendanceSession,
 	agentAPIKey string,
 ) *Server {
 	return &Server{
@@ -54,6 +56,7 @@ func NewServer(
 		listTutoringAnalysisRequests:  listTutoringAnalysisRequests,
 		claimTutoringAnalysisRequest:  claimTutoringAnalysisRequest,
 		recordTutoringAnalysisResult:  recordTutoringAnalysisResult,
+		createAttendanceSession:       createAttendanceSession,
 		agentAPIKey:                   agentAPIKey,
 	}
 }
@@ -65,6 +68,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests", s.aiGradingRequests)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests/", s.aiGradingRequestSubresources)
+	mux.HandleFunc("/v1/teaching/attendance-sessions", s.attendanceSessions)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests", s.tutoringAnalysisRequests)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests/", s.tutoringAnalysisRequestSubresources)
 	return mux

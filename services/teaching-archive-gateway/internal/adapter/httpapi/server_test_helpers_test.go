@@ -69,6 +69,7 @@ func newTestHandler() http.Handler {
 		recordTutoringResult,
 		nil,
 		nil,
+		nil,
 		"ueacd",
 	).Handler()
 }
@@ -121,6 +122,7 @@ func newTestHandlerWithRequests(requests []domain.TutoringAnalysisRequest) http.
 		listTutoringRequests,
 		claimTutoringRequest,
 		recordTutoringResult,
+		nil,
 		nil,
 		nil,
 		"ueacd",
@@ -212,10 +214,11 @@ func servicePrincipal() domain.PrincipalContext {
 }
 
 type fakeRepository struct {
-	items           []domain.ArchiveItem
-	requests        []domain.TutoringAnalysisRequest
-	gradingRequests []domain.AIGradingRequest
-	quizSubmissions []domain.QuizSubmission
+	items              []domain.ArchiveItem
+	requests           []domain.TutoringAnalysisRequest
+	gradingRequests    []domain.AIGradingRequest
+	quizSubmissions    []domain.QuizSubmission
+	attendanceSessions []domain.AttendanceSession
 }
 
 func (f *fakeRepository) Create(_ context.Context, _ domain.ArchiveItem) error {
@@ -261,6 +264,11 @@ func (f *fakeRepository) CreateTutoringAnalysisRequest(_ context.Context, reques
 
 func (f *fakeRepository) CreateAIGradingRequest(_ context.Context, request domain.AIGradingRequest) error {
 	f.gradingRequests = append(f.gradingRequests, request)
+	return nil
+}
+
+func (f *fakeRepository) CreateAttendanceSession(_ context.Context, session domain.AttendanceSession) error {
+	f.attendanceSessions = append(f.attendanceSessions, session)
 	return nil
 }
 

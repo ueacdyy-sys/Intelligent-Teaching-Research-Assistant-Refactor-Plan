@@ -68,6 +68,7 @@ func newTestHandlerWithQuizSubmissionRows(rows []domain.QuizSubmission) http.Han
 		usecase.NewRecordTutoringAnalysisResult(store, fixedClock{}),
 		usecase.NewCreateQuizSubmission(store, fixedIDs{id: "quiz_sub_http"}, fixedClock{}),
 		usecase.NewListQuizSubmissions(store),
+		nil,
 		"ueacd",
 	).Handler()
 }

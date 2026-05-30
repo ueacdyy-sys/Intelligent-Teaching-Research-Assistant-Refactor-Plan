@@ -1,0 +1,75 @@
+post:
+  operationId: createTeachingAttendanceSession
+  summary: Create a metadata-only attendance session for Teaching Mode rollcall.
+  tags: [teaching-attendance]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required: [sessionType]
+          properties:
+            sessionType:
+              type: string
+              enum: [RANDOM, QRCODE, GESTURE, NUMBER]
+            className:
+              type: string
+              minLength: 1
+              maxLength: 128
+            expectedStudentCount:
+              type: integer
+              minimum: 0
+              maximum: 10000
+              default: 0
+            configRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+  responses:
+    '201':
+      description: Attendance session metadata created.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - sessionType
+              - expectedStudentCount
+              - presentCount
+              - absentCount
+              - lateCount
+              - status
+              - createdByPrincipalId
+              - createdAt
+            properties:
+              id:
+                type: string
+                pattern: '^att_sess_[A-Za-z0-9_-]+$'
+              sessionType:
+                type: string
+                enum: [RANDOM, QRCODE, GESTURE, NUMBER]
+              className: { type: [string, 'null'], maxLength: 128 }
+              expectedStudentCount: { type: integer, minimum: 0, maximum: 10000 }
+              presentCount: { type: integer, minimum: 0 }
+              absentCount: { type: integer, minimum: 0 }
+              lateCount: { type: integer, minimum: 0 }
+              configRef: { type: [string, 'null'], maxLength: 1000 }
+              status:
+                type: string
+                enum: [ACTIVE, ENDED]
+              createdByPrincipalId: { type: string, minLength: 1 }
+              createdAt: { type: string, format: date-time }
+              endedAt: { type: [string, 'null'], format: date-time }
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

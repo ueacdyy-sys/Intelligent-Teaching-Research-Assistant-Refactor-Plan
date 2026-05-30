@@ -73,6 +73,11 @@ func main() {
 		archiveRepository,
 		platform.Clock{},
 	)
+	createAttendanceSession := usecase.NewCreateAttendanceSession(
+		archiveRepository,
+		platform.AttendanceSessionIDGenerator{},
+		platform.Clock{},
+	)
 
 	server := &http.Server{
 		Addr: ":" + getenv("PORT", "18120"),
@@ -90,6 +95,7 @@ func main() {
 			recordTutoringAnalysisResult,
 			createQuizSubmission,
 			listQuizSubmissions,
+			createAttendanceSession,
 			getenv("AGENT_API_KEY", "ueacd"),
 		).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,

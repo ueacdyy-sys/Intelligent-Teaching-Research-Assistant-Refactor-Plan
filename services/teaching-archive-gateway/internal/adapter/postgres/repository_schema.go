@@ -54,6 +54,25 @@ var schemaStatements = []string{
 		ON teaching_quiz_submissions (quiz_archive_item_id, submitted_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_quiz_submissions_student_submitted
 		ON teaching_quiz_submissions (student_id, submitted_at DESC, id DESC)`,
+	`CREATE TABLE IF NOT EXISTS teaching_attendance_sessions (
+		id TEXT PRIMARY KEY,
+		session_type TEXT NOT NULL,
+		class_name TEXT,
+		expected_student_count INTEGER NOT NULL,
+		present_count INTEGER NOT NULL,
+		absent_count INTEGER NOT NULL,
+		late_count INTEGER NOT NULL,
+		config_ref TEXT,
+		status TEXT NOT NULL,
+		created_by_principal_id TEXT NOT NULL,
+		created_at TIMESTAMPTZ NOT NULL,
+		ended_at TIMESTAMPTZ
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_attendance_sessions_class_created
+		ON teaching_attendance_sessions (class_name, created_at DESC, id DESC)
+		WHERE class_name IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_attendance_sessions_status_created
+		ON teaching_attendance_sessions (status, created_at DESC, id DESC)`,
 	`CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
 		id TEXT PRIMARY KEY,
 		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
