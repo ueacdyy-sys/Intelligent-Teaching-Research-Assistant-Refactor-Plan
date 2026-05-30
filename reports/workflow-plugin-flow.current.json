@@ -1,0 +1,126 @@
+{
+  "generatedAt": "2026-05-30T13:10:44.885Z",
+  "readiness": "READY",
+  "findings": [
+    {
+      "id": "draft.artifact_kinds",
+      "passed": true,
+      "severity": "info",
+      "actual": "WORKFLOW,PLUGIN",
+      "expected": "WORKFLOW,PLUGIN",
+      "remediation": "Drafts must model both workflow and plugin generated artifacts."
+    },
+    {
+      "id": "draft.origin.task_failure_learning",
+      "passed": true,
+      "severity": "info",
+      "actual": "USER_REQUEST,TASK_FAILURE_LEARNING",
+      "expected": "TASK_FAILURE_LEARNING",
+      "remediation": "Plugin drafts must support task-failure-learning origin."
+    },
+    {
+      "id": "draft.generated_review_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "required=userIntent,generatedFiles,executionMode,sandboxRequired,humanApprovalRequired executionMode=DRY_RUN_ONLY sandboxRequired=true humanApprovalRequired=true",
+      "expected": "generated files + DRY_RUN_ONLY + sandbox + human approval",
+      "remediation": "Generated drafts must remain review-only before sandbox and approval."
+    },
+    {
+      "id": "draft.not_manual_node_graph",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
+      "expected": "no manual node/edge graph contract",
+      "remediation": "Workflow mode must stay natural-language-to-generated-code, not manual node graph editing."
+    },
+    {
+      "id": "sandbox.executed_in_sandbox",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Generated artifacts must be tested in sandbox before review."
+    },
+    {
+      "id": "sandbox.no_host_write",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Sandbox runs must not write to the host in this slice."
+    },
+    {
+      "id": "sandbox.network_default_deny",
+      "passed": true,
+      "severity": "info",
+      "actual": "DEFAULT_DENY",
+      "expected": "DEFAULT_DENY",
+      "remediation": "Generated-code sandbox networking must be default-deny."
+    },
+    {
+      "id": "sandbox.status_vocab",
+      "passed": true,
+      "severity": "info",
+      "actual": "PASS,FAIL",
+      "expected": "PASS,FAIL",
+      "remediation": "Sandbox result status must distinguish passing and failing generated tests."
+    },
+    {
+      "id": "approval.requires_performance_and_effect_review",
+      "passed": true,
+      "severity": "info",
+      "actual": "performance=true effect=true",
+      "expected": "performance=true effect=true",
+      "remediation": "Human approval must cover both performance and effect."
+    },
+    {
+      "id": "approval.decision_vocab",
+      "passed": true,
+      "severity": "info",
+      "actual": "APPROVED,REJECTED,REVISION_REQUESTED",
+      "expected": "APPROVED,REJECTED,REVISION_REQUESTED",
+      "remediation": "Approval must support approve, reject, and revision decisions."
+    },
+    {
+      "id": "registry.requires_sandbox_and_approval",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion,registryEntryId,draftId,sandboxRunId,approvalId,artifactKind,capabilityKind,name,version,status,executionMode,localExecutionEnabled,rollbackPlan,provenance",
+      "expected": "sandboxRunId,approvalId,rollbackPlan",
+      "remediation": "Registry entries must be traceable to sandbox evidence and human approval."
+    },
+    {
+      "id": "registry.review_only_execution",
+      "passed": true,
+      "severity": "info",
+      "actual": "executionMode=DRY_RUN_ONLY localExecutionEnabled=false",
+      "expected": "DRY_RUN_ONLY and localExecutionEnabled=false",
+      "remediation": "Registry save must not enable local generated-code execution in this slice."
+    },
+    {
+      "id": "examples.workflow_generated",
+      "passed": true,
+      "severity": "info",
+      "actual": "artifactKind=WORKFLOW origin=USER_REQUEST capabilityKind=WORKFLOW executionMode=DRY_RUN_ONLY",
+      "expected": "workflow USER_REQUEST dry-run sandbox approval",
+      "remediation": "Workflow example must show generated review-only workflow draft."
+    },
+    {
+      "id": "examples.plugin_failure_learning",
+      "passed": true,
+      "severity": "info",
+      "actual": "artifactKind=PLUGIN origin=TASK_FAILURE_LEARNING capabilityKind=SKILL executionMode=DRY_RUN_ONLY",
+      "expected": "plugin TASK_FAILURE_LEARNING MCP/Skill/Script failure context",
+      "remediation": "Plugin example must prove self-evolution from task failure learning."
+    },
+    {
+      "id": "examples.registry_links_approval_and_sandbox",
+      "passed": true,
+      "severity": "info",
+      "actual": "registry.approvalId=workflow_plugin_approval_001 approval.approvalId=workflow_plugin_approval_001 registry.sandboxRunId=sandbox_run_lesson_archive_review_001 sandbox.runId=sandbox_run_lesson_archive_review_001 registry.draftId=workflow_draft_lesson_archive_review draft.draftId=workflow_draft_lesson_archive_review",
+      "expected": "registry links draft + sandbox run + approval",
+      "remediation": "Registry example must remain linked to generated draft, sandbox evidence, and approval."
+    }
+  ]
+}

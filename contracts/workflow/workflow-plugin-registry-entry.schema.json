@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/workflow/workflow-plugin-registry-entry.schema.json",
+  "title": "Workflow Plugin Registry Entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "registryEntryId",
+    "draftId",
+    "sandboxRunId",
+    "approvalId",
+    "artifactKind",
+    "capabilityKind",
+    "name",
+    "version",
+    "status",
+    "executionMode",
+    "localExecutionEnabled",
+    "rollbackPlan",
+    "provenance"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.workflow-plugin.registry-entry.v1"
+    },
+    "registryEntryId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "draftId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sandboxRunId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approvalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactKind": {
+      "type": "string",
+      "enum": ["WORKFLOW", "PLUGIN"]
+    },
+    "capabilityKind": {
+      "type": "string",
+      "enum": ["WORKFLOW", "MCP_TOOL", "SKILL", "SCRIPT"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ACTIVE", "DISABLED"]
+    },
+    "executionMode": {
+      "type": "string",
+      "const": "DRY_RUN_ONLY"
+    },
+    "localExecutionEnabled": {
+      "type": "boolean",
+      "const": false
+    },
+    "rollbackPlan": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin", "generatedAt", "approvedAt"],
+      "properties": {
+        "origin": {
+          "type": "string",
+          "enum": ["USER_REQUEST", "TASK_FAILURE_LEARNING"]
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "approvedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

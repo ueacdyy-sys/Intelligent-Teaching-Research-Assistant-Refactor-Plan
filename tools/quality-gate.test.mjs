@@ -71,6 +71,7 @@ import (
       "identity access contract audit",
       "student app flow audit",
       "agent harness flow audit",
+      "workflow plugin flow audit",
       "direct-limited connection budget",
       "pgbouncer connection budget",
     ]);

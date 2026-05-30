@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/workflow/workflow-plugin-sandbox-run.schema.json",
+  "title": "Workflow Plugin Sandbox Run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "draftId",
+    "startedAt",
+    "finishedAt",
+    "status",
+    "executedInSandbox",
+    "noHostWrite",
+    "networkPolicy",
+    "tests",
+    "performanceSummary",
+    "feedback"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.workflow-plugin.sandbox-run.v1"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "draftId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"]
+    },
+    "executedInSandbox": {
+      "type": "boolean",
+      "const": true
+    },
+    "noHostWrite": {
+      "type": "boolean",
+      "const": true
+    },
+    "networkPolicy": {
+      "type": "string",
+      "const": "DEFAULT_DENY"
+    },
+    "tests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "durationMs", "logRef"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["PASS", "FAIL"]
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "logRef": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "performanceSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p95Ms", "maxMemoryMb"],
+      "properties": {
+        "p95Ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxMemoryMb": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "feedback": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

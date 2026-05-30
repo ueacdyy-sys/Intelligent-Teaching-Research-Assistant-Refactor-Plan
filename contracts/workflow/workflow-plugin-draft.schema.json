@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/workflow/workflow-plugin-draft.schema.json",
+  "title": "Workflow Plugin Draft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "draftId",
+    "artifactKind",
+    "capabilityKind",
+    "origin",
+    "status",
+    "userIntent",
+    "generatedBy",
+    "generatedFiles",
+    "executionMode",
+    "sandboxRequired",
+    "humanApprovalRequired",
+    "allowedHostAccess",
+    "registrySaveAllowed"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.workflow-plugin.draft.v1"
+    },
+    "draftId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactKind": {
+      "type": "string",
+      "enum": ["WORKFLOW", "PLUGIN"]
+    },
+    "capabilityKind": {
+      "type": "string",
+      "enum": ["WORKFLOW", "MCP_TOOL", "SKILL", "SCRIPT"]
+    },
+    "origin": {
+      "type": "string",
+      "enum": ["USER_REQUEST", "TASK_FAILURE_LEARNING"]
+    },
+    "status": {
+      "type": "string",
+      "const": "DRAFT"
+    },
+    "userIntent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedBy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agentKind", "modelRef"],
+      "properties": {
+        "agentKind": {
+          "type": "string",
+          "enum": ["COORDINATOR_AGENT", "RESEARCH_AGENT", "TEACHING_AGENT", "DEVELOPMENT_AGENT"]
+        },
+        "modelRef": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "failureContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskFailureId", "preventionRule"],
+      "properties": {
+        "taskFailureId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preventionRule": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "generatedFiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "language", "role", "contentRef"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "language": {
+            "type": "string",
+            "enum": ["typescript", "python", "powershell", "json", "yaml", "markdown"]
+          },
+          "role": {
+            "type": "string",
+            "enum": ["ENTRYPOINT", "TEST", "MANIFEST", "DOCUMENTATION", "SCRIPT"]
+          },
+          "contentRef": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "executionMode": {
+      "type": "string",
+      "const": "DRY_RUN_ONLY"
+    },
+    "sandboxRequired": {
+      "type": "boolean",
+      "const": true
+    },
+    "humanApprovalRequired": {
+      "type": "boolean",
+      "const": true
+    },
+    "allowedHostAccess": {
+      "type": "string",
+      "const": "NONE"
+    },
+    "registrySaveAllowed": {
+      "type": "boolean",
+      "const": false
+    }
+  }
+}
