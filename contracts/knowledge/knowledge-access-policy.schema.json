@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/knowledge/knowledge-access-policy.schema.json",
+  "title": "Knowledge Access Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "partitions",
+    "nodePolicies",
+    "retrievalPolicy",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.knowledge.access-policy.v1"
+    },
+    "partitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "partitionId",
+          "classification",
+          "storageBoundary",
+          "physicalIsolation",
+          "ownerNodeType",
+          "localMachineKnowledge"
+        ],
+        "properties": {
+          "partitionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "classification": {
+            "type": "string",
+            "enum": ["PUBLIC", "PRIVATE", "STUDENT_ARCHIVE", "REMOTE_DEVICE_OWNED"]
+          },
+          "storageBoundary": {
+            "type": "string",
+            "enum": [
+              "PUBLIC_KB_STORE",
+              "PRIVATE_KB_STORE",
+              "STUDENT_ARCHIVE_STORE",
+              "REMOTE_DEVICE_KB_STORE"
+            ]
+          },
+          "physicalIsolation": {
+            "type": "string",
+            "enum": ["DEDICATED", "REMOTE_DEVICE_OWNED"]
+          },
+          "ownerNodeType": {
+            "type": "string",
+            "enum": ["LOCAL", "REMOTE_DEVICE"]
+          },
+          "localMachineKnowledge": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "nodePolicies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nodeType",
+          "allowedLocalClassifications",
+          "allowedRemoteClassifications",
+          "maxLocalKnowledgeScope",
+          "localMachineKnowledgeAccessAllowed"
+        ],
+        "properties": {
+          "nodeType": {
+            "type": "string",
+            "enum": ["CLOUD", "LOCAL", "REMOTE_DEVICE"]
+          },
+          "allowedLocalClassifications": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["PUBLIC", "PRIVATE", "STUDENT_ARCHIVE"]
+            }
+          },
+          "allowedRemoteClassifications": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["REMOTE_DEVICE_OWNED"]
+            }
+          },
+          "maxLocalKnowledgeScope": {
+            "type": "string",
+            "enum": ["NONE", "PUBLIC", "PRIVATE"]
+          },
+          "localMachineKnowledgeAccessAllowed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "retrievalPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supportedStrategies",
+        "defaultStrategy",
+        "chunkingRetained",
+        "directoryIntentIndexEnabled",
+        "queryPlanBudget"
+      ],
+      "properties": {
+        "supportedStrategies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["CHUNK_VECTOR", "INTENT_DIRECTORY_INDEX", "HYBRID"]
+          }
+        },
+        "defaultStrategy": {
+          "type": "string",
+          "enum": ["CHUNK_VECTOR", "INTENT_DIRECTORY_INDEX", "HYBRID"]
+        },
+        "chunkingRetained": {
+          "type": "boolean",
+          "const": true
+        },
+        "directoryIntentIndexEnabled": {
+          "type": "boolean",
+          "const": true
+        },
+        "queryPlanBudget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["maxDirectoryCandidates", "maxChunkCandidates", "targetP95Ms"],
+          "properties": {
+            "maxDirectoryCandidates": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxChunkCandidates": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "targetP95Ms": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

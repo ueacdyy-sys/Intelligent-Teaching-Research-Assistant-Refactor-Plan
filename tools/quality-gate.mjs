@@ -113,6 +113,7 @@ export function buildQualityCommandPlan() {
     { name: "workflow plugin registry admission", command: npmCommand(), args: ["run", "audit:workflow-plugin-registry"] },
     { name: "workflow plugin revision feedback", command: npmCommand(), args: ["run", "audit:workflow-plugin-revision"] },
     { name: "AI worker job contract audit", command: npmCommand(), args: ["run", "audit:ai-worker-job"] },
+    { name: "knowledge access policy audit", command: npmCommand(), args: ["run", "audit:knowledge-policy"] },
     { name: "direct-limited connection budget", command: npmCommand(), args: ["run", "budget:connections:direct-limited"] },
     { name: "pgbouncer connection budget", command: npmCommand(), args: ["run", "budget:connections:pgbouncer"] },
   ];

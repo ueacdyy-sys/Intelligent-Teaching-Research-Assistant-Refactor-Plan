@@ -1,0 +1,78 @@
+{
+  "generatedAt": "2026-05-30T14:11:15.227Z",
+  "readiness": "READY",
+  "findings": [
+    {
+      "id": "partitions.required_classifications",
+      "passed": true,
+      "severity": "info",
+      "actual": "PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED",
+      "expected": "PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED",
+      "remediation": "Knowledge policy must model local public/private/student stores and remote-owned knowledge."
+    },
+    {
+      "id": "partitions.local_physical_isolation",
+      "passed": true,
+      "severity": "info",
+      "actual": "PUBLIC:PUBLIC_KB_STORE:DEDICATED;PRIVATE:PRIVATE_KB_STORE:DEDICATED;STUDENT_ARCHIVE:STUDENT_ARCHIVE_STORE:DEDICATED",
+      "expected": "local PUBLIC/PRIVATE/STUDENT_ARCHIVE each DEDICATED with distinct stores",
+      "remediation": "Local public, private, and student archive knowledge must stay physically isolated."
+    },
+    {
+      "id": "nodes.cloud_public_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "local=PUBLIC remote= max=PUBLIC localAccess=true",
+      "expected": "allowedLocalClassifications=PUBLIC maxLocalKnowledgeScope=PUBLIC",
+      "remediation": "Cloud nodes may only access public local knowledge."
+    },
+    {
+      "id": "nodes.local_public_private_student",
+      "passed": true,
+      "severity": "info",
+      "actual": "local=PUBLIC,PRIVATE,STUDENT_ARCHIVE remote= max=PRIVATE localAccess=true",
+      "expected": "LOCAL can access PUBLIC,PRIVATE,STUDENT_ARCHIVE",
+      "remediation": "Local nodes must retain access to local public, private, and student archive knowledge."
+    },
+    {
+      "id": "nodes.remote_no_local_knowledge",
+      "passed": true,
+      "severity": "info",
+      "actual": "local= remote=REMOTE_DEVICE_OWNED max=NONE localAccess=false",
+      "expected": "REMOTE_DEVICE has no local classifications and local access=false",
+      "remediation": "Remote-device nodes must not access this machine's knowledge base."
+    },
+    {
+      "id": "nodes.remote_owned_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "REMOTE_DEVICE_OWNED",
+      "expected": "REMOTE_DEVICE_OWNED",
+      "remediation": "Remote-device nodes may only use knowledge owned by that remote device."
+    },
+    {
+      "id": "retrieval.strategy_vocab",
+      "passed": true,
+      "severity": "info",
+      "actual": "CHUNK_VECTOR,INTENT_DIRECTORY_INDEX,HYBRID",
+      "expected": "CHUNK_VECTOR,INTENT_DIRECTORY_INDEX,HYBRID",
+      "remediation": "Retrieval policy must support chunk vector, directory intent, and hybrid strategies."
+    },
+    {
+      "id": "retrieval.current_hybrid",
+      "passed": true,
+      "severity": "info",
+      "actual": "default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true",
+      "expected": "default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true",
+      "remediation": "Current retrieval must keep chunking while enabling directory-intent indexing."
+    },
+    {
+      "id": "retrieval.performance_budget_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "targetP95Ms=120 maxDirectoryCandidates=24 maxChunkCandidates=80",
+      "expected": "targetP95Ms, maxDirectoryCandidates, maxChunkCandidates",
+      "remediation": "Retrieval policy needs an explicit budget before later benchmarks can prove performance."
+    }
+  ]
+}

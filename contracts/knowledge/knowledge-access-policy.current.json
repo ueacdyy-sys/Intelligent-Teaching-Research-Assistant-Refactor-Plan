@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "2026-05-30.knowledge.access-policy.v1",
+  "partitions": [
+    {
+      "partitionId": "public_kb_store",
+      "classification": "PUBLIC",
+      "storageBoundary": "PUBLIC_KB_STORE",
+      "physicalIsolation": "DEDICATED",
+      "ownerNodeType": "LOCAL",
+      "localMachineKnowledge": true
+    },
+    {
+      "partitionId": "private_kb_store",
+      "classification": "PRIVATE",
+      "storageBoundary": "PRIVATE_KB_STORE",
+      "physicalIsolation": "DEDICATED",
+      "ownerNodeType": "LOCAL",
+      "localMachineKnowledge": true
+    },
+    {
+      "partitionId": "student_archive_store",
+      "classification": "STUDENT_ARCHIVE",
+      "storageBoundary": "STUDENT_ARCHIVE_STORE",
+      "physicalIsolation": "DEDICATED",
+      "ownerNodeType": "LOCAL",
+      "localMachineKnowledge": true
+    },
+    {
+      "partitionId": "remote_device_owned_kb_store",
+      "classification": "REMOTE_DEVICE_OWNED",
+      "storageBoundary": "REMOTE_DEVICE_KB_STORE",
+      "physicalIsolation": "REMOTE_DEVICE_OWNED",
+      "ownerNodeType": "REMOTE_DEVICE",
+      "localMachineKnowledge": false
+    }
+  ],
+  "nodePolicies": [
+    {
+      "nodeType": "CLOUD",
+      "allowedLocalClassifications": ["PUBLIC"],
+      "allowedRemoteClassifications": [],
+      "maxLocalKnowledgeScope": "PUBLIC",
+      "localMachineKnowledgeAccessAllowed": true
+    },
+    {
+      "nodeType": "LOCAL",
+      "allowedLocalClassifications": ["PUBLIC", "PRIVATE", "STUDENT_ARCHIVE"],
+      "allowedRemoteClassifications": [],
+      "maxLocalKnowledgeScope": "PRIVATE",
+      "localMachineKnowledgeAccessAllowed": true
+    },
+    {
+      "nodeType": "REMOTE_DEVICE",
+      "allowedLocalClassifications": [],
+      "allowedRemoteClassifications": ["REMOTE_DEVICE_OWNED"],
+      "maxLocalKnowledgeScope": "NONE",
+      "localMachineKnowledgeAccessAllowed": false
+    }
+  ],
+  "retrievalPolicy": {
+    "supportedStrategies": ["CHUNK_VECTOR", "INTENT_DIRECTORY_INDEX", "HYBRID"],
+    "defaultStrategy": "HYBRID",
+    "chunkingRetained": true,
+    "directoryIntentIndexEnabled": true,
+    "queryPlanBudget": {
+      "maxDirectoryCandidates": 24,
+      "maxChunkCandidates": 80,
+      "targetP95Ms": 120
+    }
+  },
+  "updatedAt": "2026-05-30T14:20:00Z"
+}
