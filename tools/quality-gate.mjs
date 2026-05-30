@@ -115,6 +115,7 @@ export function buildQualityCommandPlan() {
     { name: "AI worker job contract audit", command: npmCommand(), args: ["run", "audit:ai-worker-job"] },
     { name: "knowledge access policy audit", command: npmCommand(), args: ["run", "audit:knowledge-policy"] },
     { name: "AI worker job admission audit", command: npmCommand(), args: ["run", "audit:ai-worker-job-admission"] },
+    { name: "knowledge retrieval benchmark audit", command: npmCommand(), args: ["run", "audit:knowledge-retrieval-benchmark"] },
     { name: "direct-limited connection budget", command: npmCommand(), args: ["run", "budget:connections:direct-limited"] },
     { name: "pgbouncer connection budget", command: npmCommand(), args: ["run", "budget:connections:pgbouncer"] },
   ];

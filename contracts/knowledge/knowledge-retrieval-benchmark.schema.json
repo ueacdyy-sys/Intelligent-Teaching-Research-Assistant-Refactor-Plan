@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/knowledge/knowledge-retrieval-benchmark.schema.json",
+  "title": "Knowledge Retrieval Benchmark Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "benchmarkId",
+    "iterations",
+    "corpus",
+    "workloads",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-05-30.knowledge.retrieval-benchmark.v1"
+    },
+    "benchmarkId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "iterations": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["documents"],
+      "properties": {
+        "documents": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "documentId",
+              "classification",
+              "ownerNodeType",
+              "directoryPath",
+              "intentTags",
+              "chunks"
+            ],
+            "properties": {
+              "documentId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "classification": {
+                "type": "string",
+                "enum": ["PUBLIC", "PRIVATE", "STUDENT_ARCHIVE", "REMOTE_DEVICE_OWNED"]
+              },
+              "ownerNodeType": {
+                "type": "string",
+                "enum": ["LOCAL", "REMOTE_DEVICE"]
+              },
+              "directoryPath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "intentTags": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "chunks": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["chunkId", "text", "intentTags"],
+                  "properties": {
+                    "chunkId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "intentTags": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "workloads": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workloadId",
+          "nodeType",
+          "query",
+          "intentTags",
+          "expectedStrategy",
+          "expectedClassifications"
+        ],
+        "properties": {
+          "workloadId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": ["CLOUD", "LOCAL", "REMOTE_DEVICE"]
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "intentTags": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "expectedStrategy": {
+            "type": "string",
+            "const": "HYBRID"
+          },
+          "expectedClassifications": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": ["PUBLIC", "PRIVATE", "STUDENT_ARCHIVE", "REMOTE_DEVICE_OWNED"]
+            }
+          }
+        }
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
