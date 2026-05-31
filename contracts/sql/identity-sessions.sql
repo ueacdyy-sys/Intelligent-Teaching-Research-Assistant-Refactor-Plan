@@ -8,13 +8,9 @@ CREATE TABLE IF NOT EXISTS identity_sessions (
     revoked_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_identity_sessions_access_active
-    ON identity_sessions (access_token)
-    WHERE revoked_at IS NULL;
+DROP INDEX IF EXISTS idx_identity_sessions_access_active;
 
-CREATE INDEX IF NOT EXISTS idx_identity_sessions_refresh_active
-    ON identity_sessions (refresh_token)
-    WHERE refresh_token IS NOT NULL AND revoked_at IS NULL;
+DROP INDEX IF EXISTS idx_identity_sessions_refresh_active;
 
 CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at
     ON identity_sessions (expires_at);

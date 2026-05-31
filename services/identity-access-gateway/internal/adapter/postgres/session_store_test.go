@@ -258,6 +258,33 @@ func TestSessionStorePruneInactiveSessionsRejectsInvalidLimit(t *testing.T) {
 	}
 }
 
+func TestEnsureSchemaDropsRedundantActiveTokenIndexes(t *testing.T) {
+	db := newFakeDB()
+
+	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
+		t.Fatalf("EnsureSchema error = %v", err)
+	}
+
+	schemaSQL := strings.Join(db.execSQL, "\n")
+	for _, indexName := range []string{
+		"idx_identity_sessions_access_active",
+		"idx_identity_sessions_refresh_active",
+	} {
+		if !strings.Contains(schemaSQL, "DROP INDEX IF EXISTS "+indexName) {
+			t.Fatalf("schema did not drop redundant index %s:\n%s", indexName, schemaSQL)
+		}
+		if strings.Contains(schemaSQL, "CREATE INDEX IF NOT EXISTS "+indexName) {
+			t.Fatalf("schema still recreates redundant index %s:\n%s", indexName, schemaSQL)
+		}
+	}
+	if !strings.Contains(schemaSQL, "access_token TEXT NOT NULL UNIQUE") {
+		t.Fatalf("schema must keep access_token uniqueness:\n%s", schemaSQL)
+	}
+	if !strings.Contains(schemaSQL, "refresh_token TEXT UNIQUE") {
+		t.Fatalf("schema must keep refresh_token uniqueness:\n%s", schemaSQL)
+	}
+}
+
 func TestSessionStoreAcceptRemoteCommandRejectsReplayNonce(t *testing.T) {
 	db := newFakeDB()
 	store := postgres.NewSessionStore(db)

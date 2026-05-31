@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-05-31T07:13:30Z",
+  "status": "READY",
+  "database": "ita-identity-session-postgres/intelligent_teaching_assistant",
+  "table": "identity_sessions",
+  "sourceCommand": "docker exec -e PGPASSWORD=*** ita-identity-session-postgres psql -U app_user -d intelligent_teaching_assistant -t -A -F \"|\" -c \"select indexname from pg_indexes where schemaname='public' and tablename='identity_sessions' order by indexname;\"",
+  "indexNames": [
+    "identity_sessions_access_token_key",
+    "identity_sessions_pkey",
+    "identity_sessions_refresh_token_key",
+    "idx_identity_sessions_expires_at"
+  ],
+  "absentIndexNames": [
+    "idx_identity_sessions_access_active",
+    "idx_identity_sessions_refresh_active"
+  ],
+  "interpretation": "The migrated performance database keeps token uniqueness and expires_at indexing while removing the two redundant active-token partial indexes."
+}

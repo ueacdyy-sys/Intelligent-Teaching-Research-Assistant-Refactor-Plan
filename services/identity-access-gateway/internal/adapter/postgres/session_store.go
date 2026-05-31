@@ -310,12 +310,8 @@ var schemaStatements = []string{
 		expires_at TIMESTAMPTZ NOT NULL,
 		revoked_at TIMESTAMPTZ
 	)`,
-	`CREATE INDEX IF NOT EXISTS idx_identity_sessions_access_active
-		ON identity_sessions (access_token)
-		WHERE revoked_at IS NULL`,
-	`CREATE INDEX IF NOT EXISTS idx_identity_sessions_refresh_active
-		ON identity_sessions (refresh_token)
-		WHERE refresh_token IS NOT NULL AND revoked_at IS NULL`,
+	`DROP INDEX IF EXISTS idx_identity_sessions_access_active`,
+	`DROP INDEX IF EXISTS idx_identity_sessions_refresh_active`,
 	`CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at
 		ON identity_sessions (expires_at)`,
 	`CREATE TABLE IF NOT EXISTS identity_remote_command_nonces (
