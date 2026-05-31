@@ -15,9 +15,11 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       benchmarkRuntimeProfile,
       buildBenchmarkCommand,
       collectGatewayDatabaseDiagnostics,
+      collectPgbouncerDiagnostics,
       extractFailureMessage,
       gatewayBaseUrls,
       inferFailurePhase,
+      parsePsqlUnalignedRows,
       parseArgs,
       runIdentityHttpBenchmark,
       tailText,
@@ -72,6 +74,18 @@ describe("identity HTTP benchmark runner failure evidence", () => {
           ],
         },
       },
+      pgbouncerDiagnostics: {
+        before: {
+          status: "OK",
+          sampledAt: "2026-05-31T00:00:00.000Z",
+          queries: {
+            stats: {
+              status: "OK",
+              rows: [{ database: "intelligent_teaching_assistant", total_xact_count: 42 }],
+            },
+          },
+        },
+      },
       generatedAt: "2026-05-31T00:00:00.000Z",
     });
 
@@ -119,6 +133,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.gatewaySignal, null);
     assert.equal(report.phase, "passwordLogin");
     assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 16);
+    assert.equal(report.pgbouncerDiagnostics.before.queries.stats.rows[0].total_xact_count, 42);
     assert(!JSON.stringify(report).includes("ueacd"));
     assert(!JSON.stringify(report).includes("postgres://"));
     assert.equal(
@@ -153,10 +168,22 @@ describe("identity HTTP benchmark runner failure evidence", () => {
           },
         ],
       },
+    }, {
+      before: {
+        status: "OK",
+        sampledAt: "2026-05-31T00:00:00.000Z",
+        queries: {
+          pools: {
+            status: "OK",
+            rows: [{ database: "intelligent_teaching_assistant", cl_waiting: 0 }],
+          },
+        },
+      },
     });
     assert.equal(passedReport.gatewayWorkerCount, 2);
     assert.deepEqual(passedReport.gatewayDatabaseProfile, report.gatewayDatabaseProfile);
     assert.equal(passedReport.gatewayDatabaseDiagnostics.before.gateways[0].stats.acquireCount, 10);
+    assert.equal(passedReport.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
     assert.deepEqual(passedReport.ingressProfile, report.ingressProfile);
     assert.deepEqual(passedReport.benchmarkRuntimeProfile, report.benchmarkRuntimeProfile);
 
@@ -215,6 +242,72 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       ],
     });
     assert(!JSON.stringify(diagnostics).includes("ueacd"));
+
+    assert.deepEqual(
+      parsePsqlUnalignedRows("database|total_xact_count|avg_query_count\nintelligent_teaching_assistant|42|3.5\n"),
+      [
+        {
+          database: "intelligent_teaching_assistant",
+          total_xact_count: 42,
+          avg_query_count: 3.5,
+        },
+      ],
+    );
+
+    const pgbouncerOptions = parseArgs([
+      "--pgbouncer-diagnostics",
+      "true",
+      "--pgbouncer-postgres-container",
+      "ita-identity-session-postgres",
+      "--pgbouncer-host",
+      "identity-session-pgbouncer",
+      "--pgbouncer-port",
+      "6432",
+      "--pgbouncer-user",
+      "app_user",
+      "--pgbouncer-database",
+      "pgbouncer",
+    ]);
+    const observedQueries = [];
+    const pgbouncerDiagnostics = collectPgbouncerDiagnostics(pgbouncerOptions, {
+      now: () => "2026-05-31T00:00:00.000Z",
+      spawnSync: (command, args) => {
+        assert.equal(command, "docker");
+        assert.equal(args[0], "exec");
+        assert(args.includes("PGPASSWORD=ueacd"));
+        const query = args.at(-1);
+        observedQueries.push(query);
+        if (query === "SHOW STATS;") {
+          return {
+            status: 0,
+            stdout: "database|total_xact_count|total_query_time\nintelligent_teaching_assistant|42|123456\n",
+            stderr: "",
+          };
+        }
+        if (query === "SHOW POOLS;") {
+          return {
+            status: 0,
+            stdout: "database|cl_active|cl_waiting|sv_active|sv_idle|sv_used\nintelligent_teaching_assistant|72|3|48|12|0\n",
+            stderr: "",
+          };
+        }
+        if (query === "SHOW CONFIG;") {
+          return {
+            status: 0,
+            stdout: "key|value\npool_mode|transaction\nmax_db_connections|90\n",
+            stderr: "",
+          };
+        }
+        throw new Error(`unexpected query ${query}`);
+      },
+    });
+    assert.deepEqual(observedQueries, ["SHOW STATS;", "SHOW POOLS;", "SHOW CONFIG;"]);
+    assert.equal(pgbouncerDiagnostics.status, "OK");
+    assert.equal(pgbouncerDiagnostics.sampledAt, "2026-05-31T00:00:00.000Z");
+    assert.equal(pgbouncerDiagnostics.queries.stats.rows[0].total_xact_count, 42);
+    assert.equal(pgbouncerDiagnostics.queries.pools.rows[0].cl_waiting, 3);
+    assert.equal(pgbouncerDiagnostics.queries.config.rows[1].value, 90);
+    assert(!JSON.stringify(pgbouncerDiagnostics).includes("ueacd"));
 
     assert.throws(
       () => validateRuntimePortPlan(parseArgs([

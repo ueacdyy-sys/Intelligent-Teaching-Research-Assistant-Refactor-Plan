@@ -3,6 +3,15 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import {
+  collectPgbouncerDiagnostics,
+  parsePsqlUnalignedRows,
+} from "./identity-pgbouncer-diagnostics.mjs";
+
+export {
+  collectPgbouncerDiagnostics,
+  parsePsqlUnalignedRows,
+};
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -23,6 +32,12 @@ export const defaults = {
   ingressCount: "1",
   ingressMaxConnsPerHost: "0",
   ingressWarmConnectionsPerHost: "0",
+  pgbouncerDiagnostics: "false",
+  pgbouncerPostgresContainer: "ita-identity-session-postgres",
+  pgbouncerHost: "identity-session-pgbouncer",
+  pgbouncerPort: "6432",
+  pgbouncerUser: "app_user",
+  pgbouncerDatabase: "pgbouncer",
   timeout: "120s",
   startupTimeoutMs: "120000",
 };
@@ -57,6 +72,12 @@ export function parseArgs(argv) {
     if (key === "--ingress-count") parsed.ingressCount = value;
     if (key === "--ingress-max-conns-per-host") parsed.ingressMaxConnsPerHost = value;
     if (key === "--ingress-warm-connections-per-host") parsed.ingressWarmConnectionsPerHost = value;
+    if (key === "--pgbouncer-diagnostics") parsed.pgbouncerDiagnostics = value;
+    if (key === "--pgbouncer-postgres-container") parsed.pgbouncerPostgresContainer = value;
+    if (key === "--pgbouncer-host") parsed.pgbouncerHost = value;
+    if (key === "--pgbouncer-port") parsed.pgbouncerPort = value;
+    if (key === "--pgbouncer-user") parsed.pgbouncerUser = value;
+    if (key === "--pgbouncer-database") parsed.pgbouncerDatabase = value;
     if (key === "--timeout") parsed.timeout = value;
     if (key === "--startup-timeout-ms") parsed.startupTimeoutMs = value;
     index += 1;
@@ -75,6 +96,7 @@ export function buildFailureReport({
   ingressExitCode,
   ingressSignal,
   gatewayDatabaseDiagnostics,
+  pgbouncerDiagnostics,
   generatedAt = new Date().toISOString(),
 }) {
   const sanitizedError = maskSensitive(errorMessage);
@@ -109,6 +131,9 @@ export function buildFailureReport({
   if (ingressSignal !== undefined) report.ingressSignal = ingressSignal;
   if (gatewayDatabaseDiagnostics) {
     report.gatewayDatabaseDiagnostics = gatewayDatabaseDiagnostics;
+  }
+  if (pgbouncerDiagnostics) {
+    report.pgbouncerDiagnostics = pgbouncerDiagnostics;
   }
   if (phase) report.phase = phase;
   return report;
@@ -221,6 +246,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
   let ingresses = [];
   let ingressOutputs = [];
   let gatewayDatabaseDiagnostics;
+  let pgbouncerDiagnostics;
   for (const [index, gateway] of gateways.entries()) {
     gateway.stdout?.on("data", (chunk) => {
       gatewayOutputs[index] += chunk.toString();
@@ -264,6 +290,11 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
         );
       }
     }
+    pgbouncerDiagnostics = addPgbouncerDiagnosticsSnapshot(
+      pgbouncerDiagnostics,
+      "before",
+      collectPgbouncerDiagnostics(options, { spawnSync: spawnCommandSync }),
+    );
     const benchmarkCommand = buildBenchmarkCommand(
       options,
       ingressEnabled(options) ? ingressBaseURLs : baseUrls,
@@ -284,6 +315,11 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
       "after",
       await collectGatewayDatabaseDiagnostics(baseUrls, { fetch: fetchFn }),
     );
+    pgbouncerDiagnostics = addPgbouncerDiagnosticsSnapshot(
+      pgbouncerDiagnostics,
+      "after",
+      collectPgbouncerDiagnostics(options, { spawnSync: spawnCommandSync }),
+    );
     if (exitCode !== 0) {
       const benchmarkOutput = `${result.stdout ?? ""}${result.stderr ?? ""}`;
       const message = result.error?.message ?? extractFailureMessage(benchmarkOutput, exitCode);
@@ -297,9 +333,10 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
         ingressExitCode: processExitCodes(ingresses),
         ingressSignal: processSignals(ingresses),
         gatewayDatabaseDiagnostics,
+        pgbouncerDiagnostics,
       });
     } else {
-      enhanceSuccessReport(options, gatewayDatabaseDiagnostics);
+      enhanceSuccessReport(options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -317,6 +354,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
       gatewayDatabaseDiagnostics,
+      pgbouncerDiagnostics,
     });
     exitCode = 1;
   } finally {
@@ -359,6 +397,14 @@ function writeFailureReport(options, details) {
 }
 
 function addGatewayDatabaseDiagnosticsSnapshot(current, name, snapshot) {
+  if (!snapshot) return current;
+  return {
+    ...(current ?? {}),
+    [name]: snapshot,
+  };
+}
+
+function addPgbouncerDiagnosticsSnapshot(current, name, snapshot) {
   if (!snapshot) return current;
   return {
     ...(current ?? {}),
@@ -535,17 +581,17 @@ function maskSensitive(value) {
   return text;
 }
 
-function enhanceSuccessReport(options, gatewayDatabaseDiagnostics) {
+function enhanceSuccessReport(options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics) {
   if (!options.out || !fs.existsSync(options.out)) return;
   const report = JSON.parse(fs.readFileSync(options.out, "utf8"));
-  writeJsonReport(options.out, addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics));
+  writeJsonReport(options.out, addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics));
 }
 
 export function addIngressProfileToReport(report, options) {
   return addRuntimeProfileToReport(report, options);
 }
 
-export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics) {
+export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics) {
   const enhanced = {
     ...report,
     gatewayWorkerCount: gatewayCount(options),
@@ -554,6 +600,9 @@ export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagno
   };
   if (gatewayDatabaseDiagnostics) {
     enhanced.gatewayDatabaseDiagnostics = gatewayDatabaseDiagnostics;
+  }
+  if (pgbouncerDiagnostics) {
+    enhanced.pgbouncerDiagnostics = pgbouncerDiagnostics;
   }
   if (!ingressEnabled(options)) return enhanced;
   return {
