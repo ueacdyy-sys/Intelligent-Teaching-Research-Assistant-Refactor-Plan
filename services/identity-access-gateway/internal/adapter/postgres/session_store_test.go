@@ -132,6 +132,9 @@ func TestSessionStoreRevokeInvalidatesTokens(t *testing.T) {
 	if _, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_1"); err != nil || ok {
 		t.Fatalf("revoked refresh ok=%v err=%v", ok, err)
 	}
+	if !strings.Contains(db.execSQL[len(db.execSQL)-1], "DELETE FROM identity_sessions") {
+		t.Fatalf("revoke SQL should delete inactive rows, got %s", db.execSQL[len(db.execSQL)-1])
+	}
 }
 
 func TestSessionStoreRevokeOwnSessionUsesAccessAndSessionCondition(t *testing.T) {
@@ -153,7 +156,9 @@ func TestSessionStoreRevokeOwnSessionUsesAccessAndSessionCondition(t *testing.T)
 	if _, ok, err := store.GetPrincipalByAccessToken(context.Background(), "access_1"); err != nil || ok {
 		t.Fatalf("revoked access ok=%v err=%v", ok, err)
 	}
-	if !strings.Contains(db.execSQL[len(db.execSQL)-1], "session_id = $1") || !strings.Contains(db.execSQL[len(db.execSQL)-1], "access_token = $2") {
+	if !strings.Contains(db.execSQL[len(db.execSQL)-1], "DELETE FROM identity_sessions") ||
+		!strings.Contains(db.execSQL[len(db.execSQL)-1], "session_id = $1") ||
+		!strings.Contains(db.execSQL[len(db.execSQL)-1], "access_token = $2") {
 		t.Fatalf("fast revoke SQL = %s", db.execSQL[len(db.execSQL)-1])
 	}
 }
@@ -309,7 +314,7 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 		db.sessionByAccess[newAccess] = sessionID
 		db.sessionByRefresh[newRefresh] = sessionID
 		return fakeCommandTag{rows: 1}, nil
-	case strings.Contains(sql, "access_token = $2"):
+	case strings.Contains(sql, "DELETE FROM identity_sessions") && strings.Contains(sql, "access_token = $2"):
 		sessionID := args[0].(string)
 		accessToken := args[1].(string)
 		now := args[2].(time.Time)
@@ -324,8 +329,14 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 		if principal.ExpiresAt.Before(now) {
 			return fakeCommandTag{rows: 0}, nil
 		}
-		session.revoked = true
-		db.sessionsByID[sessionID] = session
+		db.deleteSession(sessionID)
+		return fakeCommandTag{rows: 1}, nil
+	case strings.Contains(sql, "DELETE FROM identity_sessions"):
+		sessionID := args[0].(string)
+		if _, ok := db.sessionsByID[sessionID]; !ok {
+			return fakeCommandTag{rows: 0}, nil
+		}
+		db.deleteSession(sessionID)
 		return fakeCommandTag{rows: 1}, nil
 	case strings.Contains(sql, "SET revoked_at"):
 		sessionID := args[0].(string)
@@ -412,6 +423,11 @@ func (db *fakeDB) removeIndexes(sessionID string) {
 	if session.refreshToken != "" {
 		delete(db.sessionByRefresh, session.refreshToken)
 	}
+}
+
+func (db *fakeDB) deleteSession(sessionID string) {
+	db.removeIndexes(sessionID)
+	delete(db.sessionsByID, sessionID)
 }
 
 func queryLogContains(queries []string, needles ...string) bool {

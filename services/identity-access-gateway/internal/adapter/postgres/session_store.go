@@ -185,8 +185,7 @@ func (s *SessionStore) RotateRefreshSession(
 func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) error {
 	_, err := s.db.Exec(
 		ctx,
-		`UPDATE identity_sessions
-		SET revoked_at = NOW()
+		`DELETE FROM identity_sessions
 		WHERE session_id = $1
 			AND revoked_at IS NULL`,
 		sessionID,
@@ -197,8 +196,7 @@ func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) erro
 func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string, sessionID string, now time.Time) (bool, error) {
 	tag, err := s.db.Exec(
 		ctx,
-		`UPDATE identity_sessions
-		SET revoked_at = NOW()
+		`DELETE FROM identity_sessions
 		WHERE session_id = $1
 			AND access_token = $2
 			AND revoked_at IS NULL
