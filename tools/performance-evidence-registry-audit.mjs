@@ -13,6 +13,7 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-http-benchmark.concurrency832-multi3.json",
   "reports/identity-http-benchmark.concurrency1184-multi4.json",
   "reports/identity-http-benchmark.concurrency1200-multi4.json",
+  "reports/identity-http-benchmark.concurrency1200-multi4-warm300.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
   "reports/quality-gate.current.json",

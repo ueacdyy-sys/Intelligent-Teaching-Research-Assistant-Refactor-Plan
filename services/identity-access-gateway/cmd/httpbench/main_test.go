@@ -69,3 +69,26 @@ func TestBaseURLForOperationRoundRobin(t *testing.T) {
 		t.Fatalf("op 2 base URL = %q", got)
 	}
 }
+
+func TestBuildHTTPClientReportsTransportProfile(t *testing.T) {
+	config := benchmarkConfig{
+		Concurrency:            1200,
+		MaxConnsPerHost:        300,
+		WarmConnectionsPerHost: 300,
+	}
+
+	_, profile := buildHTTPClient(config, 4)
+
+	if profile.MaxConnsPerHost != 300 {
+		t.Fatalf("MaxConnsPerHost = %d want 300", profile.MaxConnsPerHost)
+	}
+	if profile.WarmConnectionsPerHost != 300 {
+		t.Fatalf("WarmConnectionsPerHost = %d want 300", profile.WarmConnectionsPerHost)
+	}
+	if profile.WarmConnectionsTotal != 1200 {
+		t.Fatalf("WarmConnectionsTotal = %d want 1200", profile.WarmConnectionsTotal)
+	}
+	if profile.MaxIdleConns < 1200 || profile.MaxIdleConnsPerHost < 1200 {
+		t.Fatalf("idle connection profile is too small: %#v", profile)
+	}
+}

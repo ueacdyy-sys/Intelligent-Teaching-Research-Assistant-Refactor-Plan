@@ -21,26 +21,37 @@ import (
 )
 
 type benchmarkConfig struct {
-	BaseURL            string
-	OutPath            string
-	Concurrency        int
-	OperationsPerPhase int
-	Timeout            time.Duration
+	BaseURL                string
+	OutPath                string
+	Concurrency            int
+	OperationsPerPhase     int
+	Timeout                time.Duration
+	MaxConnsPerHost        int
+	WarmConnectionsPerHost int
 }
 
 type benchmarkReport struct {
-	GeneratedAt        string                 `json:"generatedAt"`
-	BenchmarkKind      string                 `json:"benchmarkKind"`
-	WorkloadType       string                 `json:"workloadType"`
-	Status             string                 `json:"status"`
-	BaseURL            string                 `json:"baseUrl"`
-	GatewayCount       int                    `json:"gatewayCount"`
-	GatewayBaseURLs    []string               `json:"gatewayBaseUrls"`
-	LoadBalancing      string                 `json:"loadBalancingStrategy"`
-	Concurrency        int                    `json:"concurrency"`
-	OperationsPerPhase int                    `json:"operationsPerPhase"`
-	TotalDurationMS    float64                `json:"totalDurationMs"`
-	Phases             map[string]phaseReport `json:"phases"`
+	GeneratedAt        string                    `json:"generatedAt"`
+	BenchmarkKind      string                    `json:"benchmarkKind"`
+	WorkloadType       string                    `json:"workloadType"`
+	Status             string                    `json:"status"`
+	BaseURL            string                    `json:"baseUrl"`
+	GatewayCount       int                       `json:"gatewayCount"`
+	GatewayBaseURLs    []string                  `json:"gatewayBaseUrls"`
+	LoadBalancing      string                    `json:"loadBalancingStrategy"`
+	TransportProfile   benchmarkTransportProfile `json:"transportProfile"`
+	Concurrency        int                       `json:"concurrency"`
+	OperationsPerPhase int                       `json:"operationsPerPhase"`
+	TotalDurationMS    float64                   `json:"totalDurationMs"`
+	Phases             map[string]phaseReport    `json:"phases"`
+}
+
+type benchmarkTransportProfile struct {
+	MaxIdleConns           int `json:"maxIdleConns"`
+	MaxIdleConnsPerHost    int `json:"maxIdleConnsPerHost"`
+	MaxConnsPerHost        int `json:"maxConnsPerHost"`
+	WarmConnectionsPerHost int `json:"warmConnectionsPerHost"`
+	WarmConnectionsTotal   int `json:"warmConnectionsTotal"`
 }
 
 type phaseReport struct {
@@ -89,6 +100,8 @@ func parseConfig() benchmarkConfig {
 	flag.IntVar(&config.Concurrency, "concurrency", 64, "number of concurrent workers")
 	flag.IntVar(&config.OperationsPerPhase, "operations", 500, "operations to run for each phase")
 	flag.DurationVar(&config.Timeout, "timeout", 60*time.Second, "benchmark timeout")
+	flag.IntVar(&config.MaxConnsPerHost, "max-conns-per-host", 0, "optional HTTP transport max connections per gateway host")
+	flag.IntVar(&config.WarmConnectionsPerHost, "warm-connections-per-host", 0, "optional keep-alive connections to prewarm per gateway host")
 	flag.Parse()
 	return config
 }
@@ -103,18 +116,17 @@ func run(config benchmarkConfig) error {
 	if config.OperationsPerPhase < 1 {
 		return errors.New("operations must be positive")
 	}
+	if config.MaxConnsPerHost < 0 {
+		return errors.New("max-conns-per-host must be zero or positive")
+	}
+	if config.WarmConnectionsPerHost < 0 {
+		return errors.New("warm-connections-per-host must be zero or positive")
+	}
 	baseURLs, err := parseBaseURLs(config.BaseURL)
 	if err != nil {
 		return err
 	}
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			MaxIdleConns:        config.Concurrency * 4,
-			MaxIdleConnsPerHost: config.Concurrency * 4,
-			IdleConnTimeout:     30 * time.Second,
-		},
-	}
+	client, transportProfile := buildHTTPClient(config, len(baseURLs))
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
@@ -122,6 +134,9 @@ func run(config benchmarkConfig) error {
 		if err := waitHealth(ctx, client, baseURL); err != nil {
 			return err
 		}
+	}
+	if err := warmHTTPConnections(ctx, client, baseURLs, config.WarmConnectionsPerHost); err != nil {
+		return err
 	}
 
 	start := time.Now()
@@ -151,6 +166,7 @@ func run(config benchmarkConfig) error {
 		GatewayCount:       len(baseURLs),
 		GatewayBaseURLs:    maskURLs(baseURLs),
 		LoadBalancing:      loadBalancingStrategy(baseURLs),
+		TransportProfile:   transportProfile,
 		Concurrency:        config.Concurrency,
 		OperationsPerPhase: config.OperationsPerPhase,
 		TotalDurationMS:    roundMillis(time.Since(start)),
@@ -174,6 +190,57 @@ func run(config benchmarkConfig) error {
 		}
 	}
 	fmt.Println(string(data))
+	return nil
+}
+
+func buildHTTPClient(config benchmarkConfig, gatewayCount int) (*http.Client, benchmarkTransportProfile) {
+	maxIdleConns := config.Concurrency * 4
+	maxIdleConnsPerHost := config.Concurrency * 4
+	warmConnectionsTotal := maxInt(0, config.WarmConnectionsPerHost) * maxInt(1, gatewayCount)
+	transport := &http.Transport{
+		MaxIdleConns:        maxIdleConns,
+		MaxIdleConnsPerHost: maxIdleConnsPerHost,
+		MaxConnsPerHost:     config.MaxConnsPerHost,
+		IdleConnTimeout:     30 * time.Second,
+	}
+	return &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: transport,
+		}, benchmarkTransportProfile{
+			MaxIdleConns:           maxIdleConns,
+			MaxIdleConnsPerHost:    maxIdleConnsPerHost,
+			MaxConnsPerHost:        config.MaxConnsPerHost,
+			WarmConnectionsPerHost: config.WarmConnectionsPerHost,
+			WarmConnectionsTotal:   warmConnectionsTotal,
+		}
+}
+
+func warmHTTPConnections(ctx context.Context, client *http.Client, baseURLs []string, connectionsPerHost int) error {
+	if connectionsPerHost <= 0 {
+		return nil
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, len(baseURLs)*connectionsPerHost)
+	start := make(chan struct{})
+	for _, baseURL := range baseURLs {
+		baseURL := baseURL
+		for index := 0; index < connectionsPerHost; index++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				if err := requestHealth(ctx, client, baseURL); err != nil {
+					errs <- err
+				}
+			}()
+		}
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		return fmt.Errorf("warm transport connections: %w", err)
+	}
 	return nil
 }
 
@@ -351,24 +418,31 @@ func waitHealth(ctx context.Context, client *http.Client, baseURL string) error 
 	}
 	var lastErr error
 	for time.Now().Before(deadline) {
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/health", nil)
-		if err != nil {
-			return err
-		}
-		response, err := client.Do(request)
-		if err == nil {
-			_, _ = io.Copy(io.Discard, response.Body)
-			_ = response.Body.Close()
-			if response.StatusCode == http.StatusOK {
-				return nil
-			}
-			lastErr = fmt.Errorf("health status = %d", response.StatusCode)
-		} else {
+		if err := requestHealth(ctx, client, baseURL); err != nil {
 			lastErr = err
+		} else {
+			return nil
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
 	return fmt.Errorf("gateway health check failed: %w", lastErr)
+}
+
+func requestHealth(ctx context.Context, client *http.Client, baseURL string) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/health", nil)
+	if err != nil {
+		return err
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	_, _ = io.Copy(io.Discard, response.Body)
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("health status = %d", response.StatusCode)
+	}
+	return nil
 }
 
 func login(ctx context.Context, client *http.Client, baseURL string, identifier string, role string, entryPoint string) (sessionState, error) {

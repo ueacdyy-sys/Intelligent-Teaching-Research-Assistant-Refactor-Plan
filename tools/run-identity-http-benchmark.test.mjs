@@ -27,6 +27,10 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "16",
       "--gateway-count",
       "2",
+      "--max-conns-per-host",
+      "256",
+      "--warm-connections-per-host",
+      "128",
       "--out",
       "reports/identity-http-benchmark.concurrency512.json",
     ]);
@@ -49,6 +53,11 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.operationsPerPhase, 1024);
     assert.equal(report.sessionDbMaxConns, 16);
     assert.equal(report.gatewayCount, 2);
+    assert.deepEqual(report.transportProfile, {
+      maxConnsPerHost: 256,
+      warmConnectionsPerHost: 128,
+      warmConnectionsTotal: 256,
+    });
     assert.deepEqual(report.gatewayBaseUrls, ["http://127.0.0.1:18100", "http://127.0.0.1:18101"]);
     assert.equal(report.loadBalancingStrategy, "ROUND_ROBIN");
     assert.equal(report.dockerRequiredForEvidence, true);

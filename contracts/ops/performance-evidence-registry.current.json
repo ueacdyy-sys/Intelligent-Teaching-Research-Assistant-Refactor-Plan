@@ -1,7 +1,7 @@
 {
   "schemaVersion": "2026-05-30.ops.performance-evidence-registry.v1",
   "registryId": "current_refactor_performance_evidence",
-  "updatedAt": "2026-05-31T01:10:00Z",
+  "updatedAt": "2026-05-31T01:28:00Z",
   "entries": [
     {
       "evidenceId": "pgbouncer_perf_profile_current",
@@ -585,6 +585,86 @@
         }
       },
       "rollbackOrNextAction": "Use this failed probe to justify the next performance slice: gateway listener diagnostics, benchmark connection shaping, OS/socket backlog tuning, or an external reverse-proxy profile."
+    },
+    {
+      "evidenceId": "identity_http_gateway_multi4_warmed_1200",
+      "moduleSlice": "Identity And Access / HTTP Session Gateway",
+      "workloadType": "HTTP_BENCHMARK",
+      "sourceCommand": "npm run bench:identity-http:pgbouncer -- --gateway-count 4 --concurrency 1200 --operations 2400 --max-conns-per-host 300 --warm-connections-per-host 300 --out reports/identity-http-benchmark.concurrency1200-multi4-warm300.json --timeout 780s --startup-timeout-ms 180000",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency1200-multi4-warm300.json",
+      "runtimeProfile": {
+        "name": "identity_go_gateway_pgbouncer_multi4_warmed_transport_1200",
+        "executionEnvironment": "Four local Go gateways with round-robin client routing, warmed keep-alive transport, and Docker identity PgBouncer profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "PASSED",
+      "metrics": [
+        {
+          "name": "benchmark.concurrency",
+          "value": 1200,
+          "unit": "clients",
+          "interpretation": "The warmed transport profile passed at the same 1200 concurrency where the direct cold-connection profile failed."
+        },
+        {
+          "name": "gateway.count",
+          "value": 4,
+          "unit": "processes",
+          "interpretation": "The benchmark distributed requests across four local identity gateway processes."
+        },
+        {
+          "name": "transport.max_conns_per_host",
+          "value": 300,
+          "unit": "connections_per_gateway_host",
+          "interpretation": "The benchmark capped each gateway host at the same connection count as its share of the total 1200 concurrency."
+        },
+        {
+          "name": "transport.warm_connections_total",
+          "value": 1200,
+          "unit": "connections",
+          "interpretation": "The benchmark prewarmed keep-alive connections before the measured phases to separate steady traffic from cold connection establishment."
+        },
+        {
+          "name": "passwordLogin.p95_ms",
+          "value": 582.69,
+          "unit": "ms",
+          "interpretation": "The login write path completed without errors under the warmed 1200-concurrency profile, but with higher tail latency than the 1184 direct pass point."
+        },
+        {
+          "name": "revokeCycle.p95_ms",
+          "value": 503.91,
+          "unit": "ms",
+          "interpretation": "The mixed revoke cycle stayed error-free and below the direct 1184 pass-point revoke P95."
+        },
+        {
+          "name": "phase.errors",
+          "value": 0,
+          "unit": "errors",
+          "interpretation": "All benchmark phases completed without reported errors."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "ita-identity-session-postgres",
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
+        },
+        "pgbouncer": {
+          "serviceName": "ita-identity-session-pgbouncer",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 90
+        },
+        "applicationPool": {
+          "postgresHost": "127.0.0.1",
+          "postgresPort": 16432,
+          "dbPoolSize": 16,
+          "dbMaxOverflow": 0,
+          "workerCount": 4
+        }
+      },
+      "rollbackOrNextAction": "Use this as evidence that the next performance slice should add a real ingress or reverse-proxy profile with warm upstream connections, then retest the client-facing boundary."
     },
     {
       "evidenceId": "knowledge_hybrid_retrieval_policy_smoke",

@@ -13,6 +13,8 @@ export const defaults = {
   operations: "300",
   sessionDbMaxConns: "16",
   gatewayCount: "1",
+  maxConnsPerHost: "0",
+  warmConnectionsPerHost: "0",
   timeout: "120s",
   startupTimeoutMs: "120000",
 };
@@ -34,6 +36,8 @@ export function parseArgs(argv) {
     if (key === "--operations") parsed.operations = value;
     if (key === "--session-db-max-conns") parsed.sessionDbMaxConns = value;
     if (key === "--gateway-count") parsed.gatewayCount = value;
+    if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
+    if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
     if (key === "--timeout") parsed.timeout = value;
     if (key === "--startup-timeout-ms") parsed.startupTimeoutMs = value;
     index += 1;
@@ -67,6 +71,7 @@ export function buildFailureReport({
     gatewayCount: gatewayCount(options),
     gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
     loadBalancingStrategy: gatewayCount(options) > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY",
+    transportProfile: transportProfile(options),
     dockerRequiredForEvidence: true,
     exitCode,
     errorMessage: sanitizedError || `identity HTTP benchmark exited with code ${exitCode}`,
@@ -145,6 +150,10 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
         options.concurrency,
         "-operations",
         options.operations,
+        "-max-conns-per-host",
+        options.maxConnsPerHost,
+        "-warm-connections-per-host",
+        options.warmConnectionsPerHost,
         "-timeout",
         options.timeout,
       ],
@@ -272,6 +281,15 @@ function maskURL(value) {
 
 function gatewayCount(options) {
   return Math.max(1, parseIntegerOption(options.gatewayCount));
+}
+
+function transportProfile(options) {
+  const warmConnectionsPerHost = parseIntegerOption(options.warmConnectionsPerHost);
+  return {
+    maxConnsPerHost: parseIntegerOption(options.maxConnsPerHost),
+    warmConnectionsPerHost,
+    warmConnectionsTotal: gatewayCount(options) * warmConnectionsPerHost,
+  };
 }
 
 function gatewayBaseUrlAt(options, index) {
