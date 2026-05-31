@@ -49,6 +49,8 @@ func TestSessionStorePostgresIntegrationLifecycle(t *testing.T) {
 	refreshToken := "refresh_integration_" + suffix
 	newAccessToken := "access_integration_rotated_" + suffix
 	newRefreshToken := "refresh_integration_rotated_" + suffix
+	fastAccessToken := "access_integration_fast_rotated_" + suffix
+	fastRefreshToken := "refresh_integration_fast_rotated_" + suffix
 	defer func() {
 		_, _ = pool.Exec(context.Background(), "DELETE FROM identity_sessions WHERE session_id = $1", sessionID)
 	}()
@@ -78,13 +80,32 @@ func TestSessionStorePostgresIntegrationLifecycle(t *testing.T) {
 		t.Fatalf("new refresh loaded=%#v ok=%v err=%v", loaded, ok, err)
 	}
 
+	fastIssuedAt := principal.IssuedAt.Add(2 * time.Minute)
+	fastExpiresAt := fastIssuedAt.Add(time.Hour)
+	fastPrincipal, ok, err := store.RotateRefreshSession(ctx, newRefreshToken, fastAccessToken, fastRefreshToken, fastIssuedAt, fastExpiresAt)
+	if err != nil || !ok {
+		t.Fatalf("RotateRefreshSession principal=%#v ok=%v err=%v", fastPrincipal, ok, err)
+	}
+	if fastPrincipal.SessionID != sessionID || !fastPrincipal.IssuedAt.Equal(fastIssuedAt) || !fastPrincipal.ExpiresAt.Equal(fastExpiresAt) {
+		t.Fatalf("fast rotated principal = %#v", fastPrincipal)
+	}
+	if _, ok, err := store.GetPrincipalByRefreshToken(ctx, newRefreshToken); err != nil || ok {
+		t.Fatalf("old fast refresh ok=%v err=%v", ok, err)
+	}
+	if loaded, ok, err := store.GetPrincipalByAccessToken(ctx, fastAccessToken); err != nil || !ok || loaded.SessionID != sessionID {
+		t.Fatalf("fast access loaded=%#v ok=%v err=%v", loaded, ok, err)
+	}
+
 	if err := store.RevokeSession(ctx, sessionID); err != nil {
 		t.Fatalf("RevokeSession error = %v", err)
 	}
-	if _, ok, err := store.GetPrincipalByAccessToken(ctx, newAccessToken); err != nil || ok {
+	if _, ok, err := store.GetPrincipalByAccessToken(ctx, fastAccessToken); err != nil || ok {
 		t.Fatalf("revoked access ok=%v err=%v", ok, err)
 	}
-	if err := store.RotateSession(ctx, newRefreshToken, "unused_access_"+suffix, "unused_refresh_"+suffix, principal); !errors.Is(err, domain.ErrInvalidSession) {
+	if _, ok, err := store.RotateRefreshSession(ctx, fastRefreshToken, "unused_access_"+suffix, "unused_refresh_"+suffix, fastIssuedAt, fastExpiresAt); err != nil || ok {
+		t.Fatalf("rotating revoked fast refresh ok=%v err=%v", ok, err)
+	}
+	if err := store.RotateSession(ctx, fastRefreshToken, "unused_access_"+suffix, "unused_refresh_"+suffix, principal); !errors.Is(err, domain.ErrInvalidSession) {
 		t.Fatalf("rotating revoked refresh err = %v", err)
 	}
 }

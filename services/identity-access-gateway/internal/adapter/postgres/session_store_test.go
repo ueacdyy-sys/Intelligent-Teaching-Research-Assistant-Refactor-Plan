@@ -79,6 +79,41 @@ func TestSessionStoreRotatesTokensAndInvalidatesOldTokens(t *testing.T) {
 	}
 }
 
+func TestSessionStoreRotateRefreshSessionReturnsUpdatedPrincipal(t *testing.T) {
+	db := newFakeDB()
+	store := postgres.NewSessionStore(db)
+	principal := teacherPrincipal("sess_1")
+	if err := store.SaveSession(context.Background(), "access_1", "refresh_1", principal); err != nil {
+		t.Fatalf("SaveSession error = %v", err)
+	}
+	issuedAt := principal.IssuedAt.Add(time.Minute)
+	expiresAt := issuedAt.Add(time.Hour)
+
+	rotated, ok, err := store.RotateRefreshSession(context.Background(), "refresh_1", "access_2", "refresh_2", issuedAt, expiresAt)
+	if err != nil {
+		t.Fatalf("RotateRefreshSession error = %v", err)
+	}
+
+	if !ok {
+		t.Fatal("RotateRefreshSession did not rotate matching refresh token")
+	}
+	if rotated.SessionID != "sess_1" || !rotated.IssuedAt.Equal(issuedAt) || !rotated.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("rotated principal = %#v", rotated)
+	}
+	if _, ok, err := store.GetPrincipalByAccessToken(context.Background(), "access_1"); err != nil || ok {
+		t.Fatalf("old access ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_1"); err != nil || ok {
+		t.Fatalf("old refresh ok=%v err=%v", ok, err)
+	}
+	if loaded, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_2"); err != nil || !ok || loaded.SessionID != "sess_1" {
+		t.Fatalf("new refresh loaded=%#v ok=%v err=%v", loaded, ok, err)
+	}
+	if !queryLogContains(db.querySQL, "UPDATE identity_sessions", "RETURNING principal_json") {
+		t.Fatalf("optimized refresh SQL should return the updated principal: %#v", db.querySQL)
+	}
+}
+
 func TestSessionStoreRevokeInvalidatesTokens(t *testing.T) {
 	db := newFakeDB()
 	store := postgres.NewSessionStore(db)
@@ -210,6 +245,7 @@ type fakeDB struct {
 	sessionByRefresh    map[string]string
 	remoteCommandNonces map[string]time.Time
 	execSQL             []string
+	querySQL            []string
 }
 
 type fakeSession struct {
@@ -306,7 +342,10 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 }
 
 func (db *fakeDB) QueryRow(_ context.Context, sql string, args ...any) postgres.Row {
+	db.querySQL = append(db.querySQL, sql)
 	switch {
+	case strings.Contains(sql, "UPDATE identity_sessions") && strings.Contains(sql, "RETURNING principal_json"):
+		return db.rotateRefreshRow(args...)
 	case strings.Contains(sql, "access_token ="):
 		return db.rowByToken(db.sessionByAccess, args[0].(string))
 	case strings.Contains(sql, "refresh_token ="):
@@ -314,6 +353,46 @@ func (db *fakeDB) QueryRow(_ context.Context, sql string, args ...any) postgres.
 	default:
 		return fakeRow{err: pgx.ErrNoRows}
 	}
+}
+
+func (db *fakeDB) rotateRefreshRow(args ...any) postgres.Row {
+	newAccess := args[0].(string)
+	newRefresh := args[1].(string)
+	issuedAtText := args[2].(string)
+	expiresAtText := args[3].(string)
+	issuedAt := args[4].(time.Time)
+	expiresAt := args[5].(time.Time)
+	oldRefresh := args[6].(string)
+	sessionID := db.sessionByRefresh[oldRefresh]
+	session := db.sessionsByID[sessionID]
+	if sessionID == "" || session.revoked {
+		return fakeRow{err: pgx.ErrNoRows}
+	}
+	var principal domain.PrincipalContext
+	if err := json.Unmarshal(session.principalJSON, &principal); err != nil {
+		return fakeRow{err: err}
+	}
+	if principal.ExpiresAt.Before(issuedAt) {
+		return fakeRow{err: pgx.ErrNoRows}
+	}
+	if issuedAtText == "" || expiresAtText == "" {
+		return fakeRow{err: errors.New("missing json time text")}
+	}
+	principal.IssuedAt = issuedAt
+	principal.ExpiresAt = expiresAt
+	principalJSON, err := json.Marshal(principal)
+	if err != nil {
+		return fakeRow{err: err}
+	}
+	db.removeIndexes(sessionID)
+	session.accessToken = newAccess
+	session.refreshToken = newRefresh
+	session.principalJSON = principalJSON
+	session.revoked = false
+	db.sessionsByID[sessionID] = session
+	db.sessionByAccess[newAccess] = sessionID
+	db.sessionByRefresh[newRefresh] = sessionID
+	return fakeRow{json: principalJSON}
 }
 
 func (db *fakeDB) rowByToken(index map[string]string, token string) postgres.Row {
@@ -333,6 +412,22 @@ func (db *fakeDB) removeIndexes(sessionID string) {
 	if session.refreshToken != "" {
 		delete(db.sessionByRefresh, session.refreshToken)
 	}
+}
+
+func queryLogContains(queries []string, needles ...string) bool {
+	for _, query := range queries {
+		matched := true
+		for _, needle := range needles {
+			if !strings.Contains(query, needle) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 type fakeCommandTag struct {

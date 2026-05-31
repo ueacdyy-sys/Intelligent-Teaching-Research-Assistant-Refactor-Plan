@@ -45,6 +45,17 @@ type SelfSessionRevoker interface {
 	RevokeOwnSession(ctx context.Context, accessToken string, sessionID string, now time.Time) (bool, error)
 }
 
+type RefreshSessionRotator interface {
+	RotateRefreshSession(
+		ctx context.Context,
+		refreshToken string,
+		newAccessToken string,
+		newRefreshToken string,
+		issuedAt time.Time,
+		expiresAt time.Time,
+	) (domain.PrincipalContext, bool, error)
+}
+
 type TokenIssuer interface {
 	NewSessionID() string
 	NewAccessToken() string
@@ -225,16 +236,21 @@ func (s *IdentityService) RefreshSession(
 	if err != nil {
 		return domain.Session{}, err
 	}
+	now := s.clock.Now().UTC()
+	expiresAt := now.Add(time.Hour)
+	if rotator, ok := s.sessions.(RefreshSessionRotator); ok {
+		return s.refreshSessionWithRotator(ctx, rotator, normalized.RefreshToken, now, expiresAt)
+	}
+
 	principal, ok, err := s.sessions.GetPrincipalByRefreshToken(ctx, normalized.RefreshToken)
 	if err != nil {
 		return domain.Session{}, err
 	}
-	now := s.clock.Now().UTC()
 	if !ok || principal.ExpiresAt.Before(now) {
 		return domain.Session{}, domain.ErrInvalidSession
 	}
 	principal.IssuedAt = now
-	principal.ExpiresAt = now.Add(time.Hour)
+	principal.ExpiresAt = expiresAt
 	session := domain.Session{
 		AccessToken:  s.issuer.NewAccessToken(),
 		RefreshToken: s.issuer.NewRefreshToken(),
@@ -245,6 +261,30 @@ func (s *IdentityService) RefreshSession(
 	if err := s.sessions.RotateSession(ctx, normalized.RefreshToken, session.AccessToken, session.RefreshToken, principal); err != nil {
 		return domain.Session{}, err
 	}
+	return session, nil
+}
+
+func (s *IdentityService) refreshSessionWithRotator(
+	ctx context.Context,
+	rotator RefreshSessionRotator,
+	refreshToken string,
+	now time.Time,
+	expiresAt time.Time,
+) (domain.Session, error) {
+	session := domain.Session{
+		AccessToken:  s.issuer.NewAccessToken(),
+		RefreshToken: s.issuer.NewRefreshToken(),
+		TokenType:    "Bearer",
+		ExpiresIn:    int(expiresAt.Sub(now).Seconds()),
+	}
+	principal, ok, err := rotator.RotateRefreshSession(ctx, refreshToken, session.AccessToken, session.RefreshToken, now, expiresAt)
+	if err != nil {
+		return domain.Session{}, err
+	}
+	if !ok {
+		return domain.Session{}, domain.ErrInvalidSession
+	}
+	session.Principal = principal
 	return session, nil
 }
 

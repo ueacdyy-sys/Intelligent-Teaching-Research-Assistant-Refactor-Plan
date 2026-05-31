@@ -134,6 +134,54 @@ func (s *SessionStore) RotateSession(
 	return nil
 }
 
+func (s *SessionStore) RotateRefreshSession(
+	ctx context.Context,
+	refreshToken string,
+	newAccessToken string,
+	newRefreshToken string,
+	issuedAt time.Time,
+	expiresAt time.Time,
+) (domain.PrincipalContext, bool, error) {
+	var principalJSON []byte
+	err := s.db.QueryRow(
+		ctx,
+		`UPDATE identity_sessions
+		SET access_token = $1,
+			refresh_token = $2,
+			principal_json = jsonb_set(
+				jsonb_set(principal_json, '{IssuedAt}', to_jsonb($3::text), true),
+				'{ExpiresAt}',
+				to_jsonb($4::text),
+				true
+			),
+			issued_at = $5,
+			expires_at = $6,
+			revoked_at = NULL
+		WHERE refresh_token = $7
+			AND revoked_at IS NULL
+			AND expires_at >= $5
+		RETURNING principal_json`,
+		newAccessToken,
+		newRefreshToken,
+		formatPrincipalJSONTime(issuedAt),
+		formatPrincipalJSONTime(expiresAt),
+		issuedAt,
+		expiresAt,
+		refreshToken,
+	).Scan(&principalJSON)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.PrincipalContext{}, false, nil
+		}
+		return domain.PrincipalContext{}, false, err
+	}
+	principal, err := decodePrincipal(principalJSON)
+	if err != nil {
+		return domain.PrincipalContext{}, false, err
+	}
+	return principal, true, nil
+}
+
 func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) error {
 	_, err := s.db.Exec(
 		ctx,
@@ -223,6 +271,10 @@ func decodePrincipal(data []byte) (domain.PrincipalContext, error) {
 		return domain.PrincipalContext{}, err
 	}
 	return principal, nil
+}
+
+func formatPrincipalJSONTime(value time.Time) string {
+	return value.UTC().Format(time.RFC3339Nano)
 }
 
 var schemaStatements = []string{
