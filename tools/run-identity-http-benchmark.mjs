@@ -81,6 +81,7 @@ export function buildFailureReport({
     operationsPerPhase: parseIntegerOption(options.operations),
     sessionDbMaxConns: parseIntegerOption(options.sessionDbMaxConns),
     gatewayCount: gatewayCount(options),
+    gatewayDatabaseProfile: gatewayDatabaseProfile(options),
     gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
     loadBalancingStrategy: gatewayCount(options) > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY",
     transportProfile: transportProfile(options),
@@ -431,17 +432,35 @@ function maskSensitive(value) {
 }
 
 function enhanceSuccessReport(options) {
-  if (!ingressEnabled(options) || !options.out || !fs.existsSync(options.out)) return;
+  if (!options.out || !fs.existsSync(options.out)) return;
   const report = JSON.parse(fs.readFileSync(options.out, "utf8"));
-  writeJsonReport(options.out, addIngressProfileToReport(report, options));
+  writeJsonReport(options.out, addRuntimeProfileToReport(report, options));
 }
 
 export function addIngressProfileToReport(report, options) {
-  if (!ingressEnabled(options)) return report;
-  return {
+  return addRuntimeProfileToReport(report, options);
+}
+
+export function addRuntimeProfileToReport(report, options) {
+  const enhanced = {
     ...report,
     gatewayWorkerCount: gatewayCount(options),
+    gatewayDatabaseProfile: gatewayDatabaseProfile(options),
+  };
+  if (!ingressEnabled(options)) return enhanced;
+  return {
+    ...enhanced,
     ingressProfile: ingressProfile(options),
+  };
+}
+
+export function gatewayDatabaseProfile(options) {
+  const workerCount = gatewayCount(options);
+  const sessionDbMaxConnsPerWorker = parseIntegerOption(options.sessionDbMaxConns);
+  return {
+    workerCount,
+    sessionDbMaxConnsPerWorker,
+    sessionDbMaxConnsTotal: workerCount * sessionDbMaxConnsPerWorker,
   };
 }
 

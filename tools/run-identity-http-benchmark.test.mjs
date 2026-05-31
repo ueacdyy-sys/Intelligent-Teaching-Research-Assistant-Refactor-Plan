@@ -11,7 +11,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
 
     const {
       buildFailureReport,
-      addIngressProfileToReport,
+      addRuntimeProfileToReport,
       extractFailureMessage,
       gatewayBaseUrls,
       inferFailurePhase,
@@ -64,6 +64,11 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.operationsPerPhase, 1024);
     assert.equal(report.sessionDbMaxConns, 16);
     assert.equal(report.gatewayCount, 2);
+    assert.deepEqual(report.gatewayDatabaseProfile, {
+      workerCount: 2,
+      sessionDbMaxConnsPerWorker: 16,
+      sessionDbMaxConnsTotal: 32,
+    });
     assert.deepEqual(report.transportProfile, {
       maxConnsPerHost: 256,
       warmConnectionsPerHost: 128,
@@ -106,11 +111,12 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       ["http://127.0.0.1:18100", "http://127.0.0.1:18101", "http://127.0.0.1:18102"],
     );
 
-    const passedReport = addIngressProfileToReport({
+    const passedReport = addRuntimeProfileToReport({
       status: "PASSED",
       baseUrl: "http://127.0.0.1:18080",
     }, options);
     assert.equal(passedReport.gatewayWorkerCount, 2);
+    assert.deepEqual(passedReport.gatewayDatabaseProfile, report.gatewayDatabaseProfile);
     assert.deepEqual(passedReport.ingressProfile, report.ingressProfile);
   });
 });
