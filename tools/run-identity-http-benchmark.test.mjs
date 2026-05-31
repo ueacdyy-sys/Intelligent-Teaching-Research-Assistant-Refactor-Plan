@@ -11,6 +11,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
 
     const {
       buildFailureReport,
+      addIngressProfileToReport,
       extractFailureMessage,
       gatewayBaseUrls,
       inferFailurePhase,
@@ -31,6 +32,16 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "256",
       "--warm-connections-per-host",
       "128",
+      "--ingress-proxy",
+      "true",
+      "--ingress-port",
+      "18080",
+      "--ingress-count",
+      "2",
+      "--ingress-max-conns-per-host",
+      "300",
+      "--ingress-warm-connections-per-host",
+      "300",
       "--out",
       "reports/identity-http-benchmark.concurrency512.json",
     ]);
@@ -60,6 +71,18 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     });
     assert.deepEqual(report.gatewayBaseUrls, ["http://127.0.0.1:18100", "http://127.0.0.1:18101"]);
     assert.equal(report.loadBalancingStrategy, "ROUND_ROBIN");
+    assert.deepEqual(report.ingressProfile, {
+      enabled: true,
+      workerCount: 2,
+      baseUrl: "http://127.0.0.1:18080",
+      baseUrls: ["http://127.0.0.1:18080", "http://127.0.0.1:18081"],
+      upstreamBaseUrls: ["http://127.0.0.1:18100", "http://127.0.0.1:18101"],
+      upstreamTransportProfile: {
+        maxConnsPerHost: 300,
+        warmConnectionsPerHost: 300,
+        warmConnectionsTotal: 1200,
+      },
+    });
     assert.equal(report.dockerRequiredForEvidence, true);
     assert.equal(report.exitCode, 1);
     assert.equal(report.gatewayExitCode, null);
@@ -82,5 +105,12 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       ])),
       ["http://127.0.0.1:18100", "http://127.0.0.1:18101", "http://127.0.0.1:18102"],
     );
+
+    const passedReport = addIngressProfileToReport({
+      status: "PASSED",
+      baseUrl: "http://127.0.0.1:18080",
+    }, options);
+    assert.equal(passedReport.gatewayWorkerCount, 2);
+    assert.deepEqual(passedReport.ingressProfile, report.ingressProfile);
   });
 });
