@@ -16,6 +16,11 @@ export const defaults = {
   agentApiKey: "ueacd",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  ingressProxy: "false",
+  ingressPort: "19080",
+  ingressCount: "1",
+  ingressMaxConnsPerHost: "0",
+  ingressWarmConnectionsPerHost: "0",
   timeout: "120s",
   startupTimeoutMs: "120000",
 };
@@ -39,6 +44,11 @@ export function parseArgs(argv) {
     if (key === "--agent-api-key") parsed.agentApiKey = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
     if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
+    if (key === "--ingress-proxy") parsed.ingressProxy = value;
+    if (key === "--ingress-port") parsed.ingressPort = value;
+    if (key === "--ingress-count") parsed.ingressCount = value;
+    if (key === "--ingress-max-conns-per-host") parsed.ingressMaxConnsPerHost = value;
+    if (key === "--ingress-warm-connections-per-host") parsed.ingressWarmConnectionsPerHost = value;
     if (key === "--timeout") parsed.timeout = value;
     if (key === "--startup-timeout-ms") parsed.startupTimeoutMs = value;
     index += 1;
@@ -59,11 +69,42 @@ export function gatewayBaseUrls(options) {
   return urls;
 }
 
+export function ingressBaseUrls(options) {
+  if (!ingressEnabled(options)) return [];
+  const count = ingressCount(options);
+  const base = parseURL(options.baseUrl);
+  const basePort = parseIntegerOption(options.ingressPort);
+  const urls = [];
+  for (let index = 0; index < count; index += 1) {
+    const value = new URL(base);
+    value.port = String(basePort + index);
+    urls.push(trimURL(value.toString()));
+  }
+  return urls;
+}
+
+export function benchmarkBaseUrls(options) {
+  return ingressEnabled(options) ? ingressBaseUrls(options) : gatewayBaseUrls(options);
+}
+
 export function validateRuntimePortPlan(options) {
   const base = parseURL(options.baseUrl);
   const basePort = portFromOptions(options, base);
   if (basePort <= 0) {
     throw new Error("base-url port must be positive");
+  }
+  if (!ingressEnabled(options)) return;
+  const ingressPort = parseIntegerOption(options.ingressPort);
+  if (ingressPort <= 0) {
+    throw new Error("ingress-port must be positive");
+  }
+  const gatewayPorts = portRange(basePort, gatewayCount(options));
+  const ingressPorts = portRange(ingressPort, ingressCount(options));
+  const overlaps = ingressPorts.filter((port) => gatewayPorts.includes(port));
+  if (overlaps.length > 0) {
+    throw new Error(
+      `conversation benchmark ingress/gateway port overlap: ${overlaps.join(", ")}`,
+    );
   }
 }
 
@@ -77,7 +118,7 @@ export function validateLocalSecrets(options) {
   }
 }
 
-export function buildBenchmarkCommand(options, baseUrls = gatewayBaseUrls(options)) {
+export function buildBenchmarkCommand(options, baseUrls = benchmarkBaseUrls(options)) {
   return [
     "go",
     "run",
@@ -107,11 +148,15 @@ export function buildFailureReport({
   errorMessage,
   gatewayOutput = "",
   benchmarkOutput = "",
+  ingressOutput = "",
   gatewayExitCode,
   gatewaySignal,
+  ingressExitCode,
+  ingressSignal,
   generatedAt = new Date().toISOString(),
 }) {
   const baseUrls = gatewayBaseUrls(options);
+  const targetBaseUrls = benchmarkBaseUrls(options);
   const report = {
     generatedAt,
     benchmarkKind: "conversation_write_gateway",
@@ -122,30 +167,42 @@ export function buildFailureReport({
     operations: parseIntegerOption(options.operations),
     gatewayCount: gatewayCount(options),
     gatewayBaseUrls: baseUrls.map(maskURL),
-    loadBalancingStrategy: gatewayCount(options) > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY",
+    loadBalancingStrategy: loadBalancingStrategy(options, targetBaseUrls),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
-    benchmarkRuntimeProfile: benchmarkRuntimeProfile(baseUrls),
-    transportProfile: transportProfile(options, baseUrls.length),
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(targetBaseUrls),
+    transportProfile: transportProfile(options, targetBaseUrls.length),
     exitCode,
     errorMessage: maskSensitive(errorMessage) || `conversation write benchmark exited with code ${exitCode}`,
     gatewayOutputTail: tailText(maskSensitive(gatewayOutput), 80),
     benchmarkOutputTail: tailText(maskSensitive(benchmarkOutput), 80),
   };
+  if (ingressEnabled(options)) report.ingressProfile = ingressProfile(options);
   if (gatewayExitCode !== undefined) report.gatewayExitCode = gatewayExitCode;
   if (gatewaySignal !== undefined) report.gatewaySignal = gatewaySignal;
+  if (ingressExitCode !== undefined) report.ingressExitCode = ingressExitCode;
+  if (ingressSignal !== undefined) report.ingressSignal = ingressSignal;
+  if (ingressOutput) report.ingressOutputTail = tailText(maskSensitive(ingressOutput), 80);
   return report;
 }
 
-export function addRuntimeProfileToReport(report, options, baseUrls = gatewayBaseUrls(options), diagnostics = {}) {
+export function addRuntimeProfileToReport(report, options, baseUrls = benchmarkBaseUrls(options), diagnostics = {}) {
+  const gatewayUrls = gatewayBaseUrls(options);
   const enriched = {
     ...report,
+    gatewayCount: gatewayCount(options),
+    gatewayBaseUrls: gatewayUrls.map(maskURL),
+    loadBalancingStrategy: ingressEnabled(options) ? "INGRESS_ROUND_ROBIN" : report.loadBalancingStrategy,
     gatewayWorkerCount: gatewayCount(options),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
     benchmarkRuntimeProfile: benchmarkRuntimeProfile(baseUrls),
   };
+  if (ingressEnabled(options)) enriched.ingressProfile = ingressProfile(options);
   if (diagnostics.gatewayExitCode !== undefined) enriched.gatewayExitCode = diagnostics.gatewayExitCode;
   if (diagnostics.gatewaySignal !== undefined) enriched.gatewaySignal = diagnostics.gatewaySignal;
   if (diagnostics.gatewayOutput) enriched.gatewayOutputTail = tailText(maskSensitive(diagnostics.gatewayOutput), 80);
+  if (diagnostics.ingressExitCode !== undefined) enriched.ingressExitCode = diagnostics.ingressExitCode;
+  if (diagnostics.ingressSignal !== undefined) enriched.ingressSignal = diagnostics.ingressSignal;
+  if (diagnostics.ingressOutput) enriched.ingressOutputTail = tailText(maskSensitive(diagnostics.ingressOutput), 80);
   return enriched;
 }
 
@@ -162,8 +219,11 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
   const spawnProcess = dependencies.spawnProcess ?? spawn;
   const spawnCommandSync = dependencies.spawnCommandSync ?? spawnSync;
   const baseUrls = gatewayBaseUrls(options);
+  const targetBaseUrls = benchmarkBaseUrls(options);
   const gateways = [];
+  const ingresses = [];
   const gatewayOutputs = [];
+  const ingressOutputs = [];
   let benchmarkOutput = "";
   let reportWritten = false;
 
@@ -181,8 +241,23 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       });
     }
     await waitForGateways(baseUrls, parseIntegerOption(options.startupTimeoutMs), dependencies.fetch ?? fetch);
+    if (ingressEnabled(options)) {
+      const ingressBinary = buildIngressProxyBinary(root, spawnCommandSync);
+      for (const [index, ingressBaseUrl] of targetBaseUrls.entries()) {
+        const ingress = spawnIngressProxy(ingressBinary, options, ingressBaseUrl, baseUrls, root, spawnProcess);
+        ingresses.push(ingress);
+        ingressOutputs.push("");
+        ingress.stdout?.on("data", (chunk) => {
+          ingressOutputs[index] += chunk.toString();
+        });
+        ingress.stderr?.on("data", (chunk) => {
+          ingressOutputs[index] += chunk.toString();
+        });
+      }
+      await waitForGateways(targetBaseUrls, parseIntegerOption(options.startupTimeoutMs), dependencies.fetch ?? fetch);
+    }
 
-    const command = buildBenchmarkCommand(options, baseUrls);
+    const command = buildBenchmarkCommand(options, targetBaseUrls);
     removeExistingReport(options.out);
     const result = await runCommand(command[0], command.slice(1), root, spawnProcess, (chunk) => {
       benchmarkOutput += chunk;
@@ -190,15 +265,21 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
     const report = readReportOrFailure(options, {
       exitCode: result.exitCode,
       errorMessage: extractFailureMessage(benchmarkOutput, result.exitCode),
-      gatewayOutput: combineOutput(gatewayOutputs),
+      gatewayOutput: combineOutput(gatewayOutputs, "gateway"),
       benchmarkOutput,
       gatewayExitCode: processExitCodes(gateways),
       gatewaySignal: processSignals(gateways),
+      ingressExitCode: processExitCodes(ingresses),
+      ingressSignal: processSignals(ingresses),
+      ingressOutput: combineOutput(ingressOutputs, "ingress"),
     });
-    const enriched = addRuntimeProfileToReport(report, options, baseUrls, {
+    const enriched = addRuntimeProfileToReport(report, options, targetBaseUrls, {
       gatewayExitCode: processExitCodes(gateways),
       gatewaySignal: processSignals(gateways),
-      gatewayOutput: combineOutput(gatewayOutputs),
+      gatewayOutput: combineOutput(gatewayOutputs, "gateway"),
+      ingressExitCode: processExitCodes(ingresses),
+      ingressSignal: processSignals(ingresses),
+      ingressOutput: combineOutput(ingressOutputs, "ingress"),
     });
     writeJsonReport(options.out, enriched);
     reportWritten = true;
@@ -214,14 +295,20 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       options,
       exitCode: 1,
       errorMessage: error.message,
-      gatewayOutput: combineOutput(gatewayOutputs),
+      gatewayOutput: combineOutput(gatewayOutputs, "gateway"),
       benchmarkOutput,
       gatewayExitCode: processExitCodes(gateways),
       gatewaySignal: processSignals(gateways),
+      ingressExitCode: processExitCodes(ingresses),
+      ingressSignal: processSignals(ingresses),
+      ingressOutput: combineOutput(ingressOutputs, "ingress"),
     });
     writeJsonReport(options.out, report);
     throw error;
   } finally {
+    for (const ingress of ingresses) {
+      stopGateway(ingress, spawnCommandSync);
+    }
     for (const gateway of gateways) {
       stopGateway(gateway, spawnCommandSync);
     }
@@ -247,6 +334,25 @@ function buildGatewayBinary(root, spawnCommandSync) {
   return binaryPath;
 }
 
+function buildIngressProxyBinary(root, spawnCommandSync) {
+  const binaryPath = path.join(root, "tmp", "bin", executableName("conversation-write-ingressproxy-runner"));
+  fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
+  const result = spawnCommandSync("go", [
+    "build",
+    "-o",
+    binaryPath,
+    "./services/conversation-write-gateway/cmd/ingressproxy",
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0 || result.error) {
+    throw new Error(`build conversation write ingress proxy failed: ${result.error?.message ?? result.stderr}`);
+  }
+  return binaryPath;
+}
+
 function spawnGateway(binaryPath, options, baseUrl, root, spawnProcess) {
   const url = parseURL(baseUrl);
   return spawnProcess(binaryPath, [], {
@@ -258,6 +364,26 @@ function spawnGateway(binaryPath, options, baseUrl, root, spawnProcess) {
       DATABASE_URL: options.dsn,
       DB_MAX_CONNS: String(parseIntegerOption(options.dbMaxConns)),
       AGENT_API_KEY: options.agentApiKey,
+    },
+  });
+}
+
+function spawnIngressProxy(binaryPath, options, ingressBaseUrl, upstreamBaseUrls, root, spawnProcess) {
+  const url = parseURL(ingressBaseUrl);
+  return spawnProcess(binaryPath, [
+    "-listen",
+    `:${url.port}`,
+    "-upstreams",
+    upstreamBaseUrls.join(","),
+    "-max-conns-per-host",
+    String(parseIntegerOption(options.ingressMaxConnsPerHost)),
+    "-warm-connections-per-host",
+    String(parseIntegerOption(options.ingressWarmConnectionsPerHost)),
+  ], {
+    cwd: root,
+    shell: false,
+    env: {
+      ...process.env,
     },
   });
 }
@@ -320,10 +446,12 @@ function stopGateway(gateway, spawnCommandSync) {
 }
 
 function processExitCodes(processes) {
+  if (processes.length === 0) return undefined;
   return processes.map((processValue) => processValue.exitCode);
 }
 
 function processSignals(processes) {
+  if (processes.length === 0) return undefined;
   return processes.map((processValue) => processValue.signalCode);
 }
 
@@ -353,8 +481,34 @@ function transportProfile(options, targetCount) {
   };
 }
 
+function ingressProfile(options) {
+  const warmConnectionsPerHost = parseIntegerOption(options.ingressWarmConnectionsPerHost);
+  return {
+    enabled: true,
+    count: ingressCount(options),
+    baseUrls: ingressBaseUrls(options).map(maskURL),
+    upstreamGatewayCount: gatewayCount(options),
+    maxConnsPerHost: parseIntegerOption(options.ingressMaxConnsPerHost),
+    warmConnectionsPerHost,
+    warmConnectionsTotal: ingressCount(options) * warmConnectionsPerHost,
+  };
+}
+
+function loadBalancingStrategy(options, targetBaseUrls) {
+  if (ingressEnabled(options)) return "INGRESS_ROUND_ROBIN";
+  return targetBaseUrls.length > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY";
+}
+
 function gatewayCount(options) {
   return Math.max(1, parseIntegerOption(options.gatewayCount));
+}
+
+function ingressCount(options) {
+  return Math.max(1, parseIntegerOption(options.ingressCount));
+}
+
+function ingressEnabled(options) {
+  return String(options.ingressProxy).toLowerCase() === "true";
 }
 
 function parseIntegerOption(value) {
@@ -363,6 +517,10 @@ function parseIntegerOption(value) {
     throw new Error(`expected zero or positive integer, got ${value}`);
   }
   return parsed;
+}
+
+function portRange(start, count) {
+  return Array.from({ length: count }, (_, index) => start + index);
 }
 
 function parseURL(value) {
@@ -394,9 +552,9 @@ function tailText(value, maxLines = 80) {
   return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
 }
 
-function combineOutput(outputs) {
+function combineOutput(outputs, label) {
   return outputs
-    .map((output, index) => output.trim() ? `[gateway ${index + 1}]\n${output.trim()}` : "")
+    .map((output, index) => output.trim() ? `[${label} ${index + 1}]\n${output.trim()}` : "")
     .filter(Boolean)
     .join("\n\n");
 }

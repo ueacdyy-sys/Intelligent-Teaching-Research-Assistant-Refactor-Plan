@@ -72,11 +72,19 @@ describe("conversation write benchmark runner", () => {
     assert.equal(failed.benchmarkKind, "conversation_write_gateway");
     assert.equal(failed.status, "FAILED");
     assert.equal(failed.gatewayCount, 3);
+    assert.equal(failed.loadBalancingStrategy, "ROUND_ROBIN");
     assert.equal(failed.gatewayDatabaseProfile.dbMaxConnsTotal, 24);
     assert.deepEqual(failed.gatewayBaseUrls, gatewayBaseUrls(options));
     assert(!JSON.stringify(failed).includes("ueacd"));
     assert(!JSON.stringify(failed).includes("postgres://"));
     assert.equal(maskSensitive("token ueacd"), "token ***");
+
+    const singleGatewayFailure = buildFailureReport({
+      options: parseArgs(["--gateway-count", "1"]),
+      exitCode: 1,
+      generatedAt: "2026-05-31T00:00:00.000Z",
+    });
+    assert.equal(singleGatewayFailure.loadBalancingStrategy, "SINGLE_GATEWAY");
 
     const passed = addRuntimeProfileToReport({
       status: "PASSED",
@@ -115,6 +123,85 @@ describe("conversation write benchmark runner", () => {
         "http://127.0.0.1:0",
       ])),
       /base-url port must be positive/u,
+    );
+  });
+
+  it("routes benchmark traffic through non-overlapping ingress proxies when enabled", async () => {
+    const {
+      addRuntimeProfileToReport,
+      benchmarkBaseUrls,
+      buildBenchmarkCommand,
+      gatewayBaseUrls,
+      ingressBaseUrls,
+      parseArgs,
+      validateRuntimePortPlan,
+    } = await import("./run-conversation-write-benchmark.mjs");
+
+    const options = parseArgs([
+      "--base-url",
+      "http://127.0.0.1:18080",
+      "--gateway-count",
+      "3",
+      "--ingress-proxy",
+      "true",
+      "--ingress-port",
+      "19080",
+      "--ingress-count",
+      "4",
+      "--ingress-max-conns-per-host",
+      "50",
+      "--ingress-warm-connections-per-host",
+      "22",
+      "--concurrency",
+      "800",
+      "--operations",
+      "1600",
+    ]);
+
+    validateRuntimePortPlan(options);
+    assert.deepEqual(gatewayBaseUrls(options), [
+      "http://127.0.0.1:18080",
+      "http://127.0.0.1:18081",
+      "http://127.0.0.1:18082",
+    ]);
+    assert.deepEqual(ingressBaseUrls(options), [
+      "http://127.0.0.1:19080",
+      "http://127.0.0.1:19081",
+      "http://127.0.0.1:19082",
+      "http://127.0.0.1:19083",
+    ]);
+    assert.deepEqual(benchmarkBaseUrls(options), ingressBaseUrls(options));
+
+    const command = buildBenchmarkCommand(options);
+    const baseUrlArg = command[command.indexOf("--base-url") + 1];
+    assert.equal(baseUrlArg, ingressBaseUrls(options).join(","));
+
+    const report = addRuntimeProfileToReport({ status: "PASSED" }, options);
+    assert.equal(report.gatewayCount, 3);
+    assert.deepEqual(report.gatewayBaseUrls, gatewayBaseUrls(options));
+    assert.equal(report.loadBalancingStrategy, "INGRESS_ROUND_ROBIN");
+    assert.equal(report.gatewayWorkerCount, 3);
+    assert.equal(report.benchmarkRuntimeProfile.targetBaseUrls.length, 4);
+    assert.equal(report.ingressProfile.enabled, true);
+    assert.equal(report.ingressProfile.count, 4);
+    assert.equal(report.ingressProfile.upstreamGatewayCount, 3);
+    assert.equal(report.ingressProfile.maxConnsPerHost, 50);
+    assert.equal(report.ingressProfile.warmConnectionsTotal, 88);
+
+    assert.throws(
+      () => validateRuntimePortPlan(parseArgs([
+        "--base-url",
+        "http://127.0.0.1:18080",
+        "--gateway-count",
+        "3",
+        "--ingress-proxy",
+        "true",
+        "--ingress-port",
+        "18081",
+        "--ingress-count",
+        "2",
+      ])),
+      /ingress\/gateway port overlap/u,
     );
   });
 
