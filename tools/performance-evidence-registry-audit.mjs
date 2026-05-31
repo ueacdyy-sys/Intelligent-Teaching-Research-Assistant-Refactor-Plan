@@ -27,6 +27,7 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-session-maintenance.prune-inactive-current.json",
   "reports/identity-http-benchmark.concurrency4000-multi6-ingress20-pool12-client150-upwarm22-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client150-upwarm22-clean-table-docker-bench.json",
+  "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-upwarm22-clean-table-docker-bench.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
   "reports/quality-gate.current.json",
