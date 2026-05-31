@@ -67,6 +67,9 @@ func TestSessionStoreRotatesTokensAndInvalidatesOldTokens(t *testing.T) {
 	if err := store.RotateSession(context.Background(), "refresh_1", "access_2", "refresh_2", principal); err != nil {
 		t.Fatalf("RotateSession error = %v", err)
 	}
+	if !strings.Contains(db.execSQL[len(db.execSQL)-1], "AND expires_at >= $3") {
+		t.Fatalf("RotateSession SQL must reject expired refresh tokens atomically: %s", db.execSQL[len(db.execSQL)-1])
+	}
 
 	if _, ok, err := store.GetPrincipalByAccessToken(context.Background(), "access_1"); err != nil || ok {
 		t.Fatalf("old access ok=%v err=%v", ok, err)
@@ -76,6 +79,37 @@ func TestSessionStoreRotatesTokensAndInvalidatesOldTokens(t *testing.T) {
 	}
 	if loaded, ok, err := store.GetPrincipalByAccessToken(context.Background(), "access_2"); err != nil || !ok || loaded.SessionID != "sess_1" {
 		t.Fatalf("new access loaded=%#v ok=%v err=%v", loaded, ok, err)
+	}
+	rotatedRefresh, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_2")
+	if err != nil || !ok || rotatedRefresh.SessionID != "sess_1" {
+		t.Fatalf("rotated refresh loaded=%#v ok=%v err=%v", rotatedRefresh, ok, err)
+	}
+	if !rotatedRefresh.IssuedAt.Equal(principal.IssuedAt) || !rotatedRefresh.ExpiresAt.Equal(principal.ExpiresAt) {
+		t.Fatalf("rotated principal times = issued=%s expires=%s", rotatedRefresh.IssuedAt, rotatedRefresh.ExpiresAt)
+	}
+}
+
+func TestSessionStoreRotateSessionRejectsExpiredRefreshTokenAtomically(t *testing.T) {
+	db := newFakeDB()
+	store := postgres.NewSessionStore(db)
+	principal := teacherPrincipal("sess_1")
+	if err := store.SaveSession(context.Background(), "access_1", "refresh_1", principal); err != nil {
+		t.Fatalf("SaveSession error = %v", err)
+	}
+	rotatedPrincipal := principal
+	rotatedPrincipal.IssuedAt = principal.ExpiresAt.Add(time.Nanosecond)
+	rotatedPrincipal.ExpiresAt = rotatedPrincipal.IssuedAt.Add(time.Hour)
+
+	err := store.RotateSession(context.Background(), "refresh_1", "access_2", "refresh_2", rotatedPrincipal)
+
+	if !errors.Is(err, domain.ErrInvalidSession) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.Contains(db.execSQL[len(db.execSQL)-1], "AND expires_at >= $3") {
+		t.Fatalf("RotateSession SQL must keep the expiry guard: %s", db.execSQL[len(db.execSQL)-1])
+	}
+	if loaded, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_1"); err != nil || !ok || loaded.SessionID != "sess_1" {
+		t.Fatalf("original refresh loaded=%#v ok=%v err=%v", loaded, ok, err)
 	}
 }
 
@@ -106,8 +140,9 @@ func TestSessionStoreRotateRefreshSessionReturnsUpdatedPrincipal(t *testing.T) {
 	if _, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_1"); err != nil || ok {
 		t.Fatalf("old refresh ok=%v err=%v", ok, err)
 	}
-	if loaded, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_2"); err != nil || !ok || loaded.SessionID != "sess_1" {
-		t.Fatalf("new refresh loaded=%#v ok=%v err=%v", loaded, ok, err)
+	loadedRefresh, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_2")
+	if err != nil || !ok || loadedRefresh.SessionID != "sess_1" {
+		t.Fatalf("new refresh loaded=%#v ok=%v err=%v", loadedRefresh, ok, err)
 	}
 	if !queryLogContains(db.querySQL, "UPDATE identity_sessions", "RETURNING principal_json") {
 		t.Fatalf("optimized refresh SQL should return the updated principal: %#v", db.querySQL)
@@ -358,6 +393,8 @@ type fakeSession struct {
 	accessToken   string
 	refreshToken  string
 	principalJSON []byte
+	issuedAt      time.Time
+	expiresAt     time.Time
 	revoked       bool
 	revokedAt     time.Time
 }
@@ -386,11 +423,14 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 		accessToken := args[1].(string)
 		refreshToken, _ := args[2].(string)
 		principalJSON := append([]byte(nil), args[3].([]byte)...)
+		principal := decodePrincipalOrFail(principalJSON)
 		db.removeIndexes(sessionID)
 		db.sessionsByID[sessionID] = fakeSession{
 			accessToken:   accessToken,
 			refreshToken:  refreshToken,
 			principalJSON: principalJSON,
+			issuedAt:      principal.IssuedAt,
+			expiresAt:     principal.ExpiresAt,
 		}
 		db.sessionByAccess[accessToken] = sessionID
 		if refreshToken != "" {
@@ -400,17 +440,22 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 	case strings.Contains(sql, "WHERE refresh_token ="):
 		newAccess := args[0].(string)
 		newRefresh := args[1].(string)
-		principalJSON := append([]byte(nil), args[2].([]byte)...)
-		oldRefresh := args[5].(string)
+		issuedAt := args[2].(time.Time)
+		expiresAt := args[3].(time.Time)
+		oldRefresh := args[4].(string)
 		sessionID := db.sessionByRefresh[oldRefresh]
 		session := db.sessionsByID[sessionID]
 		if sessionID == "" || session.revoked {
 			return fakeCommandTag{rows: 0}, nil
 		}
+		if session.expiresAt.Before(issuedAt) {
+			return fakeCommandTag{rows: 0}, nil
+		}
 		db.removeIndexes(sessionID)
 		session.accessToken = newAccess
 		session.refreshToken = newRefresh
-		session.principalJSON = principalJSON
+		session.issuedAt = issuedAt
+		session.expiresAt = expiresAt
 		session.revoked = false
 		db.sessionsByID[sessionID] = session
 		db.sessionByAccess[newAccess] = sessionID
@@ -424,11 +469,7 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 		if !ok || session.revoked || session.accessToken != accessToken {
 			return fakeCommandTag{rows: 0}, nil
 		}
-		var principal domain.PrincipalContext
-		if err := json.Unmarshal(session.principalJSON, &principal); err != nil {
-			return fakeCommandTag{}, err
-		}
-		if principal.ExpiresAt.Before(now) {
+		if session.expiresAt.Before(now) {
 			return fakeCommandTag{rows: 0}, nil
 		}
 		db.deleteSession(sessionID)
@@ -441,12 +482,8 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 			if int(rows) >= limit {
 				break
 			}
-			var principal domain.PrincipalContext
-			if err := json.Unmarshal(session.principalJSON, &principal); err != nil {
-				return fakeCommandTag{}, err
-			}
 			revokedBeforeCutoff := session.revoked && (session.revokedAt.IsZero() || !session.revokedAt.After(cutoff))
-			expiredActive := !session.revoked && !principal.ExpiresAt.After(cutoff)
+			expiredActive := !session.revoked && !session.expiresAt.After(cutoff)
 			if revokedBeforeCutoff || expiredActive {
 				db.deleteSession(sessionID)
 				rows++
@@ -491,41 +528,27 @@ func (db *fakeDB) QueryRow(_ context.Context, sql string, args ...any) postgres.
 func (db *fakeDB) rotateRefreshRow(args ...any) postgres.Row {
 	newAccess := args[0].(string)
 	newRefresh := args[1].(string)
-	issuedAtText := args[2].(string)
-	expiresAtText := args[3].(string)
-	issuedAt := args[4].(time.Time)
-	expiresAt := args[5].(time.Time)
-	oldRefresh := args[6].(string)
+	issuedAt := args[2].(time.Time)
+	expiresAt := args[3].(time.Time)
+	oldRefresh := args[4].(string)
 	sessionID := db.sessionByRefresh[oldRefresh]
 	session := db.sessionsByID[sessionID]
 	if sessionID == "" || session.revoked {
 		return fakeRow{err: pgx.ErrNoRows}
 	}
-	var principal domain.PrincipalContext
-	if err := json.Unmarshal(session.principalJSON, &principal); err != nil {
-		return fakeRow{err: err}
-	}
-	if principal.ExpiresAt.Before(issuedAt) {
+	if session.expiresAt.Before(issuedAt) {
 		return fakeRow{err: pgx.ErrNoRows}
-	}
-	if issuedAtText == "" || expiresAtText == "" {
-		return fakeRow{err: errors.New("missing json time text")}
-	}
-	principal.IssuedAt = issuedAt
-	principal.ExpiresAt = expiresAt
-	principalJSON, err := json.Marshal(principal)
-	if err != nil {
-		return fakeRow{err: err}
 	}
 	db.removeIndexes(sessionID)
 	session.accessToken = newAccess
 	session.refreshToken = newRefresh
-	session.principalJSON = principalJSON
+	session.issuedAt = issuedAt
+	session.expiresAt = expiresAt
 	session.revoked = false
 	db.sessionsByID[sessionID] = session
 	db.sessionByAccess[newAccess] = sessionID
 	db.sessionByRefresh[newRefresh] = sessionID
-	return fakeRow{json: principalJSON}
+	return fakeRow{principalJSON: append([]byte(nil), session.principalJSON...), issuedAt: session.issuedAt, expiresAt: session.expiresAt}
 }
 
 func (db *fakeDB) rowByToken(index map[string]string, token string) postgres.Row {
@@ -534,7 +557,7 @@ func (db *fakeDB) rowByToken(index map[string]string, token string) postgres.Row
 	if sessionID == "" || session.revoked {
 		return fakeRow{err: pgx.ErrNoRows}
 	}
-	return fakeRow{json: session.principalJSON}
+	return fakeRow{principalJSON: append([]byte(nil), session.principalJSON...), issuedAt: session.issuedAt, expiresAt: session.expiresAt}
 }
 
 func (db *fakeDB) removeIndexes(sessionID string) {
@@ -584,17 +607,36 @@ func (t fakeCommandTag) RowsAffected() int64 {
 }
 
 type fakeRow struct {
-	json []byte
-	err  error
+	principalJSON []byte
+	issuedAt      time.Time
+	expiresAt     time.Time
+	err           error
 }
 
 func (r fakeRow) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
 	}
-	target := dest[0].(*[]byte)
-	*target = append([]byte(nil), r.json...)
+	if len(dest) == 1 {
+		target := dest[0].(*[]byte)
+		*target = append([]byte(nil), r.principalJSON...)
+		return nil
+	}
+	if len(dest) != 3 {
+		return errors.New("unexpected scan arity")
+	}
+	*dest[0].(*[]byte) = append([]byte(nil), r.principalJSON...)
+	*dest[1].(*time.Time) = r.issuedAt
+	*dest[2].(*time.Time) = r.expiresAt
 	return nil
+}
+
+func decodePrincipalOrFail(data []byte) domain.PrincipalContext {
+	var principal domain.PrincipalContext
+	if err := json.Unmarshal(data, &principal); err != nil {
+		panic(err)
+	}
+	return principal
 }
 
 func TestPrincipalJSONFixtureIsValid(t *testing.T) {

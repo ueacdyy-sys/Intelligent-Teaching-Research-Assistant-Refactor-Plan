@@ -77,7 +77,7 @@ func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refr
 func (s *SessionStore) GetPrincipalByAccessToken(ctx context.Context, accessToken string) (domain.PrincipalContext, bool, error) {
 	return s.getPrincipal(
 		ctx,
-		`SELECT principal_json
+		`SELECT principal_json, issued_at, expires_at
 		FROM identity_sessions
 		WHERE access_token = $1
 			AND revoked_at IS NULL`,
@@ -88,7 +88,7 @@ func (s *SessionStore) GetPrincipalByAccessToken(ctx context.Context, accessToke
 func (s *SessionStore) GetPrincipalByRefreshToken(ctx context.Context, refreshToken string) (domain.PrincipalContext, bool, error) {
 	return s.getPrincipal(
 		ctx,
-		`SELECT principal_json
+		`SELECT principal_json, issued_at, expires_at
 		FROM identity_sessions
 		WHERE refresh_token = $1
 			AND revoked_at IS NULL`,
@@ -103,24 +103,19 @@ func (s *SessionStore) RotateSession(
 	newRefreshToken string,
 	principal domain.PrincipalContext,
 ) error {
-	principalJSON, err := encodePrincipal(principal)
-	if err != nil {
-		return err
-	}
 	tag, err := s.db.Exec(
 		ctx,
 		`UPDATE identity_sessions
 		SET access_token = $1,
 			refresh_token = $2,
-			principal_json = $3,
-			issued_at = $4,
-			expires_at = $5,
+			issued_at = $3,
+			expires_at = $4,
 			revoked_at = NULL
-		WHERE refresh_token = $6
-			AND revoked_at IS NULL`,
+		WHERE refresh_token = $5
+			AND revoked_at IS NULL
+			AND expires_at >= $3`,
 		newAccessToken,
 		newRefreshToken,
-		principalJSON,
 		principal.IssuedAt,
 		principal.ExpiresAt,
 		refreshToken,
@@ -143,32 +138,26 @@ func (s *SessionStore) RotateRefreshSession(
 	expiresAt time.Time,
 ) (domain.PrincipalContext, bool, error) {
 	var principalJSON []byte
+	var storedIssuedAt time.Time
+	var storedExpiresAt time.Time
 	err := s.db.QueryRow(
 		ctx,
 		`UPDATE identity_sessions
 		SET access_token = $1,
 			refresh_token = $2,
-			principal_json = jsonb_set(
-				jsonb_set(principal_json, '{IssuedAt}', to_jsonb($3::text), true),
-				'{ExpiresAt}',
-				to_jsonb($4::text),
-				true
-			),
-			issued_at = $5,
-			expires_at = $6,
+			issued_at = $3,
+			expires_at = $4,
 			revoked_at = NULL
-		WHERE refresh_token = $7
+		WHERE refresh_token = $5
 			AND revoked_at IS NULL
-			AND expires_at >= $5
-		RETURNING principal_json`,
+			AND expires_at >= $3
+		RETURNING principal_json, issued_at, expires_at`,
 		newAccessToken,
 		newRefreshToken,
-		formatPrincipalJSONTime(issuedAt),
-		formatPrincipalJSONTime(expiresAt),
 		issuedAt,
 		expiresAt,
 		refreshToken,
-	).Scan(&principalJSON)
+	).Scan(&principalJSON, &storedIssuedAt, &storedExpiresAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
@@ -179,6 +168,8 @@ func (s *SessionStore) RotateRefreshSession(
 	if err != nil {
 		return domain.PrincipalContext{}, false, err
 	}
+	principal.IssuedAt = storedIssuedAt.UTC()
+	principal.ExpiresAt = storedExpiresAt.UTC()
 	return principal, true, nil
 }
 
@@ -271,7 +262,9 @@ func (s *SessionStore) AcceptRemoteCommand(
 
 func (s *SessionStore) getPrincipal(ctx context.Context, sql string, token string) (domain.PrincipalContext, bool, error) {
 	var principalJSON []byte
-	if err := s.db.QueryRow(ctx, sql, token).Scan(&principalJSON); err != nil {
+	var issuedAt time.Time
+	var expiresAt time.Time
+	if err := s.db.QueryRow(ctx, sql, token).Scan(&principalJSON, &issuedAt, &expiresAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
 		}
@@ -281,6 +274,8 @@ func (s *SessionStore) getPrincipal(ctx context.Context, sql string, token strin
 	if err != nil {
 		return domain.PrincipalContext{}, false, err
 	}
+	principal.IssuedAt = issuedAt.UTC()
+	principal.ExpiresAt = expiresAt.UTC()
 	return principal, true, nil
 }
 
@@ -294,10 +289,6 @@ func decodePrincipal(data []byte) (domain.PrincipalContext, error) {
 		return domain.PrincipalContext{}, err
 	}
 	return principal, nil
-}
-
-func formatPrincipalJSONTime(value time.Time) string {
-	return value.UTC().Format(time.RFC3339Nano)
 }
 
 var schemaStatements = []string{

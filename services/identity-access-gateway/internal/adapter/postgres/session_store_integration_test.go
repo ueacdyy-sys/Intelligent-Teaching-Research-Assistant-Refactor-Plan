@@ -95,6 +95,9 @@ func TestSessionStorePostgresIntegrationLifecycle(t *testing.T) {
 	if loaded, ok, err := store.GetPrincipalByAccessToken(ctx, fastAccessToken); err != nil || !ok || loaded.SessionID != sessionID {
 		t.Fatalf("fast access loaded=%#v ok=%v err=%v", loaded, ok, err)
 	}
+	if loaded, ok, err := store.GetPrincipalByRefreshToken(ctx, fastRefreshToken); err != nil || !ok || loaded.SessionID != sessionID || !loaded.IssuedAt.Equal(fastIssuedAt) || !loaded.ExpiresAt.Equal(fastExpiresAt) {
+		t.Fatalf("fast refresh loaded=%#v ok=%v err=%v", loaded, ok, err)
+	}
 
 	if err := store.RevokeSession(ctx, sessionID); err != nil {
 		t.Fatalf("RevokeSession error = %v", err)
