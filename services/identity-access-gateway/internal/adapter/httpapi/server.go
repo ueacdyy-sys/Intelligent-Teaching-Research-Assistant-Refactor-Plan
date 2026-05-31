@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,12 +9,22 @@ import (
 	"time"
 
 	"ita-refactor/services/identity-access-gateway/internal/domain"
+	"ita-refactor/services/identity-access-gateway/internal/platform"
 	"ita-refactor/services/identity-access-gateway/internal/usecase"
 )
 
 type Server struct {
-	identity         *usecase.IdentityService
-	channelSignature string
+	identity                   *usecase.IdentityService
+	channelSignature           string
+	diagnosticsSecret          string
+	sessionDBPoolStatsProvider platform.SessionDBPoolStatsProvider
+}
+
+type ServerConfig struct {
+	Identity                   *usecase.IdentityService
+	ChannelSignature           string
+	DiagnosticsSecret          string
+	SessionDBPoolStatsProvider platform.SessionDBPoolStatsProvider
 }
 
 type passwordSessionRequest struct {
@@ -112,12 +123,25 @@ type apiError struct {
 }
 
 func NewServer(identity *usecase.IdentityService, channelSignature string) *Server {
-	return &Server{identity: identity, channelSignature: channelSignature}
+	return NewServerWithConfig(ServerConfig{
+		Identity:         identity,
+		ChannelSignature: channelSignature,
+	})
+}
+
+func NewServerWithConfig(config ServerConfig) *Server {
+	return &Server{
+		identity:                   config.Identity,
+		channelSignature:           config.ChannelSignature,
+		diagnosticsSecret:          config.DiagnosticsSecret,
+		sessionDBPoolStatsProvider: config.SessionDBPoolStatsProvider,
+	}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
+	mux.HandleFunc("/internal/identity/session-db-pool", s.sessionDBPoolDiagnostics)
 	mux.HandleFunc("/v1/identity/sessions/password", s.createPasswordSession)
 	mux.HandleFunc("/v1/identity/sessions/wechat", s.startWeChatSession)
 	mux.HandleFunc("/v1/identity/sessions/wechat/callback", s.completeWeChatSession)
@@ -135,6 +159,26 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "identity-access-gateway"})
+}
+
+func (s *Server) sessionDBPoolDiagnostics(w http.ResponseWriter, r *http.Request) {
+	if s.sessionDBPoolStatsProvider == nil {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "diagnostics unavailable")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	if !constantTimeEquals(r.Header.Get("X-Internal-Diagnostics-Secret"), s.diagnosticsSecret) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid diagnostics secret")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "ok",
+		"service": "identity-access-gateway",
+		"stats":   s.sessionDBPoolStatsProvider.SessionDBPoolStats(),
+	})
 }
 
 func (s *Server) createPasswordSession(w http.ResponseWriter, r *http.Request) {
@@ -323,6 +367,13 @@ func bearerToken(header string) string {
 		return ""
 	}
 	return strings.TrimSpace(parts[1])
+}
+
+func constantTimeEquals(left string, right string) bool {
+	if left == "" || right == "" || len(left) != len(right) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
 }
 
 func toSessionResponse(session domain.Session) sessionResponse {

@@ -14,11 +14,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       addRuntimeProfileToReport,
       benchmarkRuntimeProfile,
       buildBenchmarkCommand,
+      collectGatewayDatabaseDiagnostics,
       extractFailureMessage,
       gatewayBaseUrls,
       inferFailurePhase,
       parseArgs,
+      runIdentityHttpBenchmark,
       tailText,
+      validateRuntimePortPlan,
     } = await import("./run-identity-http-benchmark.mjs");
 
     const options = parseArgs([
@@ -55,6 +58,20 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       errorMessage: "passwordLogin failed with 354 errors; first error: password=ueacd",
       gatewayOutput: "ready\npanic: password=ueacd\nstack line",
       benchmarkOutput: "passwordLogin failed with 354 errors",
+      gatewayDatabaseDiagnostics: {
+        before: {
+          endpoint: "/internal/identity/session-db-pool",
+          secretHeader: "X-Internal-Diagnostics-Secret",
+          sampledAt: "2026-05-31T00:00:00.000Z",
+          gateways: [
+            {
+              baseUrl: "http://127.0.0.1:18100",
+              status: "OK",
+              stats: { maxConns: 16, acquireCount: 10 },
+            },
+          ],
+        },
+      },
       generatedAt: "2026-05-31T00:00:00.000Z",
     });
 
@@ -101,6 +118,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.gatewayExitCode, null);
     assert.equal(report.gatewaySignal, null);
     assert.equal(report.phase, "passwordLogin");
+    assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 16);
     assert(!JSON.stringify(report).includes("ueacd"));
     assert(!JSON.stringify(report).includes("postgres://"));
     assert.equal(
@@ -122,11 +140,141 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     const passedReport = addRuntimeProfileToReport({
       status: "PASSED",
       baseUrl: "http://127.0.0.1:18080",
-    }, options);
+    }, options, {
+      before: {
+        endpoint: "/internal/identity/session-db-pool",
+        secretHeader: "X-Internal-Diagnostics-Secret",
+        sampledAt: "2026-05-31T00:00:00.000Z",
+        gateways: [
+          {
+            baseUrl: "http://127.0.0.1:18100",
+            status: "OK",
+            stats: { maxConns: 16, acquireCount: 10 },
+          },
+        ],
+      },
+    });
     assert.equal(passedReport.gatewayWorkerCount, 2);
     assert.deepEqual(passedReport.gatewayDatabaseProfile, report.gatewayDatabaseProfile);
+    assert.equal(passedReport.gatewayDatabaseDiagnostics.before.gateways[0].stats.acquireCount, 10);
     assert.deepEqual(passedReport.ingressProfile, report.ingressProfile);
     assert.deepEqual(passedReport.benchmarkRuntimeProfile, report.benchmarkRuntimeProfile);
+
+    const diagnostics = await collectGatewayDatabaseDiagnostics(
+      ["http://127.0.0.1:18100", "http://127.0.0.1:18101"],
+      {
+        now: () => "2026-05-31T00:00:00.000Z",
+        fetch: async (url, init) => {
+          assert.match(url, /^http:\/\/127\.0\.0\.1:1810[01]\/internal\/identity\/session-db-pool$/u);
+          assert.equal(init.headers["X-Internal-Diagnostics-Secret"], "ueacd");
+          return {
+            ok: true,
+            status: 200,
+            async json() {
+              return {
+                status: "ok",
+                stats: {
+                  maxConns: 12,
+                  totalConns: 9,
+                  acquiredConns: 7,
+                  acquireCount: 42,
+                },
+              };
+            },
+          };
+        },
+      },
+    );
+    assert.deepEqual(diagnostics, {
+      endpoint: "/internal/identity/session-db-pool",
+      secretHeader: "X-Internal-Diagnostics-Secret",
+      sampledAt: "2026-05-31T00:00:00.000Z",
+      gateways: [
+        {
+          baseUrl: "http://127.0.0.1:18100",
+          status: "OK",
+          httpStatus: 200,
+          stats: {
+            maxConns: 12,
+            totalConns: 9,
+            acquiredConns: 7,
+            acquireCount: 42,
+          },
+        },
+        {
+          baseUrl: "http://127.0.0.1:18101",
+          status: "OK",
+          httpStatus: 200,
+          stats: {
+            maxConns: 12,
+            totalConns: 9,
+            acquiredConns: 7,
+            acquireCount: 42,
+          },
+        },
+      ],
+    });
+    assert(!JSON.stringify(diagnostics).includes("ueacd"));
+
+    assert.throws(
+      () => validateRuntimePortPlan(parseArgs([
+        "--base-url",
+        "http://127.0.0.1:18100",
+        "--gateway-count",
+        "6",
+        "--ingress-proxy",
+        "true",
+        "--ingress-port",
+        "18080",
+        "--ingress-count",
+        "22",
+      ])),
+      /ingress\/gateway port overlap: 18100, 18101/u,
+    );
+    assert.doesNotThrow(() => validateRuntimePortPlan(parseArgs([
+      "--base-url",
+      "http://127.0.0.1:18100",
+      "--gateway-count",
+      "6",
+      "--ingress-proxy",
+      "true",
+      "--ingress-port",
+      "19080",
+      "--ingress-count",
+      "22",
+    ])));
+
+    fs.mkdirSync("tmp", { recursive: true });
+    const overlapReportDir = fs.mkdtempSync("tmp/identity-overlap-");
+    const overlapReportPath = `${overlapReportDir}/report.json`;
+    let spawned = false;
+    const overlapExitCode = await runIdentityHttpBenchmark([
+      "--base-url",
+      "http://127.0.0.1:18100",
+      "--gateway-count",
+      "6",
+      "--ingress-proxy",
+      "true",
+      "--ingress-port",
+      "18080",
+      "--ingress-count",
+      "22",
+      "--out",
+      overlapReportPath,
+    ], {
+      consoleError: () => {},
+      spawn: () => {
+        spawned = true;
+        throw new Error("spawn should not run");
+      },
+    });
+    assert.equal(overlapExitCode, 1);
+    assert.equal(spawned, false);
+    const overlapReport = JSON.parse(fs.readFileSync(overlapReportPath, "utf8"));
+    assert.equal(overlapReport.status, "FAILED");
+    assert.match(overlapReport.errorMessage, /ingress\/gateway port overlap: 18100, 18101/u);
+    assert(!JSON.stringify(overlapReport).includes("ueacd"));
+    fs.rmSync(overlapReportDir, { recursive: true, force: true });
 
     const dockerOptions = parseArgs([
       "--benchmark-runtime",

@@ -29,6 +29,8 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client150-upwarm22-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-upwarm22-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-drop-active-token-indexes-clean-table-docker-bench.json",
+  "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-db-pool-diagnostics-ingress19080-clean-table-docker-bench.json",
+  "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool14-client200-db-pool-diagnostics-ingress19080-clean-table-docker-bench.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
   "reports/quality-gate.current.json",

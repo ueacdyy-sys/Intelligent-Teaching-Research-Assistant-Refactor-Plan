@@ -29,6 +29,9 @@ export const defaults = {
 
 const phaseNames = ["passwordLogin", "principalLookup", "refreshRotation", "revokeCycle"];
 const localSecretValues = ["ueacd"];
+const gatewayDiagnosticsPath = "/internal/identity/session-db-pool";
+const internalDiagnosticsSecretHeader = "X-Internal-Diagnostics-Secret";
+const internalDiagnosticsSecretValue = "ueacd";
 
 export function parseArgs(argv) {
   const parsed = { ...defaults };
@@ -71,6 +74,7 @@ export function buildFailureReport({
   gatewaySignal,
   ingressExitCode,
   ingressSignal,
+  gatewayDatabaseDiagnostics,
   generatedAt = new Date().toISOString(),
 }) {
   const sanitizedError = maskSensitive(errorMessage);
@@ -103,6 +107,9 @@ export function buildFailureReport({
   if (gatewaySignal !== undefined) report.gatewaySignal = gatewaySignal;
   if (ingressExitCode !== undefined) report.ingressExitCode = ingressExitCode;
   if (ingressSignal !== undefined) report.ingressSignal = ingressSignal;
+  if (gatewayDatabaseDiagnostics) {
+    report.gatewayDatabaseDiagnostics = gatewayDatabaseDiagnostics;
+  }
   if (phase) report.phase = phase;
   return report;
 }
@@ -127,13 +134,82 @@ export function gatewayBaseUrls(options) {
   return urls;
 }
 
+export function validateRuntimePortPlan(options) {
+  if (!ingressEnabled(options)) return;
+  const gatewayPorts = new Set(gatewayBaseUrls(options).map(urlPort).filter((port) => port !== null));
+  const overlaps = ingressBaseUrls(options)
+    .map(urlPort)
+    .filter((port) => port !== null && gatewayPorts.has(port));
+  const uniqueOverlaps = [...new Set(overlaps)].sort((left, right) => left - right);
+  if (uniqueOverlaps.length === 0) return;
+  throw new Error(
+    `identity HTTP benchmark ingress/gateway port overlap: ${uniqueOverlaps.join(", ")}. `
+    + "Choose --ingress-port outside the gateway port range.",
+  );
+}
+
 export function writeJsonReport(outPath, report) {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
 }
 
+export async function collectGatewayDatabaseDiagnostics(baseUrls, dependencies = {}) {
+  const fetchFn = dependencies.fetch ?? fetch;
+  const now = dependencies.now ?? (() => new Date().toISOString());
+  const gateways = [];
+  for (const baseUrl of baseUrls) {
+    const trimmedBaseUrl = trimURL(baseUrl);
+    try {
+      const response = await fetchFn(`${trimmedBaseUrl}${gatewayDiagnosticsPath}`, {
+        headers: {
+          [internalDiagnosticsSecretHeader]: internalDiagnosticsSecretValue,
+        },
+      });
+      if (!response.ok) {
+        gateways.push({
+          baseUrl: maskURL(trimmedBaseUrl),
+          status: "UNAVAILABLE",
+          httpStatus: response.status,
+        });
+        continue;
+      }
+      const body = await response.json();
+      gateways.push({
+        baseUrl: maskURL(trimmedBaseUrl),
+        status: "OK",
+        httpStatus: response.status,
+        stats: body.stats ?? null,
+      });
+    } catch (error) {
+      gateways.push({
+        baseUrl: maskURL(trimmedBaseUrl),
+        status: "ERROR",
+        errorMessage: maskSensitive(error instanceof Error ? error.message : String(error)),
+      });
+    }
+  }
+  return {
+    endpoint: gatewayDiagnosticsPath,
+    secretHeader: internalDiagnosticsSecretHeader,
+    sampledAt: now(),
+    gateways,
+  };
+}
+
 export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dependencies = {}) {
   const options = parseArgs(argv);
+  try {
+    validateRuntimePortPlan(options);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const consoleError = dependencies.consoleError ?? console.error;
+    consoleError(maskSensitive(message));
+    writeFailureReport(options, {
+      exitCode: 1,
+      errorMessage: message,
+    });
+    return 1;
+  }
   const baseUrls = gatewayBaseUrls(options);
   const spawnProcess = dependencies.spawn ?? spawn;
   const spawnCommandSync = dependencies.spawnSync ?? spawnSync;
@@ -144,6 +220,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
   const gatewayOutputs = gateways.map(() => "");
   let ingresses = [];
   let ingressOutputs = [];
+  let gatewayDatabaseDiagnostics;
   for (const [index, gateway] of gateways.entries()) {
     gateway.stdout?.on("data", (chunk) => {
       gatewayOutputs[index] += chunk.toString();
@@ -163,6 +240,11 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
         { fetch: fetchFn, sleep: sleepFn },
       );
     }
+    gatewayDatabaseDiagnostics = addGatewayDatabaseDiagnosticsSnapshot(
+      gatewayDatabaseDiagnostics,
+      "before",
+      await collectGatewayDatabaseDiagnostics(baseUrls, { fetch: fetchFn }),
+    );
     if (ingressEnabled(options)) {
       for (const [index, ingressBaseURL] of ingressBaseURLs.entries()) {
         const ingress = spawnIngressProxy(baseUrls, options, index, spawnProcess);
@@ -197,6 +279,11 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
     );
     replayCapturedOutput(result);
     exitCode = result.error ? 1 : result.status ?? 1;
+    gatewayDatabaseDiagnostics = addGatewayDatabaseDiagnosticsSnapshot(
+      gatewayDatabaseDiagnostics,
+      "after",
+      await collectGatewayDatabaseDiagnostics(baseUrls, { fetch: fetchFn }),
+    );
     if (exitCode !== 0) {
       const benchmarkOutput = `${result.stdout ?? ""}${result.stderr ?? ""}`;
       const message = result.error?.message ?? extractFailureMessage(benchmarkOutput, exitCode);
@@ -209,9 +296,10 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
         gatewaySignal: gatewaySignals(gateways),
         ingressExitCode: processExitCodes(ingresses),
         ingressSignal: processSignals(ingresses),
+        gatewayDatabaseDiagnostics,
       });
     } else {
-      enhanceSuccessReport(options);
+      enhanceSuccessReport(options, gatewayDatabaseDiagnostics);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -228,6 +316,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
       gatewaySignal: gatewaySignals(gateways),
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
+      gatewayDatabaseDiagnostics,
     });
     exitCode = 1;
   } finally {
@@ -269,6 +358,14 @@ function writeFailureReport(options, details) {
   writeJsonReport(options.out, report);
 }
 
+function addGatewayDatabaseDiagnosticsSnapshot(current, name, snapshot) {
+  if (!snapshot) return current;
+  return {
+    ...(current ?? {}),
+    [name]: snapshot,
+  };
+}
+
 function spawnGateway(baseUrl, options, spawnProcess) {
   return spawnProcess(
     "go",
@@ -282,6 +379,7 @@ function spawnGateway(baseUrl, options, spawnProcess) {
         SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
         BOOTSTRAP_PASSWORD: "ueacd",
         CHANNEL_SIGNATURE_SECRET: "ueacd",
+        INTERNAL_DIAGNOSTICS_SECRET: "ueacd",
       },
     },
   );
@@ -416,6 +514,18 @@ function trimURL(value) {
   return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
+function urlPort(value) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.port) return Number.parseInt(parsed.port, 10);
+    if (parsed.protocol === "https:") return 443;
+    if (parsed.protocol === "http:") return 80;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function maskSensitive(value) {
   let text = String(value ?? "");
   text = text.replace(/postgres:\/\/[^\s"']+/giu, "[masked-postgres-dsn]");
@@ -425,23 +535,26 @@ function maskSensitive(value) {
   return text;
 }
 
-function enhanceSuccessReport(options) {
+function enhanceSuccessReport(options, gatewayDatabaseDiagnostics) {
   if (!options.out || !fs.existsSync(options.out)) return;
   const report = JSON.parse(fs.readFileSync(options.out, "utf8"));
-  writeJsonReport(options.out, addRuntimeProfileToReport(report, options));
+  writeJsonReport(options.out, addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics));
 }
 
 export function addIngressProfileToReport(report, options) {
   return addRuntimeProfileToReport(report, options);
 }
 
-export function addRuntimeProfileToReport(report, options) {
+export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics) {
   const enhanced = {
     ...report,
     gatewayWorkerCount: gatewayCount(options),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
     benchmarkRuntimeProfile: benchmarkRuntimeProfile(options, benchmarkBaseUrls(options)),
   };
+  if (gatewayDatabaseDiagnostics) {
+    enhanced.gatewayDatabaseDiagnostics = gatewayDatabaseDiagnostics;
+  }
   if (!ingressEnabled(options)) return enhanced;
   return {
     ...enhanced,

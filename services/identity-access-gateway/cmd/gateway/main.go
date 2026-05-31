@@ -21,7 +21,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	sessionStore, replayGuard, closeSessionStore := mustBuildIdentityStores(ctx)
+	sessionStore, replayGuard, sessionDBPoolStatsProvider, closeSessionStore := mustBuildIdentityStores(ctx)
 	defer closeSessionStore()
 
 	identity := usecase.NewIdentityServiceWithWeChatAndReplayGuard(
@@ -34,8 +34,13 @@ func main() {
 	)
 
 	server := &http.Server{
-		Addr:              ":" + getenv("PORT", "18100"),
-		Handler:           httpapi.NewServer(identity, getenv("CHANNEL_SIGNATURE_SECRET", "ueacd")).Handler(),
+		Addr: ":" + getenv("PORT", "18100"),
+		Handler: httpapi.NewServerWithConfig(httpapi.ServerConfig{
+			Identity:                   identity,
+			ChannelSignature:           getenv("CHANNEL_SIGNATURE_SECRET", "ueacd"),
+			DiagnosticsSecret:          getenv("INTERNAL_DIAGNOSTICS_SECRET", "ueacd"),
+			SessionDBPoolStatsProvider: sessionDBPoolStatsProvider,
+		}).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -48,11 +53,11 @@ func main() {
 	}
 }
 
-func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase.RemoteCommandReplayGuard, func()) {
+func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase.RemoteCommandReplayGuard, platform.SessionDBPoolStatsProvider, func()) {
 	databaseURL := os.Getenv("SESSION_DATABASE_URL")
 	if databaseURL == "" {
 		log.Print("identity session store ready: memory with local remote replay guard")
-		return usecase.NewMemorySessionStore(), usecase.NewMemoryRemoteCommandReplayGuard(), func() {}
+		return usecase.NewMemorySessionStore(), usecase.NewMemoryRemoteCommandReplayGuard(), nil, func() {}
 	}
 
 	config, err := pgxpool.ParseConfig(databaseURL)
@@ -82,7 +87,7 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 
 	store := identitypostgres.NewSessionStore(db)
 	log.Printf("identity session store ready: postgres maxConns=%d with durable remote replay guard", maxConns)
-	return store, store, pool.Close
+	return store, store, db, pool.Close
 }
 
 func passwordAuthenticator() usecase.PasswordAuthenticator {

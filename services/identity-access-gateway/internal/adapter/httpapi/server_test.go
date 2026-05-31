@@ -11,8 +11,76 @@ import (
 
 	"ita-refactor/services/identity-access-gateway/internal/adapter/httpapi"
 	"ita-refactor/services/identity-access-gateway/internal/domain"
+	"ita-refactor/services/identity-access-gateway/internal/platform"
 	"ita-refactor/services/identity-access-gateway/internal/usecase"
 )
+
+func TestSessionDBPoolDiagnosticsDisabledWithoutProvider(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(http.MethodGet, "/internal/identity/session-db-pool", nil)
+	request.Header.Set("X-Internal-Diagnostics-Secret", "ueacd")
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
+func TestSessionDBPoolDiagnosticsRequiresSecret(t *testing.T) {
+	handler := newDiagnosticsTestHandler(fakePoolStatsProvider{})
+	request := httptest.NewRequest(http.MethodGet, "/internal/identity/session-db-pool", nil)
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+
+	wrongSecret := httptest.NewRequest(http.MethodGet, "/internal/identity/session-db-pool", nil)
+	wrongSecret.Header.Set("X-Internal-Diagnostics-Secret", "wrong")
+	wrongSecretResponse := httptest.NewRecorder()
+	handler.ServeHTTP(wrongSecretResponse, wrongSecret)
+
+	if wrongSecretResponse.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong secret status = %d, body = %s", wrongSecretResponse.Code, wrongSecretResponse.Body.String())
+	}
+}
+
+func TestSessionDBPoolDiagnosticsReturnsPoolStats(t *testing.T) {
+	handler := newDiagnosticsTestHandler(fakePoolStatsProvider{})
+	request := httptest.NewRequest(http.MethodGet, "/internal/identity/session-db-pool", nil)
+	request.Header.Set("X-Internal-Diagnostics-Secret", "ueacd")
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+
+	var body struct {
+		Status string                      `json:"status"`
+		Stats  platform.SessionDBPoolStats `json:"stats"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response JSON: %v", err)
+	}
+	if body.Status != "ok" {
+		t.Fatalf("status = %q", body.Status)
+	}
+	if body.Stats.MaxConns != 12 {
+		t.Fatalf("maxConns = %d", body.Stats.MaxConns)
+	}
+	if body.Stats.AcquireDurationMs != 123.5 {
+		t.Fatalf("acquireDurationMs = %v", body.Stats.AcquireDurationMs)
+	}
+	if bytes.Contains(response.Body.Bytes(), []byte("ueacd")) {
+		t.Fatalf("diagnostics leaked secret: %s", response.Body.String())
+	}
+}
 
 func TestPasswordSessionReturnsPrincipalContext(t *testing.T) {
 	handler := newTestHandler()
@@ -290,15 +358,47 @@ func TestCompleteWeChatSessionReturnsPrincipalContext(t *testing.T) {
 }
 
 func newTestHandler() http.Handler {
+	return httpapi.NewServer(newTestIdentityService(), "ueacd").Handler()
+}
+
+func newDiagnosticsTestHandler(provider platform.SessionDBPoolStatsProvider) http.Handler {
+	return httpapi.NewServerWithConfig(httpapi.ServerConfig{
+		Identity:                   newTestIdentityService(),
+		ChannelSignature:           "ueacd",
+		DiagnosticsSecret:          "ueacd",
+		SessionDBPoolStatsProvider: provider,
+	}).Handler()
+}
+
+func newTestIdentityService() *usecase.IdentityService {
 	wechat := newFakeWeChatAuthenticator()
-	service := usecase.NewIdentityServiceWithWeChat(
+	return usecase.NewIdentityServiceWithWeChat(
 		fakeAuthenticator{},
 		wechat,
 		usecase.NewMemorySessionStore(),
 		&sequenceIssuer{},
 		fixedClock{now: time.Date(2026, 5, 28, 8, 0, 0, 0, time.UTC)},
 	)
-	return httpapi.NewServer(service, "ueacd").Handler()
+}
+
+type fakePoolStatsProvider struct{}
+
+func (fakePoolStatsProvider) SessionDBPoolStats() platform.SessionDBPoolStats {
+	return platform.SessionDBPoolStats{
+		MaxConns:                12,
+		TotalConns:              10,
+		AcquiredConns:           8,
+		IdleConns:               2,
+		ConstructingConns:       1,
+		AcquireCount:            200,
+		AcquireDurationMs:       123.5,
+		CanceledAcquireCount:    3,
+		EmptyAcquireCount:       4,
+		EmptyAcquireWaitTimeMs:  45.25,
+		NewConnsCount:           7,
+		MaxIdleDestroyCount:     1,
+		MaxLifetimeDestroyCount: 2,
+	}
 }
 
 type fakeAuthenticator struct{}
