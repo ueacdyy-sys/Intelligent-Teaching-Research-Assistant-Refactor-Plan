@@ -184,6 +184,80 @@ func TestSessionStoreRevokeOwnSessionRejectsMismatchedAccessToken(t *testing.T) 
 	}
 }
 
+func TestSessionStorePrunesInactiveSessions(t *testing.T) {
+	db := newFakeDB()
+	store := postgres.NewSessionStore(db)
+	cutoff := time.Date(2026, 5, 28, 10, 0, 0, 0, time.UTC)
+
+	revoked := teacherPrincipal("sess_revoked")
+	revoked.ExpiresAt = cutoff.Add(time.Hour)
+	if err := store.SaveSession(context.Background(), "access_revoked", "refresh_revoked", revoked); err != nil {
+		t.Fatalf("SaveSession revoked error = %v", err)
+	}
+	db.markRevokedAt("sess_revoked", cutoff.Add(-time.Minute))
+
+	futureRevoked := teacherPrincipal("sess_future_revoked")
+	futureRevoked.ExpiresAt = cutoff.Add(time.Hour)
+	if err := store.SaveSession(context.Background(), "access_future_revoked", "refresh_future_revoked", futureRevoked); err != nil {
+		t.Fatalf("SaveSession future revoked error = %v", err)
+	}
+	db.markRevokedAt("sess_future_revoked", cutoff.Add(time.Minute))
+
+	expired := teacherPrincipal("sess_expired")
+	expired.ExpiresAt = cutoff.Add(-time.Minute)
+	if err := store.SaveSession(context.Background(), "access_expired", "refresh_expired", expired); err != nil {
+		t.Fatalf("SaveSession expired error = %v", err)
+	}
+
+	active := teacherPrincipal("sess_active")
+	active.ExpiresAt = cutoff.Add(time.Hour)
+	if err := store.SaveSession(context.Background(), "access_active", "refresh_active", active); err != nil {
+		t.Fatalf("SaveSession active error = %v", err)
+	}
+
+	pruned, err := store.PruneInactiveSessions(context.Background(), cutoff, 10)
+	if err != nil {
+		t.Fatalf("PruneInactiveSessions error = %v", err)
+	}
+
+	if pruned != 2 {
+		t.Fatalf("pruned = %d want 2", pruned)
+	}
+	if _, ok := db.sessionsByID["sess_revoked"]; ok {
+		t.Fatal("revoked session was not pruned")
+	}
+	if _, ok := db.sessionsByID["sess_expired"]; ok {
+		t.Fatal("expired session was not pruned")
+	}
+	if _, ok := db.sessionsByID["sess_active"]; !ok {
+		t.Fatal("unexpired active session was pruned")
+	}
+	if _, ok := db.sessionsByID["sess_future_revoked"]; !ok {
+		t.Fatal("future revoked session was pruned")
+	}
+	lastSQL := db.execSQL[len(db.execSQL)-1]
+	if !strings.Contains(lastSQL, "revoked_at IS NOT NULL") || !strings.Contains(lastSQL, "revoked_at <= $1") || !strings.Contains(lastSQL, "expires_at <= $1") || !strings.Contains(lastSQL, "LIMIT $2") {
+		t.Fatalf("prune SQL = %s", lastSQL)
+	}
+}
+
+func TestSessionStorePruneInactiveSessionsRejectsInvalidLimit(t *testing.T) {
+	db := newFakeDB()
+	store := postgres.NewSessionStore(db)
+
+	pruned, err := store.PruneInactiveSessions(context.Background(), time.Now(), 0)
+
+	if err == nil {
+		t.Fatal("PruneInactiveSessions accepted an invalid limit")
+	}
+	if pruned != 0 {
+		t.Fatalf("pruned = %d want 0", pruned)
+	}
+	if len(db.execSQL) != 0 {
+		t.Fatalf("invalid prune executed SQL: %v", db.execSQL)
+	}
+}
+
 func TestSessionStoreAcceptRemoteCommandRejectsReplayNonce(t *testing.T) {
 	db := newFakeDB()
 	store := postgres.NewSessionStore(db)
@@ -258,6 +332,7 @@ type fakeSession struct {
 	refreshToken  string
 	principalJSON []byte
 	revoked       bool
+	revokedAt     time.Time
 }
 
 func newFakeDB() *fakeDB {
@@ -331,6 +406,26 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 		}
 		db.deleteSession(sessionID)
 		return fakeCommandTag{rows: 1}, nil
+	case strings.Contains(sql, "WITH inactive_sessions AS"):
+		cutoff := args[0].(time.Time)
+		limit := args[1].(int)
+		var rows int64
+		for sessionID, session := range db.sessionsByID {
+			if int(rows) >= limit {
+				break
+			}
+			var principal domain.PrincipalContext
+			if err := json.Unmarshal(session.principalJSON, &principal); err != nil {
+				return fakeCommandTag{}, err
+			}
+			revokedBeforeCutoff := session.revoked && (session.revokedAt.IsZero() || !session.revokedAt.After(cutoff))
+			expiredActive := !session.revoked && !principal.ExpiresAt.After(cutoff)
+			if revokedBeforeCutoff || expiredActive {
+				db.deleteSession(sessionID)
+				rows++
+			}
+		}
+		return fakeCommandTag{rows: rows}, nil
 	case strings.Contains(sql, "DELETE FROM identity_sessions"):
 		sessionID := args[0].(string)
 		if _, ok := db.sessionsByID[sessionID]; !ok {
@@ -428,6 +523,13 @@ func (db *fakeDB) removeIndexes(sessionID string) {
 func (db *fakeDB) deleteSession(sessionID string) {
 	db.removeIndexes(sessionID)
 	delete(db.sessionsByID, sessionID)
+}
+
+func (db *fakeDB) markRevokedAt(sessionID string, revokedAt time.Time) {
+	session := db.sessionsByID[sessionID]
+	session.revoked = true
+	session.revokedAt = revokedAt
+	db.sessionsByID[sessionID] = session
 }
 
 func queryLogContains(queries []string, needles ...string) bool {

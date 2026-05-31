@@ -211,6 +211,31 @@ func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string,
 	return tag.RowsAffected() > 0, nil
 }
 
+func (s *SessionStore) PruneInactiveSessions(ctx context.Context, cutoff time.Time, limit int) (int64, error) {
+	if limit < 1 {
+		return 0, errors.New("inactive session prune limit must be positive")
+	}
+	tag, err := s.db.Exec(
+		ctx,
+		`WITH inactive_sessions AS (
+			SELECT session_id
+			FROM identity_sessions
+			WHERE (revoked_at IS NOT NULL AND revoked_at <= $1)
+				OR (revoked_at IS NULL AND expires_at <= $1)
+			ORDER BY COALESCE(revoked_at, expires_at)
+			LIMIT $2
+		)
+		DELETE FROM identity_sessions
+		WHERE session_id IN (SELECT session_id FROM inactive_sessions)`,
+		cutoff,
+		limit,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
 func (s *SessionStore) AcceptRemoteCommand(
 	ctx context.Context,
 	provider domain.ChannelProvider,
