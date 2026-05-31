@@ -65,6 +65,22 @@ WHERE d.datname = current_database()
 GROUP BY 1, 2
 ORDER BY locks DESC, mode, granted;
 `,
+  relations: `
+SELECT c.relname,
+       CASE c.relpersistence
+         WHEN 'p' THEN 'logged'
+         WHEN 'u' THEN 'unlogged'
+         WHEN 't' THEN 'temporary'
+         ELSE c.relpersistence::text
+       END AS persistence,
+       pg_total_relation_size(c.oid) AS total_size_bytes
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relkind = 'r'
+  AND c.relname IN ('identity_sessions', 'identity_remote_command_nonces')
+ORDER BY c.relname;
+`,
 };
 
 export function applyPostgresDiagnosticsArg(parsed, key, value) {

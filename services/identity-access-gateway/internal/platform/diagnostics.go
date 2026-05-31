@@ -18,9 +18,18 @@ type SessionDBPoolStats struct {
 }
 
 type SessionWriteLimiterStats struct {
-	Enabled                   bool    `json:"enabled"`
-	Limit                     int     `json:"limit"`
-	InUse                     int     `json:"inUse"`
+	Enabled                   bool                                        `json:"enabled"`
+	Limit                     int                                         `json:"limit"`
+	InUse                     int                                         `json:"inUse"`
+	Waiting                   int64                                       `json:"waiting"`
+	AcquireCount              int64                                       `json:"acquireCount"`
+	AcquireWaitTimeMs         float64                                     `json:"acquireWaitTimeMs"`
+	CanceledAcquireCount      int64                                       `json:"canceledAcquireCount"`
+	CanceledAcquireWaitTimeMs float64                                     `json:"canceledAcquireWaitTimeMs"`
+	Operations                map[string]SessionWriteLimiterOperationStat `json:"operations,omitempty"`
+}
+
+type SessionWriteLimiterOperationStat struct {
 	Waiting                   int64   `json:"waiting"`
 	AcquireCount              int64   `json:"acquireCount"`
 	AcquireWaitTimeMs         float64 `json:"acquireWaitTimeMs"`

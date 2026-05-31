@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -67,6 +68,10 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 
 	maxConns := getenvInt("SESSION_DB_MAX_CONNS", 8)
 	writeConcurrency := getenvNonNegativeInt("SESSION_DB_WRITE_CONCURRENCY", 0)
+	sessionTablePersistence, err := parseSessionTablePersistence(os.Getenv("SESSION_DB_SESSION_TABLE_PERSISTENCE"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	config.MaxConns = int32(maxConns)
 	config.MinConns = 0
 	config.MaxConnIdleTime = 10 * time.Minute
@@ -81,7 +86,9 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 		log.Fatal(err)
 	}
 	db := identitypostgres.NewPoolDB(pool)
-	if err := identitypostgres.EnsureSchema(ctx, db); err != nil {
+	if err := identitypostgres.EnsureSchemaWithConfig(ctx, db, identitypostgres.SchemaConfig{
+		SessionTablePersistence: sessionTablePersistence,
+	}); err != nil {
 		pool.Close()
 		log.Fatal(err)
 	}
@@ -90,7 +97,12 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 		WriteConcurrency: writeConcurrency,
 	})
 	statsProvider := identitypostgres.NewSessionDBStatsProvider(db, store)
-	log.Printf("identity session store ready: postgres maxConns=%d writeConcurrency=%d with durable remote replay guard", maxConns, writeConcurrency)
+	log.Printf(
+		"identity session store ready: postgres maxConns=%d writeConcurrency=%d sessionTablePersistence=%s with durable remote replay guard",
+		maxConns,
+		writeConcurrency,
+		sessionTablePersistence,
+	)
 	return store, store, statsProvider, pool.Close
 }
 
@@ -138,4 +150,20 @@ func getenvNonNegativeInt(key string, fallback int) int {
 		panic(fmt.Sprintf("%s must be non-negative: %d", key, parsed))
 	}
 	return parsed
+}
+
+func parseSessionTablePersistence(value string) (identitypostgres.SessionTablePersistence, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", string(identitypostgres.SessionTablePersistenceLogged):
+		return identitypostgres.SessionTablePersistenceLogged, nil
+	case string(identitypostgres.SessionTablePersistenceUnlogged):
+		return identitypostgres.SessionTablePersistenceUnlogged, nil
+	default:
+		return "", fmt.Errorf(
+			"SESSION_DB_SESSION_TABLE_PERSISTENCE must be %q or %q: %q",
+			identitypostgres.SessionTablePersistenceLogged,
+			identitypostgres.SessionTablePersistenceUnlogged,
+			value,
+		)
+	}
 }

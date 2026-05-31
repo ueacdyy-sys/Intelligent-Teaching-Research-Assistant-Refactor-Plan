@@ -30,6 +30,7 @@ type SessionStore struct {
 	db                            DB
 	writeLimiter                  chan struct{}
 	writeConcurrencyLimit         int
+	writeOperations               map[sessionWriteOperation]*sessionWriteLimiterOperationStats
 	writeLimiterWaiting           atomic.Int64
 	writeLimiterAcquireCount      atomic.Int64
 	writeLimiterAcquireWaitNanos  atomic.Int64
@@ -41,6 +42,47 @@ type SessionStoreConfig struct {
 	WriteConcurrency int
 }
 
+type SessionTablePersistence string
+
+const (
+	SessionTablePersistenceLogged   SessionTablePersistence = "logged"
+	SessionTablePersistenceUnlogged SessionTablePersistence = "unlogged"
+)
+
+type SchemaConfig struct {
+	SessionTablePersistence SessionTablePersistence
+}
+
+type sessionWriteOperation string
+
+const (
+	writeOperationSaveSession          sessionWriteOperation = "saveSession"
+	writeOperationRotateSession        sessionWriteOperation = "rotateSession"
+	writeOperationRotateRefreshSession sessionWriteOperation = "rotateRefreshSession"
+	writeOperationRevokeSession        sessionWriteOperation = "revokeSession"
+	writeOperationRevokeOwnSession     sessionWriteOperation = "revokeOwnSession"
+	writeOperationPruneInactive        sessionWriteOperation = "pruneInactiveSessions"
+	writeOperationAcceptRemoteCommand  sessionWriteOperation = "acceptRemoteCommand"
+)
+
+var sessionWriteOperations = []sessionWriteOperation{
+	writeOperationSaveSession,
+	writeOperationRotateSession,
+	writeOperationRotateRefreshSession,
+	writeOperationRevokeSession,
+	writeOperationRevokeOwnSession,
+	writeOperationPruneInactive,
+	writeOperationAcceptRemoteCommand,
+}
+
+type sessionWriteLimiterOperationStats struct {
+	waiting                  atomic.Int64
+	acquireCount             atomic.Int64
+	acquireWaitNanos         atomic.Int64
+	canceledAcquireCount     atomic.Int64
+	canceledAcquireWaitNanos atomic.Int64
+}
+
 func NewSessionStore(db DB) *SessionStore {
 	return NewSessionStoreWithConfig(db, SessionStoreConfig{})
 }
@@ -50,12 +92,17 @@ func NewSessionStoreWithConfig(db DB, config SessionStoreConfig) *SessionStore {
 	if config.WriteConcurrency > 0 {
 		store.writeLimiter = make(chan struct{}, config.WriteConcurrency)
 		store.writeConcurrencyLimit = config.WriteConcurrency
+		store.writeOperations = newSessionWriteOperationStats()
 	}
 	return store
 }
 
 func EnsureSchema(ctx context.Context, db DB) error {
-	for _, statement := range schemaStatements {
+	return EnsureSchemaWithConfig(ctx, db, SchemaConfig{})
+}
+
+func EnsureSchemaWithConfig(ctx context.Context, db DB, config SchemaConfig) error {
+	for _, statement := range schemaStatementsFor(config.normalizedSessionTablePersistence()) {
 		if _, err := db.Exec(ctx, statement); err != nil {
 			return err
 		}
@@ -63,12 +110,19 @@ func EnsureSchema(ctx context.Context, db DB) error {
 	return nil
 }
 
+func (config SchemaConfig) normalizedSessionTablePersistence() SessionTablePersistence {
+	if config.SessionTablePersistence == SessionTablePersistenceUnlogged {
+		return SessionTablePersistenceUnlogged
+	}
+	return SessionTablePersistenceLogged
+}
+
 func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refreshToken string, principal domain.PrincipalContext) error {
 	principalJSON, err := encodePrincipal(principal)
 	if err != nil {
 		return err
 	}
-	release, err := s.acquireWriteSlot(ctx)
+	release, err := s.acquireWriteSlot(ctx, writeOperationSaveSession)
 	if err != nil {
 		return err
 	}
@@ -124,7 +178,7 @@ func (s *SessionStore) RotateSession(
 	newRefreshToken string,
 	principal domain.PrincipalContext,
 ) error {
-	release, err := s.acquireWriteSlot(ctx)
+	release, err := s.acquireWriteSlot(ctx, writeOperationRotateSession)
 	if err != nil {
 		return err
 	}
@@ -163,7 +217,7 @@ func (s *SessionStore) RotateRefreshSession(
 	issuedAt time.Time,
 	expiresAt time.Time,
 ) (domain.PrincipalContext, bool, error) {
-	release, err := s.acquireWriteSlot(ctx)
+	release, err := s.acquireWriteSlot(ctx, writeOperationRotateRefreshSession)
 	if err != nil {
 		return domain.PrincipalContext{}, false, err
 	}
@@ -205,7 +259,7 @@ func (s *SessionStore) RotateRefreshSession(
 }
 
 func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) error {
-	release, err := s.acquireWriteSlot(ctx)
+	release, err := s.acquireWriteSlot(ctx, writeOperationRevokeSession)
 	if err != nil {
 		return err
 	}
@@ -221,7 +275,7 @@ func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) erro
 }
 
 func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string, sessionID string, now time.Time) (bool, error) {
-	release, err := s.acquireWriteSlot(ctx)
+	release, err := s.acquireWriteSlot(ctx, writeOperationRevokeOwnSession)
 	if err != nil {
 		return false, err
 	}
@@ -247,7 +301,7 @@ func (s *SessionStore) PruneInactiveSessions(ctx context.Context, cutoff time.Ti
 	if limit < 1 {
 		return 0, errors.New("inactive session prune limit must be positive")
 	}
-	release, err := s.acquireWriteSlot(ctx)
+	release, err := s.acquireWriteSlot(ctx, writeOperationPruneInactive)
 	if err != nil {
 		return 0, err
 	}
@@ -281,7 +335,7 @@ func (s *SessionStore) AcceptRemoteCommand(
 	now time.Time,
 	expiresAt time.Time,
 ) error {
-	release, err := s.acquireWriteSlot(ctx)
+	release, err := s.acquireWriteSlot(ctx, writeOperationAcceptRemoteCommand)
 	if err != nil {
 		return err
 	}
@@ -311,21 +365,40 @@ func (s *SessionStore) AcceptRemoteCommand(
 	return nil
 }
 
-func (s *SessionStore) acquireWriteSlot(ctx context.Context) (func(), error) {
+func (s *SessionStore) acquireWriteSlot(ctx context.Context, operation sessionWriteOperation) (func(), error) {
 	if s.writeLimiter == nil {
 		return func() {}, nil
 	}
 	startedAt := time.Now()
+	operationStats := s.writeOperations[operation]
 	s.writeLimiterWaiting.Add(1)
+	if operationStats != nil {
+		operationStats.waiting.Add(1)
+	}
 	defer s.writeLimiterWaiting.Add(-1)
+	defer func() {
+		if operationStats != nil {
+			operationStats.waiting.Add(-1)
+		}
+	}()
 	select {
 	case s.writeLimiter <- struct{}{}:
+		waitNanos := time.Since(startedAt).Nanoseconds()
 		s.writeLimiterAcquireCount.Add(1)
-		s.writeLimiterAcquireWaitNanos.Add(time.Since(startedAt).Nanoseconds())
+		s.writeLimiterAcquireWaitNanos.Add(waitNanos)
+		if operationStats != nil {
+			operationStats.acquireCount.Add(1)
+			operationStats.acquireWaitNanos.Add(waitNanos)
+		}
 		return func() { <-s.writeLimiter }, nil
 	case <-ctx.Done():
+		waitNanos := time.Since(startedAt).Nanoseconds()
 		s.writeLimiterCanceledCount.Add(1)
-		s.writeLimiterCanceledWaitNanos.Add(time.Since(startedAt).Nanoseconds())
+		s.writeLimiterCanceledWaitNanos.Add(waitNanos)
+		if operationStats != nil {
+			operationStats.canceledAcquireCount.Add(1)
+			operationStats.canceledAcquireWaitNanos.Add(waitNanos)
+		}
 		return nil, ctx.Err()
 	}
 }
@@ -343,7 +416,37 @@ func (s *SessionStore) SessionWriteLimiterStats() platform.SessionWriteLimiterSt
 		AcquireWaitTimeMs:         float64(s.writeLimiterAcquireWaitNanos.Load()) / 1_000_000,
 		CanceledAcquireCount:      s.writeLimiterCanceledCount.Load(),
 		CanceledAcquireWaitTimeMs: float64(s.writeLimiterCanceledWaitNanos.Load()) / 1_000_000,
+		Operations:                s.sessionWriteOperationStats(),
 	}
+}
+
+func newSessionWriteOperationStats() map[sessionWriteOperation]*sessionWriteLimiterOperationStats {
+	stats := make(map[sessionWriteOperation]*sessionWriteLimiterOperationStats, len(sessionWriteOperations))
+	for _, operation := range sessionWriteOperations {
+		stats[operation] = &sessionWriteLimiterOperationStats{}
+	}
+	return stats
+}
+
+func (s *SessionStore) sessionWriteOperationStats() map[string]platform.SessionWriteLimiterOperationStat {
+	if len(s.writeOperations) == 0 {
+		return nil
+	}
+	stats := make(map[string]platform.SessionWriteLimiterOperationStat, len(s.writeOperations))
+	for _, operation := range sessionWriteOperations {
+		operationStats := s.writeOperations[operation]
+		if operationStats == nil {
+			continue
+		}
+		stats[string(operation)] = platform.SessionWriteLimiterOperationStat{
+			Waiting:                   operationStats.waiting.Load(),
+			AcquireCount:              operationStats.acquireCount.Load(),
+			AcquireWaitTimeMs:         float64(operationStats.acquireWaitNanos.Load()) / 1_000_000,
+			CanceledAcquireCount:      operationStats.canceledAcquireCount.Load(),
+			CanceledAcquireWaitTimeMs: float64(operationStats.canceledAcquireWaitNanos.Load()) / 1_000_000,
+		}
+	}
+	return stats
 }
 
 func (s *SessionStore) getPrincipal(ctx context.Context, sql string, token string) (domain.PrincipalContext, bool, error) {
@@ -377,8 +480,21 @@ func decodePrincipal(data []byte) (domain.PrincipalContext, error) {
 	return principal, nil
 }
 
-var schemaStatements = []string{
-	`CREATE TABLE IF NOT EXISTS identity_sessions (
+func schemaStatementsFor(persistence SessionTablePersistence) []string {
+	createStatement := createLoggedIdentitySessionsStatement
+	persistenceStatement := ensureLoggedIdentitySessionsStatement
+	if persistence == SessionTablePersistenceUnlogged {
+		createStatement = createUnloggedIdentitySessionsStatement
+		persistenceStatement = ensureUnloggedIdentitySessionsStatement
+	}
+
+	statements := make([]string, 0, len(schemaStatementsAfterIdentitySessions)+2)
+	statements = append(statements, createStatement, persistenceStatement)
+	statements = append(statements, schemaStatementsAfterIdentitySessions...)
+	return statements
+}
+
+const createLoggedIdentitySessionsStatement = `CREATE TABLE IF NOT EXISTS identity_sessions (
 		session_id TEXT PRIMARY KEY,
 		access_token TEXT NOT NULL UNIQUE,
 		refresh_token TEXT UNIQUE,
@@ -386,7 +502,43 @@ var schemaStatements = []string{
 		issued_at TIMESTAMPTZ NOT NULL,
 		expires_at TIMESTAMPTZ NOT NULL,
 		revoked_at TIMESTAMPTZ
-	)`,
+	)`
+
+const createUnloggedIdentitySessionsStatement = `CREATE UNLOGGED TABLE IF NOT EXISTS identity_sessions (
+		session_id TEXT PRIMARY KEY,
+		access_token TEXT NOT NULL UNIQUE,
+		refresh_token TEXT UNIQUE,
+		principal_json JSONB NOT NULL,
+		issued_at TIMESTAMPTZ NOT NULL,
+		expires_at TIMESTAMPTZ NOT NULL,
+		revoked_at TIMESTAMPTZ
+	)`
+
+const ensureLoggedIdentitySessionsStatement = `DO $$
+	BEGIN
+		IF EXISTS (
+			SELECT 1
+			FROM pg_class
+			WHERE oid = 'identity_sessions'::regclass
+				AND relpersistence <> 'p'
+		) THEN
+			ALTER TABLE identity_sessions SET LOGGED;
+		END IF;
+	END $$`
+
+const ensureUnloggedIdentitySessionsStatement = `DO $$
+	BEGIN
+		IF EXISTS (
+			SELECT 1
+			FROM pg_class
+			WHERE oid = 'identity_sessions'::regclass
+				AND relpersistence <> 'u'
+		) THEN
+			ALTER TABLE identity_sessions SET UNLOGGED;
+		END IF;
+	END $$`
+
+var schemaStatementsAfterIdentitySessions = []string{
 	`DROP INDEX IF EXISTS idx_identity_sessions_access_active`,
 	`DROP INDEX IF EXISTS idx_identity_sessions_refresh_active`,
 	`CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at

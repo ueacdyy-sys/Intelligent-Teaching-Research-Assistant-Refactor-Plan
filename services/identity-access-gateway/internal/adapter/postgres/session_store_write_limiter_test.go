@@ -23,6 +23,7 @@ func TestSessionStoreWriteLimiterStatsExposeQueuedWaits(t *testing.T) {
 		second <- store.SaveSession(context.Background(), "access_stats_2", "refresh_stats_2", teacherPrincipal("sess_stats_2"))
 	}()
 	waitForWriteLimiterWaiters(t, store, 1)
+	time.Sleep(5 * time.Millisecond)
 
 	stats := store.SessionWriteLimiterStats()
 	if !stats.Enabled {
@@ -36,6 +37,10 @@ func TestSessionStoreWriteLimiterStatsExposeQueuedWaits(t *testing.T) {
 	}
 	if stats.Waiting != 1 {
 		t.Fatalf("write limiter waiting = %d want 1", stats.Waiting)
+	}
+	saveStats := stats.Operations["saveSession"]
+	if saveStats.Waiting != 1 {
+		t.Fatalf("saveSession waiting = %d want 1", saveStats.Waiting)
 	}
 
 	db.releaseOne()
@@ -57,6 +62,60 @@ func TestSessionStoreWriteLimiterStatsExposeQueuedWaits(t *testing.T) {
 	}
 	if stats.Waiting != 0 {
 		t.Fatalf("write limiter waiting after release = %d want 0", stats.Waiting)
+	}
+	saveStats = stats.Operations["saveSession"]
+	if saveStats.AcquireCount != 2 {
+		t.Fatalf("saveSession acquire count = %d want 2", saveStats.AcquireCount)
+	}
+	if saveStats.AcquireWaitTimeMs <= 0 {
+		t.Fatalf("saveSession acquire wait time = %v want > 0", saveStats.AcquireWaitTimeMs)
+	}
+}
+
+func TestSessionStoreWriteLimiterStatsAttributeOperations(t *testing.T) {
+	db := newFakeDB()
+	store := postgres.NewSessionStoreWithConfig(db, postgres.SessionStoreConfig{WriteConcurrency: 1})
+	principal := teacherPrincipal("sess_operation_stats")
+	now := principal.IssuedAt
+
+	if err := store.SaveSession(context.Background(), "access_operation_stats", "refresh_operation_stats", principal); err != nil {
+		t.Fatalf("SaveSession error = %v", err)
+	}
+	if _, ok, err := store.RotateRefreshSession(
+		context.Background(),
+		"refresh_operation_stats",
+		"access_operation_stats_rotated",
+		"refresh_operation_stats_rotated",
+		now.Add(time.Minute),
+		now.Add(time.Hour),
+	); err != nil {
+		t.Fatalf("RotateRefreshSession error = %v", err)
+	} else if !ok {
+		t.Fatal("RotateRefreshSession ok = false want true")
+	}
+	if ok, err := store.RevokeOwnSession(
+		context.Background(),
+		"access_operation_stats_rotated",
+		"sess_operation_stats",
+		now,
+	); err != nil {
+		t.Fatalf("RevokeOwnSession error = %v", err)
+	} else if !ok {
+		t.Fatal("RevokeOwnSession ok = false want true")
+	}
+
+	operations := store.SessionWriteLimiterStats().Operations
+	if operations["saveSession"].AcquireCount != 1 {
+		t.Fatalf("saveSession acquire count = %d want 1", operations["saveSession"].AcquireCount)
+	}
+	if operations["rotateRefreshSession"].AcquireCount != 1 {
+		t.Fatalf(
+			"rotateRefreshSession acquire count = %d want 1",
+			operations["rotateRefreshSession"].AcquireCount,
+		)
+	}
+	if operations["revokeOwnSession"].AcquireCount != 1 {
+		t.Fatalf("revokeOwnSession acquire count = %d want 1", operations["revokeOwnSession"].AcquireCount)
 	}
 }
 

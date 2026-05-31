@@ -9,7 +9,7 @@ import {
 import { parseArgs } from "./run-identity-http-benchmark.mjs";
 
 describe("PostgreSQL diagnostics", () => {
-  it("collects masked PostgreSQL activity, database, and lock evidence through docker psql", () => {
+  it("collects masked PostgreSQL activity, database, lock, and relation evidence through docker psql", () => {
     const options = parseArgs([
       "--postgres-diagnostics",
       "true",
@@ -58,11 +58,18 @@ describe("PostgreSQL diagnostics", () => {
             stderr: "",
           };
         }
+        if (query.includes("FROM pg_class")) {
+          return {
+            status: 0,
+            stdout: "relname|persistence|total_size_bytes\nidentity_sessions|unlogged|40960\n",
+            stderr: "",
+          };
+        }
         throw new Error(`unexpected query ${query}`);
       },
     });
 
-    assert.equal(observedQueries.length, 3);
+    assert.equal(observedQueries.length, 4);
     assert.equal(diagnostics.status, "OK");
     assert.equal(diagnostics.sampledAt, "2026-05-31T10:00:00.000Z");
     assert.equal(diagnostics.postgresPort, 5432);
@@ -70,6 +77,7 @@ describe("PostgreSQL diagnostics", () => {
     assert.equal(diagnostics.queries.activity.rows[0].connections, 7);
     assert.equal(diagnostics.queries.database.rows[0].numbackends, 19);
     assert.equal(diagnostics.queries.locks.rows[0].locks, 42);
+    assert.equal(diagnostics.queries.relations.rows[0].persistence, "unlogged");
     assert(!JSON.stringify(diagnostics).includes("ueacd"));
   });
 

@@ -22,6 +22,8 @@ export function summarizeGatewayWriteLimiterDiagnostics(gatewayDatabaseDiagnosti
       canceledAcquireCount: after.canceledAcquireCountTotal - before.canceledAcquireCountTotal,
       canceledAcquireWaitTimeMs: after.canceledAcquireWaitTimeMsTotal - before.canceledAcquireWaitTimeMsTotal,
     };
+    const operations = deltaOperationSummaries(before.operations, after.operations);
+    if (operations) summary.delta.operations = operations;
   }
   return summary;
 }
@@ -32,7 +34,7 @@ function summarizeLimiterSnapshot(snapshot) {
     .map((gateway) => gateway?.stats?.writeLimiter)
     .filter((stats) => stats && typeof stats === "object");
   if (limiterStats.length === 0) return null;
-  return {
+  const summary = {
     sampledAt: snapshot?.sampledAt ?? null,
     gatewayCount: gateways.length,
     gatewaysWithWriteLimiterStats: limiterStats.length,
@@ -48,6 +50,56 @@ function summarizeLimiterSnapshot(snapshot) {
     maxWaitingPerGateway: max(limiterStats, "waiting"),
     maxAcquireWaitTimeMsPerGateway: max(limiterStats, "acquireWaitTimeMs"),
   };
+  const operations = summarizeOperationSnapshots(limiterStats);
+  if (operations) summary.operations = operations;
+  return summary;
+}
+
+function summarizeOperationSnapshots(limiterStats) {
+  const operationNames = new Set();
+  for (const stats of limiterStats) {
+    if (!stats.operations || typeof stats.operations !== "object") continue;
+    for (const operationName of Object.keys(stats.operations)) {
+      operationNames.add(operationName);
+    }
+  }
+  if (operationNames.size === 0) return undefined;
+
+  const summaries = {};
+  for (const operationName of [...operationNames].sort()) {
+    const rows = limiterStats
+      .map((stats) => stats.operations?.[operationName])
+      .filter((stats) => stats && typeof stats === "object");
+    summaries[operationName] = {
+      waitingTotal: sum(rows, "waiting"),
+      acquireCountTotal: sum(rows, "acquireCount"),
+      acquireWaitTimeMsTotal: sum(rows, "acquireWaitTimeMs"),
+      canceledAcquireCountTotal: sum(rows, "canceledAcquireCount"),
+      canceledAcquireWaitTimeMsTotal: sum(rows, "canceledAcquireWaitTimeMs"),
+      maxWaitingPerGateway: max(rows, "waiting"),
+      maxAcquireWaitTimeMsPerGateway: max(rows, "acquireWaitTimeMs"),
+    };
+  }
+  return summaries;
+}
+
+function deltaOperationSummaries(beforeOperations = {}, afterOperations = {}) {
+  const operationNames = new Set([...Object.keys(beforeOperations), ...Object.keys(afterOperations)]);
+  if (operationNames.size === 0) return undefined;
+
+  const deltas = {};
+  for (const operationName of [...operationNames].sort()) {
+    const before = beforeOperations[operationName] ?? {};
+    const after = afterOperations[operationName] ?? {};
+    deltas[operationName] = {
+      acquireCount: number(after.acquireCountTotal) - number(before.acquireCountTotal),
+      acquireWaitTimeMs: number(after.acquireWaitTimeMsTotal) - number(before.acquireWaitTimeMsTotal),
+      canceledAcquireCount: number(after.canceledAcquireCountTotal) - number(before.canceledAcquireCountTotal),
+      canceledAcquireWaitTimeMs:
+        number(after.canceledAcquireWaitTimeMsTotal) - number(before.canceledAcquireWaitTimeMsTotal),
+    };
+  }
+  return deltas;
 }
 
 function sum(rows, key) {
