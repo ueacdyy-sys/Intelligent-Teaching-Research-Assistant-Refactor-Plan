@@ -39,6 +39,20 @@ type roundRobinPicker struct {
 	next      atomic.Uint64
 }
 
+type proxyOriginalRequest struct {
+	Host     string
+	Path     string
+	RawQuery string
+}
+
+type proxyOriginalRequestKey struct{}
+
+type safeReadRetryTransport struct {
+	base          http.RoundTripper
+	picker        *roundRobinPicker
+	upstreamCount int
+}
+
 func main() {
 	config := parseConfig()
 	upstreams, err := parseUpstreamBaseURLs(config.UpstreamBaseURLs)
@@ -93,21 +107,16 @@ func newIngressHandler(upstreams []*url.URL, transport http.RoundTripper) http.H
 	picker := newRoundRobinPicker(upstreams)
 	proxy := &httputil.ReverseProxy{
 		Director: func(request *http.Request) {
-			originalHost := request.Host
-			target := picker.Next()
-			request.URL.Scheme = target.Scheme
-			request.URL.Host = target.Host
-			request.URL.Path = singleJoiningSlash(target.Path, request.URL.Path)
-			if target.RawQuery == "" || request.URL.RawQuery == "" {
-				request.URL.RawQuery = target.RawQuery + request.URL.RawQuery
-			} else {
-				request.URL.RawQuery = target.RawQuery + "&" + request.URL.RawQuery
+			original := proxyOriginalRequest{
+				Host:     request.Host,
+				Path:     request.URL.Path,
+				RawQuery: request.URL.RawQuery,
 			}
-			request.Host = target.Host
-			request.Header.Set("X-Forwarded-Host", originalHost)
-			request.Header.Set("X-Forwarded-Proto", "http")
+			target := picker.Next()
+			*request = *request.WithContext(context.WithValue(request.Context(), proxyOriginalRequestKey{}, original))
+			rewriteProxyRequest(request, target, original)
 		},
-		Transport: transport,
+		Transport: newSafeReadRetryTransport(transport, picker, len(upstreams)),
 		ErrorHandler: func(response http.ResponseWriter, _ *http.Request, err error) {
 			log.Printf("identity ingress upstream error: %v", err)
 			http.Error(response, "upstream unavailable", http.StatusBadGateway)
@@ -121,6 +130,109 @@ func newIngressHandler(upstreams []*url.URL, transport http.RoundTripper) http.H
 	})
 	mux.Handle("/", proxy)
 	return mux
+}
+
+func newSafeReadRetryTransport(base http.RoundTripper, picker *roundRobinPicker, upstreamCount int) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return &safeReadRetryTransport{
+		base:          base,
+		picker:        picker,
+		upstreamCount: upstreamCount,
+	}
+}
+
+func (transport *safeReadRetryTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := transport.base.RoundTrip(request)
+	if err == nil || !transport.canRetry(request) {
+		return response, err
+	}
+	closeResponseBody(response)
+
+	original := originalProxyRequestFrom(request)
+	attempted := map[string]bool{requestUpstreamKey(request): true}
+	var lastErr error = err
+	for len(attempted) < transport.upstreamCount {
+		target := transport.nextUnattemptedTarget(attempted)
+		if target == nil {
+			break
+		}
+		attempted[urlUpstreamKey(target)] = true
+		retryRequest := request.Clone(request.Context())
+		rewriteProxyRequest(retryRequest, target, original)
+		response, err = transport.base.RoundTrip(retryRequest)
+		if err == nil {
+			return response, nil
+		}
+		closeResponseBody(response)
+		lastErr = err
+	}
+	return nil, lastErr
+}
+
+func (transport *safeReadRetryTransport) canRetry(request *http.Request) bool {
+	return transport.upstreamCount > 1 &&
+		isSafeRetryMethod(request.Method) &&
+		canReplayRequestBody(request)
+}
+
+func (transport *safeReadRetryTransport) nextUnattemptedTarget(attempted map[string]bool) *url.URL {
+	for index := 0; index < transport.upstreamCount; index++ {
+		target := transport.picker.Next()
+		if !attempted[urlUpstreamKey(target)] {
+			return target
+		}
+	}
+	return nil
+}
+
+func rewriteProxyRequest(request *http.Request, target *url.URL, original proxyOriginalRequest) {
+	request.URL.Scheme = target.Scheme
+	request.URL.Host = target.Host
+	request.URL.Path = singleJoiningSlash(target.Path, original.Path)
+	if target.RawQuery == "" || original.RawQuery == "" {
+		request.URL.RawQuery = target.RawQuery + original.RawQuery
+	} else {
+		request.URL.RawQuery = target.RawQuery + "&" + original.RawQuery
+	}
+	request.Host = target.Host
+	request.Header.Set("X-Forwarded-Host", original.Host)
+	request.Header.Set("X-Forwarded-Proto", "http")
+}
+
+func originalProxyRequestFrom(request *http.Request) proxyOriginalRequest {
+	original, ok := request.Context().Value(proxyOriginalRequestKey{}).(proxyOriginalRequest)
+	if ok {
+		return original
+	}
+	return proxyOriginalRequest{
+		Host:     request.Header.Get("X-Forwarded-Host"),
+		Path:     request.URL.Path,
+		RawQuery: request.URL.RawQuery,
+	}
+}
+
+func isSafeRetryMethod(method string) bool {
+	return method == http.MethodGet || method == http.MethodHead
+}
+
+func canReplayRequestBody(request *http.Request) bool {
+	return request.Body == nil || request.Body == http.NoBody
+}
+
+func closeResponseBody(response *http.Response) {
+	if response != nil && response.Body != nil {
+		_ = response.Body.Close()
+	}
+}
+
+func requestUpstreamKey(request *http.Request) string {
+	return request.URL.Scheme + "://" + request.URL.Host
+}
+
+func urlUpstreamKey(target *url.URL) string {
+	return target.Scheme + "://" + target.Host
 }
 
 func parseUpstreamBaseURLs(value string) ([]*url.URL, error) {

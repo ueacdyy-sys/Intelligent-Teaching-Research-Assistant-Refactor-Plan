@@ -20,6 +20,7 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-http-benchmark.concurrency2800-multi4-ingress14-warm200.json",
   "reports/identity-http-benchmark.concurrency2800-multi6-ingress14-pool12-client150-upwarm34.json",
   "reports/identity-http-benchmark.concurrency3000-multi6-ingress15-pool12-client150-upwarm30.json",
+  "reports/identity-http-benchmark.concurrency3000-multi6-ingress15-pool12-client150-upwarm30-safe-retry.json",
   "reports/identity-http-benchmark.concurrency3200-multi6-ingress16-pool12-client150-upwarm28.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
