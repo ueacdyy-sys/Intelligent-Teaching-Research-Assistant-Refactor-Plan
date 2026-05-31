@@ -24,6 +24,7 @@ export const defaults = {
   concurrency: "64",
   operations: "300",
   sessionDbMaxConns: "16",
+  sessionDbWriteConcurrency: "0",
   gatewayCount: "1",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
@@ -69,6 +70,7 @@ export function parseArgs(argv) {
     if (key === "--concurrency") parsed.concurrency = value;
     if (key === "--operations") parsed.operations = value;
     if (key === "--session-db-max-conns") parsed.sessionDbMaxConns = value;
+    if (key === "--session-db-write-concurrency") parsed.sessionDbWriteConcurrency = value;
     if (key === "--gateway-count") parsed.gatewayCount = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
     if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
@@ -121,6 +123,7 @@ export function buildFailureReport({
     concurrency: parseIntegerOption(options.concurrency),
     operationsPerPhase: parseIntegerOption(options.operations),
     sessionDbMaxConns: parseIntegerOption(options.sessionDbMaxConns),
+    sessionDbWriteConcurrency: parseIntegerOption(options.sessionDbWriteConcurrency),
     gatewayCount: gatewayCount(options),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
     gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
@@ -436,6 +439,7 @@ function spawnGateway(baseUrl, options, spawnProcess) {
         PORT: gatewayPort(baseUrl, options.port),
         SESSION_DATABASE_URL: options.dsn,
         SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
+        SESSION_DB_WRITE_CONCURRENCY: options.sessionDbWriteConcurrency,
         BOOTSTRAP_PASSWORD: "ueacd",
         CHANNEL_SIGNATURE_SECRET: "ueacd",
         INTERNAL_DIAGNOSTICS_SECRET: "ueacd",
@@ -633,10 +637,13 @@ export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagno
 export function gatewayDatabaseProfile(options) {
   const workerCount = gatewayCount(options);
   const sessionDbMaxConnsPerWorker = parseIntegerOption(options.sessionDbMaxConns);
+  const sessionDbWriteConcurrencyPerWorker = parseIntegerOption(options.sessionDbWriteConcurrency);
   return {
     workerCount,
     sessionDbMaxConnsPerWorker,
     sessionDbMaxConnsTotal: workerCount * sessionDbMaxConnsPerWorker,
+    sessionDbWriteConcurrencyPerWorker,
+    sessionDbWriteConcurrencyTotal: workerCount * sessionDbWriteConcurrencyPerWorker,
   };
 }
 

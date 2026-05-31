@@ -25,11 +25,24 @@ type DB interface {
 }
 
 type SessionStore struct {
-	db DB
+	db           DB
+	writeLimiter chan struct{}
+}
+
+type SessionStoreConfig struct {
+	WriteConcurrency int
 }
 
 func NewSessionStore(db DB) *SessionStore {
-	return &SessionStore{db: db}
+	return NewSessionStoreWithConfig(db, SessionStoreConfig{})
+}
+
+func NewSessionStoreWithConfig(db DB, config SessionStoreConfig) *SessionStore {
+	store := &SessionStore{db: db}
+	if config.WriteConcurrency > 0 {
+		store.writeLimiter = make(chan struct{}, config.WriteConcurrency)
+	}
+	return store
 }
 
 func EnsureSchema(ctx context.Context, db DB) error {
@@ -46,6 +59,11 @@ func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refr
 	if err != nil {
 		return err
 	}
+	release, err := s.acquireWriteSlot(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	_, err = s.db.Exec(
 		ctx,
 		`INSERT INTO identity_sessions (
@@ -97,6 +115,11 @@ func (s *SessionStore) RotateSession(
 	newRefreshToken string,
 	principal domain.PrincipalContext,
 ) error {
+	release, err := s.acquireWriteSlot(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	tag, err := s.db.Exec(
 		ctx,
 		`UPDATE identity_sessions
@@ -131,10 +154,15 @@ func (s *SessionStore) RotateRefreshSession(
 	issuedAt time.Time,
 	expiresAt time.Time,
 ) (domain.PrincipalContext, bool, error) {
+	release, err := s.acquireWriteSlot(ctx)
+	if err != nil {
+		return domain.PrincipalContext{}, false, err
+	}
+	defer release()
 	var principalJSON []byte
 	var storedIssuedAt time.Time
 	var storedExpiresAt time.Time
-	err := s.db.QueryRow(
+	err = s.db.QueryRow(
 		ctx,
 		`UPDATE identity_sessions
 		SET access_token = $1,
@@ -168,7 +196,12 @@ func (s *SessionStore) RotateRefreshSession(
 }
 
 func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) error {
-	_, err := s.db.Exec(
+	release, err := s.acquireWriteSlot(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	_, err = s.db.Exec(
 		ctx,
 		`DELETE FROM identity_sessions
 		WHERE session_id = $1
@@ -179,6 +212,11 @@ func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) erro
 }
 
 func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string, sessionID string, now time.Time) (bool, error) {
+	release, err := s.acquireWriteSlot(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
 	tag, err := s.db.Exec(
 		ctx,
 		`DELETE FROM identity_sessions
@@ -200,6 +238,11 @@ func (s *SessionStore) PruneInactiveSessions(ctx context.Context, cutoff time.Ti
 	if limit < 1 {
 		return 0, errors.New("inactive session prune limit must be positive")
 	}
+	release, err := s.acquireWriteSlot(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer release()
 	tag, err := s.db.Exec(
 		ctx,
 		`WITH inactive_sessions AS (
@@ -229,6 +272,11 @@ func (s *SessionStore) AcceptRemoteCommand(
 	now time.Time,
 	expiresAt time.Time,
 ) error {
+	release, err := s.acquireWriteSlot(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	tag, err := s.db.Exec(
 		ctx,
 		`INSERT INTO identity_remote_command_nonces (
@@ -252,6 +300,18 @@ func (s *SessionStore) AcceptRemoteCommand(
 		return domain.ErrInvalidCredentials
 	}
 	return nil
+}
+
+func (s *SessionStore) acquireWriteSlot(ctx context.Context) (func(), error) {
+	if s.writeLimiter == nil {
+		return func() {}, nil
+	}
+	select {
+	case s.writeLimiter <- struct{}{}:
+		return func() { <-s.writeLimiter }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (s *SessionStore) getPrincipal(ctx context.Context, sql string, token string) (domain.PrincipalContext, bool, error) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -71,6 +72,33 @@ func TestSessionStoreSaveSessionRejectsDuplicateSessionID(t *testing.T) {
 	}
 	if _, ok, loadErr := store.GetPrincipalByAccessToken(context.Background(), "access_2"); loadErr != nil || ok {
 		t.Fatalf("duplicate write replaced token mapping ok=%v err=%v", ok, loadErr)
+	}
+}
+
+func TestSessionStoreWriteConcurrencyLimitsOverlappingWrites(t *testing.T) {
+	db := newBlockingWriteDB()
+	store := postgres.NewSessionStoreWithConfig(db, postgres.SessionStoreConfig{WriteConcurrency: 1})
+	first := make(chan error, 1)
+	second := make(chan error, 1)
+
+	go func() {
+		first <- store.SaveSession(context.Background(), "access_1", "refresh_1", teacherPrincipal("sess_1"))
+	}()
+	db.waitForExec(t, 1)
+
+	go func() {
+		second <- store.SaveSession(context.Background(), "access_2", "refresh_2", teacherPrincipal("sess_2"))
+	}()
+	db.assertNoExec(t)
+
+	db.releaseOne()
+	if err := <-first; err != nil {
+		t.Fatalf("first SaveSession error = %v", err)
+	}
+	db.waitForExec(t, 2)
+	db.releaseOne()
+	if err := <-second; err != nil {
+		t.Fatalf("second SaveSession error = %v", err)
 	}
 }
 
@@ -643,6 +671,59 @@ type fakeCommandTag struct {
 
 func (t fakeCommandTag) RowsAffected() int64 {
 	return t.rows
+}
+
+type blockingWriteDB struct {
+	mu      sync.Mutex
+	calls   int
+	entered chan int
+	release chan struct{}
+}
+
+func newBlockingWriteDB() *blockingWriteDB {
+	return &blockingWriteDB{
+		entered: make(chan int, 2),
+		release: make(chan struct{}),
+	}
+}
+
+func (db *blockingWriteDB) Exec(_ context.Context, _ string, _ ...any) (postgres.CommandTag, error) {
+	db.mu.Lock()
+	db.calls++
+	call := db.calls
+	db.mu.Unlock()
+	db.entered <- call
+	<-db.release
+	return fakeCommandTag{rows: 1}, nil
+}
+
+func (db *blockingWriteDB) QueryRow(context.Context, string, ...any) postgres.Row {
+	return fakeRow{err: pgx.ErrNoRows}
+}
+
+func (db *blockingWriteDB) waitForExec(t *testing.T, want int) {
+	t.Helper()
+	select {
+	case got := <-db.entered:
+		if got != want {
+			t.Fatalf("write call = %d want %d", got, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for write call %d", want)
+	}
+}
+
+func (db *blockingWriteDB) assertNoExec(t *testing.T) {
+	t.Helper()
+	select {
+	case got := <-db.entered:
+		t.Fatalf("write limiter allowed overlapping write call %d", got)
+	case <-time.After(25 * time.Millisecond):
+	}
+}
+
+func (db *blockingWriteDB) releaseOne() {
+	db.release <- struct{}{}
 }
 
 type fakeRow struct {

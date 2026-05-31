@@ -66,6 +66,7 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 	}
 
 	maxConns := getenvInt("SESSION_DB_MAX_CONNS", 8)
+	writeConcurrency := getenvNonNegativeInt("SESSION_DB_WRITE_CONCURRENCY", 0)
 	config.MaxConns = int32(maxConns)
 	config.MinConns = 0
 	config.MaxConnIdleTime = 10 * time.Minute
@@ -85,8 +86,10 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 		log.Fatal(err)
 	}
 
-	store := identitypostgres.NewSessionStore(db)
-	log.Printf("identity session store ready: postgres maxConns=%d with durable remote replay guard", maxConns)
+	store := identitypostgres.NewSessionStoreWithConfig(db, identitypostgres.SessionStoreConfig{
+		WriteConcurrency: writeConcurrency,
+	})
+	log.Printf("identity session store ready: postgres maxConns=%d writeConcurrency=%d with durable remote replay guard", maxConns, writeConcurrency)
 	return store, store, db, pool.Close
 }
 
@@ -117,6 +120,21 @@ func getenvInt(key string, fallback int) int {
 	}
 	if parsed < 1 {
 		panic(fmt.Sprintf("%s must be positive: %d", key, parsed))
+	}
+	return parsed
+}
+
+func getenvNonNegativeInt(key string, fallback int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		panic(fmt.Sprintf("%s must be an integer: %q", key, value))
+	}
+	if parsed < 0 {
+		panic(fmt.Sprintf("%s must be non-negative: %d", key, parsed))
 	}
 	return parsed
 }

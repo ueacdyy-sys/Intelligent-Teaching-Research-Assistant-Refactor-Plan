@@ -33,6 +33,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "1024",
       "--session-db-max-conns",
       "16",
+      "--session-db-write-concurrency",
+      "8",
       "--gateway-count",
       "2",
       "--max-conns-per-host",
@@ -108,11 +110,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.concurrency, 512);
     assert.equal(report.operationsPerPhase, 1024);
     assert.equal(report.sessionDbMaxConns, 16);
+    assert.equal(report.sessionDbWriteConcurrency, 8);
     assert.equal(report.gatewayCount, 2);
     assert.deepEqual(report.gatewayDatabaseProfile, {
       workerCount: 2,
       sessionDbMaxConnsPerWorker: 16,
       sessionDbMaxConnsTotal: 32,
+      sessionDbWriteConcurrencyPerWorker: 8,
+      sessionDbWriteConcurrencyTotal: 16,
     });
     assert.deepEqual(report.transportProfile, {
       maxConnsPerHost: 256,
