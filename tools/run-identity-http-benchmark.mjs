@@ -7,11 +7,14 @@ import {
   collectPgbouncerDiagnostics,
   parsePsqlUnalignedRows,
 } from "./identity-pgbouncer-diagnostics.mjs";
+import {
+  applyPostgresDiagnosticsArg,
+  collectPostgresDiagnostics,
+  postgresDiagnosticsDefaults,
+  runBenchmarkWithPostgresDiagnostics,
+} from "./identity-postgres-diagnostics.mjs";
 
-export {
-  collectPgbouncerDiagnostics,
-  parsePsqlUnalignedRows,
-};
+export { collectPgbouncerDiagnostics, collectPostgresDiagnostics, parsePsqlUnalignedRows };
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -38,6 +41,7 @@ export const defaults = {
   pgbouncerPort: "6432",
   pgbouncerUser: "app_user",
   pgbouncerDatabase: "pgbouncer",
+  ...postgresDiagnosticsDefaults,
   timeout: "120s",
   startupTimeoutMs: "120000",
 };
@@ -54,6 +58,10 @@ export function parseArgs(argv) {
     const key = argv[index];
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
+    if (applyPostgresDiagnosticsArg(parsed, key, value)) {
+      index += 1;
+      continue;
+    }
     if (key === "--dsn") parsed.dsn = value;
     if (key === "--base-url") parsed.baseUrl = value;
     if (key === "--port") parsed.port = value;
@@ -97,6 +105,7 @@ export function buildFailureReport({
   ingressSignal,
   gatewayDatabaseDiagnostics,
   pgbouncerDiagnostics,
+  postgresDiagnostics,
   generatedAt = new Date().toISOString(),
 }) {
   const sanitizedError = maskSensitive(errorMessage);
@@ -134,6 +143,9 @@ export function buildFailureReport({
   }
   if (pgbouncerDiagnostics) {
     report.pgbouncerDiagnostics = pgbouncerDiagnostics;
+  }
+  if (postgresDiagnostics) {
+    report.postgresDiagnostics = postgresDiagnostics;
   }
   if (phase) report.phase = phase;
   return report;
@@ -247,6 +259,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
   let ingressOutputs = [];
   let gatewayDatabaseDiagnostics;
   let pgbouncerDiagnostics;
+  let postgresDiagnostics;
   for (const [index, gateway] of gateways.entries()) {
     gateway.stdout?.on("data", (chunk) => {
       gatewayOutputs[index] += chunk.toString();
@@ -299,15 +312,13 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
       options,
       ingressEnabled(options) ? ingressBaseURLs : baseUrls,
     );
-    const result = spawnCommandSync(
-      benchmarkCommand.command,
-      benchmarkCommand.args,
-      {
-        encoding: "utf8",
-        maxBuffer: 10 * 1024 * 1024,
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    const benchmarkRun = await runBenchmarkWithPostgresDiagnostics(options, benchmarkCommand, {
+      spawn: spawnProcess,
+      spawnSync: spawnCommandSync,
+      sleep: sleepFn,
+    });
+    const result = benchmarkRun.result;
+    postgresDiagnostics = benchmarkRun.postgresDiagnostics;
     replayCapturedOutput(result);
     exitCode = result.error ? 1 : result.status ?? 1;
     gatewayDatabaseDiagnostics = addGatewayDatabaseDiagnosticsSnapshot(
@@ -334,9 +345,10 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
         ingressSignal: processSignals(ingresses),
         gatewayDatabaseDiagnostics,
         pgbouncerDiagnostics,
+        postgresDiagnostics,
       });
     } else {
-      enhanceSuccessReport(options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics);
+      enhanceSuccessReport(options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics, postgresDiagnostics);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -355,6 +367,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
       ingressSignal: processSignals(ingresses),
       gatewayDatabaseDiagnostics,
       pgbouncerDiagnostics,
+      postgresDiagnostics,
     });
     exitCode = 1;
   } finally {
@@ -581,17 +594,20 @@ function maskSensitive(value) {
   return text;
 }
 
-function enhanceSuccessReport(options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics) {
+function enhanceSuccessReport(options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics, postgresDiagnostics) {
   if (!options.out || !fs.existsSync(options.out)) return;
   const report = JSON.parse(fs.readFileSync(options.out, "utf8"));
-  writeJsonReport(options.out, addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics));
+  writeJsonReport(
+    options.out,
+    addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics, postgresDiagnostics),
+  );
 }
 
 export function addIngressProfileToReport(report, options) {
   return addRuntimeProfileToReport(report, options);
 }
 
-export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics) {
+export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics, postgresDiagnostics) {
   const enhanced = {
     ...report,
     gatewayWorkerCount: gatewayCount(options),
@@ -603,6 +619,9 @@ export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagno
   }
   if (pgbouncerDiagnostics) {
     enhanced.pgbouncerDiagnostics = pgbouncerDiagnostics;
+  }
+  if (postgresDiagnostics) {
+    enhanced.postgresDiagnostics = postgresDiagnostics;
   }
   if (!ingressEnabled(options)) return enhanced;
   return {

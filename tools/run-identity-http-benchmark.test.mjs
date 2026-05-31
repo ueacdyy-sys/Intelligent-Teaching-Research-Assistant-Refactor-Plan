@@ -86,6 +86,18 @@ describe("identity HTTP benchmark runner failure evidence", () => {
           },
         },
       },
+      postgresDiagnostics: {
+        before: {
+          status: "OK",
+          sampledAt: "2026-05-31T00:00:00.000Z",
+          queries: {
+            activity: {
+              status: "OK",
+              rows: [{ state: "active", wait_event_type: "Lock", connections: 2 }],
+            },
+          },
+        },
+      },
       generatedAt: "2026-05-31T00:00:00.000Z",
     });
 
@@ -134,6 +146,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.phase, "passwordLogin");
     assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 16);
     assert.equal(report.pgbouncerDiagnostics.before.queries.stats.rows[0].total_xact_count, 42);
+    assert.equal(report.postgresDiagnostics.before.queries.activity.rows[0].wait_event_type, "Lock");
     assert(!JSON.stringify(report).includes("ueacd"));
     assert(!JSON.stringify(report).includes("postgres://"));
     assert.equal(
@@ -179,11 +192,23 @@ describe("identity HTTP benchmark runner failure evidence", () => {
           },
         },
       },
+    }, {
+      before: {
+        status: "OK",
+        sampledAt: "2026-05-31T00:00:00.000Z",
+        queries: {
+          activity: {
+            status: "OK",
+            rows: [{ state: "active", wait_event_type: "IO", connections: 3 }],
+          },
+        },
+      },
     });
     assert.equal(passedReport.gatewayWorkerCount, 2);
     assert.deepEqual(passedReport.gatewayDatabaseProfile, report.gatewayDatabaseProfile);
     assert.equal(passedReport.gatewayDatabaseDiagnostics.before.gateways[0].stats.acquireCount, 10);
     assert.equal(passedReport.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
+    assert.equal(passedReport.postgresDiagnostics.before.queries.activity.rows[0].connections, 3);
     assert.deepEqual(passedReport.ingressProfile, report.ingressProfile);
     assert.deepEqual(passedReport.benchmarkRuntimeProfile, report.benchmarkRuntimeProfile);
 
