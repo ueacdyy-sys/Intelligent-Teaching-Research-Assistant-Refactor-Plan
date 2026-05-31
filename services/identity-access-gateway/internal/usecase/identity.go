@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -379,6 +380,8 @@ const (
 	remoteCommandIssuedAtFutureSkew = 30 * time.Second
 )
 
+var errDuplicateSessionID = errors.New("duplicate generated session id")
+
 func validateRemoteCommandIssuedAt(issuedAt time.Time, now time.Time) error {
 	if issuedAt.Before(now.Add(-remoteCommandIssuedAtMaxAge)) {
 		return domain.ErrValidation
@@ -548,6 +551,9 @@ func NewMemorySessionStore() *MemorySessionStore {
 func (s *MemorySessionStore) SaveSession(_ context.Context, accessToken string, refreshToken string, principal domain.PrincipalContext) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, exists := s.accessBySession[principal.SessionID]; exists {
+		return errDuplicateSessionID
+	}
 	s.saveLocked(accessToken, refreshToken, principal)
 	return nil
 }

@@ -38,6 +38,42 @@ func TestSessionStoreSavesAndLoadsByAccessToken(t *testing.T) {
 	}
 }
 
+func TestSessionStoreSaveSessionUsesInsertOnlySessionIDs(t *testing.T) {
+	db := newFakeDB()
+	store := postgres.NewSessionStore(db)
+	principal := teacherPrincipal("sess_1")
+
+	if err := store.SaveSession(context.Background(), "access_1", "refresh_1", principal); err != nil {
+		t.Fatalf("SaveSession error = %v", err)
+	}
+
+	insertSQL := db.execSQL[0]
+	if strings.Contains(insertSQL, "ON CONFLICT") {
+		t.Fatalf("SaveSession must not upsert generated session IDs: %s", insertSQL)
+	}
+}
+
+func TestSessionStoreSaveSessionRejectsDuplicateSessionID(t *testing.T) {
+	db := newFakeDB()
+	store := postgres.NewSessionStore(db)
+	principal := teacherPrincipal("sess_1")
+	if err := store.SaveSession(context.Background(), "access_1", "refresh_1", principal); err != nil {
+		t.Fatalf("SaveSession first error = %v", err)
+	}
+
+	err := store.SaveSession(context.Background(), "access_2", "refresh_2", principal)
+
+	if err == nil {
+		t.Fatal("SaveSession accepted a duplicate generated session ID")
+	}
+	if loaded, ok, loadErr := store.GetPrincipalByAccessToken(context.Background(), "access_1"); loadErr != nil || !ok || loaded.SessionID != "sess_1" {
+		t.Fatalf("original session loaded=%#v ok=%v err=%v", loaded, ok, loadErr)
+	}
+	if _, ok, loadErr := store.GetPrincipalByAccessToken(context.Background(), "access_2"); loadErr != nil || ok {
+		t.Fatalf("duplicate write replaced token mapping ok=%v err=%v", ok, loadErr)
+	}
+}
+
 func TestSessionStoreLoadsByRefreshToken(t *testing.T) {
 	db := newFakeDB()
 	store := postgres.NewSessionStore(db)
@@ -424,6 +460,9 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 		refreshToken, _ := args[2].(string)
 		principalJSON := append([]byte(nil), args[3].([]byte)...)
 		principal := decodePrincipalOrFail(principalJSON)
+		if _, ok := db.sessionsByID[sessionID]; ok {
+			return fakeCommandTag{}, errors.New("duplicate session id")
+		}
 		db.removeIndexes(sessionID)
 		db.sessionsByID[sessionID] = fakeSession{
 			accessToken:   accessToken,

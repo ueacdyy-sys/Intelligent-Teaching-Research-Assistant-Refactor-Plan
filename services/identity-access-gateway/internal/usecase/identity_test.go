@@ -312,6 +312,32 @@ func TestCreatePasswordSessionRejectsInvalidCredentials(t *testing.T) {
 	}
 }
 
+func TestCreatePasswordSessionRejectsDuplicateGeneratedSessionID(t *testing.T) {
+	service := newTestService()
+	first, err := service.CreatePasswordSession(context.Background(), domain.PasswordSessionInput{
+		Identifier: "teacher@example.com",
+		Password:   "ueacd",
+		EntryPoint: domain.EntryPointDesktopTeacher,
+	})
+	if err != nil {
+		t.Fatalf("first CreatePasswordSession error = %v", err)
+	}
+
+	_, err = service.CreatePasswordSession(context.Background(), domain.PasswordSessionInput{
+		Identifier: "teacher@example.com",
+		Password:   "ueacd",
+		EntryPoint: domain.EntryPointDesktopTeacher,
+	})
+
+	if err == nil {
+		t.Fatal("CreatePasswordSession accepted a duplicate generated session ID")
+	}
+	principal, loadErr := service.GetPrincipal(context.Background(), first.AccessToken)
+	if loadErr != nil || principal.SessionID != first.Principal.SessionID {
+		t.Fatalf("original session principal=%#v err=%v", principal, loadErr)
+	}
+}
+
 func newTestService() *usecase.IdentityService {
 	return newTestServiceWithIssuer(fixedIssuer{})
 }

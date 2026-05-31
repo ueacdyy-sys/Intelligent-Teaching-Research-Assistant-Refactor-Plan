@@ -57,13 +57,7 @@ func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refr
 			expires_at,
 			revoked_at
 		) VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, NULL)
-		ON CONFLICT (session_id) DO UPDATE SET
-			access_token = EXCLUDED.access_token,
-			refresh_token = EXCLUDED.refresh_token,
-			principal_json = EXCLUDED.principal_json,
-			issued_at = EXCLUDED.issued_at,
-			expires_at = EXCLUDED.expires_at,
-			revoked_at = NULL`,
+		`,
 		principal.SessionID,
 		accessToken,
 		refreshToken,
