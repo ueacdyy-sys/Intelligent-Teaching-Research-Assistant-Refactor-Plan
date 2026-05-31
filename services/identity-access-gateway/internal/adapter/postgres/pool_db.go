@@ -12,8 +12,23 @@ type PoolDB struct {
 	pool *pgxpool.Pool
 }
 
+type SessionDBStatsProvider struct {
+	poolStatsProvider         platform.SessionDBPoolStatsProvider
+	writeLimiterStatsProvider platform.SessionWriteLimiterStatsProvider
+}
+
 func NewPoolDB(pool *pgxpool.Pool) PoolDB {
 	return PoolDB{pool: pool}
+}
+
+func NewSessionDBStatsProvider(
+	poolStatsProvider platform.SessionDBPoolStatsProvider,
+	writeLimiterStatsProvider platform.SessionWriteLimiterStatsProvider,
+) SessionDBStatsProvider {
+	return SessionDBStatsProvider{
+		poolStatsProvider:         poolStatsProvider,
+		writeLimiterStatsProvider: writeLimiterStatsProvider,
+	}
 }
 
 func (db PoolDB) Exec(ctx context.Context, sql string, args ...any) (CommandTag, error) {
@@ -41,4 +56,12 @@ func (db PoolDB) SessionDBPoolStats() platform.SessionDBPoolStats {
 		MaxIdleDestroyCount:     stats.MaxIdleDestroyCount(),
 		MaxLifetimeDestroyCount: stats.MaxLifetimeDestroyCount(),
 	}
+}
+
+func (provider SessionDBStatsProvider) SessionDBPoolStats() platform.SessionDBPoolStats {
+	stats := provider.poolStatsProvider.SessionDBPoolStats()
+	if provider.writeLimiterStatsProvider != nil {
+		stats.WriteLimiter = provider.writeLimiterStatsProvider.SessionWriteLimiterStats()
+	}
+	return stats
 }

@@ -71,7 +71,11 @@ describe("identity HTTP benchmark runner failure evidence", () => {
             {
               baseUrl: "http://127.0.0.1:18100",
               status: "OK",
-              stats: { maxConns: 16, acquireCount: 10 },
+              stats: {
+                maxConns: 16,
+                acquireCount: 10,
+                writeLimiter: { enabled: true, limit: 8, waiting: 2, acquireWaitTimeMs: 33.25 },
+              },
             },
           ],
         },
@@ -150,6 +154,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.gatewaySignal, null);
     assert.equal(report.phase, "passwordLogin");
     assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 16);
+    assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.writeLimiter.waiting, 2);
     assert.equal(report.pgbouncerDiagnostics.before.queries.stats.rows[0].total_xact_count, 42);
     assert.equal(report.postgresDiagnostics.before.queries.activity.rows[0].wait_event_type, "Lock");
     assert(!JSON.stringify(report).includes("ueacd"));
@@ -235,6 +240,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
                   totalConns: 9,
                   acquiredConns: 7,
                   acquireCount: 42,
+                  writeLimiter: {
+                    enabled: true,
+                    limit: 10,
+                    inUse: 3,
+                    waiting: 1,
+                    acquireCount: 99,
+                    acquireWaitTimeMs: 456.75,
+                  },
                 },
               };
             },
@@ -256,6 +269,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
             totalConns: 9,
             acquiredConns: 7,
             acquireCount: 42,
+            writeLimiter: {
+              enabled: true,
+              limit: 10,
+              inUse: 3,
+              waiting: 1,
+              acquireCount: 99,
+              acquireWaitTimeMs: 456.75,
+            },
           },
         },
         {
@@ -267,6 +288,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
             totalConns: 9,
             acquiredConns: 7,
             acquireCount: 42,
+            writeLimiter: {
+              enabled: true,
+              limit: 10,
+              inUse: 3,
+              waiting: 1,
+              acquireCount: 99,
+              acquireWaitTimeMs: 456.75,
+            },
           },
         },
       ],

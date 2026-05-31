@@ -89,8 +89,9 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 	store := identitypostgres.NewSessionStoreWithConfig(db, identitypostgres.SessionStoreConfig{
 		WriteConcurrency: writeConcurrency,
 	})
+	statsProvider := identitypostgres.NewSessionDBStatsProvider(db, store)
 	log.Printf("identity session store ready: postgres maxConns=%d writeConcurrency=%d with durable remote replay guard", maxConns, writeConcurrency)
-	return store, store, db, pool.Close
+	return store, store, statsProvider, pool.Close
 }
 
 func passwordAuthenticator() usecase.PasswordAuthenticator {

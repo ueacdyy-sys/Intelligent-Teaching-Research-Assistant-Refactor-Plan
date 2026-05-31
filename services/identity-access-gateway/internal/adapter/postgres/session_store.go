@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"ita-refactor/services/identity-access-gateway/internal/domain"
+	"ita-refactor/services/identity-access-gateway/internal/platform"
 )
 
 type CommandTag interface {
@@ -25,8 +27,14 @@ type DB interface {
 }
 
 type SessionStore struct {
-	db           DB
-	writeLimiter chan struct{}
+	db                            DB
+	writeLimiter                  chan struct{}
+	writeConcurrencyLimit         int
+	writeLimiterWaiting           atomic.Int64
+	writeLimiterAcquireCount      atomic.Int64
+	writeLimiterAcquireWaitNanos  atomic.Int64
+	writeLimiterCanceledCount     atomic.Int64
+	writeLimiterCanceledWaitNanos atomic.Int64
 }
 
 type SessionStoreConfig struct {
@@ -41,6 +49,7 @@ func NewSessionStoreWithConfig(db DB, config SessionStoreConfig) *SessionStore {
 	store := &SessionStore{db: db}
 	if config.WriteConcurrency > 0 {
 		store.writeLimiter = make(chan struct{}, config.WriteConcurrency)
+		store.writeConcurrencyLimit = config.WriteConcurrency
 	}
 	return store
 }
@@ -306,11 +315,34 @@ func (s *SessionStore) acquireWriteSlot(ctx context.Context) (func(), error) {
 	if s.writeLimiter == nil {
 		return func() {}, nil
 	}
+	startedAt := time.Now()
+	s.writeLimiterWaiting.Add(1)
+	defer s.writeLimiterWaiting.Add(-1)
 	select {
 	case s.writeLimiter <- struct{}{}:
+		s.writeLimiterAcquireCount.Add(1)
+		s.writeLimiterAcquireWaitNanos.Add(time.Since(startedAt).Nanoseconds())
 		return func() { <-s.writeLimiter }, nil
 	case <-ctx.Done():
+		s.writeLimiterCanceledCount.Add(1)
+		s.writeLimiterCanceledWaitNanos.Add(time.Since(startedAt).Nanoseconds())
 		return nil, ctx.Err()
+	}
+}
+
+func (s *SessionStore) SessionWriteLimiterStats() platform.SessionWriteLimiterStats {
+	if s.writeLimiter == nil {
+		return platform.SessionWriteLimiterStats{}
+	}
+	return platform.SessionWriteLimiterStats{
+		Enabled:                   true,
+		Limit:                     s.writeConcurrencyLimit,
+		InUse:                     len(s.writeLimiter),
+		Waiting:                   s.writeLimiterWaiting.Load(),
+		AcquireCount:              s.writeLimiterAcquireCount.Load(),
+		AcquireWaitTimeMs:         float64(s.writeLimiterAcquireWaitNanos.Load()) / 1_000_000,
+		CanceledAcquireCount:      s.writeLimiterCanceledCount.Load(),
+		CanceledAcquireWaitTimeMs: float64(s.writeLimiterCanceledWaitNanos.Load()) / 1_000_000,
 	}
 }
 

@@ -77,6 +77,12 @@ func TestSessionDBPoolDiagnosticsReturnsPoolStats(t *testing.T) {
 	if body.Stats.AcquireDurationMs != 123.5 {
 		t.Fatalf("acquireDurationMs = %v", body.Stats.AcquireDurationMs)
 	}
+	if !body.Stats.WriteLimiter.Enabled {
+		t.Fatal("write limiter stats should report enabled")
+	}
+	if body.Stats.WriteLimiter.Waiting != 2 {
+		t.Fatalf("write limiter waiting = %d want 2", body.Stats.WriteLimiter.Waiting)
+	}
 	if bytes.Contains(response.Body.Bytes(), []byte("ueacd")) {
 		t.Fatalf("diagnostics leaked secret: %s", response.Body.String())
 	}
@@ -398,6 +404,14 @@ func (fakePoolStatsProvider) SessionDBPoolStats() platform.SessionDBPoolStats {
 		NewConnsCount:           7,
 		MaxIdleDestroyCount:     1,
 		MaxLifetimeDestroyCount: 2,
+		WriteLimiter: platform.SessionWriteLimiterStats{
+			Enabled:           true,
+			Limit:             10,
+			InUse:             3,
+			Waiting:           2,
+			AcquireCount:      19,
+			AcquireWaitTimeMs: 88.75,
+		},
 	}
 }
 
