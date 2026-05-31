@@ -7,6 +7,7 @@ import {
   collectPgbouncerDiagnostics,
   parsePsqlUnalignedRows,
 } from "./identity-pgbouncer-diagnostics.mjs";
+import { addGatewayWriteLimiterSummary } from "./identity-gateway-diagnostics-summary.mjs";
 import {
   applyPostgresDiagnosticsArg,
   collectPostgresDiagnostics,
@@ -151,7 +152,7 @@ export function buildFailureReport({
     report.postgresDiagnostics = postgresDiagnostics;
   }
   if (phase) report.phase = phase;
-  return report;
+  return addGatewayWriteLimiterSummary(report, gatewayDatabaseDiagnostics);
 }
 
 export function inferFailurePhase(message) {
@@ -627,9 +628,10 @@ export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagno
   if (postgresDiagnostics) {
     enhanced.postgresDiagnostics = postgresDiagnostics;
   }
-  if (!ingressEnabled(options)) return enhanced;
+  const enhancedWithLimiterSummary = addGatewayWriteLimiterSummary(enhanced, gatewayDatabaseDiagnostics);
+  if (!ingressEnabled(options)) return enhancedWithLimiterSummary;
   return {
-    ...enhanced,
+    ...enhancedWithLimiterSummary,
     ingressProfile: ingressProfile(options),
   };
 }
