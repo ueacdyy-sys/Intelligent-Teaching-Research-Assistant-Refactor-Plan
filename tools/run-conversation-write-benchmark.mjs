@@ -3,6 +3,13 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { collectPgbouncerDiagnostics } from "./pgbouncer-diagnostics.mjs";
+import {
+  applyPostgresDiagnosticsArg,
+  collectPostgresDiagnostics,
+  postgresDiagnosticsDefaults,
+  startPostgresDiagnosticsTimeline,
+} from "./postgres-diagnostics.mjs";
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -16,11 +23,20 @@ export const defaults = {
   agentApiKey: "ueacd",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  warmConnectionRetries: "3",
   ingressProxy: "false",
   ingressPort: "19080",
   ingressCount: "1",
   ingressMaxConnsPerHost: "0",
   ingressWarmConnectionsPerHost: "0",
+  pgbouncerDiagnostics: "false",
+  pgbouncerPostgresContainer: "ita-identity-session-postgres",
+  pgbouncerHost: "identity-session-pgbouncer",
+  pgbouncerPort: "6432",
+  pgbouncerUser: "app_user",
+  pgbouncerDatabase: "pgbouncer",
+  ...postgresDiagnosticsDefaults,
+  postgresDiagnosticsRelations: "research_conversations",
   timeout: "120s",
   startupTimeoutMs: "120000",
 };
@@ -33,6 +49,10 @@ export function parseArgs(argv) {
     const key = argv[index];
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
+    if (applyPostgresDiagnosticsArg(parsed, key, value)) {
+      index += 1;
+      continue;
+    }
     if (key === "--dsn") parsed.dsn = value;
     if (key === "--base-url") parsed.baseUrl = value;
     if (key === "--port") parsed.port = value;
@@ -44,11 +64,18 @@ export function parseArgs(argv) {
     if (key === "--agent-api-key") parsed.agentApiKey = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
     if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
+    if (key === "--warm-connection-retries") parsed.warmConnectionRetries = value;
     if (key === "--ingress-proxy") parsed.ingressProxy = value;
     if (key === "--ingress-port") parsed.ingressPort = value;
     if (key === "--ingress-count") parsed.ingressCount = value;
     if (key === "--ingress-max-conns-per-host") parsed.ingressMaxConnsPerHost = value;
     if (key === "--ingress-warm-connections-per-host") parsed.ingressWarmConnectionsPerHost = value;
+    if (key === "--pgbouncer-diagnostics") parsed.pgbouncerDiagnostics = value;
+    if (key === "--pgbouncer-postgres-container") parsed.pgbouncerPostgresContainer = value;
+    if (key === "--pgbouncer-host") parsed.pgbouncerHost = value;
+    if (key === "--pgbouncer-port") parsed.pgbouncerPort = value;
+    if (key === "--pgbouncer-user") parsed.pgbouncerUser = value;
+    if (key === "--pgbouncer-database") parsed.pgbouncerDatabase = value;
     if (key === "--timeout") parsed.timeout = value;
     if (key === "--startup-timeout-ms") parsed.startupTimeoutMs = value;
     index += 1;
@@ -135,6 +162,8 @@ export function buildBenchmarkCommand(options, baseUrls = benchmarkBaseUrls(opti
     String(parseIntegerOption(options.maxConnsPerHost)),
     "--warm-connections-per-host",
     String(parseIntegerOption(options.warmConnectionsPerHost)),
+    "--warm-connection-retries",
+    String(parseIntegerOption(options.warmConnectionRetries)),
     "--out",
     options.out,
     "--timeout",
@@ -153,6 +182,8 @@ export function buildFailureReport({
   gatewaySignal,
   ingressExitCode,
   ingressSignal,
+  pgbouncerDiagnostics,
+  postgresDiagnostics,
   generatedAt = new Date().toISOString(),
 }) {
   const baseUrls = gatewayBaseUrls(options);
@@ -182,6 +213,8 @@ export function buildFailureReport({
   if (ingressExitCode !== undefined) report.ingressExitCode = ingressExitCode;
   if (ingressSignal !== undefined) report.ingressSignal = ingressSignal;
   if (ingressOutput) report.ingressOutputTail = tailText(maskSensitive(ingressOutput), 80);
+  if (pgbouncerDiagnostics) report.pgbouncerDiagnostics = pgbouncerDiagnostics;
+  if (postgresDiagnostics) report.postgresDiagnostics = postgresDiagnostics;
   return report;
 }
 
@@ -204,6 +237,8 @@ export function addRuntimeProfileToReport(report, options, baseUrls = benchmarkB
   if (diagnostics.ingressExitCode !== undefined) enriched.ingressExitCode = diagnostics.ingressExitCode;
   if (diagnostics.ingressSignal !== undefined) enriched.ingressSignal = diagnostics.ingressSignal;
   if (diagnostics.ingressOutput) enriched.ingressOutputTail = tailText(maskSensitive(diagnostics.ingressOutput), 80);
+  if (diagnostics.pgbouncerDiagnostics) enriched.pgbouncerDiagnostics = diagnostics.pgbouncerDiagnostics;
+  if (diagnostics.postgresDiagnostics) enriched.postgresDiagnostics = diagnostics.postgresDiagnostics;
   return enriched;
 }
 
@@ -226,6 +261,9 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
   const gatewayOutputs = [];
   const ingressOutputs = [];
   let benchmarkOutput = "";
+  let pgbouncerDiagnostics;
+  let postgresDiagnostics;
+  let postgresDiagnosticsTimeline;
   let reportWritten = false;
 
   try {
@@ -258,11 +296,41 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       await waitForGateways(targetBaseUrls, parseIntegerOption(options.startupTimeoutMs), dependencies.fetch ?? fetch);
     }
 
+    pgbouncerDiagnostics = addDiagnosticsSnapshot(
+      pgbouncerDiagnostics,
+      "before",
+      collectPgbouncerDiagnostics(options, { spawnSync: spawnCommandSync }),
+    );
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "before",
+      collectPostgresDiagnostics(options, { spawnSync: spawnCommandSync }),
+    );
+    postgresDiagnosticsTimeline = startPostgresDiagnosticsTimeline(options, {
+      spawnSync: spawnCommandSync,
+      sleep: dependencies.sleep ?? sleep,
+    });
     const command = buildBenchmarkCommand(options, targetBaseUrls);
     removeExistingReport(options.out);
     const result = await runCommand(command[0], command.slice(1), root, spawnProcess, (chunk) => {
       benchmarkOutput += chunk;
     });
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "timeline",
+      await stopDiagnosticsTimeline(postgresDiagnosticsTimeline),
+    );
+    postgresDiagnosticsTimeline = undefined;
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "after",
+      collectPostgresDiagnostics(options, { spawnSync: spawnCommandSync }),
+    );
+    pgbouncerDiagnostics = addDiagnosticsSnapshot(
+      pgbouncerDiagnostics,
+      "after",
+      collectPgbouncerDiagnostics(options, { spawnSync: spawnCommandSync }),
+    );
     const report = readReportOrFailure(options, {
       exitCode: result.exitCode,
       errorMessage: extractFailureMessage(benchmarkOutput, result.exitCode),
@@ -273,6 +341,8 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
+      pgbouncerDiagnostics,
+      postgresDiagnostics,
     });
     const enriched = addRuntimeProfileToReport(report, options, targetBaseUrls, {
       gatewayExitCode: processExitCodes(gateways),
@@ -281,6 +351,8 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
+      pgbouncerDiagnostics,
+      postgresDiagnostics,
     });
     writeJsonReport(options.out, enriched);
     reportWritten = true;
@@ -292,6 +364,12 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
     if (reportWritten) {
       throw error;
     }
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "timeline",
+      await stopDiagnosticsTimeline(postgresDiagnosticsTimeline),
+    );
+    postgresDiagnosticsTimeline = undefined;
     const report = buildFailureReport({
       options,
       exitCode: 1,
@@ -303,6 +381,8 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
+      pgbouncerDiagnostics,
+      postgresDiagnostics,
     });
     writeJsonReport(options.out, report);
     throw error;
@@ -456,6 +536,19 @@ function processSignals(processes) {
   return processes.map((processValue) => processValue.signalCode);
 }
 
+function addDiagnosticsSnapshot(current, name, snapshot) {
+  if (!snapshot) return current;
+  return {
+    ...(current ?? {}),
+    [name]: snapshot,
+  };
+}
+
+async function stopDiagnosticsTimeline(timeline) {
+  if (!timeline) return undefined;
+  return timeline.stop();
+}
+
 function gatewayDatabaseProfile(options) {
   const workers = gatewayCount(options);
   const dbMaxConns = parseIntegerOption(options.dbMaxConns);
@@ -480,6 +573,7 @@ function transportProfile(options, targetCount) {
     warmConnectionsPerHost,
     warmConnectionsTotal: targetCount * warmConnectionsPerHost,
     warmConnectionStrategy: warmConnectionsPerHost > 0 ? "PER_HOST_PARALLEL" : "DISABLED",
+    warmConnectionRetries: parseIntegerOption(options.warmConnectionRetries),
   };
 }
 

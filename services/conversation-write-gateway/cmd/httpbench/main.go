@@ -29,6 +29,7 @@ type benchmarkConfig struct {
 	Timeout                time.Duration
 	MaxConnsPerHost        int
 	WarmConnectionsPerHost int
+	WarmConnectionRetries  int
 }
 
 type benchmarkReport struct {
@@ -54,6 +55,7 @@ type benchmarkTransportProfile struct {
 	WarmConnectionsPerHost int    `json:"warmConnectionsPerHost"`
 	WarmConnectionsTotal   int    `json:"warmConnectionsTotal"`
 	WarmConnectionStrategy string `json:"warmConnectionStrategy"`
+	WarmConnectionRetries  int    `json:"warmConnectionRetries"`
 }
 
 type phaseReport struct {
@@ -92,6 +94,7 @@ func parseConfig() benchmarkConfig {
 	flag.DurationVar(&config.Timeout, "timeout", 60*time.Second, "benchmark timeout")
 	flag.IntVar(&config.MaxConnsPerHost, "max-conns-per-host", 0, "optional HTTP transport max connections per gateway host")
 	flag.IntVar(&config.WarmConnectionsPerHost, "warm-connections-per-host", 0, "optional keep-alive connections to prewarm per gateway host")
+	flag.IntVar(&config.WarmConnectionRetries, "warm-connection-retries", 3, "warm-up retries per connection after transient listener refusal")
 	flag.Parse()
 	return config
 }
@@ -112,6 +115,9 @@ func run(config benchmarkConfig) error {
 	if config.WarmConnectionsPerHost < 0 {
 		return errors.New("warm-connections-per-host must be zero or positive")
 	}
+	if config.WarmConnectionRetries < 0 {
+		return errors.New("warm-connection-retries must be zero or positive")
+	}
 
 	baseURLs, err := parseBaseURLs(config.BaseURL)
 	if err != nil {
@@ -126,7 +132,7 @@ func run(config benchmarkConfig) error {
 			return err
 		}
 	}
-	if err := warmHTTPConnections(ctx, client, baseURLs, config.WarmConnectionsPerHost); err != nil {
+	if err := warmHTTPConnections(ctx, client, baseURLs, config.WarmConnectionsPerHost, config.WarmConnectionRetries); err != nil {
 		return err
 	}
 
@@ -189,11 +195,18 @@ func buildHTTPClient(config benchmarkConfig, gatewayCount int) (*http.Client, be
 			WarmConnectionsPerHost: config.WarmConnectionsPerHost,
 			WarmConnectionsTotal:   warmConnectionsTotal,
 			WarmConnectionStrategy: warmConnectionStrategy(config.WarmConnectionsPerHost),
+			WarmConnectionRetries:  config.WarmConnectionRetries,
 		}
 }
 
-func warmHTTPConnections(ctx context.Context, client *http.Client, baseURLs []string, connectionsPerHost int) error {
-	return warmHTTPConnectionsWithRequester(ctx, baseURLs, connectionsPerHost, func(ctx context.Context, baseURL string) error {
+func warmHTTPConnections(
+	ctx context.Context,
+	client *http.Client,
+	baseURLs []string,
+	connectionsPerHost int,
+	retries int,
+) error {
+	return warmHTTPConnectionsWithRequester(ctx, baseURLs, connectionsPerHost, retries, func(ctx context.Context, baseURL string) error {
 		return requestHealth(ctx, client, baseURL)
 	})
 }
@@ -202,13 +215,14 @@ func warmHTTPConnectionsWithRequester(
 	ctx context.Context,
 	baseURLs []string,
 	connectionsPerHost int,
+	retries int,
 	requester func(context.Context, string) error,
 ) error {
 	if connectionsPerHost <= 0 {
 		return nil
 	}
 	for _, baseURL := range baseURLs {
-		if err := warmHTTPConnectionsForHost(ctx, baseURL, connectionsPerHost, requester); err != nil {
+		if err := warmHTTPConnectionsForHost(ctx, baseURL, connectionsPerHost, retries, requester); err != nil {
 			return err
 		}
 	}
@@ -219,6 +233,7 @@ func warmHTTPConnectionsForHost(
 	ctx context.Context,
 	baseURL string,
 	connectionsPerHost int,
+	retries int,
 	requester func(context.Context, string) error,
 ) error {
 	var wg sync.WaitGroup
@@ -229,7 +244,7 @@ func warmHTTPConnectionsForHost(
 		go func() {
 			defer wg.Done()
 			<-start
-			if err := requester(ctx, baseURL); err != nil {
+			if err := requestWithWarmRetries(ctx, baseURL, retries, requester); err != nil {
 				errs <- err
 			}
 		}()
@@ -241,6 +256,32 @@ func warmHTTPConnectionsForHost(
 		return fmt.Errorf("warm transport connections: %w", err)
 	}
 	return nil
+}
+
+func requestWithWarmRetries(
+	ctx context.Context,
+	baseURL string,
+	retries int,
+	requester func(context.Context, string) error,
+) error {
+	attempts := maxInt(1, retries+1)
+	var lastErr error
+	for attempt := 0; attempt < attempts; attempt++ {
+		if err := requester(ctx, baseURL); err != nil {
+			lastErr = err
+		} else {
+			return nil
+		}
+		if attempt == attempts-1 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+	return lastErr
 }
 
 func warmConnectionStrategy(connectionsPerHost int) string {

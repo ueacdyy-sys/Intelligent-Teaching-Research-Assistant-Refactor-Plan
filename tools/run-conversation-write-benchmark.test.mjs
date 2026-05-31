@@ -42,6 +42,10 @@ describe("conversation write benchmark runner", () => {
       "300",
       "--warm-connections-per-host",
       "300",
+      "--pgbouncer-diagnostics",
+      "true",
+      "--postgres-diagnostics",
+      "true",
       "--out",
       "reports/conversation-write-http-benchmark.current.json",
     ]);
@@ -58,6 +62,7 @@ describe("conversation write benchmark runner", () => {
     assert.deepEqual(command.slice(0, 3), ["go", "run", "./services/conversation-write-gateway/cmd/httpbench"]);
     assert(command.includes("--base-url"));
     assert(command.includes("http://127.0.0.1:18080,http://127.0.0.1:18081,http://127.0.0.1:18082"));
+    assert.equal(command[command.indexOf("--warm-connection-retries") + 1], "3");
 
     const failed = buildFailureReport({
       options,
@@ -66,6 +71,28 @@ describe("conversation write benchmark runner", () => {
       errorMessage: "connect failed with password=ueacd and postgres://app_user:ueacd@localhost/db",
       gatewayOutput: "ready\npanic password=ueacd",
       benchmarkOutput: "createConversation failed",
+      pgbouncerDiagnostics: {
+        before: {
+          status: "OK",
+          queries: {
+            pools: {
+              status: "OK",
+              rows: [{ database: "intelligent_teaching_assistant", cl_waiting: 0 }],
+            },
+          },
+        },
+      },
+      postgresDiagnostics: {
+        before: {
+          status: "OK",
+          queries: {
+            activity: {
+              status: "OK",
+              rows: [{ state: "active", wait_event_type: "IO", wait_event: "WalSync", connections: 2 }],
+            },
+          },
+        },
+      },
       generatedAt: "2026-05-31T00:00:00.000Z",
     });
 
@@ -75,6 +102,8 @@ describe("conversation write benchmark runner", () => {
     assert.equal(failed.loadBalancingStrategy, "ROUND_ROBIN");
     assert.equal(failed.gatewayDatabaseProfile.dbMaxConnsTotal, 24);
     assert.deepEqual(failed.gatewayBaseUrls, gatewayBaseUrls(options));
+    assert.equal(failed.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
+    assert.equal(failed.postgresDiagnostics.before.queries.activity.rows[0].wait_event, "WalSync");
     assert(!JSON.stringify(failed).includes("ueacd"));
     assert(!JSON.stringify(failed).includes("postgres://"));
     assert.equal(maskSensitive("token ueacd"), "token ***");
@@ -101,6 +130,7 @@ describe("conversation write benchmark runner", () => {
     assert.equal(passed.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.deepEqual(passed.benchmarkRuntimeProfile.targetBaseUrls, gatewayBaseUrls(options));
     assert.equal(passed.transportProfile.warmConnectionStrategy, "PER_HOST_PARALLEL");
+    assert.equal(passed.transportProfile.warmConnectionRetries, 3);
   });
 
   it("rejects non-ueacd local secrets and invalid port plans", async () => {
@@ -248,6 +278,126 @@ describe("conversation write benchmark runner", () => {
       assert.equal(report.status, "FAILED");
       assert.equal(report.stale, undefined);
       assert.match(report.errorMessage, /benchmark failed before report write/u);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("attaches bounded PgBouncer and PostgreSQL diagnostics to successful reports", async () => {
+    const {
+      parseArgs,
+      runConversationWriteBenchmark,
+    } = await import("./run-conversation-write-benchmark.mjs");
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "conversation-diagnostics-"));
+    const out = path.join(tmpDir, "benchmark.json");
+    const options = parseArgs([
+      "--base-url",
+      "http://127.0.0.1:18080",
+      "--out",
+      out,
+      "--pgbouncer-diagnostics",
+      "true",
+      "--postgres-diagnostics",
+      "true",
+      "--postgres-diagnostics-interval-ms",
+      "1",
+      "--postgres-diagnostics-max-samples",
+      "2",
+    ]);
+    const observedPostgresRelationQueries = [];
+    const spawnSync = (command, args) => {
+      if (command === "go") return { status: 0, stderr: "" };
+      if (command === "taskkill") return { status: 0, stderr: "" };
+      assert.equal(command, "docker");
+      assert.deepEqual(args.slice(0, 4), ["exec", "-e", "PGPASSWORD=ueacd", "ita-identity-session-postgres"]);
+      const query = args.at(-1);
+      if (query === "SHOW STATS;") {
+        return {
+          status: 0,
+          stdout: "database|total_xact_count\nintelligent_teaching_assistant|42\n",
+          stderr: "",
+        };
+      }
+      if (query === "SHOW POOLS;") {
+        return {
+          status: 0,
+          stdout: "database|cl_active|cl_waiting|sv_active\nintelligent_teaching_assistant|8|0|8\n",
+          stderr: "",
+        };
+      }
+      if (query === "SHOW CONFIG;") {
+        return {
+          status: 0,
+          stdout: "key|value\npool_mode|transaction\nmax_db_connections|90\n",
+          stderr: "",
+        };
+      }
+      if (query.includes("FROM pg_stat_activity")) {
+        return {
+          status: 0,
+          stdout: "state|wait_event_type|wait_event|connections\nactive|IO|WalSync|2\nidle|Client|ClientRead|6\n",
+          stderr: "",
+        };
+      }
+      if (query.includes("FROM pg_stat_database")) {
+        return {
+          status: 0,
+          stdout: "datname|numbackends|xact_commit|tup_inserted|deadlocks\nintelligent_teaching_assistant|8|100|90|0\n",
+          stderr: "",
+        };
+      }
+      if (query.includes("FROM pg_locks")) {
+        return {
+          status: 0,
+          stdout: "mode|granted|locks\nRowExclusiveLock|t|8\n",
+          stderr: "",
+        };
+      }
+      if (query.includes("FROM pg_class")) {
+        observedPostgresRelationQueries.push(query);
+        return {
+          status: 0,
+          stdout: "relname|persistence|total_size_bytes\nresearch_conversations|logged|81920\n",
+          stderr: "",
+        };
+      }
+      throw new Error(`unexpected query ${query}`);
+    };
+    const spawnProcess = (command) => {
+      if (String(command).includes("conversation-write-gateway-runner")) {
+        return fakeProcess();
+      }
+      const benchmark = fakeProcess();
+      queueMicrotask(() => {
+        fs.writeFileSync(out, `${JSON.stringify({
+          status: "PASSED",
+          phases: { createConversation: { errors: 0, p95Ms: 12.34 } },
+        })}\n`);
+        benchmark.emit("close", 0, null);
+      });
+      return benchmark;
+    };
+
+    try {
+      const report = await runConversationWriteBenchmark(options, {
+        root: process.cwd(),
+        spawnProcess,
+        spawnCommandSync: spawnSync,
+        fetch: async () => ({ ok: true }),
+        sleep: async () => {},
+      });
+
+      assert.equal(report.status, "PASSED");
+      assert.equal(report.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
+      assert.equal(report.pgbouncerDiagnostics.after.queries.stats.rows[0].total_xact_count, 42);
+      assert.equal(report.postgresDiagnostics.before.postgresRelations[0], "research_conversations");
+      assert.equal(report.postgresDiagnostics.before.queries.activity.rows[0].wait_event, "WalSync");
+      assert(report.postgresDiagnostics.timeline.samples.length >= 1);
+      assert(report.postgresDiagnostics.timeline.samples.length <= 2);
+      assert.equal(report.postgresDiagnostics.after.queries.relations.rows[0].relname, "research_conversations");
+      assert(observedPostgresRelationQueries.every((query) => query.includes("'research_conversations'")));
+      assert(!JSON.stringify(report).includes("ueacd"));
+      assert(!JSON.stringify(report).includes("postgres://"));
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

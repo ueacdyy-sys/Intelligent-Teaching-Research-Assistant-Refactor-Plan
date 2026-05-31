@@ -59,6 +59,7 @@ func TestBuildHTTPClientReportsTransportProfile(t *testing.T) {
 		Concurrency:            800,
 		MaxConnsPerHost:        200,
 		WarmConnectionsPerHost: 200,
+		WarmConnectionRetries:  3,
 	}
 
 	_, profile := buildHTTPClient(config, 4)
@@ -71,6 +72,9 @@ func TestBuildHTTPClientReportsTransportProfile(t *testing.T) {
 	}
 	if profile.WarmConnectionStrategy != "PER_HOST_PARALLEL" {
 		t.Fatalf("WarmConnectionStrategy = %q want PER_HOST_PARALLEL", profile.WarmConnectionStrategy)
+	}
+	if profile.WarmConnectionRetries != 3 {
+		t.Fatalf("WarmConnectionRetries = %d want 3", profile.WarmConnectionRetries)
 	}
 	if profile.MaxIdleConns < 800 || profile.MaxIdleConnsPerHost < 800 {
 		t.Fatalf("idle connection profile is too small: %#v", profile)
@@ -110,7 +114,7 @@ func TestWarmHTTPConnectionsUsesPerHostParallelStrategy(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- warmHTTPConnectionsWithRequester(context.Background(), baseURLs, 3, requester)
+		done <- warmHTTPConnectionsWithRequester(context.Background(), baseURLs, 3, 0, requester)
 	}()
 
 	waitForWarmCalls(t, &mu, callsByHost, baseURLs[0], 3)
@@ -129,6 +133,32 @@ func TestWarmHTTPConnectionsUsesPerHostParallelStrategy(t *testing.T) {
 	}
 	if maxDistinctActiveHosts != 1 {
 		t.Fatalf("maxDistinctActiveHosts = %d want 1", maxDistinctActiveHosts)
+	}
+}
+
+func TestWarmHTTPConnectionsRetriesTransientRefusals(t *testing.T) {
+	baseURLs := []string{"http://gateway-a.test"}
+	var mu sync.Mutex
+	calls := 0
+	failuresRemaining := 3
+
+	requester := func(_ context.Context, _ string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		if failuresRemaining > 0 {
+			failuresRemaining--
+			return context.Canceled
+		}
+		return nil
+	}
+
+	err := warmHTTPConnectionsWithRequester(context.Background(), baseURLs, 3, 3, requester)
+	if err != nil {
+		t.Fatalf("warmHTTPConnectionsWithRequester() error = %v", err)
+	}
+	if calls != 6 {
+		t.Fatalf("calls = %d want 6", calls)
 	}
 }
 

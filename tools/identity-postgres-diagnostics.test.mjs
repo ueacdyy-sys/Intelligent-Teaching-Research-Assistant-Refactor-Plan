@@ -141,6 +141,27 @@ describe("PostgreSQL diagnostics", () => {
     assert(!JSON.stringify(result).includes("ueacd"));
   });
 
+  it("records invalid relation filter configuration as diagnostics evidence", () => {
+    const options = parseArgs([
+      "--postgres-diagnostics",
+      "true",
+      "--postgres-diagnostics-relations",
+      "research_conversations,bad-name",
+    ]);
+    const diagnostics = collectPostgresDiagnostics(options, {
+      now: () => "2026-05-31T10:00:02.000Z",
+      spawnSync: () => {
+        throw new Error("spawn should not run for invalid configuration");
+      },
+    });
+
+    assert.equal(diagnostics.status, "ERROR");
+    assert.equal(diagnostics.sampledAt, "2026-05-31T10:00:02.000Z");
+    assert.deepEqual(diagnostics.postgresRelations, []);
+    assert.equal(diagnostics.queries.configuration.status, "ERROR");
+    assert.match(diagnostics.queries.configuration.errorMessage, /bad-name/u);
+  });
+
   it("preserves the synchronous benchmark path when diagnostics are disabled", async () => {
     let usedSpawnSync = false;
     let usedSpawn = false;
