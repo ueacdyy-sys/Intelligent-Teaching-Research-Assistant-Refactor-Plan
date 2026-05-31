@@ -35,6 +35,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "16",
       "--session-db-write-concurrency",
       "8",
+      "--session-db-session-table-persistence",
+      "unlogged",
       "--gateway-count",
       "2",
       "--max-conns-per-host",
@@ -122,6 +124,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       sessionDbMaxConnsTotal: 32,
       sessionDbWriteConcurrencyPerWorker: 8,
       sessionDbWriteConcurrencyTotal: 16,
+      sessionTablePersistence: "unlogged",
     });
     assert.deepEqual(report.transportProfile, {
       maxConnsPerHost: 256,

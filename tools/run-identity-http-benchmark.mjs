@@ -14,6 +14,7 @@ import {
   postgresDiagnosticsDefaults,
   runBenchmarkWithPostgresDiagnostics,
 } from "./identity-postgres-diagnostics.mjs";
+import { addSessionPersistenceToDatabaseProfile, applySessionTablePersistenceArg, defaultSessionTablePersistence, gatewaySessionPersistenceEnv } from "./identity-http-benchmark-session-profile.mjs";
 
 export { collectPgbouncerDiagnostics, collectPostgresDiagnostics, parsePsqlUnalignedRows };
 
@@ -26,6 +27,7 @@ export const defaults = {
   operations: "300",
   sessionDbMaxConns: "16",
   sessionDbWriteConcurrency: "0",
+  sessionDbSessionTablePersistence: defaultSessionTablePersistence,
   gatewayCount: "1",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
@@ -61,6 +63,10 @@ export function parseArgs(argv) {
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
     if (applyPostgresDiagnosticsArg(parsed, key, value)) {
+      index += 1;
+      continue;
+    }
+    if (applySessionTablePersistenceArg(parsed, key, value)) {
       index += 1;
       continue;
     }
@@ -441,6 +447,7 @@ function spawnGateway(baseUrl, options, spawnProcess) {
         SESSION_DATABASE_URL: options.dsn,
         SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
         SESSION_DB_WRITE_CONCURRENCY: options.sessionDbWriteConcurrency,
+        ...gatewaySessionPersistenceEnv(options),
         BOOTSTRAP_PASSWORD: "ueacd",
         CHANNEL_SIGNATURE_SECRET: "ueacd",
         INTERNAL_DIAGNOSTICS_SECRET: "ueacd",
@@ -640,13 +647,13 @@ export function gatewayDatabaseProfile(options) {
   const workerCount = gatewayCount(options);
   const sessionDbMaxConnsPerWorker = parseIntegerOption(options.sessionDbMaxConns);
   const sessionDbWriteConcurrencyPerWorker = parseIntegerOption(options.sessionDbWriteConcurrency);
-  return {
+  return addSessionPersistenceToDatabaseProfile({
     workerCount,
     sessionDbMaxConnsPerWorker,
     sessionDbMaxConnsTotal: workerCount * sessionDbMaxConnsPerWorker,
     sessionDbWriteConcurrencyPerWorker,
     sessionDbWriteConcurrencyTotal: workerCount * sessionDbWriteConcurrencyPerWorker,
-  };
+  }, options);
 }
 
 export function buildBenchmarkCommand(options, baseUrls) {
