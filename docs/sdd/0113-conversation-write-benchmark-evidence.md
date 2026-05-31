@@ -90,3 +90,11 @@ Current evidence update:
   PostgreSQL queueing, so the next optimization must focus on gateway fan-out,
   ingress/listener diagnostics, or socket backlog tuning before database pool
   increases.
+
+SDD 0114 follow-up:
+
+- The runner-managed profile made startup and cleanup reproducible and adjusted
+  the current claim to 2100 concurrency as the strongest automated pass point.
+- The runner-managed 2200 probe failed with connection refusals while all
+  gateway processes remained alive, which strengthens the conclusion that the
+  next bottleneck is ingress accept/connect pressure rather than PostgreSQL.

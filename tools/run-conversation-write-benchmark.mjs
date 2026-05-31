@@ -1,0 +1,427 @@
+import fs from "node:fs";
+import path from "node:path";
+import { spawn, spawnSync } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
+
+export const defaults = {
+  dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
+  baseUrl: "http://127.0.0.1:18080",
+  port: "18080",
+  out: "reports/conversation-write-http-benchmark.current.json",
+  concurrency: "64",
+  operations: "300",
+  dbMaxConns: "8",
+  gatewayCount: "1",
+  agentApiKey: "ueacd",
+  maxConnsPerHost: "0",
+  warmConnectionsPerHost: "0",
+  timeout: "120s",
+  startupTimeoutMs: "120000",
+};
+
+const localSecretValue = "ueacd";
+
+export function parseArgs(argv) {
+  const parsed = { ...defaults };
+  for (let index = 0; index < argv.length; index += 1) {
+    const key = argv[index];
+    const value = argv[index + 1];
+    if (!key.startsWith("--") || value === undefined) continue;
+    if (key === "--dsn") parsed.dsn = value;
+    if (key === "--base-url") parsed.baseUrl = value;
+    if (key === "--port") parsed.port = value;
+    if (key === "--out") parsed.out = value;
+    if (key === "--concurrency") parsed.concurrency = value;
+    if (key === "--operations") parsed.operations = value;
+    if (key === "--db-max-conns") parsed.dbMaxConns = value;
+    if (key === "--gateway-count") parsed.gatewayCount = value;
+    if (key === "--agent-api-key") parsed.agentApiKey = value;
+    if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
+    if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
+    if (key === "--timeout") parsed.timeout = value;
+    if (key === "--startup-timeout-ms") parsed.startupTimeoutMs = value;
+    index += 1;
+  }
+  return parsed;
+}
+
+export function gatewayBaseUrls(options) {
+  const count = gatewayCount(options);
+  const base = parseURL(options.baseUrl);
+  const basePort = portFromOptions(options, base);
+  const urls = [];
+  for (let index = 0; index < count; index += 1) {
+    const value = new URL(base);
+    value.port = String(basePort + index);
+    urls.push(trimURL(value.toString()));
+  }
+  return urls;
+}
+
+export function validateRuntimePortPlan(options) {
+  const base = parseURL(options.baseUrl);
+  const basePort = portFromOptions(options, base);
+  if (basePort <= 0) {
+    throw new Error("base-url port must be positive");
+  }
+}
+
+export function validateLocalSecrets(options) {
+  if (options.agentApiKey !== localSecretValue) {
+    throw new Error("agent-api-key must be ueacd for local performance evidence");
+  }
+  const parsed = parseURL(options.dsn);
+  if (parsed.password !== localSecretValue) {
+    throw new Error("dsn password must be ueacd for local performance evidence");
+  }
+}
+
+export function buildBenchmarkCommand(options, baseUrls = gatewayBaseUrls(options)) {
+  return [
+    "go",
+    "run",
+    "./services/conversation-write-gateway/cmd/httpbench",
+    "--base-url",
+    baseUrls.join(","),
+    "--agent-api-key",
+    options.agentApiKey,
+    "--concurrency",
+    String(parseIntegerOption(options.concurrency)),
+    "--operations",
+    String(parseIntegerOption(options.operations)),
+    "--max-conns-per-host",
+    String(parseIntegerOption(options.maxConnsPerHost)),
+    "--warm-connections-per-host",
+    String(parseIntegerOption(options.warmConnectionsPerHost)),
+    "--out",
+    options.out,
+    "--timeout",
+    options.timeout,
+  ];
+}
+
+export function buildFailureReport({
+  options,
+  exitCode,
+  errorMessage,
+  gatewayOutput = "",
+  benchmarkOutput = "",
+  gatewayExitCode,
+  gatewaySignal,
+  generatedAt = new Date().toISOString(),
+}) {
+  const baseUrls = gatewayBaseUrls(options);
+  const report = {
+    generatedAt,
+    benchmarkKind: "conversation_write_gateway",
+    workloadType: "HTTP_BENCHMARK",
+    status: "FAILED",
+    baseUrl: maskURL(options.baseUrl),
+    concurrency: parseIntegerOption(options.concurrency),
+    operations: parseIntegerOption(options.operations),
+    gatewayCount: gatewayCount(options),
+    gatewayBaseUrls: baseUrls.map(maskURL),
+    loadBalancingStrategy: gatewayCount(options) > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY",
+    gatewayDatabaseProfile: gatewayDatabaseProfile(options),
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(baseUrls),
+    transportProfile: transportProfile(options, baseUrls.length),
+    exitCode,
+    errorMessage: maskSensitive(errorMessage) || `conversation write benchmark exited with code ${exitCode}`,
+    gatewayOutputTail: tailText(maskSensitive(gatewayOutput), 80),
+    benchmarkOutputTail: tailText(maskSensitive(benchmarkOutput), 80),
+  };
+  if (gatewayExitCode !== undefined) report.gatewayExitCode = gatewayExitCode;
+  if (gatewaySignal !== undefined) report.gatewaySignal = gatewaySignal;
+  return report;
+}
+
+export function addRuntimeProfileToReport(report, options, baseUrls = gatewayBaseUrls(options), diagnostics = {}) {
+  const enriched = {
+    ...report,
+    gatewayWorkerCount: gatewayCount(options),
+    gatewayDatabaseProfile: gatewayDatabaseProfile(options),
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(baseUrls),
+  };
+  if (diagnostics.gatewayExitCode !== undefined) enriched.gatewayExitCode = diagnostics.gatewayExitCode;
+  if (diagnostics.gatewaySignal !== undefined) enriched.gatewaySignal = diagnostics.gatewaySignal;
+  if (diagnostics.gatewayOutput) enriched.gatewayOutputTail = tailText(maskSensitive(diagnostics.gatewayOutput), 80);
+  return enriched;
+}
+
+export function maskSensitive(value) {
+  return String(value ?? "")
+    .replace(/postgres(?:ql)?:\/\/[^\s"']+/giu, "[database-url]")
+    .replaceAll(localSecretValue, "***");
+}
+
+export async function runConversationWriteBenchmark(options = parseArgs(process.argv.slice(2)), dependencies = {}) {
+  validateRuntimePortPlan(options);
+  validateLocalSecrets(options);
+  const root = dependencies.root ?? process.cwd();
+  const spawnProcess = dependencies.spawnProcess ?? spawn;
+  const spawnCommandSync = dependencies.spawnCommandSync ?? spawnSync;
+  const baseUrls = gatewayBaseUrls(options);
+  const gateways = [];
+  const gatewayOutputs = [];
+  let benchmarkOutput = "";
+  let reportWritten = false;
+
+  try {
+    const gatewayBinary = buildGatewayBinary(root, spawnCommandSync);
+    for (const [index, baseUrl] of baseUrls.entries()) {
+      const gateway = spawnGateway(gatewayBinary, options, baseUrl, root, spawnProcess);
+      gateways.push(gateway);
+      gatewayOutputs.push("");
+      gateway.stdout?.on("data", (chunk) => {
+        gatewayOutputs[index] += chunk.toString();
+      });
+      gateway.stderr?.on("data", (chunk) => {
+        gatewayOutputs[index] += chunk.toString();
+      });
+    }
+    await waitForGateways(baseUrls, parseIntegerOption(options.startupTimeoutMs), dependencies.fetch ?? fetch);
+
+    const command = buildBenchmarkCommand(options, baseUrls);
+    removeExistingReport(options.out);
+    const result = await runCommand(command[0], command.slice(1), root, spawnProcess, (chunk) => {
+      benchmarkOutput += chunk;
+    });
+    const report = readReportOrFailure(options, {
+      exitCode: result.exitCode,
+      errorMessage: extractFailureMessage(benchmarkOutput, result.exitCode),
+      gatewayOutput: combineOutput(gatewayOutputs),
+      benchmarkOutput,
+      gatewayExitCode: processExitCodes(gateways),
+      gatewaySignal: processSignals(gateways),
+    });
+    const enriched = addRuntimeProfileToReport(report, options, baseUrls, {
+      gatewayExitCode: processExitCodes(gateways),
+      gatewaySignal: processSignals(gateways),
+      gatewayOutput: combineOutput(gatewayOutputs),
+    });
+    writeJsonReport(options.out, enriched);
+    reportWritten = true;
+    if (result.exitCode !== 0) {
+      throw new Error(enriched.errorMessage ?? `conversation write benchmark exited with code ${result.exitCode}`);
+    }
+    return enriched;
+  } catch (error) {
+    if (reportWritten) {
+      throw error;
+    }
+    const report = buildFailureReport({
+      options,
+      exitCode: 1,
+      errorMessage: error.message,
+      gatewayOutput: combineOutput(gatewayOutputs),
+      benchmarkOutput,
+      gatewayExitCode: processExitCodes(gateways),
+      gatewaySignal: processSignals(gateways),
+    });
+    writeJsonReport(options.out, report);
+    throw error;
+  } finally {
+    for (const gateway of gateways) {
+      stopGateway(gateway, spawnCommandSync);
+    }
+  }
+}
+
+function buildGatewayBinary(root, spawnCommandSync) {
+  const binaryPath = path.join(root, "tmp", "bin", executableName("conversation-write-gateway-runner"));
+  fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
+  const result = spawnCommandSync("go", [
+    "build",
+    "-o",
+    binaryPath,
+    "./services/conversation-write-gateway/cmd/gateway",
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0 || result.error) {
+    throw new Error(`build conversation write gateway failed: ${result.error?.message ?? result.stderr}`);
+  }
+  return binaryPath;
+}
+
+function spawnGateway(binaryPath, options, baseUrl, root, spawnProcess) {
+  const url = parseURL(baseUrl);
+  return spawnProcess(binaryPath, [], {
+    cwd: root,
+    shell: false,
+    env: {
+      ...process.env,
+      PORT: url.port,
+      DATABASE_URL: options.dsn,
+      DB_MAX_CONNS: String(parseIntegerOption(options.dbMaxConns)),
+      AGENT_API_KEY: options.agentApiKey,
+    },
+  });
+}
+
+async function waitForGateways(baseUrls, startupTimeoutMs, fetchFn) {
+  const deadline = Date.now() + startupTimeoutMs;
+  for (const baseUrl of baseUrls) {
+    let lastError;
+    while (Date.now() < deadline) {
+      try {
+        const response = await fetchFn(`${baseUrl}/health`);
+        if (response.ok) break;
+        lastError = new Error(`health status = ${response.status}`);
+      } catch (error) {
+        lastError = error;
+      }
+      await sleep(200);
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(`gateway health check failed for ${baseUrl}: ${lastError?.message ?? "timeout"}`);
+    }
+  }
+}
+
+function runCommand(command, args, cwd, spawnProcess, onOutput) {
+  return new Promise((resolve, reject) => {
+    const child = spawnProcess(command, args, { cwd, shell: false });
+    child.stdout?.on("data", (chunk) => onOutput(chunk.toString()));
+    child.stderr?.on("data", (chunk) => onOutput(chunk.toString()));
+    child.on("error", reject);
+    child.on("close", (exitCode, signal) => resolve({ exitCode, signal }));
+  });
+}
+
+function readReportOrFailure(options, failureContext) {
+  if (fs.existsSync(options.out)) {
+    try {
+      return JSON.parse(fs.readFileSync(options.out, "utf8"));
+    } catch {
+      // Fall through to a generated failure report.
+    }
+  }
+  return buildFailureReport({ options, ...failureContext });
+}
+
+function removeExistingReport(outPath) {
+  fs.rmSync(outPath, { force: true });
+}
+
+function stopGateway(gateway, spawnCommandSync) {
+  if (!gateway || gateway.exitCode !== null) return;
+  if (process.platform === "win32" && gateway.pid) {
+    spawnCommandSync("taskkill", ["/PID", String(gateway.pid), "/T", "/F"], {
+      stdio: "ignore",
+      shell: false,
+    });
+    return;
+  }
+  gateway.kill("SIGTERM");
+}
+
+function processExitCodes(processes) {
+  return processes.map((processValue) => processValue.exitCode);
+}
+
+function processSignals(processes) {
+  return processes.map((processValue) => processValue.signalCode);
+}
+
+function gatewayDatabaseProfile(options) {
+  const workers = gatewayCount(options);
+  const dbMaxConns = parseIntegerOption(options.dbMaxConns);
+  return {
+    workerCount: workers,
+    dbMaxConnsPerWorker: dbMaxConns,
+    dbMaxConnsTotal: workers * dbMaxConns,
+  };
+}
+
+function benchmarkRuntimeProfile(baseUrls) {
+  return {
+    executor: "LOCAL_GO",
+    targetBaseUrls: baseUrls.map(maskURL),
+  };
+}
+
+function transportProfile(options, targetCount) {
+  const warmConnectionsPerHost = parseIntegerOption(options.warmConnectionsPerHost);
+  return {
+    maxConnsPerHost: parseIntegerOption(options.maxConnsPerHost),
+    warmConnectionsPerHost,
+    warmConnectionsTotal: targetCount * warmConnectionsPerHost,
+  };
+}
+
+function gatewayCount(options) {
+  return Math.max(1, parseIntegerOption(options.gatewayCount));
+}
+
+function parseIntegerOption(value) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`expected zero or positive integer, got ${value}`);
+  }
+  return parsed;
+}
+
+function parseURL(value) {
+  try {
+    return new URL(value);
+  } catch {
+    throw new Error(`invalid URL: ${value}`);
+  }
+}
+
+function portFromOptions(options, base) {
+  if (base.port) return Number.parseInt(base.port, 10);
+  return parseIntegerOption(options.port);
+}
+
+function trimURL(value) {
+  return String(value).replace(/\/$/u, "");
+}
+
+function maskURL(value) {
+  const parsed = parseURL(value);
+  if (parsed.password) parsed.password = "***";
+  return trimURL(parsed.toString()).replaceAll(localSecretValue, "***");
+}
+
+function tailText(value, maxLines = 80) {
+  const text = String(value ?? "").replace(/\s+$/u, "");
+  if (!text) return "";
+  return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
+}
+
+function combineOutput(outputs) {
+  return outputs
+    .map((output, index) => output.trim() ? `[gateway ${index + 1}]\n${output.trim()}` : "")
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function extractFailureMessage(output, exitCode) {
+  const lines = String(output ?? "")
+    .split(/\r\n|\r|\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const lastMeaningful = [...lines].reverse().find((line) => !line.startsWith("{") && !line.startsWith("}"));
+  return maskSensitive(lastMeaningful ?? `conversation write benchmark exited with code ${exitCode}`);
+}
+
+function writeJsonReport(outPath, report) {
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
+}
+
+function executableName(name) {
+  return process.platform === "win32" ? `${name}.exe` : name;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runConversationWriteBenchmark().catch((error) => {
+    console.error(maskSensitive(error.message));
+    process.exit(1);
+  });
+}
