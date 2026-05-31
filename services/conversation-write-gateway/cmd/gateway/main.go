@@ -68,6 +68,9 @@ func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
 	if err := pool.Ping(ctx); err != nil {
 		log.Fatal(err)
 	}
+	if err := postgres.EnsureSchema(ctx, pool); err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("postgres pool ready: maxConns=%d", maxConns)
 	return pool
 }

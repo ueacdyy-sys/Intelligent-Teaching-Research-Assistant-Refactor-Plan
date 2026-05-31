@@ -39,6 +39,8 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-write10-client200-write-limiter-summary-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool14-client200-db-pool-diagnostics-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-ingress19080-clean-table-docker-bench.json",
+  "reports/conversation-write-http-benchmark.current.json",
+  "reports/conversation-write-http-benchmark.concurrency2300-multi6.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
   "reports/quality-gate.current.json",
