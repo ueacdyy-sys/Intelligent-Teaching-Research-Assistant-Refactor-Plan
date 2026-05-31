@@ -48,11 +48,12 @@ type benchmarkReport struct {
 }
 
 type benchmarkTransportProfile struct {
-	MaxIdleConns           int `json:"maxIdleConns"`
-	MaxIdleConnsPerHost    int `json:"maxIdleConnsPerHost"`
-	MaxConnsPerHost        int `json:"maxConnsPerHost"`
-	WarmConnectionsPerHost int `json:"warmConnectionsPerHost"`
-	WarmConnectionsTotal   int `json:"warmConnectionsTotal"`
+	MaxIdleConns           int    `json:"maxIdleConns"`
+	MaxIdleConnsPerHost    int    `json:"maxIdleConnsPerHost"`
+	MaxConnsPerHost        int    `json:"maxConnsPerHost"`
+	WarmConnectionsPerHost int    `json:"warmConnectionsPerHost"`
+	WarmConnectionsTotal   int    `json:"warmConnectionsTotal"`
+	WarmConnectionStrategy string `json:"warmConnectionStrategy"`
 }
 
 type phaseReport struct {
@@ -187,28 +188,51 @@ func buildHTTPClient(config benchmarkConfig, gatewayCount int) (*http.Client, be
 			MaxConnsPerHost:        config.MaxConnsPerHost,
 			WarmConnectionsPerHost: config.WarmConnectionsPerHost,
 			WarmConnectionsTotal:   warmConnectionsTotal,
+			WarmConnectionStrategy: warmConnectionStrategy(config.WarmConnectionsPerHost),
 		}
 }
 
 func warmHTTPConnections(ctx context.Context, client *http.Client, baseURLs []string, connectionsPerHost int) error {
+	return warmHTTPConnectionsWithRequester(ctx, baseURLs, connectionsPerHost, func(ctx context.Context, baseURL string) error {
+		return requestHealth(ctx, client, baseURL)
+	})
+}
+
+func warmHTTPConnectionsWithRequester(
+	ctx context.Context,
+	baseURLs []string,
+	connectionsPerHost int,
+	requester func(context.Context, string) error,
+) error {
 	if connectionsPerHost <= 0 {
 		return nil
 	}
-	var wg sync.WaitGroup
-	errs := make(chan error, len(baseURLs)*connectionsPerHost)
-	start := make(chan struct{})
 	for _, baseURL := range baseURLs {
-		baseURL := baseURL
-		for index := 0; index < connectionsPerHost; index++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				<-start
-				if err := requestHealth(ctx, client, baseURL); err != nil {
-					errs <- err
-				}
-			}()
+		if err := warmHTTPConnectionsForHost(ctx, baseURL, connectionsPerHost, requester); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func warmHTTPConnectionsForHost(
+	ctx context.Context,
+	baseURL string,
+	connectionsPerHost int,
+	requester func(context.Context, string) error,
+) error {
+	var wg sync.WaitGroup
+	errs := make(chan error, connectionsPerHost)
+	start := make(chan struct{})
+	for index := 0; index < connectionsPerHost; index++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if err := requester(ctx, baseURL); err != nil {
+				errs <- err
+			}
+		}()
 	}
 	close(start)
 	wg.Wait()
@@ -217,6 +241,13 @@ func warmHTTPConnections(ctx context.Context, client *http.Client, baseURLs []st
 		return fmt.Errorf("warm transport connections: %w", err)
 	}
 	return nil
+}
+
+func warmConnectionStrategy(connectionsPerHost int) string {
+	if connectionsPerHost <= 0 {
+		return "DISABLED"
+	}
+	return "PER_HOST_PARALLEL"
 }
 
 func runCreateConversationPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) phaseReport {

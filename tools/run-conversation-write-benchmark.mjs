@@ -195,6 +195,7 @@ export function addRuntimeProfileToReport(report, options, baseUrls = benchmarkB
     gatewayWorkerCount: gatewayCount(options),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
     benchmarkRuntimeProfile: benchmarkRuntimeProfile(baseUrls),
+    transportProfile: report.transportProfile ?? transportProfile(options, baseUrls.length),
   };
   if (ingressEnabled(options)) enriched.ingressProfile = ingressProfile(options);
   if (diagnostics.gatewayExitCode !== undefined) enriched.gatewayExitCode = diagnostics.gatewayExitCode;
@@ -478,6 +479,7 @@ function transportProfile(options, targetCount) {
     maxConnsPerHost: parseIntegerOption(options.maxConnsPerHost),
     warmConnectionsPerHost,
     warmConnectionsTotal: targetCount * warmConnectionsPerHost,
+    warmConnectionStrategy: warmConnectionsPerHost > 0 ? "PER_HOST_PARALLEL" : "DISABLED",
   };
 }
 

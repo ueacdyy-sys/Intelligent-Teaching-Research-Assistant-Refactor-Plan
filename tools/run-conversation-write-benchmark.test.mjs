@@ -100,6 +100,7 @@ describe("conversation write benchmark runner", () => {
     assert.equal(passed.gatewayDatabaseProfile.dbMaxConnsTotal, 24);
     assert.equal(passed.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.deepEqual(passed.benchmarkRuntimeProfile.targetBaseUrls, gatewayBaseUrls(options));
+    assert.equal(passed.transportProfile.warmConnectionStrategy, "PER_HOST_PARALLEL");
   });
 
   it("rejects non-ueacd local secrets and invalid port plans", async () => {
