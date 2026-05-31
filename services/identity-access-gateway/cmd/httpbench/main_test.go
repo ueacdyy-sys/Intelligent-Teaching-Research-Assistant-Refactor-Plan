@@ -39,6 +39,33 @@ func TestBuildPhaseReport(t *testing.T) {
 	}
 }
 
+func TestBuildPhaseReportWithStepLatencies(t *testing.T) {
+	phase := buildPhaseReportWithStepLatencies(
+		"revokeCycle",
+		[]time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+		0,
+		300*time.Millisecond,
+		map[string][]time.Duration{
+			"login":                  {30 * time.Millisecond, 40 * time.Millisecond},
+			"revoke":                 {20 * time.Millisecond, 30 * time.Millisecond},
+			"revokedPrincipalLookup": {50 * time.Millisecond, 70 * time.Millisecond},
+		},
+	)
+
+	if phase.Name != "revokeCycle" || phase.LatencyMS.P95MS != 200 {
+		t.Fatalf("phase-level summary = %#v", phase)
+	}
+	if phase.StepLatencyMS["login"].P95MS != 40 {
+		t.Fatalf("login step summary = %#v", phase.StepLatencyMS["login"])
+	}
+	if phase.StepLatencyMS["revoke"].P95MS != 30 {
+		t.Fatalf("revoke step summary = %#v", phase.StepLatencyMS["revoke"])
+	}
+	if phase.StepLatencyMS["revokedPrincipalLookup"].P95MS != 70 {
+		t.Fatalf("revoked lookup step summary = %#v", phase.StepLatencyMS["revokedPrincipalLookup"])
+	}
+}
+
 func TestParseBaseURLs(t *testing.T) {
 	got, err := parseBaseURLs("http://127.0.0.1:18100, http://127.0.0.1:18101/")
 	if err != nil {

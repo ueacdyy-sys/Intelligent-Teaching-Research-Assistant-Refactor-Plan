@@ -55,11 +55,12 @@ type benchmarkTransportProfile struct {
 }
 
 type phaseReport struct {
-	Name       string         `json:"name"`
-	Operations int            `json:"operations"`
-	Errors     int64          `json:"errors"`
-	RPS        float64        `json:"rps"`
-	LatencyMS  latencySummary `json:"latencyMs"`
+	Name          string                    `json:"name"`
+	Operations    int                       `json:"operations"`
+	Errors        int64                     `json:"errors"`
+	RPS           float64                   `json:"rps"`
+	LatencyMS     latencySummary            `json:"latencyMs"`
+	StepLatencyMS map[string]latencySummary `json:"stepLatencyMs,omitempty"`
 }
 
 type latencySummary struct {
@@ -302,16 +303,26 @@ func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURLs 
 }
 
 func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
+	stepLatencies := newStepLatencyRecorder(config.OperationsPerPhase, []string{"login", "revoke", "revokedPrincipalLookup"})
 	phase, firstErr := runPhase("revokeCycle", config.Concurrency, config.OperationsPerPhase, func(_ int, opIndex int) error {
 		baseURL := baseURLForOperation(baseURLs, opIndex)
+		stepStart := time.Now()
 		session, err := login(ctx, client, baseURL, fmt.Sprintf("student-revoke-%d", opIndex), "STUDENT", "STUDENT_APP")
+		stepLatencies.record("login", opIndex, time.Since(stepStart))
 		if err != nil {
 			return err
 		}
+
+		stepStart = time.Now()
 		if err := revokeSession(ctx, client, baseURL, session); err != nil {
+			stepLatencies.record("revoke", opIndex, time.Since(stepStart))
 			return err
 		}
+		stepLatencies.record("revoke", opIndex, time.Since(stepStart))
+
+		stepStart = time.Now()
 		status, err := getPrincipalStatus(ctx, client, baseURL, session.AccessToken)
+		stepLatencies.record("revokedPrincipalLookup", opIndex, time.Since(stepStart))
 		if err != nil {
 			return err
 		}
@@ -320,6 +331,7 @@ func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURLs []st
 		}
 		return nil
 	})
+	phase.StepLatencyMS = stepLatencies.summarize()
 	return phase, phaseError("revokeCycle", phase, firstErr)
 }
 
@@ -373,6 +385,64 @@ func buildPhaseReport(name string, latencies []time.Duration, errorsCount int64,
 		RPS:        rps,
 		LatencyMS:  summarizeLatencies(latencies),
 	}
+}
+
+func buildPhaseReportWithStepLatencies(name string, latencies []time.Duration, errorsCount int64, duration time.Duration, stepLatencies map[string][]time.Duration) phaseReport {
+	phase := buildPhaseReport(name, latencies, errorsCount, duration)
+	if len(stepLatencies) == 0 {
+		return phase
+	}
+	phase.StepLatencyMS = make(map[string]latencySummary, len(stepLatencies))
+	for stepName, latencies := range stepLatencies {
+		phase.StepLatencyMS[stepName] = summarizeLatencies(latencies)
+	}
+	return phase
+}
+
+type stepLatencyRecorder struct {
+	latencies map[string][]time.Duration
+	recorded  map[string][]bool
+}
+
+func newStepLatencyRecorder(operations int, stepNames []string) stepLatencyRecorder {
+	recorder := stepLatencyRecorder{
+		latencies: make(map[string][]time.Duration, len(stepNames)),
+		recorded:  make(map[string][]bool, len(stepNames)),
+	}
+	for _, stepName := range stepNames {
+		recorder.latencies[stepName] = make([]time.Duration, operations)
+		recorder.recorded[stepName] = make([]bool, operations)
+	}
+	return recorder
+}
+
+func (recorder stepLatencyRecorder) record(stepName string, opIndex int, latency time.Duration) {
+	latencies, ok := recorder.latencies[stepName]
+	if !ok || opIndex < 0 || opIndex >= len(latencies) {
+		return
+	}
+	latencies[opIndex] = latency
+	recorder.recorded[stepName][opIndex] = true
+}
+
+func (recorder stepLatencyRecorder) summarize() map[string]latencySummary {
+	if len(recorder.latencies) == 0 {
+		return nil
+	}
+	summaries := make(map[string]latencySummary, len(recorder.latencies))
+	for stepName, latencies := range recorder.latencies {
+		recorded := recorder.recorded[stepName]
+		recordedLatencies := make([]time.Duration, 0, len(latencies))
+		for index, latency := range latencies {
+			if recorded[index] {
+				recordedLatencies = append(recordedLatencies, latency)
+			}
+		}
+		if len(recordedLatencies) > 0 {
+			summaries[stepName] = summarizeLatencies(recordedLatencies)
+		}
+	}
+	return summaries
 }
 
 func summarizeLatencies(latencies []time.Duration) latencySummary {
