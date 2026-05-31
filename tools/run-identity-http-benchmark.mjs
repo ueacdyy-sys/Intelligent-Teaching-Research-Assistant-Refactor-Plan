@@ -15,6 +15,9 @@ export const defaults = {
   gatewayCount: "1",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  benchmarkRuntime: "local",
+  benchmarkDockerImage: "golang:1.26-alpine",
+  benchmarkDockerHost: "host.docker.internal",
   ingressProxy: "false",
   ingressPort: "18080",
   ingressCount: "1",
@@ -43,6 +46,9 @@ export function parseArgs(argv) {
     if (key === "--gateway-count") parsed.gatewayCount = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
     if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
+    if (key === "--benchmark-runtime") parsed.benchmarkRuntime = value;
+    if (key === "--benchmark-docker-image") parsed.benchmarkDockerImage = value;
+    if (key === "--benchmark-docker-host") parsed.benchmarkDockerHost = value;
     if (key === "--ingress-proxy") parsed.ingressProxy = value;
     if (key === "--ingress-port") parsed.ingressPort = value;
     if (key === "--ingress-count") parsed.ingressCount = value;
@@ -85,6 +91,7 @@ export function buildFailureReport({
     gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
     loadBalancingStrategy: gatewayCount(options) > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY",
     transportProfile: transportProfile(options),
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(options, benchmarkBaseUrls(options)),
     ingressProfile: ingressProfile(options),
     dockerRequiredForEvidence: true,
     exitCode,
@@ -175,26 +182,13 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
         );
       }
     }
+    const benchmarkCommand = buildBenchmarkCommand(
+      options,
+      ingressEnabled(options) ? ingressBaseURLs : baseUrls,
+    );
     const result = spawnCommandSync(
-      "go",
-      [
-        "run",
-        "./services/identity-access-gateway/cmd/httpbench",
-        "-base-url",
-        ingressEnabled(options) ? ingressBaseURLs.join(",") : baseUrls.join(","),
-        "-out",
-        options.out,
-        "-concurrency",
-        options.concurrency,
-        "-operations",
-        options.operations,
-        "-max-conns-per-host",
-        options.maxConnsPerHost,
-        "-warm-connections-per-host",
-        options.warmConnectionsPerHost,
-        "-timeout",
-        options.timeout,
-      ],
+      benchmarkCommand.command,
+      benchmarkCommand.args,
       {
         encoding: "utf8",
         maxBuffer: 10 * 1024 * 1024,
@@ -446,6 +440,7 @@ export function addRuntimeProfileToReport(report, options) {
     ...report,
     gatewayWorkerCount: gatewayCount(options),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(options, benchmarkBaseUrls(options)),
   };
   if (!ingressEnabled(options)) return enhanced;
   return {
@@ -461,6 +456,54 @@ export function gatewayDatabaseProfile(options) {
     workerCount,
     sessionDbMaxConnsPerWorker,
     sessionDbMaxConnsTotal: workerCount * sessionDbMaxConnsPerWorker,
+  };
+}
+
+export function buildBenchmarkCommand(options, baseUrls) {
+  const args = [
+    "run",
+    "./services/identity-access-gateway/cmd/httpbench",
+    "-timeout",
+    options.timeout,
+    "-base-url",
+    benchmarkTargetBaseUrls(options, baseUrls).join(","),
+    "-out",
+    options.out,
+    "-concurrency",
+    options.concurrency,
+    "-operations",
+    options.operations,
+    "-max-conns-per-host",
+    options.maxConnsPerHost,
+    "-warm-connections-per-host",
+    options.warmConnectionsPerHost,
+  ];
+  if (!dockerBenchmarkRuntime(options)) {
+    return { command: "go", args };
+  }
+  return {
+    command: "docker",
+    args: [
+      "run",
+      "--rm",
+      "-v",
+      `${process.cwd()}:/workspace`,
+      "-w",
+      "/workspace",
+      options.benchmarkDockerImage,
+      "go",
+      ...args,
+    ],
+  };
+}
+
+export function benchmarkRuntimeProfile(options, baseUrls) {
+  const dockerRuntime = dockerBenchmarkRuntime(options);
+  return {
+    executor: dockerRuntime ? "DOCKER_GO" : "LOCAL_GO",
+    dockerImage: dockerRuntime ? options.benchmarkDockerImage : null,
+    dockerHostAlias: dockerRuntime ? options.benchmarkDockerHost : null,
+    targetBaseUrls: benchmarkTargetBaseUrls(options, baseUrls),
   };
 }
 
@@ -482,6 +525,31 @@ function ingressTransportProfile(options) {
     warmConnectionsPerHost,
     warmConnectionsTotal: ingressCount(options) * gatewayCount(options) * warmConnectionsPerHost,
   };
+}
+
+function benchmarkBaseUrls(options) {
+  return ingressEnabled(options) ? ingressBaseUrls(options) : gatewayBaseUrls(options);
+}
+
+function benchmarkTargetBaseUrls(options, baseUrls) {
+  if (!dockerBenchmarkRuntime(options)) return baseUrls.map(trimURL);
+  return baseUrls.map((baseUrl) => dockerReachableBaseUrl(baseUrl, options.benchmarkDockerHost));
+}
+
+function dockerReachableBaseUrl(value, hostAlias) {
+  try {
+    const parsed = new URL(value);
+    if (["127.0.0.1", "localhost", "::1"].includes(parsed.hostname)) {
+      parsed.hostname = hostAlias;
+    }
+    return trimURL(parsed.toString());
+  } catch {
+    return value;
+  }
+}
+
+function dockerBenchmarkRuntime(options) {
+  return String(options.benchmarkRuntime ?? "").toLowerCase() === "docker";
 }
 
 function ingressEnabled(options) {

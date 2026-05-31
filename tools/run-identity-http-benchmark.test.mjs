@@ -12,6 +12,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     const {
       buildFailureReport,
       addRuntimeProfileToReport,
+      benchmarkRuntimeProfile,
+      buildBenchmarkCommand,
       extractFailureMessage,
       gatewayBaseUrls,
       inferFailurePhase,
@@ -89,6 +91,12 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       },
     });
     assert.equal(report.dockerRequiredForEvidence, true);
+    assert.deepEqual(report.benchmarkRuntimeProfile, {
+      executor: "LOCAL_GO",
+      dockerImage: null,
+      dockerHostAlias: null,
+      targetBaseUrls: ["http://127.0.0.1:18080", "http://127.0.0.1:18081"],
+    });
     assert.equal(report.exitCode, 1);
     assert.equal(report.gatewayExitCode, null);
     assert.equal(report.gatewaySignal, null);
@@ -118,5 +126,61 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(passedReport.gatewayWorkerCount, 2);
     assert.deepEqual(passedReport.gatewayDatabaseProfile, report.gatewayDatabaseProfile);
     assert.deepEqual(passedReport.ingressProfile, report.ingressProfile);
+    assert.deepEqual(passedReport.benchmarkRuntimeProfile, report.benchmarkRuntimeProfile);
+
+    const dockerOptions = parseArgs([
+      "--benchmark-runtime",
+      "docker",
+      "--benchmark-docker-image",
+      "golang:1.26-alpine",
+      "--benchmark-docker-host",
+      "host.docker.internal",
+      "--ingress-proxy",
+      "true",
+      "--ingress-port",
+      "18080",
+      "--ingress-count",
+      "2",
+      "--concurrency",
+      "3200",
+      "--operations",
+      "6400",
+      "--out",
+      "reports/dockerized.json",
+    ]);
+    const dockerCommand = buildBenchmarkCommand(dockerOptions, ["http://127.0.0.1:18080", "http://127.0.0.1:18081"]);
+    assert.equal(dockerCommand.command, "docker");
+    assert.deepEqual(dockerCommand.args.slice(0, 7), [
+      "run",
+      "--rm",
+      "-v",
+      `${process.cwd()}:/workspace`,
+      "-w",
+      "/workspace",
+      "golang:1.26-alpine",
+    ]);
+    assert.deepEqual(
+      dockerCommand.args.slice(-12),
+      [
+        "-base-url",
+        "http://host.docker.internal:18080,http://host.docker.internal:18081",
+        "-out",
+        "reports/dockerized.json",
+        "-concurrency",
+        "3200",
+        "-operations",
+        "6400",
+        "-max-conns-per-host",
+        "0",
+        "-warm-connections-per-host",
+        "0",
+      ],
+    );
+    assert.deepEqual(benchmarkRuntimeProfile(dockerOptions, ["http://127.0.0.1:18080"]), {
+      executor: "DOCKER_GO",
+      dockerImage: "golang:1.26-alpine",
+      dockerHostAlias: "host.docker.internal",
+      targetBaseUrls: ["http://host.docker.internal:18080"],
+    });
   });
 });
