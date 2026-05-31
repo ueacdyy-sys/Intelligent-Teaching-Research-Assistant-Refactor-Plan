@@ -1,7 +1,7 @@
 {
   "schemaVersion": "2026-05-30.ops.performance-evidence-registry.v1",
   "registryId": "current_refactor_performance_evidence",
-  "updatedAt": "2026-05-30T17:35:00Z",
+  "updatedAt": "2026-05-31T01:10:00Z",
   "entries": [
     {
       "evidenceId": "pgbouncer_perf_profile_current",
@@ -451,6 +451,140 @@
         }
       },
       "rollbackOrNextAction": "Use this failed probe to justify the next performance slice: either 4-gateway scaling, OS/socket backlog tuning, or gateway listener diagnostics."
+    },
+    {
+      "evidenceId": "identity_http_gateway_multi4_current_1184",
+      "moduleSlice": "Identity And Access / HTTP Session Gateway",
+      "workloadType": "HTTP_BENCHMARK",
+      "sourceCommand": "npm run bench:identity-http:pgbouncer -- --gateway-count 4 --concurrency 1184 --operations 2368 --out reports/identity-http-benchmark.concurrency1184-multi4.json --timeout 735s --startup-timeout-ms 180000",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency1184-multi4.json",
+      "runtimeProfile": {
+        "name": "identity_go_gateway_pgbouncer_multi4_live_1184",
+        "executionEnvironment": "Four local Go gateways with round-robin client routing and Docker identity PgBouncer profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "PASSED",
+      "metrics": [
+        {
+          "name": "benchmark.concurrency",
+          "value": 1184,
+          "unit": "clients",
+          "interpretation": "Four local Go gateways moved the current pass point beyond the 3-gateway 832-concurrency failure probe."
+        },
+        {
+          "name": "gateway.count",
+          "value": 4,
+          "unit": "processes",
+          "interpretation": "The benchmark distributed requests across four local identity gateway processes."
+        },
+        {
+          "name": "passwordLogin.p95_ms",
+          "value": 335.96,
+          "unit": "ms",
+          "interpretation": "The login write path stayed error-free at 1184 concurrent clients under the 4-gateway profile."
+        },
+        {
+          "name": "revokeCycle.p95_ms",
+          "value": 590.16,
+          "unit": "ms",
+          "interpretation": "Revoke cycle remained the slowest mixed write/read phase and showed rising tail latency near the pass boundary."
+        },
+        {
+          "name": "phase.errors",
+          "value": 0,
+          "unit": "errors",
+          "interpretation": "All benchmark phases completed without reported errors."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "ita-identity-session-postgres",
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
+        },
+        "pgbouncer": {
+          "serviceName": "ita-identity-session-pgbouncer",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 90
+        },
+        "applicationPool": {
+          "postgresHost": "127.0.0.1",
+          "postgresPort": 16432,
+          "dbPoolSize": 16,
+          "dbMaxOverflow": 0,
+          "workerCount": 4
+        }
+      },
+      "rollbackOrNextAction": "Treat 1184 as the current local 4-gateway pass point and use the 1200 failed probe as the next ingress-capacity boundary."
+    },
+    {
+      "evidenceId": "identity_http_gateway_multi4_limit_probe_1200",
+      "moduleSlice": "Identity And Access / HTTP Session Gateway",
+      "workloadType": "HTTP_BENCHMARK",
+      "sourceCommand": "npm run bench:identity-http:pgbouncer -- --gateway-count 4 --concurrency 1200 --operations 2400 --out reports/identity-http-benchmark.concurrency1200-multi4.json --timeout 745s --startup-timeout-ms 180000",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency1200-multi4.json",
+      "runtimeProfile": {
+        "name": "identity_go_gateway_pgbouncer_multi4_live_limit_probe",
+        "executionEnvironment": "Four local Go gateways with round-robin client routing and Docker identity PgBouncer profile",
+        "dockerRequiredForEvidence": true,
+        "includedInNpmTest": false
+      },
+      "status": "FAILED",
+      "metrics": [
+        {
+          "name": "probe.concurrency",
+          "value": 1200,
+          "unit": "clients",
+          "interpretation": "The nearest local 4-gateway probe above the 1184 pass point failed during the login write phase."
+        },
+        {
+          "name": "gateway.count",
+          "value": 4,
+          "unit": "processes",
+          "interpretation": "The failure occurred after distributing requests across four local identity gateway processes."
+        },
+        {
+          "name": "passwordLogin.errors",
+          "value": 62,
+          "unit": "errors",
+          "interpretation": "The 4-gateway profile still hit connection refusals above the current pass point."
+        },
+        {
+          "name": "gateway.exit_code_before_cleanup",
+          "value": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "interpretation": "The runner observed no gateway process exit before cleanup, pointing to local accept/connect pressure rather than a captured gateway crash."
+        }
+      ],
+      "databaseEvidence": {
+        "required": true,
+        "postgres": {
+          "serviceName": "ita-identity-session-postgres",
+          "maxConnections": 300,
+          "sharedBuffers": "1GB"
+        },
+        "pgbouncer": {
+          "serviceName": "ita-identity-session-pgbouncer",
+          "poolMode": "transaction",
+          "listenPort": 6432,
+          "maxDbConnections": 90
+        },
+        "applicationPool": {
+          "postgresHost": "127.0.0.1",
+          "postgresPort": 16432,
+          "dbPoolSize": 16,
+          "dbMaxOverflow": 0,
+          "workerCount": 4
+        }
+      },
+      "rollbackOrNextAction": "Use this failed probe to justify the next performance slice: gateway listener diagnostics, benchmark connection shaping, OS/socket backlog tuning, or an external reverse-proxy profile."
     },
     {
       "evidenceId": "knowledge_hybrid_retrieval_policy_smoke",
