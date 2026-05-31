@@ -140,4 +140,38 @@ describe("performance evidence registry audit", () => {
     assert.equal(report.readiness, "NEEDS_REMEDIATION");
     assert.equal(report.findings.find((finding) => finding.id === "sources.status_matches_registry").passed, false);
   });
+
+  it("fails when session persistence evidence is not recorded in the registry application pool", () => {
+    const inputs = loadCurrentInputs();
+    const registry = clone(inputs.registry);
+    const entry = registry.entries.find((candidate) => hasMetric(candidate, "session_table.persistence"));
+    delete entry.databaseEvidence.applicationPool.sessionTablePersistence;
+
+    const report = auditPerformanceEvidenceRegistry({ ...inputs, registry });
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(report.findings.find((finding) => finding.id === "identity.session_persistence_profile").passed, false);
+  });
+
+  it("fails when session persistence evidence is not recorded in the source report", () => {
+    const inputs = loadCurrentInputs();
+    const entry = inputs.registry.entries.find((candidate) => hasMetric(candidate, "session_table.persistence"));
+    const sourceReport = JSON.parse(inputs.reports[entry.sourceReportPath]);
+    delete sourceReport.gatewayDatabaseProfile.sessionTablePersistence;
+
+    const report = auditPerformanceEvidenceRegistry({
+      ...inputs,
+      reports: {
+        ...inputs.reports,
+        [entry.sourceReportPath]: JSON.stringify(sourceReport),
+      },
+    });
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(report.findings.find((finding) => finding.id === "identity.session_persistence_profile").passed, false);
+  });
 });
+
+function hasMetric(entry, metricName) {
+  return entry.metrics.some((metric) => metric.name === metricName);
+}

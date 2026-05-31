@@ -38,6 +38,7 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-write10-client200-postgres-wait-timeline-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-write10-client200-write-limiter-summary-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool14-client200-db-pool-diagnostics-ingress19080-clean-table-docker-bench.json",
+  "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-ingress19080-clean-table-docker-bench.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
   "reports/quality-gate.current.json",
@@ -140,6 +141,19 @@ export function auditPerformanceEvidenceRegistry(inputs) {
     remediation: "Update the registry status when the underlying current report status changes.",
   });
 
+  const sessionPersistenceEntries = entries.filter(hasSessionPersistenceMetric);
+  addFinding(findings, {
+    id: "identity.session_persistence_profile",
+    passed: sessionPersistenceEntries.length > 0 &&
+      sessionPersistenceEntries.every((entry) => sessionPersistenceProfileMatches(
+        entry,
+        parsedReports[entry.sourceReportPath]?.value,
+      )),
+    actual: summarizeSessionPersistenceProfiles(sessionPersistenceEntries, parsedReports),
+    expected: "registry metric, applicationPool, and source gatewayDatabaseProfile all match logged|unlogged",
+    remediation: "Record session table persistence in the registry applicationPool and regenerate the source report with the runner-level persistence argument.",
+  });
+
   return {
     generatedAt: new Date().toISOString(),
     readiness: findings.every((finding) => finding.passed) ? "READY" : "NEEDS_REMEDIATION",
@@ -232,6 +246,29 @@ function sourceStatusMatches(entry, report) {
   return true;
 }
 
+function hasSessionPersistenceMetric(entry) {
+  return sessionPersistenceMetric(entry) !== undefined;
+}
+
+function sessionPersistenceProfileMatches(entry, report) {
+  const metricProfile = normalizedSessionPersistence(sessionPersistenceMetric(entry)?.value);
+  const registryProfile = normalizedSessionPersistence(entry.databaseEvidence?.applicationPool?.sessionTablePersistence);
+  const reportProfile = normalizedSessionPersistence(report?.gatewayDatabaseProfile?.sessionTablePersistence);
+  return metricProfile !== null && metricProfile === registryProfile && metricProfile === reportProfile;
+}
+
+function sessionPersistenceMetric(entry) {
+  if (!Array.isArray(entry.metrics)) return undefined;
+  return entry.metrics.find((metric) => metric.name === "session_table.persistence");
+}
+
+function normalizedSessionPersistence(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "logged" || normalized === "unlogged") return normalized;
+  return null;
+}
+
 function hasAll(values, required) {
   return required.every((value) => values.includes(value));
 }
@@ -306,6 +343,19 @@ function summarizeSourceStatuses(entries, parsedReports) {
     .map((entry) => {
       const sourceStatus = sourceReportStatus(entry, parsedReports[entry.sourceReportPath]?.value);
       return `${entry.evidenceId ?? "missing"}:registry=${entry.status ?? "missing"}:source=${sourceStatus}`;
+    })
+    .join(";");
+}
+
+function summarizeSessionPersistenceProfiles(entries, parsedReports) {
+  if (entries.length === 0) return "none";
+  return entries
+    .map((entry) => {
+      const report = parsedReports[entry.sourceReportPath]?.value;
+      const metric = normalizedSessionPersistence(sessionPersistenceMetric(entry)?.value) ?? "missing";
+      const registry = normalizedSessionPersistence(entry.databaseEvidence?.applicationPool?.sessionTablePersistence) ?? "missing";
+      const source = normalizedSessionPersistence(report?.gatewayDatabaseProfile?.sessionTablePersistence) ?? "missing";
+      return `${entry.evidenceId}:metric=${metric}:registry=${registry}:source=${source}`;
     })
     .join(";");
 }
