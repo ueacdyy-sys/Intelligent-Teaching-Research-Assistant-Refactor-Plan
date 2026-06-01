@@ -42,8 +42,9 @@ func TestBuildPhaseReportIncludesServerTimingSummary(t *testing.T) {
 	phase := buildPhaseReport(
 		"createConversation",
 		[]time.Duration{20 * time.Millisecond, 30 * time.Millisecond},
-		map[string][]time.Duration{
-			"app": {4 * time.Millisecond, 6 * time.Millisecond},
+		[]map[string]time.Duration{
+			{"app": 4 * time.Millisecond},
+			{"app": 6 * time.Millisecond},
 		},
 		0,
 		100*time.Millisecond,
@@ -64,10 +65,17 @@ func TestBuildPhaseReportIncludesServerTimingBreakdown(t *testing.T) {
 	phase := buildPhaseReport(
 		"createConversation",
 		[]time.Duration{20 * time.Millisecond, 30 * time.Millisecond},
-		map[string][]time.Duration{
-			"app":        {12 * time.Millisecond, 14 * time.Millisecond},
-			"db.acquire": {2 * time.Millisecond, 3 * time.Millisecond},
-			"db.insert":  {7 * time.Millisecond, 8 * time.Millisecond},
+		[]map[string]time.Duration{
+			{
+				"app":        12 * time.Millisecond,
+				"db.acquire": 2 * time.Millisecond,
+				"db.insert":  7 * time.Millisecond,
+			},
+			{
+				"app":        14 * time.Millisecond,
+				"db.acquire": 3 * time.Millisecond,
+				"db.insert":  8 * time.Millisecond,
+			},
 		},
 		0,
 		100*time.Millisecond,
@@ -81,6 +89,29 @@ func TestBuildPhaseReportIncludesServerTimingBreakdown(t *testing.T) {
 	}
 	if phase.ServerTimingMS == nil || phase.ServerTimingMS.P95MS != 14 {
 		t.Fatalf("app ServerTimingMS = %#v want P95 14", phase.ServerTimingMS)
+	}
+}
+
+func TestBuildPhaseReportIncludesClientServerGap(t *testing.T) {
+	phase := buildPhaseReport(
+		"createConversation",
+		[]time.Duration{20 * time.Millisecond, 30 * time.Millisecond},
+		[]map[string]time.Duration{
+			{"app": 12 * time.Millisecond},
+			{"app": 18 * time.Millisecond},
+		},
+		0,
+		100*time.Millisecond,
+	)
+
+	if phase.ClientServerGapMS == nil {
+		t.Fatal("ClientServerGapMS is nil")
+	}
+	if phase.ClientServerGapMS.P95MS != 12 {
+		t.Fatalf("ClientServerGapMS.P95MS = %v want 12", phase.ClientServerGapMS.P95MS)
+	}
+	if phase.ClientServerGapSamples != 2 {
+		t.Fatalf("ClientServerGapSamples = %d want 2", phase.ClientServerGapSamples)
 	}
 }
 

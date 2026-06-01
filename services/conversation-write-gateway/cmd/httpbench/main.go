@@ -70,6 +70,8 @@ type phaseReport struct {
 	ServerTimingSamples          int                       `json:"serverTimingSamples,omitempty"`
 	ServerTimingBreakdownMS      map[string]latencySummary `json:"serverTimingBreakdownMs,omitempty"`
 	ServerTimingBreakdownSamples map[string]int            `json:"serverTimingBreakdownSamples,omitempty"`
+	ClientServerGapMS            *latencySummary           `json:"clientServerGapMs,omitempty"`
+	ClientServerGapSamples       int                       `json:"clientServerGapSamples,omitempty"`
 }
 
 type latencySummary struct {
@@ -354,13 +356,13 @@ func runPhase(
 	close(jobs)
 	wg.Wait()
 
-	return buildPhaseReport(name, latencies, observedTimings(serverTimings), errorsCount, time.Since(start)), firstErr
+	return buildPhaseReport(name, latencies, serverTimings, errorsCount, time.Since(start)), firstErr
 }
 
 func buildPhaseReport(
 	name string,
 	latencies []time.Duration,
-	serverTimings map[string][]time.Duration,
+	serverTimings []map[string]time.Duration,
 	errorsCount int64,
 	duration time.Duration,
 ) phaseReport {
@@ -376,14 +378,15 @@ func buildPhaseReport(
 		RPS:        rps,
 		LatencyMS:  summarizeLatencies(latencies),
 	}
-	if len(serverTimings) > 0 {
+	serverTimingBreakdown := observedTimings(serverTimings)
+	if len(serverTimingBreakdown) > 0 {
 		report.ServerTimingBreakdownMS = map[string]latencySummary{}
 		report.ServerTimingBreakdownSamples = map[string]int{}
-		for name, values := range serverTimings {
-			report.ServerTimingBreakdownMS[name] = summarizeLatencies(values)
-			report.ServerTimingBreakdownSamples[name] = len(values)
+		for metricName, values := range serverTimingBreakdown {
+			report.ServerTimingBreakdownMS[metricName] = summarizeLatencies(values)
+			report.ServerTimingBreakdownSamples[metricName] = len(values)
 		}
-		if values := serverTimings["app"]; len(values) > 0 {
+		if values := serverTimingBreakdown["app"]; len(values) > 0 {
 			summary := summarizeLatencies(values)
 			report.ServerTimingMS = &summary
 			report.ServerTimingSamples = len(values)
@@ -392,10 +395,15 @@ func buildPhaseReport(
 		report.ServerTimingBreakdownMS = nil
 		report.ServerTimingBreakdownSamples = nil
 	}
-	if report.ServerTimingMS == nil && len(serverTimings["app"]) > 0 {
-		summary := summarizeLatencies(serverTimings["app"])
+	if report.ServerTimingMS == nil && len(serverTimingBreakdown["app"]) > 0 {
+		summary := summarizeLatencies(serverTimingBreakdown["app"])
 		report.ServerTimingMS = &summary
-		report.ServerTimingSamples = len(serverTimings["app"])
+		report.ServerTimingSamples = len(serverTimingBreakdown["app"])
+	}
+	if gaps := observedClientServerGaps(latencies, serverTimings); len(gaps) > 0 {
+		summary := summarizeLatencies(gaps)
+		report.ClientServerGapMS = &summary
+		report.ClientServerGapSamples = len(gaps)
 	}
 	return report
 }
@@ -567,6 +575,25 @@ func observedTimings(values []map[string]time.Duration) map[string][]time.Durati
 		}
 	}
 	return timings
+}
+
+func observedClientServerGaps(latencies []time.Duration, serverTimings []map[string]time.Duration) []time.Duration {
+	gaps := make([]time.Duration, 0, len(serverTimings))
+	for index, metrics := range serverTimings {
+		if index >= len(latencies) {
+			break
+		}
+		appTiming, ok := metrics["app"]
+		if !ok {
+			continue
+		}
+		gap := latencies[index] - appTiming
+		if gap < 0 {
+			gap = 0
+		}
+		gaps = append(gaps, gap)
+	}
+	return gaps
 }
 
 func parseServerTimingDurations(value string) map[string]time.Duration {
