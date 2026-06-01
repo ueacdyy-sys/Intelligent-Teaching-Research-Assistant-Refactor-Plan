@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -15,8 +16,17 @@ import (
 )
 
 type Server struct {
-	createConversation *usecase.CreateConversation
-	agentAPIKey        string
+	createConversation  *usecase.CreateConversation
+	agentAPIKey         string
+	diagnosticsSecret   string
+	dbPoolStatsProvider platform.ConversationDBPoolStatsProvider
+}
+
+type ServerConfig struct {
+	CreateConversation  *usecase.CreateConversation
+	AgentAPIKey         string
+	DiagnosticsSecret   string
+	DBPoolStatsProvider platform.ConversationDBPoolStatsProvider
 }
 
 type createConversationRequest struct {
@@ -44,21 +54,51 @@ type apiError struct {
 }
 
 func NewServer(createConversation *usecase.CreateConversation, agentAPIKey string) *Server {
+	return NewServerWithConfig(ServerConfig{
+		CreateConversation: createConversation,
+		AgentAPIKey:        agentAPIKey,
+	})
+}
+
+func NewServerWithConfig(config ServerConfig) *Server {
 	return &Server{
-		createConversation: createConversation,
-		agentAPIKey:        agentAPIKey,
+		createConversation:  config.CreateConversation,
+		agentAPIKey:         config.AgentAPIKey,
+		diagnosticsSecret:   config.DiagnosticsSecret,
+		dbPoolStatsProvider: config.DBPoolStatsProvider,
 	}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
+	mux.HandleFunc("/internal/conversation/db-pool", s.dbPoolDiagnostics)
 	mux.HandleFunc("/v1/research/conversations", s.create)
 	return mux
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "conversation-write-gateway"})
+}
+
+func (s *Server) dbPoolDiagnostics(w http.ResponseWriter, r *http.Request) {
+	if s.dbPoolStatsProvider == nil {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "diagnostics unavailable")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	if !constantTimeEquals(r.Header.Get("X-Internal-Diagnostics-Secret"), s.diagnosticsSecret) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid diagnostics secret")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "ok",
+		"service": "conversation-write-gateway",
+		"stats":   s.dbPoolStatsProvider.ConversationDBPoolStats(),
+	})
 }
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +149,13 @@ func (s *Server) authorized(r *http.Request) bool {
 		return true
 	}
 	return r.Header.Get("X-Agent-Api-Key") == s.agentAPIKey
+}
+
+func constantTimeEquals(left string, right string) bool {
+	if left == "" || right == "" || len(left) != len(right) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
 }
 
 func decodeSettings(w http.ResponseWriter, raw json.RawMessage) (domain.Settings, bool) {

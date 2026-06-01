@@ -53,6 +53,25 @@ func (db PoolDB) Acquire(ctx context.Context) (Conn, error) {
 	return poolConn{conn: conn}, nil
 }
 
+func (db PoolDB) ConversationDBPoolStats() platform.ConversationDBPoolStats {
+	stats := db.pool.Stat()
+	return platform.ConversationDBPoolStats{
+		MaxConns:                stats.MaxConns(),
+		TotalConns:              stats.TotalConns(),
+		AcquiredConns:           stats.AcquiredConns(),
+		IdleConns:               stats.IdleConns(),
+		ConstructingConns:       stats.ConstructingConns(),
+		AcquireCount:            stats.AcquireCount(),
+		AcquireDurationMs:       float64(stats.AcquireDuration().Microseconds()) / 1000,
+		CanceledAcquireCount:    stats.CanceledAcquireCount(),
+		EmptyAcquireCount:       stats.EmptyAcquireCount(),
+		EmptyAcquireWaitTimeMs:  float64(stats.EmptyAcquireWaitTime().Microseconds()) / 1000,
+		NewConnsCount:           stats.NewConnsCount(),
+		MaxIdleDestroyCount:     stats.MaxIdleDestroyCount(),
+		MaxLifetimeDestroyCount: stats.MaxLifetimeDestroyCount(),
+	}
+}
+
 func (conn poolConn) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	return conn.conn.Exec(ctx, sql, args...)
 }

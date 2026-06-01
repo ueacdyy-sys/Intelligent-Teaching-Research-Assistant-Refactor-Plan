@@ -42,6 +42,9 @@ export const defaults = {
 };
 
 const localSecretValue = "ueacd";
+const gatewayDiagnosticsPath = "/internal/conversation/db-pool";
+const internalDiagnosticsSecretHeader = "X-Internal-Diagnostics-Secret";
+const internalDiagnosticsSecretValue = "ueacd";
 
 export function parseArgs(argv) {
   const parsed = { ...defaults };
@@ -145,6 +148,49 @@ export function validateLocalSecrets(options) {
   }
 }
 
+export async function collectGatewayDatabaseDiagnostics(baseUrls, dependencies = {}) {
+  const fetchFn = dependencies.fetch ?? fetch;
+  const now = dependencies.now ?? (() => new Date().toISOString());
+  const gateways = [];
+  for (const baseUrl of baseUrls) {
+    const trimmedBaseUrl = trimURL(baseUrl);
+    try {
+      const response = await fetchFn(`${trimmedBaseUrl}${gatewayDiagnosticsPath}`, {
+        headers: {
+          [internalDiagnosticsSecretHeader]: internalDiagnosticsSecretValue,
+        },
+      });
+      if (!response.ok) {
+        gateways.push({
+          baseUrl: maskURL(trimmedBaseUrl),
+          status: "UNAVAILABLE",
+          httpStatus: response.status,
+        });
+        continue;
+      }
+      const body = await response.json();
+      gateways.push({
+        baseUrl: maskURL(trimmedBaseUrl),
+        status: "OK",
+        httpStatus: response.status,
+        stats: body.stats ?? null,
+      });
+    } catch (error) {
+      gateways.push({
+        baseUrl: maskURL(trimmedBaseUrl),
+        status: "ERROR",
+        errorMessage: maskSensitive(error instanceof Error ? error.message : String(error)),
+      });
+    }
+  }
+  return {
+    endpoint: gatewayDiagnosticsPath,
+    secretHeader: internalDiagnosticsSecretHeader,
+    sampledAt: now(),
+    gateways,
+  };
+}
+
 export function buildBenchmarkCommand(options, baseUrls = benchmarkBaseUrls(options)) {
   return [
     "go",
@@ -182,6 +228,7 @@ export function buildFailureReport({
   gatewaySignal,
   ingressExitCode,
   ingressSignal,
+  gatewayDatabaseDiagnostics,
   pgbouncerDiagnostics,
   postgresDiagnostics,
   generatedAt = new Date().toISOString(),
@@ -213,6 +260,7 @@ export function buildFailureReport({
   if (ingressExitCode !== undefined) report.ingressExitCode = ingressExitCode;
   if (ingressSignal !== undefined) report.ingressSignal = ingressSignal;
   if (ingressOutput) report.ingressOutputTail = tailText(maskSensitive(ingressOutput), 80);
+  if (gatewayDatabaseDiagnostics) report.gatewayDatabaseDiagnostics = gatewayDatabaseDiagnostics;
   if (pgbouncerDiagnostics) report.pgbouncerDiagnostics = pgbouncerDiagnostics;
   if (postgresDiagnostics) report.postgresDiagnostics = postgresDiagnostics;
   return report;
@@ -237,6 +285,9 @@ export function addRuntimeProfileToReport(report, options, baseUrls = benchmarkB
   if (diagnostics.ingressExitCode !== undefined) enriched.ingressExitCode = diagnostics.ingressExitCode;
   if (diagnostics.ingressSignal !== undefined) enriched.ingressSignal = diagnostics.ingressSignal;
   if (diagnostics.ingressOutput) enriched.ingressOutputTail = tailText(maskSensitive(diagnostics.ingressOutput), 80);
+  if (diagnostics.gatewayDatabaseDiagnostics) {
+    enriched.gatewayDatabaseDiagnostics = diagnostics.gatewayDatabaseDiagnostics;
+  }
   if (diagnostics.pgbouncerDiagnostics) enriched.pgbouncerDiagnostics = diagnostics.pgbouncerDiagnostics;
   if (diagnostics.postgresDiagnostics) enriched.postgresDiagnostics = diagnostics.postgresDiagnostics;
   return enriched;
@@ -261,10 +312,12 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
   const gatewayOutputs = [];
   const ingressOutputs = [];
   let benchmarkOutput = "";
+  let gatewayDatabaseDiagnostics;
   let pgbouncerDiagnostics;
   let postgresDiagnostics;
   let postgresDiagnosticsTimeline;
   let reportWritten = false;
+  const fetchFn = dependencies.fetch ?? fetch;
 
   try {
     const gatewayBinary = buildGatewayBinary(root, spawnCommandSync);
@@ -279,7 +332,7 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
         gatewayOutputs[index] += chunk.toString();
       });
     }
-    await waitForGateways(baseUrls, parseIntegerOption(options.startupTimeoutMs), dependencies.fetch ?? fetch);
+    await waitForGateways(baseUrls, parseIntegerOption(options.startupTimeoutMs), fetchFn);
     if (ingressEnabled(options)) {
       const ingressBinary = buildIngressProxyBinary(root, spawnCommandSync);
       for (const [index, ingressBaseUrl] of targetBaseUrls.entries()) {
@@ -293,9 +346,14 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
           ingressOutputs[index] += chunk.toString();
         });
       }
-      await waitForGateways(targetBaseUrls, parseIntegerOption(options.startupTimeoutMs), dependencies.fetch ?? fetch);
+      await waitForGateways(targetBaseUrls, parseIntegerOption(options.startupTimeoutMs), fetchFn);
     }
 
+    gatewayDatabaseDiagnostics = addDiagnosticsSnapshot(
+      gatewayDatabaseDiagnostics,
+      "before",
+      await collectGatewayDatabaseDiagnostics(baseUrls, { fetch: fetchFn }),
+    );
     pgbouncerDiagnostics = addDiagnosticsSnapshot(
       pgbouncerDiagnostics,
       "before",
@@ -326,6 +384,11 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       "after",
       collectPostgresDiagnostics(options, { spawnSync: spawnCommandSync }),
     );
+    gatewayDatabaseDiagnostics = addDiagnosticsSnapshot(
+      gatewayDatabaseDiagnostics,
+      "after",
+      await collectGatewayDatabaseDiagnostics(baseUrls, { fetch: fetchFn }),
+    );
     pgbouncerDiagnostics = addDiagnosticsSnapshot(
       pgbouncerDiagnostics,
       "after",
@@ -341,6 +404,7 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
+      gatewayDatabaseDiagnostics,
       pgbouncerDiagnostics,
       postgresDiagnostics,
     });
@@ -351,6 +415,7 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
+      gatewayDatabaseDiagnostics,
       pgbouncerDiagnostics,
       postgresDiagnostics,
     });
@@ -381,6 +446,7 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressExitCode: processExitCodes(ingresses),
       ingressSignal: processSignals(ingresses),
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
+      gatewayDatabaseDiagnostics,
       pgbouncerDiagnostics,
       postgresDiagnostics,
     });
@@ -445,6 +511,7 @@ function spawnGateway(binaryPath, options, baseUrl, root, spawnProcess) {
       DATABASE_URL: options.dsn,
       DB_MAX_CONNS: String(parseIntegerOption(options.dbMaxConns)),
       AGENT_API_KEY: options.agentApiKey,
+      INTERNAL_DIAGNOSTICS_SECRET: internalDiagnosticsSecretValue,
     },
   });
 }

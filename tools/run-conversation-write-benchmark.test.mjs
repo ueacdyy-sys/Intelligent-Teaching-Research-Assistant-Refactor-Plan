@@ -16,6 +16,7 @@ describe("conversation write benchmark runner", () => {
       addRuntimeProfileToReport,
       buildBenchmarkCommand,
       buildFailureReport,
+      collectGatewayDatabaseDiagnostics,
       gatewayBaseUrls,
       maskSensitive,
       parseArgs,
@@ -71,6 +72,12 @@ describe("conversation write benchmark runner", () => {
       errorMessage: "connect failed with password=ueacd and postgres://app_user:ueacd@localhost/db",
       gatewayOutput: "ready\npanic password=ueacd",
       benchmarkOutput: "createConversation failed",
+      gatewayDatabaseDiagnostics: {
+        before: {
+          status: "OK",
+          gateways: [{ stats: { maxConns: 10, emptyAcquireCount: 9 } }],
+        },
+      },
       pgbouncerDiagnostics: {
         before: {
           status: "OK",
@@ -102,6 +109,7 @@ describe("conversation write benchmark runner", () => {
     assert.equal(failed.loadBalancingStrategy, "ROUND_ROBIN");
     assert.equal(failed.gatewayDatabaseProfile.dbMaxConnsTotal, 24);
     assert.deepEqual(failed.gatewayBaseUrls, gatewayBaseUrls(options));
+    assert.equal(failed.gatewayDatabaseDiagnostics.before.gateways[0].stats.emptyAcquireCount, 9);
     assert.equal(failed.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
     assert.equal(failed.postgresDiagnostics.before.queries.activity.rows[0].wait_event, "WalSync");
     assert(!JSON.stringify(failed).includes("ueacd"));
@@ -122,15 +130,41 @@ describe("conversation write benchmark runner", () => {
           errors: 0,
         },
       },
-    }, options, gatewayBaseUrls(options));
+    }, options, gatewayBaseUrls(options), {
+      gatewayDatabaseDiagnostics: {
+        after: {
+          gateways: [{ stats: { acquireDurationMs: 55.5 } }],
+        },
+      },
+    });
 
     assert.equal(passed.gatewayWorkerCount, 3);
     assert.equal(passed.gatewayDatabaseProfile.dbMaxConnsPerWorker, 8);
     assert.equal(passed.gatewayDatabaseProfile.dbMaxConnsTotal, 24);
+    assert.equal(passed.gatewayDatabaseDiagnostics.after.gateways[0].stats.acquireDurationMs, 55.5);
     assert.equal(passed.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.deepEqual(passed.benchmarkRuntimeProfile.targetBaseUrls, gatewayBaseUrls(options));
     assert.equal(passed.transportProfile.warmConnectionStrategy, "PER_HOST_PARALLEL");
     assert.equal(passed.transportProfile.warmConnectionRetries, 3);
+
+    const gatewayDiagnostics = await collectGatewayDatabaseDiagnostics(gatewayBaseUrls(options), {
+      now: () => "2026-06-01T00:00:00.000Z",
+      fetch: async (url, init) => {
+        assert.match(url, /\/internal\/conversation\/db-pool$/u);
+        assert.equal(init.headers["X-Internal-Diagnostics-Secret"], "ueacd");
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ stats: { maxConns: 10, emptyAcquireCount: 11 } }),
+        };
+      },
+    });
+    assert.equal(gatewayDiagnostics.endpoint, "/internal/conversation/db-pool");
+    assert.equal(gatewayDiagnostics.secretHeader, "X-Internal-Diagnostics-Secret");
+    assert.equal(gatewayDiagnostics.sampledAt, "2026-06-01T00:00:00.000Z");
+    assert.equal(gatewayDiagnostics.gateways.length, 3);
+    assert.equal(gatewayDiagnostics.gateways[0].stats.emptyAcquireCount, 11);
+    assert(!JSON.stringify(gatewayDiagnostics).includes("ueacd"));
   });
 
   it("rejects non-ueacd local secrets and invalid port plans", async () => {
@@ -383,11 +417,17 @@ describe("conversation write benchmark runner", () => {
         root: process.cwd(),
         spawnProcess,
         spawnCommandSync: spawnSync,
-        fetch: async () => ({ ok: true }),
+        fetch: async () => ({
+          ok: true,
+          status: 200,
+          json: async () => ({ stats: { maxConns: 8, emptyAcquireCount: 3 } }),
+        }),
         sleep: async () => {},
       });
 
       assert.equal(report.status, "PASSED");
+      assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].status, "OK");
+      assert.equal(report.gatewayDatabaseDiagnostics.after.gateways[0].status, "OK");
       assert.equal(report.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
       assert.equal(report.pgbouncerDiagnostics.after.queries.stats.rows[0].total_xact_count, 42);
       assert.equal(report.postgresDiagnostics.before.postgresRelations[0], "research_conversations");

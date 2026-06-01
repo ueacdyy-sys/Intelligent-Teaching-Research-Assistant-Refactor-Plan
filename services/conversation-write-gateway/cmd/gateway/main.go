@@ -22,17 +22,23 @@ func main() {
 	ctx := context.Background()
 	pool := mustOpenPostgres(ctx)
 	defer pool.Close()
+	poolDB := postgres.NewPoolDB(pool)
 
 	createConversation := usecase.NewCreateConversation(
-		postgres.NewConversationRepository(postgres.NewPoolDB(pool)),
+		postgres.NewConversationRepository(poolDB),
 		event.NoopPublisher{},
 		platform.IDGenerator{},
 		platform.Clock{},
 	)
 
 	server := &http.Server{
-		Addr:              ":" + getenv("PORT", "18080"),
-		Handler:           httpapi.NewServer(createConversation, getenv("AGENT_API_KEY", "ueacd")).Handler(),
+		Addr: ":" + getenv("PORT", "18080"),
+		Handler: httpapi.NewServerWithConfig(httpapi.ServerConfig{
+			CreateConversation:  createConversation,
+			AgentAPIKey:         getenv("AGENT_API_KEY", "ueacd"),
+			DiagnosticsSecret:   getenv("INTERNAL_DIAGNOSTICS_SECRET", "ueacd"),
+			DBPoolStatsProvider: poolDB,
+		}).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
