@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -59,12 +60,14 @@ type benchmarkTransportProfile struct {
 }
 
 type phaseReport struct {
-	Name       string         `json:"name"`
-	Operations int            `json:"operations"`
-	Errors     int64          `json:"errors"`
-	FirstError string         `json:"firstError,omitempty"`
-	RPS        float64        `json:"rps"`
-	LatencyMS  latencySummary `json:"latencyMs"`
+	Name                string          `json:"name"`
+	Operations          int             `json:"operations"`
+	Errors              int64           `json:"errors"`
+	FirstError          string          `json:"firstError,omitempty"`
+	RPS                 float64         `json:"rps"`
+	LatencyMS           latencySummary  `json:"latencyMs"`
+	ServerTimingMS      *latencySummary `json:"serverTimingMs,omitempty"`
+	ServerTimingSamples int             `json:"serverTimingSamples,omitempty"`
 }
 
 type latencySummary struct {
@@ -292,7 +295,7 @@ func warmConnectionStrategy(connectionsPerHost int) string {
 }
 
 func runCreateConversationPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) phaseReport {
-	phase, firstErr := runPhase("createConversation", config.Concurrency, config.Operations, func(_ int, opIndex int) error {
+	phase, firstErr := runPhase("createConversation", config.Concurrency, config.Operations, func(_ int, opIndex int) (operationResult, error) {
 		return createConversation(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, opIndex)
 	})
 	if firstErr != nil {
@@ -301,8 +304,20 @@ func runCreateConversationPhase(ctx context.Context, client *http.Client, baseUR
 	return phase
 }
 
-func runPhase(name string, concurrency int, operations int, workerFunc func(workerID int, opIndex int) error) (phaseReport, error) {
+type operationResult struct {
+	serverTiming    time.Duration
+	hasServerTiming bool
+}
+
+func runPhase(
+	name string,
+	concurrency int,
+	operations int,
+	workerFunc func(workerID int, opIndex int) (operationResult, error),
+) (phaseReport, error) {
 	latencies := make([]time.Duration, operations)
+	serverTimings := make([]time.Duration, operations)
+	hasServerTimings := make([]bool, operations)
 	jobs := make(chan int)
 	var errorsCount int64
 	var firstErr error
@@ -317,13 +332,18 @@ func runPhase(name string, concurrency int, operations int, workerFunc func(work
 			defer wg.Done()
 			for opIndex := range jobs {
 				opStart := time.Now()
-				if err := workerFunc(workerID, opIndex); err != nil {
+				result, err := workerFunc(workerID, opIndex)
+				if err != nil {
 					atomic.AddInt64(&errorsCount, 1)
 					firstErrMu.Lock()
 					if firstErr == nil {
 						firstErr = err
 					}
 					firstErrMu.Unlock()
+				}
+				if result.hasServerTiming {
+					serverTimings[opIndex] = result.serverTiming
+					hasServerTimings[opIndex] = true
 				}
 				latencies[opIndex] = time.Since(opStart)
 			}
@@ -335,22 +355,34 @@ func runPhase(name string, concurrency int, operations int, workerFunc func(work
 	close(jobs)
 	wg.Wait()
 
-	return buildPhaseReport(name, latencies, errorsCount, time.Since(start)), firstErr
+	return buildPhaseReport(name, latencies, observedTimings(serverTimings, hasServerTimings), errorsCount, time.Since(start)), firstErr
 }
 
-func buildPhaseReport(name string, latencies []time.Duration, errorsCount int64, duration time.Duration) phaseReport {
+func buildPhaseReport(
+	name string,
+	latencies []time.Duration,
+	serverTimings []time.Duration,
+	errorsCount int64,
+	duration time.Duration,
+) phaseReport {
 	seconds := duration.Seconds()
 	rps := 0.0
 	if seconds > 0 {
 		rps = roundFloat(float64(len(latencies)) / seconds)
 	}
-	return phaseReport{
+	report := phaseReport{
 		Name:       name,
 		Operations: len(latencies),
 		Errors:     errorsCount,
 		RPS:        rps,
 		LatencyMS:  summarizeLatencies(latencies),
 	}
+	if len(serverTimings) > 0 {
+		summary := summarizeLatencies(serverTimings)
+		report.ServerTimingMS = &summary
+		report.ServerTimingSamples = len(serverTimings)
+	}
+	return report
 }
 
 func summarizeLatencies(latencies []time.Duration) latencySummary {
@@ -423,7 +455,7 @@ func requestHealth(ctx context.Context, client *http.Client, baseURL string) err
 	return nil
 }
 
-func createConversation(ctx context.Context, client *http.Client, baseURL string, agentAPIKey string, opIndex int) error {
+func createConversation(ctx context.Context, client *http.Client, baseURL string, agentAPIKey string, opIndex int) (operationResult, error) {
 	body := map[string]any{
 		"title": fmt.Sprintf("bench conversation %d", opIndex),
 		"settings": map[string]any{
@@ -434,14 +466,14 @@ func createConversation(ctx context.Context, client *http.Client, baseURL string
 	return doJSON(ctx, client, http.MethodPost, baseURL+"/v1/research/conversations", agentAPIKey, body, http.StatusCreated)
 }
 
-func doJSON(ctx context.Context, client *http.Client, method string, endpoint string, agentAPIKey string, payload any, expectedStatus int) error {
+func doJSON(ctx context.Context, client *http.Client, method string, endpoint string, agentAPIKey string, payload any, expectedStatus int) (operationResult, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return operationResult{}, err
 	}
 	request, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(data))
 	if err != nil {
-		return err
+		return operationResult{}, err
 	}
 	request.Header.Set("Content-Type", "application/json")
 	if agentAPIKey != "" {
@@ -449,15 +481,27 @@ func doJSON(ctx context.Context, client *http.Client, method string, endpoint st
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return err
+		return operationResult{}, err
 	}
 	defer response.Body.Close()
+	result := operationResultFromResponse(response)
 	if response.StatusCode != expectedStatus {
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 2048))
-		return fmt.Errorf("%s %s status = %d body = %s", method, endpoint, response.StatusCode, string(body))
+		return result, fmt.Errorf("%s %s status = %d body = %s", method, endpoint, response.StatusCode, string(body))
 	}
 	_, _ = io.Copy(io.Discard, response.Body)
-	return nil
+	return result, nil
+}
+
+func operationResultFromResponse(response *http.Response) operationResult {
+	duration, ok := parseServerTimingDuration(response.Header.Get("Server-Timing"))
+	if !ok {
+		return operationResult{}
+	}
+	return operationResult{
+		serverTiming:    duration,
+		hasServerTiming: true,
+	}
 }
 
 func parseBaseURLs(value string) ([]string, error) {
@@ -501,6 +545,37 @@ func reportStatus(errorsCount int64) string {
 		return "PASSED"
 	}
 	return "FAILED"
+}
+
+func observedTimings(values []time.Duration, observed []bool) []time.Duration {
+	timings := make([]time.Duration, 0, len(values))
+	for index, value := range values {
+		if index < len(observed) && observed[index] {
+			timings = append(timings, value)
+		}
+	}
+	return timings
+}
+
+func parseServerTimingDuration(value string) (time.Duration, bool) {
+	for _, metric := range strings.Split(value, ",") {
+		parts := strings.Split(metric, ";")
+		if len(parts) < 2 || strings.TrimSpace(parts[0]) != "app" {
+			continue
+		}
+		for _, attribute := range parts[1:] {
+			attribute = strings.TrimSpace(attribute)
+			if !strings.HasPrefix(attribute, "dur=") {
+				continue
+			}
+			durationMS, err := strconv.ParseFloat(strings.TrimPrefix(attribute, "dur="), 64)
+			if err != nil {
+				return 0, false
+			}
+			return time.Duration(durationMS * float64(time.Millisecond)), true
+		}
+	}
+	return 0, false
 }
 
 func maskURL(value string) string {

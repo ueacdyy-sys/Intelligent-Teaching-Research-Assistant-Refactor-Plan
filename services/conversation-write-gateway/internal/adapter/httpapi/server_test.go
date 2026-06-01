@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,9 @@ func TestCreateConversationReturnsCreatedResponse(t *testing.T) {
 
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if timing := response.Header().Get("Server-Timing"); !strings.HasPrefix(timing, "app;dur=") {
+		t.Fatalf("Server-Timing = %q, want app duration", timing)
 	}
 
 	var body map[string]any

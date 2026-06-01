@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"ita-refactor/services/conversation-write-gateway/internal/domain"
@@ -81,10 +82,12 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	start := time.Now()
 	conversation, err := s.createConversation.Execute(r.Context(), domain.CreateConversationInput{
 		Title:    request.Title,
 		Settings: settings,
 	})
+	writeServerTiming(w, time.Since(start))
 	if errors.Is(err, domain.ErrInvalidTitle) {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error())
 		return
@@ -130,6 +133,10 @@ func toResponse(conversation domain.Conversation) conversationResponse {
 
 func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func writeServerTiming(w http.ResponseWriter, duration time.Duration) {
+	w.Header().Set("Server-Timing", "app;dur="+strconv.FormatFloat(float64(duration)/float64(time.Millisecond), 'f', 3, 64))
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

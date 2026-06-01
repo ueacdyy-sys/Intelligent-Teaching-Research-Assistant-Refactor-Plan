@@ -28,12 +28,43 @@ func TestBuildPhaseReport(t *testing.T) {
 	phase := buildPhaseReport(
 		"createConversation",
 		[]time.Duration{10 * time.Millisecond, 10 * time.Millisecond},
+		nil,
 		0,
 		200*time.Millisecond,
 	)
 
 	if phase.Name != "createConversation" || phase.Operations != 2 || phase.Errors != 0 || phase.RPS != 10 {
 		t.Fatalf("phase = %#v", phase)
+	}
+}
+
+func TestBuildPhaseReportIncludesServerTimingSummary(t *testing.T) {
+	phase := buildPhaseReport(
+		"createConversation",
+		[]time.Duration{20 * time.Millisecond, 30 * time.Millisecond},
+		[]time.Duration{4 * time.Millisecond, 6 * time.Millisecond},
+		0,
+		100*time.Millisecond,
+	)
+
+	if phase.ServerTimingMS == nil {
+		t.Fatal("ServerTimingMS is nil")
+	}
+	if phase.ServerTimingMS.P95MS != 6 {
+		t.Fatalf("ServerTimingMS.P95MS = %v want 6", phase.ServerTimingMS.P95MS)
+	}
+	if phase.ServerTimingSamples != 2 {
+		t.Fatalf("ServerTimingSamples = %d want 2", phase.ServerTimingSamples)
+	}
+}
+
+func TestParseServerTimingDuration(t *testing.T) {
+	got, ok := parseServerTimingDuration(`db;dur=7.2, app;dur=12.34`)
+	if !ok {
+		t.Fatal("parseServerTimingDuration() ok = false")
+	}
+	if got != 12340*time.Microsecond {
+		t.Fatalf("duration = %s want 12.34ms", got)
 	}
 }
 
