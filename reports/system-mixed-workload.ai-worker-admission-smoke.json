@@ -1,0 +1,145 @@
+{
+  "generatedAt": "2026-06-01T10:09:24.414Z",
+  "readiness": "READY",
+  "admission": {
+    "schemaVersion": "2026-05-30.ai-worker.admission.v1",
+    "generatedAt": "2026-06-01T10:09:24.411Z",
+    "sourcePolicyVersion": "2026-05-30.knowledge.access-policy.v1",
+    "decision": "ALLOW_DISPATCH",
+    "admissions": [
+      {
+        "jobId": "ai_worker_job_public_rag_cloud_001",
+        "nodeType": "CLOUD",
+        "capabilityKind": "RAG_RETRIEVAL",
+        "decision": "ALLOW_DISPATCH",
+        "reasons": [
+          "allowed by knowledge access policy"
+        ],
+        "sourcePolicyVersion": "2026-05-30.knowledge.access-policy.v1",
+        "dataAccess": {
+          "sourceLocation": "PUBLIC_KNOWLEDGE",
+          "classification": "PUBLIC",
+          "ownership": "LOCAL_MACHINE"
+        }
+      },
+      {
+        "jobId": "ai_worker_job_private_rag_local_001",
+        "nodeType": "LOCAL",
+        "capabilityKind": "RAG_RETRIEVAL",
+        "decision": "ALLOW_DISPATCH",
+        "reasons": [
+          "allowed by knowledge access policy"
+        ],
+        "sourcePolicyVersion": "2026-05-30.knowledge.access-policy.v1",
+        "dataAccess": {
+          "sourceLocation": "LOCAL_PRIVATE_KNOWLEDGE",
+          "classification": "PRIVATE",
+          "ownership": "LOCAL_MACHINE"
+        }
+      },
+      {
+        "jobId": "ai_worker_job_student_ocr_local_001",
+        "nodeType": "LOCAL",
+        "capabilityKind": "OCR_RECOGNITION",
+        "decision": "ALLOW_DISPATCH",
+        "reasons": [
+          "allowed by knowledge access policy"
+        ],
+        "sourcePolicyVersion": "2026-05-30.knowledge.access-policy.v1",
+        "dataAccess": {
+          "sourceLocation": "LOCAL_STUDENT_ARCHIVE",
+          "classification": "STUDENT_ARCHIVE",
+          "ownership": "LOCAL_MACHINE"
+        }
+      },
+      {
+        "jobId": "ai_worker_job_private_finetune_local_001",
+        "nodeType": "LOCAL",
+        "capabilityKind": "FINE_TUNING",
+        "decision": "ALLOW_DISPATCH",
+        "reasons": [
+          "allowed by knowledge access policy"
+        ],
+        "sourcePolicyVersion": "2026-05-30.knowledge.access-policy.v1",
+        "dataAccess": {
+          "sourceLocation": "LOCAL_PRIVATE_KNOWLEDGE",
+          "classification": "PRIVATE",
+          "ownership": "LOCAL_MACHINE"
+        }
+      },
+      {
+        "jobId": "ai_worker_job_remote_owned_rag_001",
+        "nodeType": "REMOTE_DEVICE",
+        "capabilityKind": "RAG_RETRIEVAL",
+        "decision": "ALLOW_DISPATCH",
+        "reasons": [
+          "allowed by knowledge access policy"
+        ],
+        "sourcePolicyVersion": "2026-05-30.knowledge.access-policy.v1",
+        "dataAccess": {
+          "sourceLocation": "REMOTE_DEVICE_OWNED_KNOWLEDGE",
+          "classification": "REMOTE_DEVICE_OWNED",
+          "ownership": "REMOTE_DEVICE_OWNED"
+        }
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "admission.current_jobs_allowed",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_public_rag_cloud_001:ALLOW_DISPATCH;ai_worker_job_private_rag_local_001:ALLOW_DISPATCH;ai_worker_job_student_ocr_local_001:ALLOW_DISPATCH;ai_worker_job_private_finetune_local_001:ALLOW_DISPATCH;ai_worker_job_remote_owned_rag_001:ALLOW_DISPATCH",
+      "expected": "all current AI worker job examples ALLOW_DISPATCH",
+      "remediation": "Current worker examples must be admissible before later queue dispatch work can rely on them."
+    },
+    {
+      "id": "admission.identity_preserved",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_public_rag_cloud_001:CLOUD:RAG_RETRIEVAL;ai_worker_job_private_rag_local_001:LOCAL:RAG_RETRIEVAL;ai_worker_job_student_ocr_local_001:LOCAL:OCR_RECOGNITION;ai_worker_job_private_finetune_local_001:LOCAL:FINE_TUNING;ai_worker_job_remote_owned_rag_001:REMOTE_DEVICE:RAG_RETRIEVAL",
+      "expected": "jobId,nodeType,capabilityKind preserved in every admission",
+      "remediation": "Admission decisions must retain enough identity for audit and queue dispatch logs."
+    },
+    {
+      "id": "admission.policy_version_preserved",
+      "passed": true,
+      "severity": "info",
+      "actual": "2026-05-30.knowledge.access-policy.v1",
+      "expected": "2026-05-30.knowledge.access-policy.v1",
+      "remediation": "Admission decisions must record the source knowledge policy version."
+    },
+    {
+      "id": "admission.no_baseline_runtime_dependency",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_public_rag_cloud_001:baseline=false;ai_worker_job_private_rag_local_001:baseline=false;ai_worker_job_student_ocr_local_001:baseline=false;ai_worker_job_private_finetune_local_001:baseline=false;ai_worker_job_remote_owned_rag_001:baseline=false",
+      "expected": "baselineRuntimeDependencyAllowed=false for every job",
+      "remediation": "OCR, RAG, model, and training packages must stay outside the baseline runtime."
+    },
+    {
+      "id": "admission.no_direct_db_write",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_public_rag_cloud_001:directDb=false;ai_worker_job_private_rag_local_001:directDb=false;ai_worker_job_student_ocr_local_001:directDb=false;ai_worker_job_private_finetune_local_001:directDb=false;ai_worker_job_remote_owned_rag_001:directDb=false",
+      "expected": "directMainDatabaseWriteAllowed=false for every job",
+      "remediation": "Workers must return artifacts through the boundary instead of writing directly to the main database."
+    },
+    {
+      "id": "admission.cloud_public_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_public_rag_cloud_001:PUBLIC_KNOWLEDGE:student=NONE",
+      "expected": "CLOUD jobs use PUBLIC_KNOWLEDGE with studentDataScope=NONE",
+      "remediation": "Cloud jobs must not receive private knowledge or student archive data."
+    },
+    {
+      "id": "admission.remote_device_owned_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "ai_worker_job_remote_owned_rag_001:REMOTE_DEVICE_OWNED_KNOWLEDGE:student=NONE",
+      "expected": "REMOTE_DEVICE jobs use REMOTE_DEVICE_OWNED_KNOWLEDGE only",
+      "remediation": "Remote-device jobs may use their own knowledge, not this machine's local knowledge stores."
+    }
+  ]
+}

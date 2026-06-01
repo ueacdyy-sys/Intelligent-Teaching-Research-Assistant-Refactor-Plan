@@ -1,0 +1,333 @@
+{
+  "generatedAt": "2026-06-01T15:56:25.738Z",
+  "readiness": "READY",
+  "workloadType": "CROSS_MODULE_DATABASE_AND_QUEUE_DIAGNOSTICS",
+  "databaseTopology": {
+    "postgres": {
+      "present": true,
+      "maxConnections": 300,
+      "sharedBuffers": "1GB"
+    },
+    "pgbouncer": {
+      "present": true,
+      "poolMode": "transaction",
+      "listenPort": 6432,
+      "maxDbConnections": 90
+    },
+    "backend": {
+      "postgresHost": "pgbouncer-perf",
+      "postgresPort": 6432,
+      "workerCount": null,
+      "dbPoolSize": 2,
+      "dbMaxOverflow": 0,
+      "dependsOnPgbouncer": true
+    },
+    "connectionBudget": {
+      "passed": true,
+      "totalPlannedConnections": 96,
+      "safeLimit": 190,
+      "hardLimit": 280,
+      "services": [
+        {
+          "name": "legacy-fastapi-backend-via-pgbouncer",
+          "instances": 1,
+          "workers": 24,
+          "poolConnections": 2,
+          "plannedConnections": 48
+        },
+        {
+          "name": "conversation-write-gateway-via-pgbouncer",
+          "instances": 1,
+          "workers": 1,
+          "poolConnections": 16,
+          "plannedConnections": 16
+        },
+        {
+          "name": "identity-access-gateway-via-pgbouncer",
+          "instances": 1,
+          "workers": 1,
+          "poolConnections": 16,
+          "plannedConnections": 16
+        },
+        {
+          "name": "teaching-archive-gateway-via-pgbouncer",
+          "instances": 1,
+          "workers": 1,
+          "poolConnections": 16,
+          "plannedConnections": 16
+        }
+      ]
+    },
+    "hotPathPool": {
+      "identityMaxConns": 72,
+      "conversationMaxConns": 16,
+      "teachingArchiveMaxConns": 1,
+      "totalMaxConns": 89,
+      "pgbouncerHeadroom": 1,
+      "interpretation": "Current source-evidence module peaks fit PgBouncer with very little headroom; root SLO review must choose a single production pool profile before claiming ultra-concurrency."
+    }
+  },
+  "moduleDiagnostics": [
+    {
+      "id": "identity_and_access",
+      "classification": "MODULE_CAPACITY_ONLY",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json",
+      "status": "PASSED",
+      "database": {
+        "required": true,
+        "mode": "POSTGRES_VIA_PGBOUNCER",
+        "workerCount": 6,
+        "maxConnectionsTotal": 72,
+        "sessionTablePersistence": "unlogged"
+      },
+      "queueOrWorkerBoundary": {
+        "mode": "SYNCHRONOUS_HTTP_MULTI_GATEWAY",
+        "workerCount": 6
+      },
+      "metrics": {
+        "concurrency": 4400,
+        "errors": 0,
+        "slowestP99Ms": 3071.17,
+        "slowestP99Phase": "revokeCycle",
+        "revokeCycleSlowestStep": "login",
+        "revokeCycleSlowestStepP99Ms": 1498.29,
+        "revokeCycleStepP99SumMs": 3502.89,
+        "revokeCycleP99ResidualMs": -431.72
+      }
+    },
+    {
+      "id": "research_conversation_write",
+      "classification": "MODULE_CAPACITY_AND_TRANSPORT_DECISION",
+      "sourceReportPath": "reports/conversation-write-http-benchmark.direct16-concurrency5800-multi16-pool1-client-unlimited-batched64-delay0.json",
+      "status": "PASSED",
+      "database": {
+        "required": true,
+        "mode": "POSTGRES_VIA_PGBOUNCER",
+        "workerCount": 16,
+        "maxConnectionsTotal": 16
+      },
+      "queueOrWorkerBoundary": {
+        "mode": "IN_PROCESS_BATCHED_WRITE_QUEUE",
+        "batchingEnabled": true,
+        "batchSize": 64,
+        "batchDelayMs": 0
+      },
+      "metrics": {
+        "lowTailConcurrency": 5800,
+        "lowTailP99Ms": 349.9,
+        "dbAcquireP99Ms": 0,
+        "burstConcurrency": 30000,
+        "burstP99Ms": 1795.33,
+        "burstDbAcquireP99Ms": 0,
+        "runtimeRecommendation": "USE_WSL_LOADGEN_FOR_HIGH_CONCURRENCY_EDGE"
+      }
+    },
+    {
+      "id": "teaching_archive_and_quiz",
+      "classification": "MODULE_SMOKE_ONLY",
+      "sourceReportPath": "reports/teaching-archive-benchmark.current.json",
+      "status": "PASSED",
+      "database": {
+        "required": true,
+        "mode": "POSTGRES_VIA_PGBOUNCER",
+        "workerCount": 1,
+        "maxConnectionsTotal": 1
+      },
+      "queueOrWorkerBoundary": {
+        "mode": "HTTP_WORKFLOW_PLUS_OPTIONAL_AI_WORKER_CLAIMS",
+        "workerClaimsCoveredByContracts": true
+      },
+      "metrics": {
+        "concurrency": 2,
+        "errors": 0,
+        "slowestP99Ms": 35,
+        "slowestP99Phase": "createArchiveItem"
+      }
+    },
+    {
+      "id": "knowledge_retrieval",
+      "classification": "POLICY_SMOKE_ONLY",
+      "sourceReportPath": "reports/knowledge-retrieval-benchmark.current.json",
+      "status": "READY",
+      "database": {
+        "required": false,
+        "mode": "POLICY_CORPUS_NO_POSTGRES_RUNTIME_IN_CURRENT_EVIDENCE",
+        "maxConnectionsTotal": 0
+      },
+      "queueOrWorkerBoundary": {
+        "mode": "HYBRID_QUERY_PLAN",
+        "workloadCount": 4
+      },
+      "metrics": {
+        "p95QueryPlanMs": 2.55,
+        "totalPlans": 256
+      }
+    },
+    {
+      "id": "ai_worker_optional_runtime",
+      "classification": "WORKER_BOUNDARY_ONLY",
+      "sourceReportPath": "reports/ai-worker-job-admission.current.json",
+      "status": "READY",
+      "database": {
+        "required": false,
+        "mode": "NO_DIRECT_MAIN_DATABASE_WRITE",
+        "maxConnectionsTotal": 0
+      },
+      "queueOrWorkerBoundary": {
+        "mode": "ADMISSION_TO_ISOLATED_PYTHON_WORKER",
+        "dispatchDecision": "ALLOW_DISPATCH"
+      },
+      "metrics": {
+        "allowedDispatchExamples": 5,
+        "noDirectDbWrite": true
+      }
+    },
+    {
+      "id": "agent_harness_and_workflow_plugin",
+      "classification": "REVIEW_ONLY_QUEUE_BOUNDARY",
+      "sourceReportPath": "reports/agent-harness-flow.current.json",
+      "status": "READY",
+      "database": {
+        "required": false,
+        "mode": "JSONL_AND_REGISTRY_CONTRACTS",
+        "maxConnectionsTotal": 0
+      },
+      "queueOrWorkerBoundary": {
+        "mode": "APPROVAL_QUEUE_AND_SANDBOXED_WORKFLOW_REGISTRY",
+        "approvalQueueExecutionCandidates": 0,
+        "registryDecision": "ALLOW_SAVE"
+      },
+      "metrics": {
+        "approvalExecutionReadyFalse": true,
+        "workflowSandboxNoHostWrite": true,
+        "workflowRegistryAllowsSave": true
+      }
+    }
+  ],
+  "queueAndWorkerDiagnostics": [
+    {
+      "id": "conversation_batched_write_queue",
+      "status": "READY",
+      "summary": "batchSize=64 delayMs=0",
+      "sourceReportPath": "reports/conversation-write-http-benchmark.direct16-concurrency5800-multi16-pool1-client-unlimited-batched64-delay0.json"
+    },
+    {
+      "id": "ai_worker_dispatch_boundary",
+      "status": "READY",
+      "summary": "worker jobs dispatch through admission and cannot write directly to the main database",
+      "sourceReportPath": "reports/ai-worker-job-admission.current.json"
+    },
+    {
+      "id": "agent_harness_approval_queue",
+      "status": "READY",
+      "summary": "approval queue is review-only and exposes zero execution candidates",
+      "sourceReportPath": "reports/agent-harness-flow.current.json"
+    },
+    {
+      "id": "workflow_plugin_sandbox_registry",
+      "status": "READY",
+      "summary": "generated workflow/plugin artifacts require sandbox, approval, and registry admission",
+      "sourceReportPath": "reports/workflow-plugin-flow.current.json"
+    }
+  ],
+  "mixedWorkloadDiagnostics": {
+    "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+    "status": "PASSED",
+    "highestPassedStep": "low",
+    "totalErrors": 0,
+    "orchestrationErrors": 0,
+    "maxP99Ms": 42,
+    "maxP99DriftMs": 10,
+    "workloadNames": [
+      "ai_worker_admission",
+      "conversation_write",
+      "identity_http",
+      "knowledge_retrieval",
+      "teaching_archive"
+    ],
+    "workloadNamesComplete": true
+  },
+  "findings": [
+    {
+      "id": "sources.required_json_parseable",
+      "passed": true,
+      "severity": "info",
+      "actual": "contracts/config/connection-budget.proposed-pgbouncer-transaction.json:json;reports/pgbouncer-perf-profile.current.json:json;reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json:json;reports/conversation-write-http-benchmark.direct16-concurrency5800-multi16-pool1-client-unlimited-batched64-delay0.json:json;reports/conversation-write-http-benchmark.wsl-direct16-concurrency30000-batched64.json:json;reports/conversation-loadgen-runtime-decision.current.json:json;reports/teaching-archive-benchmark.current.json:json;reports/knowledge-retrieval-benchmark.current.json:json;reports/ai-worker-job.current.json:json;reports/ai-worker-job-admission.current.json:json;reports/agent-harness-flow.current.json:json;reports/workflow-plugin-flow.current.json:json;reports/workflow-plugin-registry-admission.current.json:json;reports/system-sustained-mixed-workload-scaleup.current.json:json;reports/root-workflow-coverage.current.json:json;reports/quality-gate.current.json:json",
+      "expected": "all cross-module diagnostic source files are readable JSON",
+      "remediation": "Regenerate the missing report or restore the required config before diagnosing cross-module DB and queue capacity."
+    },
+    {
+      "id": "database.foundation_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "postgres=true:300;pgbouncer=true:transaction:90;profile=READY",
+      "expected": "PostgreSQL max_connections>=300 and PgBouncer transaction profile READY",
+      "remediation": "Fix the PgBouncer performance profile before using mixed workload evidence for capacity review."
+    },
+    {
+      "id": "database.connection_budget_passed",
+      "passed": true,
+      "severity": "info",
+      "actual": "planned=96;safe=190",
+      "expected": "planned cross-service connections stay within the PostgreSQL safe budget",
+      "remediation": "Reduce worker pool sizes or adjust the explicit PostgreSQL capacity profile before capacity promotion."
+    },
+    {
+      "id": "database.hot_path_pool_within_pgbouncer_cap",
+      "passed": true,
+      "severity": "info",
+      "actual": "hotPath=89;pgbouncerMaxDb=90;headroom=1",
+      "expected": "identity + conversation + teaching current source-evidence pools fit within PgBouncer max_db_connections",
+      "remediation": "Do not sum module peak profiles into one production SLO until the PgBouncer server pool has explicit headroom."
+    },
+    {
+      "id": "database.module_profiles_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "identity_and_access:72;research_conversation_write:16;teaching_archive_and_quiz:1;knowledge_retrieval:POLICY_CORPUS_NO_POSTGRES_RUNTIME_IN_CURRENT_EVIDENCE;ai_worker_optional_runtime:NO_DIRECT_MAIN_DATABASE_WRITE;agent_harness_and_workflow_plugin:JSONL_AND_REGISTRY_CONTRACTS",
+      "expected": "every database-backed root module records an explicit database pool profile",
+      "remediation": "Regenerate the module benchmark report with gatewayDatabaseProfile evidence."
+    },
+    {
+      "id": "database.conversation_acquire_not_current_bottleneck",
+      "passed": true,
+      "severity": "info",
+      "actual": "lowTail=0;burst=0",
+      "expected": "conversation db.acquire P99 stays <=10ms in low-tail and WSL burst source evidence",
+      "remediation": "If database acquisition rises, investigate PgBouncer wait time before tuning transport or worker fanout."
+    },
+    {
+      "id": "queues.worker_boundaries_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "conversation_batched_write_queue:READY;ai_worker_dispatch_boundary:READY;agent_harness_approval_queue:READY;workflow_plugin_sandbox_registry:READY",
+      "expected": "batch, AI worker, approval, and workflow/plugin queues have explicit safe boundaries",
+      "remediation": "Restore the worker admission, approval queue, or sandbox/registry guard before capacity promotion."
+    },
+    {
+      "id": "performance.mixed_scaleup_clean",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=PASSED;errors=0;orchestration=0;workloads=ai_worker_admission,conversation_write,identity_http,knowledge_retrieval,teaching_archive",
+      "expected": "sustained scale-up passed with zero workload/orchestration errors and every root slice present",
+      "remediation": "Rerun the sustained mixed workload scale-up before using these diagnostics."
+    },
+    {
+      "id": "root_workflow.coverage_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "readiness=READY;covered=8/8",
+      "expected": "root workflow coverage READY with all workflows covered",
+      "remediation": "Keep diagnostics tied to the immutable root workflows, not isolated benchmark vanity numbers."
+    },
+    {
+      "id": "quality.gate_passed",
+      "passed": true,
+      "severity": "info",
+      "actual": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
+      "expected": "quality gate allPassed=true",
+      "remediation": "Cross-module diagnostics must not promote evidence from a failing quality gate."
+    }
+  ],
+  "nextAction": "Cross-module DB and queue diagnostics are ready; root SLO promotion review is still required before any full-system ultra-concurrency claim."
+}

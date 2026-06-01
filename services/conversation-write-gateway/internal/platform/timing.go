@@ -6,8 +6,9 @@ import (
 )
 
 type ConversationTiming struct {
-	DBAcquire time.Duration
-	DBInsert  time.Duration
+	DBBatchWait time.Duration
+	DBAcquire   time.Duration
+	DBInsert    time.Duration
 }
 
 type conversationTimingContextKey struct{}

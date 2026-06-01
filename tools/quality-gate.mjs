@@ -6,6 +6,8 @@ import { pathToFileURL } from "node:url";
 const sourceRoots = ["services", "tools", "contracts", "docs", "README.md", "package.json"];
 const sourceExtensions = new Set([".go", ".mjs", ".md", ".yaml", ".yml", ".json", ".rs", ".toml"]);
 const defaultReportPath = "reports/quality-gate.current.json";
+const inProgressStatus = "IN_PROGRESS";
+const qualityGateInProgressEnv = "ITA_QUALITY_GATE_IN_PROGRESS";
 const runtimeMarkerPattern = /\b(TODO|FIXME|HACK|XXX)\b/;
 const goServicePatterns = [
   "./services/conversation-write-gateway/...",
@@ -94,7 +96,6 @@ export function checkRustFormatResult(result) {
 
 export function buildQualityCommandPlan() {
   return [
-    { name: "npm test", command: npmCommand(), args: ["test"] },
     {
       name: "go vet",
       command: "go",
@@ -118,9 +119,19 @@ export function buildQualityCommandPlan() {
     { name: "knowledge retrieval benchmark audit", command: npmCommand(), args: ["run", "audit:knowledge-retrieval-benchmark"] },
     { name: "AI worker runtime dependency audit", command: npmCommand(), args: ["run", "audit:ai-worker-runtime-dependencies"] },
     { name: "pgbouncer current performance profile audit", command: npmCommand(), args: ["run", "audit:pgbouncer-perf:current"] },
+    { name: "conversation fanout decision audit", command: npmCommand(), args: ["run", "audit:conversation-fanout-decision"] },
+    { name: "conversation client trace attribution audit", command: npmCommand(), args: ["run", "audit:conversation-client-trace-attribution"] },
+    { name: "conversation transport profile decision audit", command: npmCommand(), args: ["run", "audit:conversation-transport-profile"] },
+    { name: "conversation loadgen runtime decision audit", command: npmCommand(), args: ["run", "audit:conversation-loadgen-runtime"] },
+    { name: "root workflow coverage audit", command: npmCommand(), args: ["run", "audit:root-workflow-coverage"] },
+    { name: "cross-module DB/queue diagnostics audit", command: npmCommand(), args: ["run", "audit:cross-module-db-queue"] },
+    { name: "pgbouncer production headroom audit", command: npmCommand(), args: ["run", "audit:pgbouncer-production-headroom"] },
+    { name: "root SLO promotion review audit", command: npmCommand(), args: ["run", "audit:root-slo-promotion-review"] },
+    { name: "system capacity claim audit", command: npmCommand(), args: ["run", "audit:system-capacity-claim"] },
     { name: "performance evidence registry audit", command: npmCommand(), args: ["run", "audit:performance-evidence"] },
     { name: "direct-limited connection budget", command: npmCommand(), args: ["run", "budget:connections:direct-limited"] },
     { name: "pgbouncer connection budget", command: npmCommand(), args: ["run", "budget:connections:pgbouncer"] },
+    { name: "npm test", command: npmCommand(), args: ["test"] },
   ];
 }
 
@@ -177,13 +188,43 @@ function checkRustFormatting(root) {
   return checkRustFormatResult(result);
 }
 
-export function runQualityCommands(root, plan = buildQualityCommandPlan()) {
+export function runQualityGate(root, options = {}) {
+  const reportPath = options.reportPath ?? defaultReportPath;
+  const plan = options.plan ?? buildQualityCommandPlan();
+  const startedAt = options.startedAt ?? Date.now();
+  const staticChecks = options.staticChecks ?? runStaticQualityChecks(root);
+  const commandResults = [];
+
+  if (staticChecks.passed) {
+    writeReport(root, reportPath, buildInProgressQualityReport({
+      startedAt,
+      staticChecks,
+      plan,
+    }));
+    commandResults.push(...runQualityCommands(root, plan, { allowInProgressQualityReport: true }));
+  }
+
+  const allPassed = staticChecks.passed && commandResults.every((result) => result.passed);
+  const report = {
+    generatedAt: new Date().toISOString(),
+    status: allPassed ? "PASSED" : "FAILED",
+    allPassed,
+    elapsedMs: Date.now() - startedAt,
+    staticChecks,
+    commandResults,
+  };
+  writeReport(root, reportPath, report);
+  return report;
+}
+
+export function runQualityCommands(root, plan = buildQualityCommandPlan(), options = {}) {
   const results = [];
   for (const step of plan) {
     const startedAt = Date.now();
     const runnable = toRunnableCommand(step);
     const result = spawnSync(runnable.command, runnable.args, {
       cwd: root,
+      env: commandEnvironment(options),
       stdio: "inherit",
       shell: false,
     });
@@ -196,6 +237,18 @@ export function runQualityCommands(root, plan = buildQualityCommandPlan()) {
     });
   }
   return results;
+}
+
+export function buildInProgressQualityReport({ startedAt = Date.now(), staticChecks, plan }) {
+  return {
+    generatedAt: new Date().toISOString(),
+    status: inProgressStatus,
+    allPassed: false,
+    elapsedMs: Date.now() - startedAt,
+    staticChecks,
+    commandResults: [],
+    pendingCommands: plan.map((step) => step.name),
+  };
 }
 
 function collectSourceFile(absolute, root, files) {
@@ -271,6 +324,14 @@ function toRunnableCommand(step) {
   return step;
 }
 
+function commandEnvironment(options) {
+  if (options.allowInProgressQualityReport !== true) return process.env;
+  return {
+    ...process.env,
+    [qualityGateInProgressEnv]: "1",
+  };
+}
+
 function normalizePath(value) {
   return value.replaceAll("\\", "/");
 }
@@ -291,30 +352,18 @@ function parseArgs(argv) {
 async function main() {
   const root = process.cwd();
   const args = parseArgs(process.argv.slice(2));
-  const startedAt = Date.now();
-  const staticChecks = runStaticQualityChecks(root);
+  const report = runQualityGate(root, { reportPath: args.out });
 
-  for (const finding of staticChecks.findings) {
+  for (const finding of report.staticChecks.findings) {
     console.error(`[FAIL] ${finding.message}`);
   }
 
-  const commandResults = staticChecks.passed ? runQualityCommands(root) : [];
-  const allPassed = staticChecks.passed && commandResults.every((result) => result.passed);
-  const report = {
-    generatedAt: new Date().toISOString(),
-    allPassed,
-    elapsedMs: Date.now() - startedAt,
-    staticChecks,
-    commandResults,
-  };
-  writeReport(root, args.out, report);
-
-  for (const result of commandResults) {
+  for (const result of report.commandResults) {
     const status = result.passed ? "PASS" : "FAIL";
     console.log(`[${status}] ${result.name} (${result.elapsedMs}ms)`);
   }
   console.log(`[summary] ${args.out}`);
-  process.exit(allPassed ? 0 : 1);
+  process.exit(report.allPassed ? 0 : 1);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

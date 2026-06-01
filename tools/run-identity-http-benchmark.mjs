@@ -7,6 +7,10 @@ import {
   collectPgbouncerDiagnostics,
   parsePsqlUnalignedRows,
 } from "./identity-pgbouncer-diagnostics.mjs";
+import {
+  collectGatewayDatabaseDiagnostics,
+  identityInternalDiagnosticsSecretValue,
+} from "./identity-gateway-diagnostics.mjs";
 import { addGatewayWriteLimiterSummary } from "./identity-gateway-diagnostics-summary.mjs";
 import {
   applyPostgresDiagnosticsArg,
@@ -16,7 +20,12 @@ import {
 } from "./identity-postgres-diagnostics.mjs";
 import { addSessionPersistenceToDatabaseProfile, applySessionTablePersistenceArg, defaultSessionTablePersistence, gatewaySessionPersistenceEnv } from "./identity-http-benchmark-session-profile.mjs";
 
-export { collectPgbouncerDiagnostics, collectPostgresDiagnostics, parsePsqlUnalignedRows };
+export {
+  collectGatewayDatabaseDiagnostics,
+  collectPgbouncerDiagnostics,
+  collectPostgresDiagnostics,
+  parsePsqlUnalignedRows,
+};
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -52,9 +61,6 @@ export const defaults = {
 
 const phaseNames = ["passwordLogin", "principalLookup", "refreshRotation", "revokeCycle"];
 const localSecretValues = ["ueacd"];
-const gatewayDiagnosticsPath = "/internal/identity/session-db-pool";
-const internalDiagnosticsSecretHeader = "X-Internal-Diagnostics-Secret";
-const internalDiagnosticsSecretValue = "ueacd";
 
 export function parseArgs(argv) {
   const parsed = { ...defaults };
@@ -198,49 +204,6 @@ export function validateRuntimePortPlan(options) {
 export function writeJsonReport(outPath, report) {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
-}
-
-export async function collectGatewayDatabaseDiagnostics(baseUrls, dependencies = {}) {
-  const fetchFn = dependencies.fetch ?? fetch;
-  const now = dependencies.now ?? (() => new Date().toISOString());
-  const gateways = [];
-  for (const baseUrl of baseUrls) {
-    const trimmedBaseUrl = trimURL(baseUrl);
-    try {
-      const response = await fetchFn(`${trimmedBaseUrl}${gatewayDiagnosticsPath}`, {
-        headers: {
-          [internalDiagnosticsSecretHeader]: internalDiagnosticsSecretValue,
-        },
-      });
-      if (!response.ok) {
-        gateways.push({
-          baseUrl: maskURL(trimmedBaseUrl),
-          status: "UNAVAILABLE",
-          httpStatus: response.status,
-        });
-        continue;
-      }
-      const body = await response.json();
-      gateways.push({
-        baseUrl: maskURL(trimmedBaseUrl),
-        status: "OK",
-        httpStatus: response.status,
-        stats: body.stats ?? null,
-      });
-    } catch (error) {
-      gateways.push({
-        baseUrl: maskURL(trimmedBaseUrl),
-        status: "ERROR",
-        errorMessage: maskSensitive(error instanceof Error ? error.message : String(error)),
-      });
-    }
-  }
-  return {
-    endpoint: gatewayDiagnosticsPath,
-    secretHeader: internalDiagnosticsSecretHeader,
-    sampledAt: now(),
-    gateways,
-  };
 }
 
 export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dependencies = {}) {
@@ -450,7 +413,7 @@ function spawnGateway(baseUrl, options, spawnProcess) {
         ...gatewaySessionPersistenceEnv(options),
         BOOTSTRAP_PASSWORD: "ueacd",
         CHANNEL_SIGNATURE_SECRET: "ueacd",
-        INTERNAL_DIAGNOSTICS_SECRET: "ueacd",
+        INTERNAL_DIAGNOSTICS_SECRET: identityInternalDiagnosticsSecretValue,
       },
     },
   );
@@ -664,6 +627,10 @@ export function buildBenchmarkCommand(options, baseUrls) {
     options.timeout,
     "-base-url",
     benchmarkTargetBaseUrls(options, baseUrls).join(","),
+    "-gateway-diagnostics-base-url",
+    gatewayDiagnosticsTargetBaseUrls(options).join(","),
+    "-gateway-diagnostics-secret",
+    identityInternalDiagnosticsSecretValue,
     "-out",
     options.out,
     "-concurrency",
@@ -731,6 +698,10 @@ function benchmarkBaseUrls(options) {
 function benchmarkTargetBaseUrls(options, baseUrls) {
   if (!dockerBenchmarkRuntime(options)) return baseUrls.map(trimURL);
   return baseUrls.map((baseUrl) => dockerReachableBaseUrl(baseUrl, options.benchmarkDockerHost));
+}
+
+function gatewayDiagnosticsTargetBaseUrls(options) {
+  return benchmarkTargetBaseUrls(options, gatewayBaseUrls(options));
 }
 
 function dockerReachableBaseUrl(value, hostAlias) {

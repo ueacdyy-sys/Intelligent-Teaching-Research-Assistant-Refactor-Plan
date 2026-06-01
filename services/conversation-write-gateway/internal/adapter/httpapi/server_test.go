@@ -89,6 +89,84 @@ func TestConversationDBPoolDiagnosticsReturnsPoolStats(t *testing.T) {
 	}
 }
 
+func TestConversationRuntimeDiagnosticsDisabledWithoutProvider(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(http.MethodGet, "/internal/conversation/runtime", nil)
+	request.Header.Set("X-Internal-Diagnostics-Secret", "ueacd")
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
+func TestConversationRuntimeDiagnosticsRequiresSecret(t *testing.T) {
+	handler := newRuntimeDiagnosticsTestHandler(fakeRuntimeStatsProvider{})
+	request := httptest.NewRequest(http.MethodGet, "/internal/conversation/runtime", nil)
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("missing secret status = %d, body = %s", response.Code, response.Body.String())
+	}
+
+	wrongSecret := httptest.NewRequest(http.MethodGet, "/internal/conversation/runtime", nil)
+	wrongSecret.Header.Set("X-Internal-Diagnostics-Secret", "wrong")
+	wrongResponse := httptest.NewRecorder()
+	handler.ServeHTTP(wrongResponse, wrongSecret)
+
+	if wrongResponse.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong secret status = %d, body = %s", wrongResponse.Code, wrongResponse.Body.String())
+	}
+}
+
+func TestConversationRuntimeDiagnosticsReturnsRuntimeStats(t *testing.T) {
+	handler := newRuntimeDiagnosticsTestHandler(fakeRuntimeStatsProvider{})
+	request := httptest.NewRequest(http.MethodGet, "/internal/conversation/runtime", nil)
+	request.Header.Set("X-Internal-Diagnostics-Secret", "ueacd")
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var body struct {
+		Status  string `json:"status"`
+		Service string `json:"service"`
+		Stats   struct {
+			AcceptedConns   int64 `json:"acceptedConns"`
+			CurrentConns    int64 `json:"currentConns"`
+			MaxCurrentConns int64 `json:"maxCurrentConns"`
+			ActiveConns     int64 `json:"activeConns"`
+			IdleConns       int64 `json:"idleConns"`
+			HijackedConns   int64 `json:"hijackedConns"`
+			ClosedConns     int64 `json:"closedConns"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response JSON: %v", err)
+	}
+	if body.Status != "ok" || body.Service != "conversation-write-gateway" {
+		t.Fatalf("diagnostics identity = %#v", body)
+	}
+	if body.Stats.AcceptedConns != 20 || body.Stats.CurrentConns != 7 || body.Stats.MaxCurrentConns != 12 {
+		t.Fatalf("connection totals = %#v", body.Stats)
+	}
+	if body.Stats.ActiveConns != 4 || body.Stats.IdleConns != 3 {
+		t.Fatalf("connection states = %#v", body.Stats)
+	}
+	if body.Stats.HijackedConns != 1 || body.Stats.ClosedConns != 13 {
+		t.Fatalf("terminal connection states = %#v", body.Stats)
+	}
+	if strings.Contains(response.Body.String(), "ueacd") {
+		t.Fatalf("diagnostics leaked secret: %s", response.Body.String())
+	}
+}
+
 func TestCreateConversationReturnsCreatedResponse(t *testing.T) {
 	handler, repo := newTestHandlerWithRepository()
 	request := httptest.NewRequest(
@@ -208,6 +286,17 @@ func newTestHandlerWithRepository() (http.Handler, *fakeRepository) {
 }
 
 func newDiagnosticsTestHandler(provider platform.ConversationDBPoolStatsProvider) http.Handler {
+	return newDiagnosticsTestHandlerWithProviders(provider, nil)
+}
+
+func newRuntimeDiagnosticsTestHandler(provider platform.ConversationRuntimeStatsProvider) http.Handler {
+	return newDiagnosticsTestHandlerWithProviders(nil, provider)
+}
+
+func newDiagnosticsTestHandlerWithProviders(
+	dbProvider platform.ConversationDBPoolStatsProvider,
+	runtimeProvider platform.ConversationRuntimeStatsProvider,
+) http.Handler {
 	repo := &fakeRepository{}
 	uc := usecase.NewCreateConversation(
 		repo,
@@ -216,10 +305,11 @@ func newDiagnosticsTestHandler(provider platform.ConversationDBPoolStatsProvider
 		fixedClock{now: time.Date(2026, 5, 28, 8, 0, 0, 0, time.UTC)},
 	)
 	return httpapi.NewServerWithConfig(httpapi.ServerConfig{
-		CreateConversation:  uc,
-		AgentAPIKey:         "ueacd",
-		DiagnosticsSecret:   "ueacd",
-		DBPoolStatsProvider: provider,
+		CreateConversation:   uc,
+		AgentAPIKey:          "ueacd",
+		DiagnosticsSecret:    "ueacd",
+		DBPoolStatsProvider:  dbProvider,
+		RuntimeStatsProvider: runtimeProvider,
 	}).Handler()
 }
 
@@ -267,5 +357,19 @@ func (fakePoolStatsProvider) ConversationDBPoolStats() platform.ConversationDBPo
 		EmptyAcquireCount:      21,
 		EmptyAcquireWaitTimeMs: 99.25,
 		NewConnsCount:          8,
+	}
+}
+
+type fakeRuntimeStatsProvider struct{}
+
+func (fakeRuntimeStatsProvider) ConversationRuntimeStats() platform.ConversationRuntimeStats {
+	return platform.ConversationRuntimeStats{
+		AcceptedConns:   20,
+		CurrentConns:    7,
+		MaxCurrentConns: 12,
+		ActiveConns:     4,
+		IdleConns:       3,
+		HijackedConns:   1,
+		ClosedConns:     13,
 	}
 }

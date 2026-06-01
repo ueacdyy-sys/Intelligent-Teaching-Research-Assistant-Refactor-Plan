@@ -3,7 +3,9 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -136,7 +138,268 @@ func TestRepositoryCreateRecordsDatabaseTimings(t *testing.T) {
 	}
 }
 
+func TestBatchingRepositoryGroupsConcurrentCreatesIntoSingleInsert(t *testing.T) {
+	db := &fakeDB{}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  3,
+		MaxDelay: time.Second,
+	})
+	start := make(chan struct{})
+	errs := make(chan error, 3)
+	timings := make([]*platform.ConversationTiming, 3)
+
+	for index := 0; index < 3; index++ {
+		index := index
+		timings[index] = &platform.ConversationTiming{}
+		go func() {
+			<-start
+			ctx := platform.WithConversationTiming(context.Background(), timings[index])
+			errs <- repository.Create(ctx, testConversation(index))
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 3; index++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+	}
+	repository.Close()
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if db.releaseCount != 1 {
+		t.Fatalf("Release count = %d want 1", db.releaseCount)
+	}
+	if len(db.statements) != 1 {
+		t.Fatalf("statements = %d want 1", len(db.statements))
+	}
+	if got := strings.Count(db.statements[0], "::jsonb"); got != 3 {
+		t.Fatalf("multi-row insert should contain 3 jsonb casts, got %d in:\n%s", got, db.statements[0])
+	}
+	if len(db.args) != 21 {
+		t.Fatalf("args = %d want 21", len(db.args))
+	}
+	for index, timing := range timings {
+		if timing.DBBatchWait <= 0 {
+			t.Fatalf("timing[%d].DBBatchWait = %s want > 0", index, timing.DBBatchWait)
+		}
+		if timing.DBAcquire <= 0 {
+			t.Fatalf("timing[%d].DBAcquire = %s want > 0", index, timing.DBAcquire)
+		}
+		if timing.DBInsert <= 0 {
+			t.Fatalf("timing[%d].DBInsert = %s want > 0", index, timing.DBInsert)
+		}
+	}
+}
+
+func TestBatchingRepositoryReturnsInsertErrorToWholeBatch(t *testing.T) {
+	db := &fakeDB{
+		failOnStatement: "INSERT INTO research_conversations",
+		failErr:         errors.New("insert failed"),
+	}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Second,
+	})
+	defer repository.Close()
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+
+	for index := 0; index < 2; index++ {
+		index := index
+		go func() {
+			<-start
+			errs <- repository.Create(context.Background(), testConversation(index))
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 2; index++ {
+		if err := <-errs; !errors.Is(err, db.failErr) {
+			t.Fatalf("Create() error = %v want %v", err, db.failErr)
+		}
+	}
+}
+
+func TestBatchingRepositorySkipsCanceledRequestBeforeFlush(t *testing.T) {
+	db := &fakeDB{}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Second,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	firstErr := make(chan error, 1)
+	go func() {
+		firstErr <- repository.Create(ctx, testConversation(1))
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	secondErr := make(chan error, 1)
+	go func() {
+		secondErr <- repository.Create(context.Background(), testConversation(2))
+	}()
+	if err := <-firstErr; !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled Create() error = %v want context.Canceled", err)
+	}
+	if err := <-secondErr; err != nil {
+		t.Fatalf("active Create() error = %v", err)
+	}
+	repository.Close()
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if len(db.args) != 7 {
+		t.Fatalf("args = %d want 7", len(db.args))
+	}
+	if got := db.args[0]; got != "conv_2" {
+		t.Fatalf("inserted ID = %v want conv_2", got)
+	}
+}
+
+func TestBatchingRepositoryCloseFlushesQueuedRequest(t *testing.T) {
+	db := &fakeDB{}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Hour,
+	})
+
+	errs := make(chan error, 1)
+	go func() {
+		errs <- repository.Create(context.Background(), testConversation(3))
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	repository.Close()
+
+	if err := <-errs; err != nil {
+		t.Fatalf("queued Create() error after Close() = %v", err)
+	}
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if len(db.args) != 7 {
+		t.Fatalf("args = %d want 7", len(db.args))
+	}
+	if got := db.args[0]; got != "conv_3" {
+		t.Fatalf("inserted ID = %v want conv_3", got)
+	}
+}
+
+func TestBatchingRepositoryCreateAfterCloseReturnsClosedError(t *testing.T) {
+	db := &fakeDB{}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Millisecond,
+	})
+	repository.Close()
+
+	err := repository.Create(context.Background(), testConversation(4))
+	if !errors.Is(err, postgres.ErrConversationRepositoryClosed) {
+		t.Fatalf("Create() error = %v want %v", err, postgres.ErrConversationRepositoryClosed)
+	}
+}
+
+func TestBatchingRepositoryCloseUnblocksCreateWaitingForQueueSpace(t *testing.T) {
+	execStarted := make(chan struct{})
+	execBlock := make(chan struct{})
+	db := &fakeDB{
+		execStarted: execStarted,
+		execBlock:   execBlock,
+	}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Hour,
+	})
+
+	accepted := make(chan error, 10)
+	for index := 0; index < 2; index++ {
+		index := index
+		go func() {
+			accepted <- repository.Create(context.Background(), testConversation(index))
+		}()
+	}
+	waitForSignal(t, execStarted, "first batch insert")
+
+	for index := 2; index < 10; index++ {
+		index := index
+		go func() {
+			accepted <- repository.Create(context.Background(), testConversation(index))
+		}()
+	}
+	time.Sleep(10 * time.Millisecond)
+
+	blockedErr := make(chan error, 1)
+	go func() {
+		blockedErr <- repository.Create(context.Background(), testConversation(10))
+	}()
+	time.Sleep(10 * time.Millisecond)
+
+	closeDone := make(chan struct{})
+	go func() {
+		repository.Close()
+		close(closeDone)
+	}()
+
+	select {
+	case err := <-blockedErr:
+		if !errors.Is(err, postgres.ErrConversationRepositoryClosed) {
+			t.Fatalf("blocked Create() error = %v want %v", err, postgres.ErrConversationRepositoryClosed)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Close() did not unblock Create() waiting for queue space")
+	}
+
+	close(execBlock)
+	select {
+	case <-closeDone:
+	case <-time.After(time.Second):
+		t.Fatal("Close() did not finish after the blocked insert was released")
+	}
+	for index := 0; index < 10; index++ {
+		if err := <-accepted; err != nil {
+			t.Fatalf("accepted Create() error = %v", err)
+		}
+	}
+}
+
+func TestBatchingRepositoryZeroDelayFlushesSparseCreateWithoutWaitingForMaxSize(t *testing.T) {
+	db := &fakeDB{}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  64,
+		MaxDelay: 0,
+	})
+	defer repository.Close()
+
+	errs := make(chan error, 1)
+	go func() {
+		errs <- repository.Create(context.Background(), testConversation(11))
+	}()
+
+	select {
+	case err := <-errs:
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("sparse delay0 Create() waited for batch size instead of flushing immediately")
+	}
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if len(db.args) != 7 {
+		t.Fatalf("args = %d want 7", len(db.args))
+	}
+	if got := db.args[0]; got != "conv_11" {
+		t.Fatalf("inserted ID = %v want conv_11", got)
+	}
+}
+
 type fakeDB struct {
+	mu              sync.Mutex
 	statements      []string
 	args            []any
 	acquireCount    int
@@ -145,9 +408,25 @@ type fakeDB struct {
 	execDelay       time.Duration
 	failOnStatement string
 	failErr         error
+	execStarted     chan struct{}
+	execBlock       chan struct{}
+	execStartedOnce sync.Once
 }
 
 func (f *fakeDB) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	if f.execStarted != nil {
+		f.execStartedOnce.Do(func() {
+			close(f.execStarted)
+		})
+	}
+	if f.execBlock != nil {
+		<-f.execBlock
+	}
+	if f.execDelay > 0 {
+		time.Sleep(f.execDelay)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.statements = append(f.statements, sql)
 	f.args = args
 	if f.failOnStatement != "" && strings.Contains(sql, f.failOnStatement) {
@@ -157,10 +436,12 @@ func (f *fakeDB) Exec(_ context.Context, sql string, args ...any) (pgconn.Comman
 }
 
 func (f *fakeDB) Acquire(context.Context) (postgres.Conn, error) {
-	f.acquireCount++
 	if f.acquireDelay > 0 {
 		time.Sleep(f.acquireDelay)
 	}
+	f.mu.Lock()
+	f.acquireCount++
+	f.mu.Unlock()
 	return fakeConn{db: f}, nil
 }
 
@@ -169,12 +450,33 @@ type fakeConn struct {
 }
 
 func (f fakeConn) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
-	if f.db.execDelay > 0 {
-		time.Sleep(f.db.execDelay)
-	}
 	return f.db.Exec(ctx, sql, args...)
 }
 
 func (f fakeConn) Release() {
+	f.db.mu.Lock()
+	defer f.db.mu.Unlock()
 	f.db.releaseCount++
+}
+
+func testConversation(index int) domain.Conversation {
+	createdAt := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+	return domain.Conversation{
+		ID:           "conv_" + strconv.Itoa(index),
+		Title:        "Research",
+		CreatedAt:    createdAt,
+		UpdatedAt:    createdAt,
+		MessageCount: index,
+		TotalTokens:  index * 10,
+		Settings:     domain.NewSettingsJSON([]byte(`{"fusionMode":"balanced"}`)),
+	}
+}
+
+func waitForSignal(t *testing.T, signal <-chan struct{}, name string) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for %s", name)
+	}
 }

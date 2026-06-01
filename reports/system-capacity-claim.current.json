@@ -1,0 +1,323 @@
+{
+  "generatedAt": "2026-06-01T15:56:28.303Z",
+  "readiness": "READY",
+  "workloadType": "SYSTEM_CAPACITY_CLAIM_AUDIT",
+  "claim": {
+    "fullSystemUltraConcurrency": {
+      "status": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+      "reason": "Root SLO promotion review blocks the claim with 4 blocker(s): promotion.root_workflows_runtime_slo_covered,promotion.module_evidence_depth_sufficient,promotion.interactive_tail_latency_within_target,promotion.sustained_scale_depth_sufficient.",
+      "requiredNextEvidence": [
+        "ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE",
+        "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
+        "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
+        "HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"
+      ]
+    },
+    "moduleLimits": [
+      {
+        "module": "Identity And Access",
+        "status": "MODULE_CAPACITY_ONLY",
+        "summary": "passed 4400 clients with revokeCycle P99 3071.17ms; this is a module benchmark, not a full-system SLO",
+        "concurrency": 4400,
+        "slowestP99Ms": 3071.17
+      },
+      {
+        "module": "Research Conversation Write",
+        "status": "MODULE_CAPACITY_ONLY",
+        "summary": "low-tail 5800 clients at P99 349.9ms; WSL burst 30000 clients at P99 1795.33ms is functional capacity only",
+        "lowTailConcurrency": 5800,
+        "burstCeilingConcurrency": 30000
+      },
+      {
+        "module": "Teaching Archive And Quiz",
+        "status": "MODULE_SMOKE_ONLY",
+        "summary": "passed 2 clients across archive create, quiz submission, and archive list phases; slowest P99 35ms in createArchiveItem",
+        "concurrency": 2,
+        "slowestP99Ms": 35
+      },
+      {
+        "module": "Knowledge Retrieval",
+        "status": "POLICY_SMOKE_ONLY",
+        "summary": "hybrid query-plan P95 2.55ms over 4 policy workloads; not a production corpus throughput benchmark",
+        "p95QueryPlanMs": 2.55
+      },
+      {
+        "module": "AI Worker Runtime",
+        "status": "DEPENDENCY_BOUNDARY_ONLY",
+        "summary": "23 baseline dependencies scanned with forbidden AI dependency hits 0; no worker throughput benchmark yet",
+        "baselineDependenciesScanned": 23
+      },
+      {
+        "module": "Quality Gate",
+        "status": "QUALITY_READY",
+        "summary": "0 quality commands passed with 0 static findings",
+        "commandCount": 0
+      }
+    ]
+  },
+  "evidence": {
+    "identity": {
+      "key": "identity",
+      "evidenceId": "identity_http_gateway_pgbouncer120_preconnect_retry_4400",
+      "sourceReportPath": "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json",
+      "registered": true,
+      "registryStatus": "PASSED",
+      "reportPresent": true,
+      "reportParseable": true,
+      "summary": {
+        "status": "PASSED",
+        "concurrency": 4400,
+        "operationsPerPhase": 8800,
+        "totalDurationMs": 187979.91,
+        "executor": "DOCKER_GO",
+        "sessionTablePersistence": "unlogged",
+        "phaseErrors": 0,
+        "slowestP95Phase": "revokeCycle",
+        "slowestP95Ms": 2640.17,
+        "slowestP99Phase": "revokeCycle",
+        "slowestP99Ms": 3071.17
+      }
+    },
+    "conversation": {
+      "key": "conversation",
+      "evidenceId": "conversation_write_gateway_loadgen_runtime_decision_current",
+      "sourceReportPath": "reports/conversation-loadgen-runtime-decision.current.json",
+      "registered": true,
+      "registryStatus": "READY",
+      "reportPresent": true,
+      "reportParseable": true,
+      "summary": {
+        "readiness": "READY",
+        "lowTailConcurrency": 5800,
+        "lowTailP99Ms": 349.9,
+        "highConcurrency": 8000,
+        "highConcurrencyP99Ms": 518.15,
+        "burstCeilingConcurrency": 30000,
+        "burstCeilingP99Ms": 1795.33,
+        "loadgenRecommendation": "USE_WSL_LOADGEN_FOR_HIGH_CONCURRENCY_EDGE"
+      }
+    },
+    "teachingArchive": {
+      "key": "teachingArchive",
+      "evidenceId": "teaching_archive_gateway_current",
+      "sourceReportPath": "reports/teaching-archive-benchmark.current.json",
+      "registered": true,
+      "registryStatus": "PASSED",
+      "reportPresent": true,
+      "reportParseable": true,
+      "summary": {
+        "status": "PASSED",
+        "concurrency": 2,
+        "operationsPerPhase": 4,
+        "dbMaxConns": 1,
+        "phaseErrors": 0,
+        "slowestP95Phase": "createArchiveItem",
+        "slowestP95Ms": 35,
+        "slowestP99Phase": "createArchiveItem",
+        "slowestP99Ms": 35
+      }
+    },
+    "knowledge": {
+      "key": "knowledge",
+      "evidenceId": "knowledge_hybrid_retrieval_policy_smoke",
+      "sourceReportPath": "reports/knowledge-retrieval-benchmark.current.json",
+      "registered": true,
+      "registryStatus": "READY",
+      "reportPresent": true,
+      "reportParseable": true,
+      "summary": {
+        "readiness": "READY",
+        "p95QueryPlanMs": 2.55,
+        "totalPlans": 256,
+        "workloadCount": 4
+      }
+    },
+    "aiWorker": {
+      "key": "aiWorker",
+      "evidenceId": "ai_worker_runtime_dependency_profile",
+      "sourceReportPath": "reports/ai-worker-runtime-dependency-profile.current.json",
+      "registered": true,
+      "registryStatus": "READY",
+      "reportPresent": true,
+      "reportParseable": true,
+      "summary": {
+        "readiness": "READY",
+        "baselineDependenciesScanned": 23,
+        "forbiddenAiPackageHits": 0
+      }
+    },
+    "quality": {
+      "key": "quality",
+      "evidenceId": "strict_quality_gate_current",
+      "sourceReportPath": "reports/quality-gate.current.json",
+      "registered": true,
+      "registryStatus": "PASSED",
+      "reportPresent": true,
+      "reportParseable": true,
+      "summary": {
+        "allPassed": true,
+        "reportState": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
+        "commandCount": 0,
+        "staticFindings": 0
+      }
+    }
+  },
+  "mixedWorkloadEvidence": {
+    "count": 4,
+    "entries": [
+      {
+        "evidenceId": "system_mixed_workload_smoke_current",
+        "sourceReportPath": "reports/system-mixed-workload-benchmark.current.json",
+        "status": "PASSED"
+      },
+      {
+        "evidenceId": "system_mixed_workload_ladder_current",
+        "sourceReportPath": "reports/system-mixed-workload-ladder.current.json",
+        "status": "PASSED"
+      },
+      {
+        "evidenceId": "system_sustained_mixed_workload_current",
+        "sourceReportPath": "reports/system-sustained-mixed-workload.current.json",
+        "status": "PASSED"
+      },
+      {
+        "evidenceId": "system_sustained_mixed_workload_scaleup_current",
+        "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+        "status": "PASSED"
+      }
+    ]
+  },
+  "sustainedMixedWorkloadEvidence": {
+    "count": 1,
+    "entries": [
+      {
+        "evidenceId": "system_sustained_mixed_workload_current",
+        "sourceReportPath": "reports/system-sustained-mixed-workload.current.json",
+        "status": "PASSED"
+      }
+    ]
+  },
+  "sustainedMixedWorkloadScaleUpEvidence": {
+    "count": 1,
+    "entries": [
+      {
+        "evidenceId": "system_sustained_mixed_workload_scaleup_current",
+        "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+        "status": "PASSED"
+      }
+    ]
+  },
+  "rootWorkflowCoverageEvidence": {
+    "count": 1,
+    "entries": [
+      {
+        "evidenceId": "root_workflow_coverage_current",
+        "sourceReportPath": "reports/root-workflow-coverage.current.json",
+        "status": "READY"
+      }
+    ]
+  },
+  "crossModuleDiagnosticsEvidence": {
+    "count": 1,
+    "entries": [
+      {
+        "evidenceId": "cross_module_db_queue_diagnostics_current",
+        "sourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
+        "status": "READY"
+      }
+    ]
+  },
+  "rootSloPromotionReviewEvidence": {
+    "count": 1,
+    "reportPresent": true,
+    "reportParseable": true,
+    "summary": {
+      "readiness": "READY",
+      "decision": "BLOCK_PROMOTION",
+      "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+      "blockerCount": 4,
+      "blockerIds": [
+        "promotion.root_workflows_runtime_slo_covered",
+        "promotion.module_evidence_depth_sufficient",
+        "promotion.interactive_tail_latency_within_target",
+        "promotion.sustained_scale_depth_sufficient"
+      ],
+      "requiredNextEvidence": [
+        "ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE",
+        "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
+        "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
+        "HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"
+      ]
+    },
+    "entries": [
+      {
+        "evidenceId": "root_slo_promotion_review_current",
+        "sourceReportPath": "reports/root-slo-promotion-review.current.json",
+        "status": "READY"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "sources.required_evidence_registered",
+      "passed": true,
+      "severity": "info",
+      "actual": "identity:registered;conversation:registered;teachingArchive:registered;knowledge:registered;aiWorker:registered;quality:registered",
+      "expected": "identity, conversation, teachingArchive, knowledge, aiWorker, and quality evidence entries are registered",
+      "remediation": "Register every root-requirement performance and quality evidence source before auditing system capacity claims."
+    },
+    {
+      "id": "sources.required_reports_parseable",
+      "passed": true,
+      "severity": "info",
+      "actual": "identity:json;conversation:json;teachingArchive:json;knowledge:json;aiWorker:json;quality:json",
+      "expected": "all required current source reports are readable JSON",
+      "remediation": "Regenerate the missing or invalid source report before using it for whole-system capacity assessment."
+    },
+    {
+      "id": "quality.gate_passed",
+      "passed": true,
+      "severity": "info",
+      "actual": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
+      "expected": "quality gate allPassed=true",
+      "remediation": "Do not assess system capacity from a workspace whose strict quality gate is failing."
+    },
+    {
+      "id": "baseline.no_forbidden_ai_runtime_dependencies",
+      "passed": true,
+      "severity": "info",
+      "actual": "forbiddenHits=0",
+      "expected": "forbidden AI/model/OCR/RAG/vector/training dependency hits=0",
+      "remediation": "Keep model, OCR, RAG, vector, embedding, and training dependencies outside the baseline runtime."
+    },
+    {
+      "id": "claim.no_full_system_promotion_without_mixed_workload",
+      "passed": true,
+      "severity": "info",
+      "actual": "mixedWorkloadEvidence=4;claim=NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+      "expected": "no full-system ultra-concurrency claim when mixed workload evidence is absent",
+      "remediation": "Add a mixed workload benchmark covering identity, conversation, teaching archive, knowledge, and worker admission before promoting a full-system claim."
+    },
+    {
+      "id": "claim.module_limits_are_explicit",
+      "passed": true,
+      "severity": "info",
+      "actual": "Identity And Access:MODULE_CAPACITY_ONLY;Research Conversation Write:MODULE_CAPACITY_ONLY;Teaching Archive And Quiz:MODULE_SMOKE_ONLY;Knowledge Retrieval:POLICY_SMOKE_ONLY;AI Worker Runtime:DEPENDENCY_BOUNDARY_ONLY;Quality Gate:QUALITY_READY",
+      "expected": "each root module has an explicit current capacity or evidence-gap classification",
+      "remediation": "Record the current capacity boundary or evidence gap for every root module."
+    }
+  ],
+  "sourceReferences": [
+    "docs/sdd/0132-conversation-fanout-decision-audit.md",
+    "docs/sdd/0133-conversation-client-trace-attribution-audit.md",
+    "docs/sdd/0135-conversation-loadgen-runtime-decision-audit.md",
+    "docs/sdd/0136-system-capacity-claim-audit.md",
+    "docs/sdd/0137-system-mixed-workload-benchmark-runner.md",
+    "docs/sdd/0138-system-mixed-workload-ladder-runner.md",
+    "docs/sdd/0139-teaching-archive-mixed-workload-slice.md",
+    "docs/sdd/0140-system-sustained-mixed-workload-runner.md",
+    "docs/sdd/0141-system-sustained-mixed-workload-scale-up-runner.md",
+    "docs/sdd/0142-root-workflow-coverage-audit.md",
+    "docs/sdd/0144-root-slo-promotion-review-audit.md"
+  ]
+}

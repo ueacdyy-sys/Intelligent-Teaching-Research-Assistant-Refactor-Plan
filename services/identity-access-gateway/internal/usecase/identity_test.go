@@ -338,6 +338,70 @@ func TestCreatePasswordSessionRejectsDuplicateGeneratedSessionID(t *testing.T) {
 	}
 }
 
+func TestCreatePasswordSessionUsesBatchedUserSessionTokenIssuer(t *testing.T) {
+	issuer := &batchedCountingIssuer{}
+	service := newTestServiceWithIssuer(issuer)
+
+	session, err := service.CreatePasswordSession(context.Background(), domain.PasswordSessionInput{
+		Identifier: "teacher@example.com",
+		Password:   "ueacd",
+		EntryPoint: domain.EntryPointDesktopTeacher,
+	})
+	if err != nil {
+		t.Fatalf("CreatePasswordSession error = %v", err)
+	}
+
+	if issuer.userSessionCalls != 1 {
+		t.Fatalf("userSessionCalls = %d want 1", issuer.userSessionCalls)
+	}
+	if issuer.sessionIDCalls != 0 || issuer.accessTokenCalls != 0 || issuer.refreshTokenCalls != 0 {
+		t.Fatalf(
+			"single token calls session=%d access=%d refresh=%d want all zero",
+			issuer.sessionIDCalls,
+			issuer.accessTokenCalls,
+			issuer.refreshTokenCalls,
+		)
+	}
+	if session.Principal.SessionID != "sess_batched" ||
+		session.AccessToken != "access_batched" ||
+		session.RefreshToken != "refresh_batched" {
+		t.Fatalf("session tokens = %#v", session)
+	}
+}
+
+func TestRefreshSessionUsesBatchedAccessRefreshTokenIssuer(t *testing.T) {
+	issuer := &batchedCountingIssuer{}
+	service := newTestServiceWithIssuer(issuer)
+	session, err := service.CreatePasswordSession(context.Background(), domain.PasswordSessionInput{
+		Identifier: "teacher@example.com",
+		Password:   "ueacd",
+		EntryPoint: domain.EntryPointDesktopResearch,
+	})
+	if err != nil {
+		t.Fatalf("CreatePasswordSession error = %v", err)
+	}
+
+	refreshed, err := service.RefreshSession(context.Background(), session.RefreshToken)
+	if err != nil {
+		t.Fatalf("RefreshSession error = %v", err)
+	}
+
+	if issuer.accessRefreshCalls != 1 {
+		t.Fatalf("accessRefreshCalls = %d want 1", issuer.accessRefreshCalls)
+	}
+	if issuer.accessTokenCalls != 0 || issuer.refreshTokenCalls != 0 {
+		t.Fatalf(
+			"single refresh token calls access=%d refresh=%d want zero",
+			issuer.accessTokenCalls,
+			issuer.refreshTokenCalls,
+		)
+	}
+	if refreshed.AccessToken != "access_rotated_batched" ||
+		refreshed.RefreshToken != "refresh_rotated_batched" {
+		t.Fatalf("refreshed tokens = %#v", refreshed)
+	}
+}
+
 func newTestService() *usecase.IdentityService {
 	return newTestServiceWithIssuer(fixedIssuer{})
 }
@@ -456,6 +520,45 @@ func (s *sequenceIssuer) NewRefreshToken() string {
 func (s *sequenceIssuer) NewGrantToken() string {
 	s.grant += 1
 	return "grant_seq_" + string(rune('0'+s.grant))
+}
+
+type batchedCountingIssuer struct {
+	userSessionCalls   int
+	accessRefreshCalls int
+	sessionIDCalls     int
+	accessTokenCalls   int
+	refreshTokenCalls  int
+	grantTokenCalls    int
+}
+
+func (i *batchedCountingIssuer) NewUserSessionTokens() (string, string, string) {
+	i.userSessionCalls += 1
+	return "sess_batched", "access_batched", "refresh_batched"
+}
+
+func (i *batchedCountingIssuer) NewAccessRefreshTokens() (string, string) {
+	i.accessRefreshCalls += 1
+	return "access_rotated_batched", "refresh_rotated_batched"
+}
+
+func (i *batchedCountingIssuer) NewSessionID() string {
+	i.sessionIDCalls += 1
+	return "sess_single"
+}
+
+func (i *batchedCountingIssuer) NewAccessToken() string {
+	i.accessTokenCalls += 1
+	return "access_single"
+}
+
+func (i *batchedCountingIssuer) NewRefreshToken() string {
+	i.refreshTokenCalls += 1
+	return "refresh_single"
+}
+
+func (i *batchedCountingIssuer) NewGrantToken() string {
+	i.grantTokenCalls += 1
+	return "grant_single"
 }
 
 type fixedClock struct {

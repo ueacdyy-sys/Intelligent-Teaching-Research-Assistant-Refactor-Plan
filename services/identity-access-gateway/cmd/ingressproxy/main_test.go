@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -130,6 +131,32 @@ func TestIngressHandlerDoesNotRetryPostOnUpstreamTransportError(t *testing.T) {
 		t.Fatalf("status = %d body = %q, want 502", response.Code, response.Body.String())
 	}
 	if got, want := transport.hosts, []string{"gateway-a.test"}; !slices.Equal(got, want) {
+		t.Fatalf("upstream attempts = %#v want %#v", got, want)
+	}
+}
+
+func TestIngressHandlerRetriesPostOnDialErrorBeforeUpstreamWrite(t *testing.T) {
+	upstreams, err := parseUpstreamBaseURLs("http://gateway-a.test,http://gateway-b.test")
+	if err != nil {
+		t.Fatalf("parseUpstreamBaseURLs() error = %v", err)
+	}
+	transport := &scriptedRoundTripper{
+		results: []roundTripResult{
+			{err: &net.OpError{Op: "dial", Err: errors.New("bind queue full")}},
+			{statusCode: http.StatusCreated, body: "session\n"},
+		},
+	}
+	handler := newIngressHandler(upstreams, transport)
+	request := httptest.NewRequest(http.MethodPost, "/v1/identity/sessions/refresh", strings.NewReader(`{"refreshToken":"refresh_1"}`))
+	request.Host = "identity.local"
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d body = %q, want 201", response.Code, response.Body.String())
+	}
+	if got, want := transport.hosts, []string{"gateway-a.test", "gateway-b.test"}; !slices.Equal(got, want) {
 		t.Fatalf("upstream attempts = %#v want %#v", got, want)
 	}
 }

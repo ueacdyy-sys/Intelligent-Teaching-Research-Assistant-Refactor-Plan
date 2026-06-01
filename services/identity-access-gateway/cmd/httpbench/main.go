@@ -21,29 +21,32 @@ import (
 )
 
 type benchmarkConfig struct {
-	BaseURL                string
-	OutPath                string
-	Concurrency            int
-	OperationsPerPhase     int
-	Timeout                time.Duration
-	MaxConnsPerHost        int
-	WarmConnectionsPerHost int
+	BaseURL                   string
+	OutPath                   string
+	Concurrency               int
+	OperationsPerPhase        int
+	Timeout                   time.Duration
+	MaxConnsPerHost           int
+	WarmConnectionsPerHost    int
+	GatewayDiagnosticsBaseURL string
+	GatewayDiagnosticsSecret  string
 }
 
 type benchmarkReport struct {
-	GeneratedAt        string                    `json:"generatedAt"`
-	BenchmarkKind      string                    `json:"benchmarkKind"`
-	WorkloadType       string                    `json:"workloadType"`
-	Status             string                    `json:"status"`
-	BaseURL            string                    `json:"baseUrl"`
-	GatewayCount       int                       `json:"gatewayCount"`
-	GatewayBaseURLs    []string                  `json:"gatewayBaseUrls"`
-	LoadBalancing      string                    `json:"loadBalancingStrategy"`
-	TransportProfile   benchmarkTransportProfile `json:"transportProfile"`
-	Concurrency        int                       `json:"concurrency"`
-	OperationsPerPhase int                       `json:"operationsPerPhase"`
-	TotalDurationMS    float64                   `json:"totalDurationMs"`
-	Phases             map[string]phaseReport    `json:"phases"`
+	GeneratedAt                     string                                     `json:"generatedAt"`
+	BenchmarkKind                   string                                     `json:"benchmarkKind"`
+	WorkloadType                    string                                     `json:"workloadType"`
+	Status                          string                                     `json:"status"`
+	BaseURL                         string                                     `json:"baseUrl"`
+	GatewayCount                    int                                        `json:"gatewayCount"`
+	GatewayBaseURLs                 []string                                   `json:"gatewayBaseUrls"`
+	LoadBalancing                   string                                     `json:"loadBalancingStrategy"`
+	TransportProfile                benchmarkTransportProfile                  `json:"transportProfile"`
+	Concurrency                     int                                        `json:"concurrency"`
+	OperationsPerPhase              int                                        `json:"operationsPerPhase"`
+	TotalDurationMS                 float64                                    `json:"totalDurationMs"`
+	Phases                          map[string]phaseReport                     `json:"phases"`
+	GatewayDatabasePhaseDiagnostics map[string]gatewayDatabasePhaseDiagnostics `json:"gatewayDatabasePhaseDiagnostics,omitempty"`
 }
 
 type benchmarkTransportProfile struct {
@@ -55,12 +58,13 @@ type benchmarkTransportProfile struct {
 }
 
 type phaseReport struct {
-	Name          string                    `json:"name"`
-	Operations    int                       `json:"operations"`
-	Errors        int64                     `json:"errors"`
-	RPS           float64                   `json:"rps"`
-	LatencyMS     latencySummary            `json:"latencyMs"`
-	StepLatencyMS map[string]latencySummary `json:"stepLatencyMs,omitempty"`
+	Name                   string                    `json:"name"`
+	Operations             int                       `json:"operations"`
+	Errors                 int64                     `json:"errors"`
+	RPS                    float64                   `json:"rps"`
+	LatencyMS              latencySummary            `json:"latencyMs"`
+	StepLatencyMS          map[string]latencySummary `json:"stepLatencyMs,omitempty"`
+	StepLatencyAttribution *stepLatencyAttribution   `json:"stepLatencyAttribution,omitempty"`
 }
 
 type latencySummary struct {
@@ -70,6 +74,17 @@ type latencySummary struct {
 	P95MS float64 `json:"p95"`
 	P99MS float64 `json:"p99"`
 	MaxMS float64 `json:"max"`
+}
+
+type stepLatencyAttribution struct {
+	SlowestStep      string  `json:"slowestStep"`
+	SlowestStepP99MS float64 `json:"slowestStepP99Ms"`
+	PhaseP99MS       float64 `json:"phaseP99Ms"`
+	StepP99SumMS     float64 `json:"stepP99SumMs"`
+	P99ResidualMS    float64 `json:"p99ResidualMs"`
+	PhaseAvgMS       float64 `json:"phaseAvgMs"`
+	StepAvgSumMS     float64 `json:"stepAvgSumMs"`
+	AvgResidualMS    float64 `json:"avgResidualMs"`
 }
 
 type sessionResponse struct {
@@ -103,6 +118,8 @@ func parseConfig() benchmarkConfig {
 	flag.DurationVar(&config.Timeout, "timeout", 60*time.Second, "benchmark timeout")
 	flag.IntVar(&config.MaxConnsPerHost, "max-conns-per-host", 0, "optional HTTP transport max connections per gateway host")
 	flag.IntVar(&config.WarmConnectionsPerHost, "warm-connections-per-host", 0, "optional keep-alive connections to prewarm per gateway host")
+	flag.StringVar(&config.GatewayDiagnosticsBaseURL, "gateway-diagnostics-base-url", "", "optional comma-separated gateway base URLs for internal DB diagnostics")
+	flag.StringVar(&config.GatewayDiagnosticsSecret, "gateway-diagnostics-secret", "", "optional internal diagnostics secret for phase DB diagnostics")
 	flag.Parse()
 	return config
 }
@@ -127,6 +144,10 @@ func run(config benchmarkConfig) error {
 	if err != nil {
 		return err
 	}
+	diagnosticsCollector, err := newGatewayDatabaseDiagnosticsCollector(config)
+	if err != nil {
+		return err
+	}
 	client, transportProfile := buildHTTPClient(config, len(baseURLs))
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
@@ -141,19 +162,19 @@ func run(config benchmarkConfig) error {
 	}
 
 	start := time.Now()
-	loginPhase, err := runPasswordLoginPhase(ctx, client, baseURLs, config)
+	loginPhase, err := runPasswordLoginPhase(ctx, client, baseURLs, config, diagnosticsCollector)
 	if err != nil {
 		return err
 	}
-	lookupPhase, err := runPrincipalLookupPhase(ctx, client, baseURLs, config)
+	lookupPhase, err := runPrincipalLookupPhase(ctx, client, baseURLs, config, diagnosticsCollector)
 	if err != nil {
 		return err
 	}
-	refreshPhase, err := runRefreshRotationPhase(ctx, client, baseURLs, config)
+	refreshPhase, err := runRefreshRotationPhase(ctx, client, baseURLs, config, diagnosticsCollector)
 	if err != nil {
 		return err
 	}
-	revokePhase, err := runRevokeCyclePhase(ctx, client, baseURLs, config)
+	revokePhase, err := runRevokeCyclePhase(ctx, client, baseURLs, config, diagnosticsCollector)
 	if err != nil {
 		return err
 	}
@@ -177,6 +198,9 @@ func run(config benchmarkConfig) error {
 			"refreshRotation": refreshPhase,
 			"revokeCycle":     revokePhase,
 		},
+	}
+	if diagnosticsCollector != nil && len(diagnosticsCollector.phases) > 0 {
+		report.GatewayDatabasePhaseDiagnostics = diagnosticsCollector.phases
 	}
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
@@ -245,9 +269,10 @@ func warmHTTPConnections(ctx context.Context, client *http.Client, baseURLs []st
 	return nil
 }
 
-func runPasswordLoginPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
+func runPasswordLoginPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig, diagnostics *gatewayDatabaseDiagnosticsCollector) (phaseReport, error) {
 	var sessionsMu sync.Mutex
 	sessions := make([]sessionState, 0, config.OperationsPerPhase)
+	diagnosticsBefore := diagnostics.collect(ctx)
 	phase, firstErr := runPhase("passwordLogin", config.Concurrency, config.OperationsPerPhase, func(_ int, opIndex int) error {
 		session, err := login(ctx, client, baseURLForOperation(baseURLs, opIndex), fmt.Sprintf("teacher-login-%d@example.com", opIndex), "TEACHER", "DESKTOP_TEACHER")
 		if err != nil {
@@ -258,11 +283,13 @@ func runPasswordLoginPhase(ctx context.Context, client *http.Client, baseURLs []
 		sessionsMu.Unlock()
 		return nil
 	})
+	diagnosticsAfter := diagnostics.collect(ctx)
+	diagnostics.recordPhase("passwordLogin", diagnosticsBefore, diagnosticsAfter)
 	cleanupByRevoke(ctx, client, baseURLs, sessions)
 	return phase, phaseError("passwordLogin", phase, firstErr)
 }
 
-func runPrincipalLookupPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
+func runPrincipalLookupPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig, diagnostics *gatewayDatabaseDiagnosticsCollector) (phaseReport, error) {
 	tokenCount := maxInt(config.Concurrency*2, 128)
 	sessions := make([]sessionState, tokenCount)
 	for index := 0; index < tokenCount; index++ {
@@ -274,13 +301,16 @@ func runPrincipalLookupPhase(ctx context.Context, client *http.Client, baseURLs 
 	}
 	defer cleanupByRevoke(context.Background(), client, baseURLs, sessions)
 
+	diagnosticsBefore := diagnostics.collect(ctx)
 	phase, firstErr := runPhase("principalLookup", config.Concurrency, config.OperationsPerPhase, func(_ int, opIndex int) error {
 		return getPrincipal(ctx, client, baseURLForOperation(baseURLs, opIndex), sessions[opIndex%len(sessions)].AccessToken)
 	})
+	diagnosticsAfter := diagnostics.collect(ctx)
+	diagnostics.recordPhase("principalLookup", diagnosticsBefore, diagnosticsAfter)
 	return phase, phaseError("principalLookup", phase, firstErr)
 }
 
-func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
+func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig, diagnostics *gatewayDatabaseDiagnosticsCollector) (phaseReport, error) {
 	states := make([]sessionState, config.Concurrency)
 	for worker := range states {
 		session, err := login(ctx, client, baseURLForOperation(baseURLs, worker), fmt.Sprintf("teacher-refresh-%d@example.com", worker), "TEACHER", "DESKTOP_RESEARCH")
@@ -291,6 +321,7 @@ func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURLs 
 	}
 	defer cleanupByRevoke(context.Background(), client, baseURLs, states)
 
+	diagnosticsBefore := diagnostics.collect(ctx)
 	phase, firstErr := runPhase("refreshRotation", config.Concurrency, config.OperationsPerPhase, func(workerID int, _ int) error {
 		session, err := refreshSession(ctx, client, baseURLForOperation(baseURLs, workerID), states[workerID].RefreshToken)
 		if err != nil {
@@ -299,11 +330,14 @@ func runRefreshRotationPhase(ctx context.Context, client *http.Client, baseURLs 
 		states[workerID] = session
 		return nil
 	})
+	diagnosticsAfter := diagnostics.collect(ctx)
+	diagnostics.recordPhase("refreshRotation", diagnosticsBefore, diagnosticsAfter)
 	return phase, phaseError("refreshRotation", phase, firstErr)
 }
 
-func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, error) {
+func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig, diagnostics *gatewayDatabaseDiagnosticsCollector) (phaseReport, error) {
 	stepLatencies := newStepLatencyRecorder(config.OperationsPerPhase, []string{"login", "revoke", "revokedPrincipalLookup"})
+	diagnosticsBefore := diagnostics.collect(ctx)
 	phase, firstErr := runPhase("revokeCycle", config.Concurrency, config.OperationsPerPhase, func(_ int, opIndex int) error {
 		baseURL := baseURLForOperation(baseURLs, opIndex)
 		stepStart := time.Now()
@@ -331,7 +365,10 @@ func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURLs []st
 		}
 		return nil
 	})
+	diagnosticsAfter := diagnostics.collect(ctx)
+	diagnostics.recordPhase("revokeCycle", diagnosticsBefore, diagnosticsAfter)
 	phase.StepLatencyMS = stepLatencies.summarize()
+	phase.StepLatencyAttribution = buildStepLatencyAttribution(phase.LatencyMS, phase.StepLatencyMS)
 	return phase, phaseError("revokeCycle", phase, firstErr)
 }
 
@@ -396,7 +433,31 @@ func buildPhaseReportWithStepLatencies(name string, latencies []time.Duration, e
 	for stepName, latencies := range stepLatencies {
 		phase.StepLatencyMS[stepName] = summarizeLatencies(latencies)
 	}
+	phase.StepLatencyAttribution = buildStepLatencyAttribution(phase.LatencyMS, phase.StepLatencyMS)
 	return phase
+}
+
+func buildStepLatencyAttribution(phaseLatency latencySummary, stepLatencies map[string]latencySummary) *stepLatencyAttribution {
+	if len(stepLatencies) == 0 {
+		return nil
+	}
+	attribution := stepLatencyAttribution{
+		PhaseP99MS: phaseLatency.P99MS,
+		PhaseAvgMS: phaseLatency.AvgMS,
+	}
+	for stepName, latency := range stepLatencies {
+		if attribution.SlowestStep == "" || latency.P99MS > attribution.SlowestStepP99MS {
+			attribution.SlowestStep = stepName
+			attribution.SlowestStepP99MS = latency.P99MS
+		}
+		attribution.StepP99SumMS += latency.P99MS
+		attribution.StepAvgSumMS += latency.AvgMS
+	}
+	attribution.StepP99SumMS = roundFloat(attribution.StepP99SumMS)
+	attribution.StepAvgSumMS = roundFloat(attribution.StepAvgSumMS)
+	attribution.P99ResidualMS = roundFloat(phaseLatency.P99MS - attribution.StepP99SumMS)
+	attribution.AvgResidualMS = roundFloat(phaseLatency.AvgMS - attribution.StepAvgSumMS)
+	return &attribution
 }
 
 type stepLatencyRecorder struct {

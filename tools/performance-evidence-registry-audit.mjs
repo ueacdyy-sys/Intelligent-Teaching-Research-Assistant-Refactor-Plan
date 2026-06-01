@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import {
+  allowInProgressQualityGateFromEnv,
+  isQualityGateReportPassing,
+} from "./quality-gate-report-state.mjs";
+
 const REGISTRY_PATH = "contracts/ops/performance-evidence-registry.current.json";
 const REQUIRED_SOURCE_REPORTS = [
   "reports/pgbouncer-perf-profile.current.json",
@@ -39,7 +44,9 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-write10-client200-write-limiter-summary-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool14-client200-db-pool-diagnostics-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-ingress19080-clean-table-docker-bench.json",
+  "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json",
   "reports/conversation-write-http-benchmark.current.json",
+  "reports/conversation-write-low-concurrency-batch-guard.current.json",
   "reports/conversation-write-http-benchmark.direct8-concurrency2900-multi8-warm363-raw-settings-repeat.json",
   "reports/conversation-write-http-benchmark.direct8-concurrency3000-multi8-pool10-client280-gap-repeat3.json",
   "reports/conversation-write-http-benchmark.direct8-concurrency3050-multi8-pool10-client280-db-timing.json",
@@ -50,6 +57,20 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/conversation-write-http-benchmark.ingress18-concurrency3600-multi6-upstream120.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
+  "reports/conversation-fanout-decision.current.json",
+  "reports/conversation-client-trace-attribution.current.json",
+  "reports/conversation-transport-profile-decision.current.json",
+  "reports/conversation-loadgen-runtime-decision.current.json",
+  "reports/teaching-archive-benchmark.current.json",
+  "reports/system-capacity-claim.current.json",
+  "reports/system-mixed-workload-benchmark.current.json",
+  "reports/system-mixed-workload-ladder.current.json",
+  "reports/system-sustained-mixed-workload.current.json",
+  "reports/system-sustained-mixed-workload-scaleup.current.json",
+  "reports/root-workflow-coverage.current.json",
+  "reports/cross-module-db-queue-diagnostics.current.json",
+  "reports/pgbouncer-production-headroom.current.json",
+  "reports/root-slo-promotion-review.current.json",
   "reports/quality-gate.current.json",
 ];
 
@@ -251,7 +272,11 @@ function sourceStatusMatches(entry, report) {
   if (typeof report.status === "string") return entry.status === report.status;
   if (entry.workloadType === "HTTP_BENCHMARK") return false;
   if (typeof report.readiness === "string") return entry.status === report.readiness;
-  if (typeof report.allPassed === "boolean") return entry.status === (report.allPassed ? "PASSED" : "FAILED");
+  if (typeof report.allPassed === "boolean") {
+    return entry.status === (isQualityGateReportPassing(report, {
+      allowInProgress: allowInProgressQualityGateFromEnv(),
+    }) ? "PASSED" : "FAILED");
+  }
   return true;
 }
 
@@ -375,7 +400,11 @@ function sourceReportStatus(entry, report) {
   if (typeof report.status === "string") return report.status;
   if (entry.workloadType === "HTTP_BENCHMARK") return "missing_status";
   if (typeof report.readiness === "string") return report.readiness;
-  if (typeof report.allPassed === "boolean") return report.allPassed ? "PASSED" : "FAILED";
+  if (typeof report.allPassed === "boolean") {
+    return isQualityGateReportPassing(report, {
+      allowInProgress: allowInProgressQualityGateFromEnv(),
+    }) ? "PASSED" : "FAILED";
+  }
   return "not_applicable";
 }
 

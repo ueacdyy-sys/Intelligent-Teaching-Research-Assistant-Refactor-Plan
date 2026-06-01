@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "2026-06-01.reports.conversation-write-low-concurrency-batch-guard.v1",
+  "reportId": "conversation_write_low_concurrency_batch_guard_current",
+  "generatedAt": "2026-06-01T05:10:15.222Z",
+  "benchmarkKind": "conversation_write_low_concurrency_batch_guard",
+  "status": "PASSED",
+  "summary": "The promoted batch64 delay0 profile does not add artificial wait to sparse or ordinary low-concurrency create-conversation traffic.",
+  "promotedWriteProfile": {
+    "batchingEnabled": true,
+    "batchSize": 64,
+    "batchDelayMs": 0
+  },
+  "runtimeProfile": {
+    "executionEnvironment": "Runner-managed single local Go gateway with Docker identity PgBouncer profile",
+    "postgres": {
+      "serviceName": "ita-identity-session-postgres",
+      "maxConnections": 300,
+      "sharedBuffers": "1GB"
+    },
+    "pgbouncer": {
+      "serviceName": "ita-identity-session-pgbouncer",
+      "poolMode": "transaction",
+      "listenPort": 6432,
+      "maxDbConnections": 90
+    },
+    "applicationPool": {
+      "postgresHost": "127.0.0.1",
+      "postgresPort": 16432,
+      "dbPoolSize": 1,
+      "dbMaxOverflow": 0,
+      "workerCount": 1
+    }
+  },
+  "sourceCommands": [
+    "node tools/run-conversation-write-benchmark.mjs --gateway-count 1 --db-max-conns 1 --write-batch-size 1 --write-batch-delay-ms 0 --concurrency 1 --operations 120 --max-conns-per-host 1 --warm-connections-per-host 1 --out tmp/conversation-write-lowconcurrency-single-write.json --timeout 120s --startup-timeout-ms 180000",
+    "node tools/run-conversation-write-benchmark.mjs --gateway-count 1 --db-max-conns 1 --write-batch-size 64 --write-batch-delay-ms 0 --concurrency 1 --operations 120 --max-conns-per-host 1 --warm-connections-per-host 1 --out tmp/conversation-write-lowconcurrency-batch64-delay0.json --timeout 120s --startup-timeout-ms 180000",
+    "node tools/run-conversation-write-benchmark.mjs --gateway-count 1 --db-max-conns 1 --write-batch-size 1 --write-batch-delay-ms 0 --concurrency 4 --operations 240 --max-conns-per-host 4 --warm-connections-per-host 4 --out tmp/conversation-write-lowconcurrency4-single-write.json --timeout 120s --startup-timeout-ms 180000",
+    "node tools/run-conversation-write-benchmark.mjs --gateway-count 1 --db-max-conns 1 --write-batch-size 64 --write-batch-delay-ms 0 --concurrency 4 --operations 240 --max-conns-per-host 4 --warm-connections-per-host 4 --out tmp/conversation-write-lowconcurrency4-batch64-delay0.json --timeout 120s --startup-timeout-ms 180000"
+  ],
+  "profiles": [
+    {
+      "profileId": "single_write_control_c1",
+      "writeBatchSize": 1,
+      "writeBatchDelayMs": 0,
+      "concurrency": 1,
+      "operations": 120,
+      "rps": 226.45,
+      "errors": 0,
+      "latencyMs": {
+        "p50": 4.16,
+        "p95": 5.47,
+        "p99": 6.15
+      },
+      "serverTimingMs": {
+        "p99": 6.15
+      },
+      "serverTimingBreakdownMs": {
+        "db.acquire": {
+          "p99": 0.66
+        },
+        "db.insert": {
+          "p99": 6.05
+        }
+      },
+      "clientServerGapMs": {
+        "p99": 2.32
+      }
+    },
+    {
+      "profileId": "batch64_delay0_c1",
+      "writeBatchSize": 64,
+      "writeBatchDelayMs": 0,
+      "concurrency": 1,
+      "operations": 120,
+      "rps": 227.1,
+      "errors": 0,
+      "latencyMs": {
+        "p50": 4.24,
+        "p95": 5.32,
+        "p99": 5.56
+      },
+      "serverTimingMs": {
+        "p99": 5.25
+      },
+      "serverTimingBreakdownMs": {
+        "db.acquire": {
+          "p99": 0.62
+        },
+        "db.batch_wait": {
+          "p99": 0.61
+        },
+        "db.insert": {
+          "p99": 5.03
+        }
+      },
+      "clientServerGapMs": {
+        "p99": 1.63
+      }
+    },
+    {
+      "profileId": "single_write_control_c4",
+      "writeBatchSize": 1,
+      "writeBatchDelayMs": 0,
+      "concurrency": 4,
+      "operations": 240,
+      "rps": 245.63,
+      "errors": 0,
+      "latencyMs": {
+        "p50": 15.79,
+        "p95": 19.05,
+        "p99": 20.59
+      },
+      "serverTimingMs": {
+        "p99": 20.26
+      },
+      "serverTimingBreakdownMs": {
+        "db.acquire": {
+          "p99": 15.06
+        },
+        "db.insert": {
+          "p99": 6.66
+        }
+      },
+      "clientServerGapMs": {
+        "p99": 2.31
+      }
+    },
+    {
+      "profileId": "batch64_delay0_c4",
+      "writeBatchSize": 64,
+      "writeBatchDelayMs": 0,
+      "concurrency": 4,
+      "operations": 240,
+      "rps": 470.36,
+      "errors": 0,
+      "latencyMs": {
+        "p50": 8.01,
+        "p95": 10.4,
+        "p99": 27.33
+      },
+      "serverTimingMs": {
+        "p99": 25.46
+      },
+      "serverTimingBreakdownMs": {
+        "db.acquire": {
+          "p99": 0
+        },
+        "db.batch_wait": {
+          "p99": 17.29
+        },
+        "db.insert": {
+          "p99": 8.17
+        }
+      },
+      "clientServerGapMs": {
+        "p99": 1.92
+      }
+    }
+  ],
+  "guardResults": [
+    {
+      "id": "single_client_no_artificial_wait",
+      "passed": true,
+      "actual": "batch64 delay0 db.batch_wait p99=0.61ms and end-to-end p99=5.56ms",
+      "expected": "sparse single-client create returns without waiting for the batch to fill"
+    },
+    {
+      "id": "single_client_p99_not_regressed",
+      "passed": true,
+      "actual": "batch64 delay0 p99=5.56ms vs single-write p99=6.15ms",
+      "expected": "batch64 delay0 p99 is no worse than the single-write control"
+    },
+    {
+      "id": "ordinary_low_concurrency_p95_improves",
+      "passed": true,
+      "actual": "batch64 delay0 c4 p95=10.40ms vs single-write c4 p95=19.05ms",
+      "expected": "ordinary low-concurrency p95 stays interaction-fast and improves against the control"
+    },
+    {
+      "id": "ordinary_low_concurrency_p99_budget",
+      "passed": true,
+      "actual": "batch64 delay0 c4 p99=27.33ms",
+      "expected": "ordinary low-concurrency p99 remains below 50ms"
+    },
+    {
+      "id": "db_acquire_pressure_removed",
+      "passed": true,
+      "actual": "batch64 delay0 c4 db.acquire p99=0ms vs single-write c4 db.acquire p99=15.06ms",
+      "expected": "batching removes low-concurrency DB pool acquire contention"
+    },
+    {
+      "id": "zero_errors",
+      "passed": true,
+      "actual": "all four guard profiles completed with errors=0",
+      "expected": "no createConversation errors in either control or batched low-concurrency profiles"
+    }
+  ],
+  "decision": "Keep CONVERSATION_WRITE_BATCH_SIZE=64 and CONVERSATION_WRITE_BATCH_DELAY_MS=0 as the promoted performance profile. Positive artificial batch delay still requires separate mixed-traffic evidence before promotion.",
+  "cleanup": {
+    "researchConversationsTruncated": true,
+    "dockerPerformanceComposeStopped": true,
+    "durableJsonContainsSecrets": false
+  }
+}

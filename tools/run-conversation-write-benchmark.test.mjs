@@ -14,9 +14,11 @@ describe("conversation write benchmark runner", () => {
 
     const {
       addRuntimeProfileToReport,
+      benchmarkRuntimeProfile,
       buildBenchmarkCommand,
       buildFailureReport,
       collectGatewayDatabaseDiagnostics,
+      collectGatewayRuntimeDiagnostics,
       gatewayBaseUrls,
       maskSensitive,
       parseArgs,
@@ -31,6 +33,10 @@ describe("conversation write benchmark runner", () => {
       "3",
       "--db-max-conns",
       "8",
+      "--write-batch-size",
+      "32",
+      "--write-batch-delay-ms",
+      "2",
       "--agent-api-key",
       "ueacd",
       "--dsn",
@@ -43,6 +49,8 @@ describe("conversation write benchmark runner", () => {
       "300",
       "--warm-connections-per-host",
       "300",
+      "--client-trace",
+      "true",
       "--pgbouncer-diagnostics",
       "true",
       "--postgres-diagnostics",
@@ -64,6 +72,7 @@ describe("conversation write benchmark runner", () => {
     assert(command.includes("--base-url"));
     assert(command.includes("http://127.0.0.1:18080,http://127.0.0.1:18081,http://127.0.0.1:18082"));
     assert.equal(command[command.indexOf("--warm-connection-retries") + 1], "3");
+    assert(command.includes("--client-trace"));
 
     const failed = buildFailureReport({
       options,
@@ -108,6 +117,10 @@ describe("conversation write benchmark runner", () => {
     assert.equal(failed.gatewayCount, 3);
     assert.equal(failed.loadBalancingStrategy, "ROUND_ROBIN");
     assert.equal(failed.gatewayDatabaseProfile.dbMaxConnsTotal, 24);
+    assert.equal(failed.clientTraceEnabled, true);
+    assert.equal(failed.gatewayWriteProfile.batchingEnabled, true);
+    assert.equal(failed.gatewayWriteProfile.batchSize, 32);
+    assert.equal(failed.gatewayWriteProfile.batchDelayMs, 2);
     assert.deepEqual(failed.gatewayBaseUrls, gatewayBaseUrls(options));
     assert.equal(failed.gatewayDatabaseDiagnostics.before.gateways[0].stats.emptyAcquireCount, 9);
     assert.equal(failed.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
@@ -141,6 +154,9 @@ describe("conversation write benchmark runner", () => {
     assert.equal(passed.gatewayWorkerCount, 3);
     assert.equal(passed.gatewayDatabaseProfile.dbMaxConnsPerWorker, 8);
     assert.equal(passed.gatewayDatabaseProfile.dbMaxConnsTotal, 24);
+    assert.equal(passed.clientTraceEnabled, true);
+    assert.equal(passed.gatewayWriteProfile.batchSize, 32);
+    assert.equal(passed.gatewayWriteProfile.batchDelayMs, 2);
     assert.equal(passed.gatewayDatabaseDiagnostics.after.gateways[0].stats.acquireDurationMs, 55.5);
     assert.equal(passed.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.deepEqual(passed.benchmarkRuntimeProfile.targetBaseUrls, gatewayBaseUrls(options));
@@ -165,6 +181,203 @@ describe("conversation write benchmark runner", () => {
     assert.equal(gatewayDiagnostics.gateways.length, 3);
     assert.equal(gatewayDiagnostics.gateways[0].stats.emptyAcquireCount, 11);
     assert(!JSON.stringify(gatewayDiagnostics).includes("ueacd"));
+
+    const runtimeDiagnostics = await collectGatewayRuntimeDiagnostics(gatewayBaseUrls(options), {
+      now: () => "2026-06-01T00:00:00.000Z",
+      fetch: async (url, init) => {
+        assert.match(url, /\/internal\/conversation\/runtime$/u);
+        assert.equal(init.headers["X-Internal-Diagnostics-Secret"], "ueacd");
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            stats: {
+              acceptedConns: 100,
+              currentConns: 24,
+              maxCurrentConns: 30,
+            },
+          }),
+        };
+      },
+    });
+    assert.equal(runtimeDiagnostics.endpoint, "/internal/conversation/runtime");
+    assert.equal(runtimeDiagnostics.gateways[0].stats.maxCurrentConns, 30);
+    assert(!JSON.stringify(runtimeDiagnostics).includes("ueacd"));
+  });
+
+  it("can run the load generator inside Docker while host gateways stay local", async () => {
+    const {
+      benchmarkRuntimeProfile,
+      buildBenchmarkCommand,
+      parseArgs,
+    } = await import("./run-conversation-write-benchmark.mjs");
+
+    const options = parseArgs([
+      "--benchmark-runtime",
+      "docker",
+      "--benchmark-docker-image",
+      "golang:1.26-alpine",
+      "--benchmark-docker-host",
+      "host.docker.internal",
+      "--base-url",
+      "http://127.0.0.1:18080",
+      "--gateway-count",
+      "2",
+      "--concurrency",
+      "5800",
+      "--operations",
+      "11600",
+      "--max-conns-per-host",
+      "0",
+      "--warm-connections-per-host",
+      "362",
+      "--out",
+      "reports/conversation-write-http-benchmark.dockerized.json",
+    ]);
+
+    const command = buildBenchmarkCommand(options, [
+      "http://127.0.0.1:18080",
+      "http://127.0.0.1:18081",
+    ]);
+
+    assert.equal(command[0], "docker");
+    assert.deepEqual(command.slice(1, 8), [
+      "run",
+      "--rm",
+      "-v",
+      `${process.cwd()}:/workspace`,
+      "-w",
+      "/workspace",
+      "golang:1.26-alpine",
+    ]);
+    assert.deepEqual(command.slice(8, 12), [
+      "go",
+      "run",
+      "./services/conversation-write-gateway/cmd/httpbench",
+      "--base-url",
+    ]);
+    assert.equal(
+      command[12],
+      "http://host.docker.internal:18080,http://host.docker.internal:18081",
+    );
+    assert.deepEqual(benchmarkRuntimeProfile(options, ["http://127.0.0.1:18080"]), {
+      executor: "DOCKER_GO",
+      dockerImage: "golang:1.26-alpine",
+      dockerHostAlias: "host.docker.internal",
+      targetBaseUrls: ["http://host.docker.internal:18080"],
+    });
+  });
+
+  it("can run the load generator inside WSL while host gateways stay local", async () => {
+    const {
+      benchmarkRuntimeProfile,
+      buildBenchmarkCommand,
+      parseArgs,
+    } = await import("./run-conversation-write-benchmark.mjs");
+
+    const options = parseArgs([
+      "--benchmark-runtime",
+      "wsl",
+      "--benchmark-wsl-distro",
+      "Ubuntu",
+      "--benchmark-wsl-host",
+      "172.20.0.1",
+      "--benchmark-wsl-workspace",
+      "/mnt/c/Users/Administrator/Desktop/Intelligent-Teaching-Research-Assistant-Refactor-Plan",
+      "--base-url",
+      "http://127.0.0.1:18080",
+      "--gateway-count",
+      "2",
+      "--concurrency",
+      "5800",
+      "--operations",
+      "11600",
+      "--max-conns-per-host",
+      "0",
+      "--warm-connections-per-host",
+      "362",
+      "--out",
+      "reports/conversation-write-http-benchmark.wsl.json",
+    ]);
+
+    const command = buildBenchmarkCommand(options, [
+      "http://127.0.0.1:18080",
+      "http://127.0.0.1:18081",
+    ]);
+
+    assert.deepEqual(command.slice(0, 6), ["wsl.exe", "-d", "Ubuntu", "--", "bash", "-lc"]);
+    assert.match(command[6], /^cd '\/mnt\/c\/Users\/Administrator\/Desktop\/Intelligent-Teaching-Research-Assistant-Refactor-Plan' && go 'run'/u);
+    assert.match(command[6], /'--base-url' 'http:\/\/172\.20\.0\.1:18080,http:\/\/172\.20\.0\.1:18081'/u);
+    assert.deepEqual(benchmarkRuntimeProfile(options, ["http://127.0.0.1:18080"]), {
+      executor: "WSL_GO",
+      wslDistro: "Ubuntu",
+      wslHostAlias: "172.20.0.1",
+      wslWorkspace: "/mnt/c/Users/Administrator/Desktop/Intelligent-Teaching-Research-Assistant-Refactor-Plan",
+      targetBaseUrls: ["http://172.20.0.1:18080"],
+    });
+  });
+
+  it("forwards write batch configuration to gateways and report profiles", async () => {
+    const {
+      parseArgs,
+      runConversationWriteBenchmark,
+    } = await import("./run-conversation-write-benchmark.mjs");
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "conversation-batch-runner-"));
+    const out = path.join(tmpDir, "benchmark.json");
+    const observedGatewayEnvs = [];
+    const options = parseArgs([
+      "--base-url",
+      "http://127.0.0.1:18080",
+      "--gateway-count",
+      "2",
+      "--write-batch-size",
+      "64",
+      "--write-batch-delay-ms",
+      "3",
+      "--out",
+      out,
+    ]);
+    const spawnSync = () => ({ status: 0, stderr: "" });
+    const spawnProcess = (command, _args, init) => {
+      if (String(command).includes("conversation-write-gateway-runner")) {
+        observedGatewayEnvs.push(init.env);
+        return fakeProcess();
+      }
+      const benchmark = fakeProcess();
+      queueMicrotask(() => {
+        fs.writeFileSync(out, `${JSON.stringify({
+          status: "PASSED",
+          phases: { createConversation: { errors: 0, p95Ms: 12.34 } },
+        })}\n`);
+        benchmark.emit("close", 0, null);
+      });
+      return benchmark;
+    };
+
+    try {
+      const report = await runConversationWriteBenchmark(options, {
+        root: process.cwd(),
+        spawnProcess,
+        spawnCommandSync: spawnSync,
+        fetch: async () => ({
+          ok: true,
+          status: 200,
+          json: async () => ({ stats: { maxConns: 8, currentConns: 2, maxCurrentConns: 4 } }),
+        }),
+      });
+
+      assert.equal(observedGatewayEnvs.length, 2);
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_SIZE === "64"));
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_DELAY_MS === "3"));
+      assert.equal(report.gatewayWriteProfile.batchingEnabled, true);
+      assert.equal(report.gatewayWriteProfile.batchSize, 64);
+      assert.equal(report.gatewayWriteProfile.batchDelayMs, 3);
+      assert.equal(report.gatewayRuntimeDiagnostics.after.gateways[0].stats.maxCurrentConns, 4);
+      assert(!JSON.stringify(report).includes("ueacd"));
+      assert(!JSON.stringify(report).includes("postgres://"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it("rejects non-ueacd local secrets and invalid port plans", async () => {
@@ -420,7 +633,15 @@ describe("conversation write benchmark runner", () => {
         fetch: async () => ({
           ok: true,
           status: 200,
-          json: async () => ({ stats: { maxConns: 8, emptyAcquireCount: 3 } }),
+          json: async () => ({
+            stats: {
+              maxConns: 8,
+              emptyAcquireCount: 3,
+              acceptedConns: 12,
+              currentConns: 2,
+              maxCurrentConns: 5,
+            },
+          }),
         }),
         sleep: async () => {},
       });
@@ -428,6 +649,8 @@ describe("conversation write benchmark runner", () => {
       assert.equal(report.status, "PASSED");
       assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].status, "OK");
       assert.equal(report.gatewayDatabaseDiagnostics.after.gateways[0].status, "OK");
+      assert.equal(report.gatewayRuntimeDiagnostics.before.gateways[0].status, "OK");
+      assert.equal(report.gatewayRuntimeDiagnostics.after.gateways[0].stats.maxCurrentConns, 5);
       assert.equal(report.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
       assert.equal(report.pgbouncerDiagnostics.after.queries.stats.rows[0].total_xact_count, 42);
       assert.equal(report.postgresDiagnostics.before.postgresRelations[0], "research_conversations");

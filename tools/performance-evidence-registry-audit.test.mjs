@@ -54,6 +54,51 @@ describe("performance evidence registry audit", () => {
     assert.equal(report.findings.find((finding) => finding.id === "sources.current_reports_present").passed, false);
   });
 
+  it("requires the conversation low-concurrency batch guard evidence", () => {
+    const inputs = loadCurrentInputs();
+    const registry = clone(inputs.registry);
+    registry.entries = registry.entries.filter(
+      (entry) => entry.sourceReportPath !== "reports/conversation-write-low-concurrency-batch-guard.current.json",
+    );
+
+    const report = auditPerformanceEvidenceRegistry({ ...inputs, registry });
+    const coverage = report.findings.find((finding) => finding.id === "registry.required_report_coverage");
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(coverage.passed, false);
+    assert.match(String(coverage.expected), /conversation-write-low-concurrency-batch-guard\.current\.json/u);
+  });
+
+  it("requires the root SLO promotion review evidence", () => {
+    const inputs = loadCurrentInputs();
+    const registry = clone(inputs.registry);
+    registry.entries = registry.entries.filter(
+      (entry) => entry.sourceReportPath !== "reports/root-slo-promotion-review.current.json",
+    );
+
+    const report = auditPerformanceEvidenceRegistry({ ...inputs, registry });
+    const coverage = report.findings.find((finding) => finding.id === "registry.required_report_coverage");
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(coverage.passed, false);
+    assert.match(String(coverage.expected), /root-slo-promotion-review\.current\.json/u);
+  });
+
+  it("requires the PgBouncer production headroom evidence", () => {
+    const inputs = loadCurrentInputs();
+    const registry = clone(inputs.registry);
+    registry.entries = registry.entries.filter(
+      (entry) => entry.sourceReportPath !== "reports/pgbouncer-production-headroom.current.json",
+    );
+
+    const report = auditPerformanceEvidenceRegistry({ ...inputs, registry });
+    const coverage = report.findings.find((finding) => finding.id === "registry.required_report_coverage");
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(coverage.passed, false);
+    assert.match(String(coverage.expected), /pgbouncer-production-headroom\.current\.json/u);
+  });
+
   it("fails when database evidence omits PostgreSQL settings", () => {
     const inputs = loadCurrentInputs();
     const registry = clone(inputs.registry);

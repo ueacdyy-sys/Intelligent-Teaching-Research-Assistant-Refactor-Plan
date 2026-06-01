@@ -64,6 +64,14 @@ type TokenIssuer interface {
 	NewGrantToken() string
 }
 
+type UserSessionTokenIssuer interface {
+	NewUserSessionTokens() (sessionID string, accessToken string, refreshToken string)
+}
+
+type AccessRefreshTokenIssuer interface {
+	NewAccessRefreshTokens() (accessToken string, refreshToken string)
+}
+
 type Clock interface {
 	Now() time.Time
 }
@@ -139,14 +147,15 @@ func (s *IdentityService) CreatePasswordSession(
 
 	now := s.clock.Now().UTC()
 	expiresAt := now.Add(time.Hour)
-	principal, err := projectUserPrincipal(account, role, normalized.EntryPoint, s.issuer.NewSessionID(), now, expiresAt)
+	sessionID, accessToken, refreshToken := s.newUserSessionTokens()
+	principal, err := projectUserPrincipal(account, role, normalized.EntryPoint, sessionID, now, expiresAt)
 	if err != nil {
 		return domain.Session{}, err
 	}
 
 	session := domain.Session{
-		AccessToken:  s.issuer.NewAccessToken(),
-		RefreshToken: s.issuer.NewRefreshToken(),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    int(expiresAt.Sub(now).Seconds()),
 		Principal:    principal,
@@ -195,13 +204,14 @@ func (s *IdentityService) CompleteWeChatSession(
 	}
 	now := s.clock.Now().UTC()
 	expiresAt := now.Add(time.Hour)
-	principal, err := projectUserPrincipal(account, role, entryPoint, s.issuer.NewSessionID(), now, expiresAt)
+	sessionID, accessToken, refreshToken := s.newUserSessionTokens()
+	principal, err := projectUserPrincipal(account, role, entryPoint, sessionID, now, expiresAt)
 	if err != nil {
 		return domain.Session{}, err
 	}
 	session := domain.Session{
-		AccessToken:  s.issuer.NewAccessToken(),
-		RefreshToken: s.issuer.NewRefreshToken(),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    int(expiresAt.Sub(now).Seconds()),
 		Principal:    principal,
@@ -252,9 +262,10 @@ func (s *IdentityService) RefreshSession(
 	}
 	principal.IssuedAt = now
 	principal.ExpiresAt = expiresAt
+	accessToken, refreshToken := s.newAccessRefreshTokens()
 	session := domain.Session{
-		AccessToken:  s.issuer.NewAccessToken(),
-		RefreshToken: s.issuer.NewRefreshToken(),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    int(principal.ExpiresAt.Sub(now).Seconds()),
 		Principal:    principal,
@@ -268,17 +279,18 @@ func (s *IdentityService) RefreshSession(
 func (s *IdentityService) refreshSessionWithRotator(
 	ctx context.Context,
 	rotator RefreshSessionRotator,
-	refreshToken string,
+	currentRefreshToken string,
 	now time.Time,
 	expiresAt time.Time,
 ) (domain.Session, error) {
+	accessToken, refreshToken := s.newAccessRefreshTokens()
 	session := domain.Session{
-		AccessToken:  s.issuer.NewAccessToken(),
-		RefreshToken: s.issuer.NewRefreshToken(),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    int(expiresAt.Sub(now).Seconds()),
 	}
-	principal, ok, err := rotator.RotateRefreshSession(ctx, refreshToken, session.AccessToken, session.RefreshToken, now, expiresAt)
+	principal, ok, err := rotator.RotateRefreshSession(ctx, currentRefreshToken, session.AccessToken, session.RefreshToken, now, expiresAt)
 	if err != nil {
 		return domain.Session{}, err
 	}
@@ -287,6 +299,20 @@ func (s *IdentityService) refreshSessionWithRotator(
 	}
 	session.Principal = principal
 	return session, nil
+}
+
+func (s *IdentityService) newUserSessionTokens() (string, string, string) {
+	if issuer, ok := s.issuer.(UserSessionTokenIssuer); ok {
+		return issuer.NewUserSessionTokens()
+	}
+	return s.issuer.NewSessionID(), s.issuer.NewAccessToken(), s.issuer.NewRefreshToken()
+}
+
+func (s *IdentityService) newAccessRefreshTokens() (string, string) {
+	if issuer, ok := s.issuer.(AccessRefreshTokenIssuer); ok {
+		return issuer.NewAccessRefreshTokens()
+	}
+	return s.issuer.NewAccessToken(), s.issuer.NewRefreshToken()
 }
 
 func (s *IdentityService) RevokeSession(

@@ -10,6 +10,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -31,6 +32,7 @@ type benchmarkConfig struct {
 	MaxConnsPerHost        int
 	WarmConnectionsPerHost int
 	WarmConnectionRetries  int
+	ClientTrace            bool
 }
 
 type benchmarkReport struct {
@@ -43,6 +45,7 @@ type benchmarkReport struct {
 	GatewayBaseURLs  []string                  `json:"gatewayBaseUrls"`
 	LoadBalancing    string                    `json:"loadBalancingStrategy"`
 	TransportProfile benchmarkTransportProfile `json:"transportProfile"`
+	ClientTrace      bool                      `json:"clientTraceEnabled"`
 	Concurrency      int                       `json:"concurrency"`
 	Operations       int                       `json:"operations"`
 	TotalDurationMS  float64                   `json:"totalDurationMs"`
@@ -72,6 +75,8 @@ type phaseReport struct {
 	ServerTimingBreakdownSamples map[string]int            `json:"serverTimingBreakdownSamples,omitempty"`
 	ClientServerGapMS            *latencySummary           `json:"clientServerGapMs,omitempty"`
 	ClientServerGapSamples       int                       `json:"clientServerGapSamples,omitempty"`
+	ClientTraceBreakdownMS       map[string]latencySummary `json:"clientTraceBreakdownMs,omitempty"`
+	ClientTraceBreakdownSamples  map[string]int            `json:"clientTraceBreakdownSamples,omitempty"`
 }
 
 type latencySummary struct {
@@ -102,6 +107,7 @@ func parseConfig() benchmarkConfig {
 	flag.IntVar(&config.MaxConnsPerHost, "max-conns-per-host", 0, "optional HTTP transport max connections per gateway host")
 	flag.IntVar(&config.WarmConnectionsPerHost, "warm-connections-per-host", 0, "optional keep-alive connections to prewarm per gateway host")
 	flag.IntVar(&config.WarmConnectionRetries, "warm-connection-retries", 3, "warm-up retries per connection after transient listener refusal")
+	flag.BoolVar(&config.ClientTrace, "client-trace", false, "capture per-request client-side httptrace timings")
 	flag.Parse()
 	return config
 }
@@ -155,6 +161,7 @@ func run(config benchmarkConfig) error {
 		GatewayBaseURLs:  maskURLs(baseURLs),
 		LoadBalancing:    loadBalancingStrategy(baseURLs),
 		TransportProfile: transportProfile,
+		ClientTrace:      config.ClientTrace,
 		Concurrency:      config.Concurrency,
 		Operations:       config.Operations,
 		TotalDurationMS:  roundMillis(time.Since(start)),
@@ -300,7 +307,7 @@ func warmConnectionStrategy(connectionsPerHost int) string {
 
 func runCreateConversationPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) phaseReport {
 	phase, firstErr := runPhase("createConversation", config.Concurrency, config.Operations, func(_ int, opIndex int) (operationResult, error) {
-		return createConversation(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, opIndex)
+		return createConversation(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, opIndex, config.ClientTrace)
 	})
 	if firstErr != nil {
 		phase.FirstError = firstErr.Error()
@@ -309,7 +316,17 @@ func runCreateConversationPhase(ctx context.Context, client *http.Client, baseUR
 }
 
 type operationResult struct {
-	serverTimings map[string]time.Duration
+	serverTimings      map[string]time.Duration
+	clientTraceTimings map[string]time.Duration
+}
+
+type clientRequestTrace struct {
+	requestStart         time.Time
+	requestPrepared      time.Time
+	gotConn              time.Time
+	wroteRequest         time.Time
+	gotFirstResponseByte time.Time
+	responseClosed       time.Time
 }
 
 func runPhase(
@@ -320,6 +337,7 @@ func runPhase(
 ) (phaseReport, error) {
 	latencies := make([]time.Duration, operations)
 	serverTimings := make([]map[string]time.Duration, operations)
+	clientTraceTimings := make([]map[string]time.Duration, operations)
 	jobs := make(chan int)
 	var errorsCount int64
 	var firstErr error
@@ -346,6 +364,9 @@ func runPhase(
 				if len(result.serverTimings) > 0 {
 					serverTimings[opIndex] = result.serverTimings
 				}
+				if len(result.clientTraceTimings) > 0 {
+					clientTraceTimings[opIndex] = result.clientTraceTimings
+				}
 				latencies[opIndex] = time.Since(opStart)
 			}
 		}()
@@ -356,13 +377,14 @@ func runPhase(
 	close(jobs)
 	wg.Wait()
 
-	return buildPhaseReport(name, latencies, serverTimings, errorsCount, time.Since(start)), firstErr
+	return buildPhaseReport(name, latencies, serverTimings, clientTraceTimings, errorsCount, time.Since(start)), firstErr
 }
 
 func buildPhaseReport(
 	name string,
 	latencies []time.Duration,
 	serverTimings []map[string]time.Duration,
+	clientTraceTimings []map[string]time.Duration,
 	errorsCount int64,
 	duration time.Duration,
 ) phaseReport {
@@ -404,6 +426,21 @@ func buildPhaseReport(
 		summary := summarizeLatencies(gaps)
 		report.ClientServerGapMS = &summary
 		report.ClientServerGapSamples = len(gaps)
+	}
+	clientTraceBreakdown := observedTimings(clientTraceTimings)
+	if gaps := observedClientFirstByteAppGaps(clientTraceTimings, serverTimings); len(gaps) > 0 {
+		if clientTraceBreakdown == nil {
+			clientTraceBreakdown = map[string][]time.Duration{}
+		}
+		clientTraceBreakdown["client.first_byte_app_gap"] = gaps
+	}
+	if len(clientTraceBreakdown) > 0 {
+		report.ClientTraceBreakdownMS = map[string]latencySummary{}
+		report.ClientTraceBreakdownSamples = map[string]int{}
+		for metricName, values := range clientTraceBreakdown {
+			report.ClientTraceBreakdownMS[metricName] = summarizeLatencies(values)
+			report.ClientTraceBreakdownSamples[metricName] = len(values)
+		}
 	}
 	return report
 }
@@ -478,7 +515,7 @@ func requestHealth(ctx context.Context, client *http.Client, baseURL string) err
 	return nil
 }
 
-func createConversation(ctx context.Context, client *http.Client, baseURL string, agentAPIKey string, opIndex int) (operationResult, error) {
+func createConversation(ctx context.Context, client *http.Client, baseURL string, agentAPIKey string, opIndex int, clientTrace bool) (operationResult, error) {
 	body := map[string]any{
 		"title": fmt.Sprintf("bench conversation %d", opIndex),
 		"settings": map[string]any{
@@ -486,10 +523,14 @@ func createConversation(ctx context.Context, client *http.Client, baseURL string
 			"source":     "httpbench",
 		},
 	}
-	return doJSON(ctx, client, http.MethodPost, baseURL+"/v1/research/conversations", agentAPIKey, body, http.StatusCreated)
+	return doJSON(ctx, client, http.MethodPost, baseURL+"/v1/research/conversations", agentAPIKey, body, http.StatusCreated, clientTrace)
 }
 
-func doJSON(ctx context.Context, client *http.Client, method string, endpoint string, agentAPIKey string, payload any, expectedStatus int) (operationResult, error) {
+func doJSON(ctx context.Context, client *http.Client, method string, endpoint string, agentAPIKey string, payload any, expectedStatus int, clientTrace bool) (operationResult, error) {
+	var trace clientRequestTrace
+	if clientTrace {
+		trace = clientRequestTrace{requestStart: time.Now()}
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return operationResult{}, err
@@ -502,18 +543,67 @@ func doJSON(ctx context.Context, client *http.Client, method string, endpoint st
 	if agentAPIKey != "" {
 		request.Header.Set("X-Agent-Api-Key", agentAPIKey)
 	}
+	if clientTrace {
+		trace.requestPrepared = time.Now()
+		request = request.WithContext(httptrace.WithClientTrace(request.Context(), newClientTrace(&trace)))
+	}
 	response, err := client.Do(request)
 	if err != nil {
+		if clientTrace {
+			trace.responseClosed = time.Now()
+			return operationResult{clientTraceTimings: trace.durations()}, err
+		}
 		return operationResult{}, err
 	}
-	defer response.Body.Close()
 	result := operationResultFromResponse(response)
 	if response.StatusCode != expectedStatus {
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 2048))
+		_ = response.Body.Close()
+		if clientTrace {
+			trace.responseClosed = time.Now()
+			result.clientTraceTimings = trace.durations()
+		}
 		return result, fmt.Errorf("%s %s status = %d body = %s", method, endpoint, response.StatusCode, string(body))
 	}
 	_, _ = io.Copy(io.Discard, response.Body)
+	_ = response.Body.Close()
+	if clientTrace {
+		trace.responseClosed = time.Now()
+		result.clientTraceTimings = trace.durations()
+	}
 	return result, nil
+}
+
+func newClientTrace(trace *clientRequestTrace) *httptrace.ClientTrace {
+	return &httptrace.ClientTrace{
+		GotConn: func(_ httptrace.GotConnInfo) {
+			trace.gotConn = time.Now()
+		},
+		WroteRequest: func(_ httptrace.WroteRequestInfo) {
+			trace.wroteRequest = time.Now()
+		},
+		GotFirstResponseByte: func() {
+			trace.gotFirstResponseByte = time.Now()
+		},
+	}
+}
+
+func (trace clientRequestTrace) durations() map[string]time.Duration {
+	durations := map[string]time.Duration{}
+	addDuration(durations, "client.request_prepare", trace.requestStart, trace.requestPrepared)
+	addDuration(durations, "client.transport_wait", trace.requestPrepared, trace.gotConn)
+	addDuration(durations, "client.request_write", trace.gotConn, trace.wroteRequest)
+	addDuration(durations, "client.first_response_byte_wait", trace.wroteRequest, trace.gotFirstResponseByte)
+	addDuration(durations, "client.response_body_read", trace.gotFirstResponseByte, trace.responseClosed)
+	addDuration(durations, "client.round_trip", trace.requestPrepared, trace.responseClosed)
+	return durations
+}
+
+func addDuration(durations map[string]time.Duration, name string, start time.Time, end time.Time) {
+	if start.IsZero() || end.IsZero() || end.Before(start) {
+		return
+	}
+	durations[name] = end.Sub(start)
 }
 
 func operationResultFromResponse(response *http.Response) operationResult {
@@ -588,6 +678,27 @@ func observedClientServerGaps(latencies []time.Duration, serverTimings []map[str
 			continue
 		}
 		gap := latencies[index] - appTiming
+		if gap < 0 {
+			gap = 0
+		}
+		gaps = append(gaps, gap)
+	}
+	return gaps
+}
+
+func observedClientFirstByteAppGaps(clientTraceTimings []map[string]time.Duration, serverTimings []map[string]time.Duration) []time.Duration {
+	limit := len(clientTraceTimings)
+	if len(serverTimings) < limit {
+		limit = len(serverTimings)
+	}
+	gaps := make([]time.Duration, 0, limit)
+	for index := 0; index < limit; index++ {
+		firstByteWait, hasFirstByteWait := clientTraceTimings[index]["client.first_response_byte_wait"]
+		appTiming, hasAppTiming := serverTimings[index]["app"]
+		if !hasFirstByteWait || !hasAppTiming {
+			continue
+		}
+		gap := firstByteWait - appTiming
 		if gap < 0 {
 			gap = 0
 		}

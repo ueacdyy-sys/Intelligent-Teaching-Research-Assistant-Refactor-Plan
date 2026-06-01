@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -12,6 +12,7 @@ import {
   checkNoRuntimeTodoMarkers,
   checkRustFormatResult,
   collectSourceFiles,
+  runQualityGate,
 } from "./quality-gate.mjs";
 
 describe("strict quality gate", () => {
@@ -64,7 +65,6 @@ import (
     const commands = plan.map((command) => command.name);
 
     assert.deepEqual(commands, [
-      "npm test",
       "go vet",
       "cargo test",
       "identity session runtime audit",
@@ -80,9 +80,19 @@ import (
       "knowledge retrieval benchmark audit",
       "AI worker runtime dependency audit",
       "pgbouncer current performance profile audit",
+      "conversation fanout decision audit",
+      "conversation client trace attribution audit",
+      "conversation transport profile decision audit",
+      "conversation loadgen runtime decision audit",
+      "root workflow coverage audit",
+      "cross-module DB/queue diagnostics audit",
+      "pgbouncer production headroom audit",
+      "root SLO promotion review audit",
+      "system capacity claim audit",
       "performance evidence registry audit",
       "direct-limited connection budget",
       "pgbouncer connection budget",
+      "npm test",
     ]);
     const goVet = plan.find((command) => command.name === "go vet");
     assert(goVet.args.includes("./services/teaching-archive-gateway/..."));
@@ -113,6 +123,33 @@ import (
 
     assert(files.includes("services/agent-harness/src/lib.rs"));
     assert(!files.includes("services/agent-harness/target/generated.rs"));
+  });
+
+  it("writes an in-progress quality context before running command checks", () => {
+    const root = testRoot();
+    const reportPath = join(root, "reports", "quality-gate.current.json");
+    mkdirSync(join(root, "reports"), { recursive: true });
+    writeFileSync(reportPath, `${JSON.stringify({ status: "FAILED", allPassed: false })}\n`);
+
+    const probe = [
+      "const fs = require('node:fs');",
+      "const report = JSON.parse(fs.readFileSync('reports/quality-gate.current.json', 'utf8'));",
+      "if (process.env.ITA_QUALITY_GATE_IN_PROGRESS !== '1') process.exit(10);",
+      "if (report.status !== 'IN_PROGRESS') process.exit(11);",
+      "if (report.allPassed !== false) process.exit(12);",
+      "if (report.staticChecks?.passed !== true) process.exit(13);",
+    ].join("");
+
+    const report = runQualityGate(root, {
+      staticChecks: { passed: true, findings: [] },
+      plan: [{ name: "in-progress quality context probe", command: process.execPath, args: ["-e", probe] }],
+    });
+    const written = JSON.parse(readFileSync(reportPath, "utf8"));
+
+    assert.equal(report.allPassed, true);
+    assert.equal(report.status, "PASSED");
+    assert.equal(written.status, "PASSED");
+    assert.equal(written.commandResults[0].passed, true);
   });
 });
 

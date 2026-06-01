@@ -13,8 +13,9 @@ type PoolDB struct {
 }
 
 type SessionDBStatsProvider struct {
-	poolStatsProvider         platform.SessionDBPoolStatsProvider
-	writeLimiterStatsProvider platform.SessionWriteLimiterStatsProvider
+	poolStatsProvider            platform.SessionDBPoolStatsProvider
+	writeLimiterStatsProvider    platform.SessionWriteLimiterStatsProvider
+	operationTimingStatsProvider platform.SessionOperationTimingStatsProvider
 }
 
 func NewPoolDB(pool *pgxpool.Pool) PoolDB {
@@ -24,10 +25,18 @@ func NewPoolDB(pool *pgxpool.Pool) PoolDB {
 func NewSessionDBStatsProvider(
 	poolStatsProvider platform.SessionDBPoolStatsProvider,
 	writeLimiterStatsProvider platform.SessionWriteLimiterStatsProvider,
+	operationTimingStatsProviders ...platform.SessionOperationTimingStatsProvider,
 ) SessionDBStatsProvider {
+	var operationTimingStatsProvider platform.SessionOperationTimingStatsProvider
+	if len(operationTimingStatsProviders) > 0 {
+		operationTimingStatsProvider = operationTimingStatsProviders[0]
+	} else if provider, ok := writeLimiterStatsProvider.(platform.SessionOperationTimingStatsProvider); ok {
+		operationTimingStatsProvider = provider
+	}
 	return SessionDBStatsProvider{
-		poolStatsProvider:         poolStatsProvider,
-		writeLimiterStatsProvider: writeLimiterStatsProvider,
+		poolStatsProvider:            poolStatsProvider,
+		writeLimiterStatsProvider:    writeLimiterStatsProvider,
+		operationTimingStatsProvider: operationTimingStatsProvider,
 	}
 }
 
@@ -62,6 +71,9 @@ func (provider SessionDBStatsProvider) SessionDBPoolStats() platform.SessionDBPo
 	stats := provider.poolStatsProvider.SessionDBPoolStats()
 	if provider.writeLimiterStatsProvider != nil {
 		stats.WriteLimiter = provider.writeLimiterStatsProvider.SessionWriteLimiterStats()
+	}
+	if provider.operationTimingStatsProvider != nil {
+		stats.SessionOperations = provider.operationTimingStatsProvider.SessionOperationTimingStats()
 	}
 	return stats
 }

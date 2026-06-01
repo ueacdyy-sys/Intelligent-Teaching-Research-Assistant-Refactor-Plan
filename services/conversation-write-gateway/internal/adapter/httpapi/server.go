@@ -16,17 +16,19 @@ import (
 )
 
 type Server struct {
-	createConversation  *usecase.CreateConversation
-	agentAPIKey         string
-	diagnosticsSecret   string
-	dbPoolStatsProvider platform.ConversationDBPoolStatsProvider
+	createConversation   *usecase.CreateConversation
+	agentAPIKey          string
+	diagnosticsSecret    string
+	dbPoolStatsProvider  platform.ConversationDBPoolStatsProvider
+	runtimeStatsProvider platform.ConversationRuntimeStatsProvider
 }
 
 type ServerConfig struct {
-	CreateConversation  *usecase.CreateConversation
-	AgentAPIKey         string
-	DiagnosticsSecret   string
-	DBPoolStatsProvider platform.ConversationDBPoolStatsProvider
+	CreateConversation   *usecase.CreateConversation
+	AgentAPIKey          string
+	DiagnosticsSecret    string
+	DBPoolStatsProvider  platform.ConversationDBPoolStatsProvider
+	RuntimeStatsProvider platform.ConversationRuntimeStatsProvider
 }
 
 type createConversationRequest struct {
@@ -62,10 +64,11 @@ func NewServer(createConversation *usecase.CreateConversation, agentAPIKey strin
 
 func NewServerWithConfig(config ServerConfig) *Server {
 	return &Server{
-		createConversation:  config.CreateConversation,
-		agentAPIKey:         config.AgentAPIKey,
-		diagnosticsSecret:   config.DiagnosticsSecret,
-		dbPoolStatsProvider: config.DBPoolStatsProvider,
+		createConversation:   config.CreateConversation,
+		agentAPIKey:          config.AgentAPIKey,
+		diagnosticsSecret:    config.DiagnosticsSecret,
+		dbPoolStatsProvider:  config.DBPoolStatsProvider,
+		runtimeStatsProvider: config.RuntimeStatsProvider,
 	}
 }
 
@@ -73,6 +76,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/internal/conversation/db-pool", s.dbPoolDiagnostics)
+	mux.HandleFunc("/internal/conversation/runtime", s.runtimeDiagnostics)
 	mux.HandleFunc("/v1/research/conversations", s.create)
 	return mux
 }
@@ -98,6 +102,26 @@ func (s *Server) dbPoolDiagnostics(w http.ResponseWriter, r *http.Request) {
 		"status":  "ok",
 		"service": "conversation-write-gateway",
 		"stats":   s.dbPoolStatsProvider.ConversationDBPoolStats(),
+	})
+}
+
+func (s *Server) runtimeDiagnostics(w http.ResponseWriter, r *http.Request) {
+	if s.runtimeStatsProvider == nil {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "diagnostics unavailable")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	if !constantTimeEquals(r.Header.Get("X-Internal-Diagnostics-Secret"), s.diagnosticsSecret) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid diagnostics secret")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "ok",
+		"service": "conversation-write-gateway",
+		"stats":   s.runtimeStatsProvider.ConversationRuntimeStats(),
 	})
 }
 
@@ -189,6 +213,9 @@ func formatTime(value time.Time) string {
 func writeServerTiming(w http.ResponseWriter, duration time.Duration, timing *platform.ConversationTiming) {
 	metrics := []string{"app;dur=" + formatServerTimingDuration(duration)}
 	if timing != nil {
+		if timing.DBBatchWait > 0 {
+			metrics = append(metrics, "db.batch_wait;dur="+formatServerTimingDuration(timing.DBBatchWait))
+		}
 		if timing.DBAcquire > 0 {
 			metrics = append(metrics, "db.acquire;dur="+formatServerTimingDuration(timing.DBAcquire))
 		}

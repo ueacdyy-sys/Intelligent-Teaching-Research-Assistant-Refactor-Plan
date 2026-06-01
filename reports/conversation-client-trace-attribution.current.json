@@ -1,0 +1,160 @@
+{
+  "generatedAt": "2026-06-01T15:56:22.541Z",
+  "readiness": "READY",
+  "sourceReportPath": "reports/conversation-write-http-benchmark.direct16-concurrency5800-multi16-pool1-client362-batched64-delay0-client-trace.json",
+  "benchmarkKind": "conversation_write_gateway",
+  "workloadType": "DIAGNOSTIC_PROFILE",
+  "traceEvidencePresent": true,
+  "databaseBottleneck": false,
+  "attribution": {
+    "primary": "CLIENT_TRANSPORT_WAIT",
+    "secondary": "PRE_HANDLER_OR_LISTENER_GAP",
+    "components": [
+      {
+        "metric": "client.transport_wait",
+        "p99Ms": 272.53,
+        "gapRatio": 0.608
+      },
+      {
+        "metric": "client.first_byte_app_gap",
+        "p99Ms": 227.29,
+        "gapRatio": 0.507
+      },
+      {
+        "metric": "client.request_write",
+        "p99Ms": 97.81,
+        "gapRatio": 0.218
+      },
+      {
+        "metric": "client.response_body_read",
+        "p99Ms": 76.24,
+        "gapRatio": 0.17
+      },
+      {
+        "metric": "client.request_prepare",
+        "p99Ms": 22.69,
+        "gapRatio": 0.051
+      }
+    ]
+  },
+  "metrics": {
+    "status": "PASSED",
+    "gatewayCount": 16,
+    "concurrency": 5800,
+    "operations": 11600,
+    "errors": 0,
+    "rps": 17621.79,
+    "latencyP99Ms": 490.93,
+    "serverAppP99Ms": 91.56,
+    "clientServerGapP99Ms": 448.59,
+    "clientServerGapSamples": 11600,
+    "dbAcquireP99Ms": 0,
+    "dbInsertP99Ms": 58.19,
+    "transportProfile": {
+      "maxIdleConns": 23200,
+      "maxIdleConnsPerHost": 5800,
+      "maxConnsPerHost": 362,
+      "warmConnectionsPerHost": 362,
+      "warmConnectionsTotal": 5792,
+      "warmConnectionStrategy": "PER_HOST_PARALLEL",
+      "warmConnectionRetries": 3
+    },
+    "traceComponents": {
+      "client.transport_wait": 272.53,
+      "client.first_byte_app_gap": 227.29,
+      "client.response_body_read": 76.24,
+      "client.request_write": 97.81,
+      "client.request_prepare": 22.69,
+      "client.first_response_byte_wait": 306.18,
+      "client.round_trip": 442.37
+    },
+    "traceSamples": {
+      "client.first_byte_app_gap": 11600,
+      "client.first_response_byte_wait": 11600,
+      "client.request_prepare": 11600,
+      "client.request_write": 11600,
+      "client.response_body_read": 11600,
+      "client.round_trip": 11600,
+      "client.transport_wait": 11600
+    }
+  },
+  "recommendedNextAction": "Test transport and listener scheduling changes before increasing gateway worker or database pool budgets.",
+  "rationale": [
+    "Client/server gap P99 is 448.59ms while app Server-Timing P99 is 91.56ms.",
+    "db.acquire P99 is 0ms, so database acquisition is not the observed limiter.",
+    "Largest trace component is client.transport_wait at 272.53ms P99.",
+    "Second trace component is client.first_byte_app_gap at 227.29ms P99."
+  ],
+  "findings": [
+    {
+      "id": "source.present",
+      "passed": true,
+      "actual": "present",
+      "expected": "source trace report is present",
+      "remediation": "Restore or regenerate the client-trace benchmark report before auditing attribution."
+    },
+    {
+      "id": "source.parseable",
+      "passed": true,
+      "actual": "parseable",
+      "expected": "source trace report is valid JSON",
+      "remediation": "Client trace attribution evidence must be a machine-readable benchmark JSON report."
+    },
+    {
+      "id": "report.passed_without_errors",
+      "passed": true,
+      "actual": "status=PASSED errors=0",
+      "expected": "status=PASSED and errors=0",
+      "remediation": "Use a zero-error diagnostic trace report before attributing steady-state latency."
+    },
+    {
+      "id": "gap.client_server_present",
+      "passed": true,
+      "actual": "p99=448.59 samples=11600",
+      "expected": "clientServerGapMs.p99 and positive clientServerGapSamples",
+      "remediation": "Regenerate the report with SDD 0121 client/server gap support."
+    },
+    {
+      "id": "server_timing.required_metrics",
+      "passed": true,
+      "actual": "app=91.56 db.acquire=0",
+      "expected": "serverTimingBreakdownMs.app and serverTimingBreakdownMs.db.acquire",
+      "remediation": "Regenerate the report with Server-Timing app and database breakdown metrics."
+    },
+    {
+      "id": "trace.required_metrics",
+      "passed": true,
+      "actual": "complete",
+      "expected": "client.transport_wait,client.first_byte_app_gap,client.response_body_read,client.request_write,client.request_prepare,client.first_response_byte_wait,client.round_trip",
+      "remediation": "Run the conversation benchmark with --client-trace true before auditing trace attribution."
+    },
+    {
+      "id": "trace.sample_coverage",
+      "passed": true,
+      "actual": "client.transport_wait=11600;client.first_byte_app_gap=11600;client.response_body_read=11600;client.request_write=11600;client.request_prepare=11600;client.first_response_byte_wait=11600;client.round_trip=11600",
+      "expected": "required trace metrics have a sample count equal to operations",
+      "remediation": "Use a complete trace diagnostic report so percentiles are comparable across trace components."
+    },
+    {
+      "id": "database.acquire_not_bottleneck",
+      "passed": true,
+      "actual": "0ms",
+      "expected": "<=10ms",
+      "remediation": "Fix or profile PostgreSQL/PgBouncer acquisition before assigning the gap to transport or listener scheduling."
+    },
+    {
+      "id": "attribution.non_database_gap_identified",
+      "passed": true,
+      "actual": "CLIENT_TRANSPORT_WAIT",
+      "expected": "non-database primary attribution",
+      "remediation": "Regenerate trace evidence or investigate database acquisition before selecting the next performance slice."
+    }
+  ],
+  "sourceReferences": [
+    "docs/sdd/0121-conversation-client-server-gap.md",
+    "docs/sdd/0126-conversation-client-trace-diagnostics.md",
+    "docs/sdd/0132-conversation-fanout-decision-audit.md",
+    "docs/sdd/0133-conversation-client-trace-attribution-audit.md",
+    "reports/2026-06-01-p44-conversation-client-trace-diagnostics.md"
+  ]
+}

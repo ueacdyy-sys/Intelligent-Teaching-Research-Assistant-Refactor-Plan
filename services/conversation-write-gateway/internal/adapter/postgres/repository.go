@@ -148,6 +148,12 @@ func recordDBAcquireTiming(ctx context.Context, duration time.Duration) {
 	}
 }
 
+func recordDBBatchWaitTiming(ctx context.Context, duration time.Duration) {
+	if timing := platform.ConversationTimingFromContext(ctx); timing != nil {
+		timing.DBBatchWait = duration
+	}
+}
+
 func recordDBInsertTiming(ctx context.Context, duration time.Duration) {
 	if timing := platform.ConversationTimingFromContext(ctx); timing != nil {
 		timing.DBInsert = duration

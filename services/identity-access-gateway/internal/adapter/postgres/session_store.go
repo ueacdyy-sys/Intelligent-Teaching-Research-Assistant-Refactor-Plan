@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"ita-refactor/services/identity-access-gateway/internal/domain"
 	"ita-refactor/services/identity-access-gateway/internal/platform"
@@ -28,6 +29,7 @@ type DB interface {
 
 type SessionStore struct {
 	db                            DB
+	operationTimings              map[sessionOperation]*sessionOperationTimingStats
 	writeLimiter                  chan struct{}
 	writeConcurrencyLimit         int
 	writeOperations               map[sessionWriteOperation]*sessionWriteLimiterOperationStats
@@ -54,6 +56,7 @@ type SchemaConfig struct {
 }
 
 type sessionWriteOperation string
+type sessionOperation string
 
 const (
 	writeOperationSaveSession          sessionWriteOperation = "saveSession"
@@ -63,6 +66,11 @@ const (
 	writeOperationRevokeOwnSession     sessionWriteOperation = "revokeOwnSession"
 	writeOperationPruneInactive        sessionWriteOperation = "pruneInactiveSessions"
 	writeOperationAcceptRemoteCommand  sessionWriteOperation = "acceptRemoteCommand"
+)
+
+const (
+	operationGetPrincipalByAccessToken  sessionOperation = "getPrincipalByAccessToken"
+	operationGetPrincipalByRefreshToken sessionOperation = "getPrincipalByRefreshToken"
 )
 
 var sessionWriteOperations = []sessionWriteOperation{
@@ -75,6 +83,18 @@ var sessionWriteOperations = []sessionWriteOperation{
 	writeOperationAcceptRemoteCommand,
 }
 
+var sessionOperations = []sessionOperation{
+	sessionOperation(writeOperationSaveSession),
+	operationGetPrincipalByAccessToken,
+	operationGetPrincipalByRefreshToken,
+	sessionOperation(writeOperationRotateSession),
+	sessionOperation(writeOperationRotateRefreshSession),
+	sessionOperation(writeOperationRevokeSession),
+	sessionOperation(writeOperationRevokeOwnSession),
+	sessionOperation(writeOperationPruneInactive),
+	sessionOperation(writeOperationAcceptRemoteCommand),
+}
+
 type sessionWriteLimiterOperationStats struct {
 	waiting                  atomic.Int64
 	acquireCount             atomic.Int64
@@ -83,12 +103,21 @@ type sessionWriteLimiterOperationStats struct {
 	canceledAcquireWaitNanos atomic.Int64
 }
 
+type sessionOperationTimingStats struct {
+	count             atomic.Int64
+	totalElapsedNanos atomic.Int64
+	maxElapsedNanos   atomic.Int64
+}
+
 func NewSessionStore(db DB) *SessionStore {
 	return NewSessionStoreWithConfig(db, SessionStoreConfig{})
 }
 
 func NewSessionStoreWithConfig(db DB, config SessionStoreConfig) *SessionStore {
-	store := &SessionStore{db: db}
+	store := &SessionStore{
+		db:               db,
+		operationTimings: newSessionOperationTimingStats(),
+	}
 	if config.WriteConcurrency > 0 {
 		store.writeLimiter = make(chan struct{}, config.WriteConcurrency)
 		store.writeConcurrencyLimit = config.WriteConcurrency
@@ -103,7 +132,7 @@ func EnsureSchema(ctx context.Context, db DB) error {
 
 func EnsureSchemaWithConfig(ctx context.Context, db DB, config SchemaConfig) error {
 	for _, statement := range schemaStatementsFor(config.normalizedSessionTablePersistence()) {
-		if _, err := db.Exec(ctx, statement); err != nil {
+		if err := execSchemaStatement(ctx, db, statement); err != nil {
 			return err
 		}
 	}
@@ -117,6 +146,48 @@ func (config SchemaConfig) normalizedSessionTablePersistence() SessionTablePersi
 	return SessionTablePersistenceLogged
 }
 
+func execSchemaStatement(ctx context.Context, db DB, statement string) error {
+	const maxAttempts = 6
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if _, err := db.Exec(ctx, statement); err != nil {
+			if !isConcurrentSchemaDDLError(err) || attempt == maxAttempts-1 {
+				return err
+			}
+			if waitErr := waitForSchemaRetry(ctx, attempt); waitErr != nil {
+				return waitErr
+			}
+			continue
+		}
+		return nil
+	}
+	return nil
+}
+
+func isConcurrentSchemaDDLError(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	switch pgErr.Code {
+	case "23505", "42P07", "42710":
+		return true
+	default:
+		return false
+	}
+}
+
+func waitForSchemaRetry(ctx context.Context, attempt int) error {
+	delay := time.Duration(10*(1<<attempt)) * time.Millisecond
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
 func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refreshToken string, principal domain.PrincipalContext) error {
 	principalJSON, err := encodePrincipal(principal)
 	if err != nil {
@@ -127,6 +198,7 @@ func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refr
 		return err
 	}
 	defer release()
+	startedAt := time.Now()
 	_, err = s.db.Exec(
 		ctx,
 		`INSERT INTO identity_sessions (
@@ -146,12 +218,14 @@ func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refr
 		principal.IssuedAt,
 		principal.ExpiresAt,
 	)
+	s.recordSessionOperation(sessionOperation(writeOperationSaveSession), startedAt)
 	return err
 }
 
 func (s *SessionStore) GetPrincipalByAccessToken(ctx context.Context, accessToken string) (domain.PrincipalContext, bool, error) {
 	return s.getPrincipal(
 		ctx,
+		operationGetPrincipalByAccessToken,
 		`SELECT principal_json, issued_at, expires_at
 		FROM identity_sessions
 		WHERE access_token = $1
@@ -163,6 +237,7 @@ func (s *SessionStore) GetPrincipalByAccessToken(ctx context.Context, accessToke
 func (s *SessionStore) GetPrincipalByRefreshToken(ctx context.Context, refreshToken string) (domain.PrincipalContext, bool, error) {
 	return s.getPrincipal(
 		ctx,
+		operationGetPrincipalByRefreshToken,
 		`SELECT principal_json, issued_at, expires_at
 		FROM identity_sessions
 		WHERE refresh_token = $1
@@ -183,6 +258,7 @@ func (s *SessionStore) RotateSession(
 		return err
 	}
 	defer release()
+	startedAt := time.Now()
 	tag, err := s.db.Exec(
 		ctx,
 		`UPDATE identity_sessions
@@ -200,6 +276,7 @@ func (s *SessionStore) RotateSession(
 		principal.ExpiresAt,
 		refreshToken,
 	)
+	s.recordSessionOperation(sessionOperation(writeOperationRotateSession), startedAt)
 	if err != nil {
 		return err
 	}
@@ -225,6 +302,7 @@ func (s *SessionStore) RotateRefreshSession(
 	var principalJSON []byte
 	var storedIssuedAt time.Time
 	var storedExpiresAt time.Time
+	startedAt := time.Now()
 	err = s.db.QueryRow(
 		ctx,
 		`UPDATE identity_sessions
@@ -243,6 +321,7 @@ func (s *SessionStore) RotateRefreshSession(
 		expiresAt,
 		refreshToken,
 	).Scan(&principalJSON, &storedIssuedAt, &storedExpiresAt)
+	s.recordSessionOperation(sessionOperation(writeOperationRotateRefreshSession), startedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
@@ -264,6 +343,7 @@ func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) erro
 		return err
 	}
 	defer release()
+	startedAt := time.Now()
 	_, err = s.db.Exec(
 		ctx,
 		`DELETE FROM identity_sessions
@@ -271,6 +351,7 @@ func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) erro
 			AND revoked_at IS NULL`,
 		sessionID,
 	)
+	s.recordSessionOperation(sessionOperation(writeOperationRevokeSession), startedAt)
 	return err
 }
 
@@ -280,6 +361,7 @@ func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string,
 		return false, err
 	}
 	defer release()
+	startedAt := time.Now()
 	tag, err := s.db.Exec(
 		ctx,
 		`DELETE FROM identity_sessions
@@ -291,6 +373,7 @@ func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string,
 		accessToken,
 		now,
 	)
+	s.recordSessionOperation(sessionOperation(writeOperationRevokeOwnSession), startedAt)
 	if err != nil {
 		return false, err
 	}
@@ -306,6 +389,7 @@ func (s *SessionStore) PruneInactiveSessions(ctx context.Context, cutoff time.Ti
 		return 0, err
 	}
 	defer release()
+	startedAt := time.Now()
 	tag, err := s.db.Exec(
 		ctx,
 		`WITH inactive_sessions AS (
@@ -321,6 +405,7 @@ func (s *SessionStore) PruneInactiveSessions(ctx context.Context, cutoff time.Ti
 		cutoff,
 		limit,
 	)
+	s.recordSessionOperation(sessionOperation(writeOperationPruneInactive), startedAt)
 	if err != nil {
 		return 0, err
 	}
@@ -340,6 +425,7 @@ func (s *SessionStore) AcceptRemoteCommand(
 		return err
 	}
 	defer release()
+	startedAt := time.Now()
 	tag, err := s.db.Exec(
 		ctx,
 		`INSERT INTO identity_remote_command_nonces (
@@ -356,6 +442,7 @@ func (s *SessionStore) AcceptRemoteCommand(
 		now,
 		expiresAt,
 	)
+	s.recordSessionOperation(sessionOperation(writeOperationAcceptRemoteCommand), startedAt)
 	if err != nil {
 		return err
 	}
@@ -428,6 +515,14 @@ func newSessionWriteOperationStats() map[sessionWriteOperation]*sessionWriteLimi
 	return stats
 }
 
+func newSessionOperationTimingStats() map[sessionOperation]*sessionOperationTimingStats {
+	stats := make(map[sessionOperation]*sessionOperationTimingStats, len(sessionOperations))
+	for _, operation := range sessionOperations {
+		stats[operation] = &sessionOperationTimingStats{}
+	}
+	return stats
+}
+
 func (s *SessionStore) sessionWriteOperationStats() map[string]platform.SessionWriteLimiterOperationStat {
 	if len(s.writeOperations) == 0 {
 		return nil
@@ -449,16 +544,73 @@ func (s *SessionStore) sessionWriteOperationStats() map[string]platform.SessionW
 	return stats
 }
 
-func (s *SessionStore) getPrincipal(ctx context.Context, sql string, token string) (domain.PrincipalContext, bool, error) {
+func (s *SessionStore) SessionOperationTimingStats() map[string]platform.SessionOperationTimingStat {
+	if len(s.operationTimings) == 0 {
+		return nil
+	}
+	stats := make(map[string]platform.SessionOperationTimingStat, len(s.operationTimings))
+	for _, operation := range sessionOperations {
+		operationStats := s.operationTimings[operation]
+		if operationStats == nil {
+			continue
+		}
+		count := operationStats.count.Load()
+		totalElapsedMs := nanosToMillis(operationStats.totalElapsedNanos.Load())
+		var averageElapsedMs float64
+		if count > 0 {
+			averageElapsedMs = totalElapsedMs / float64(count)
+		}
+		stats[string(operation)] = platform.SessionOperationTimingStat{
+			Count:            count,
+			TotalElapsedMs:   totalElapsedMs,
+			AverageElapsedMs: averageElapsedMs,
+			MaxElapsedMs:     nanosToMillis(operationStats.maxElapsedNanos.Load()),
+		}
+	}
+	return stats
+}
+
+func (s *SessionStore) recordSessionOperation(operation sessionOperation, startedAt time.Time) {
+	if len(s.operationTimings) == 0 {
+		return
+	}
+	operationStats := s.operationTimings[operation]
+	if operationStats == nil {
+		return
+	}
+	elapsedNanos := time.Since(startedAt).Nanoseconds()
+	operationStats.count.Add(1)
+	operationStats.totalElapsedNanos.Add(elapsedNanos)
+	for {
+		current := operationStats.maxElapsedNanos.Load()
+		if elapsedNanos <= current || operationStats.maxElapsedNanos.CompareAndSwap(current, elapsedNanos) {
+			return
+		}
+	}
+}
+
+func nanosToMillis(nanos int64) float64 {
+	return float64(nanos) / 1_000_000
+}
+
+func (s *SessionStore) getPrincipal(
+	ctx context.Context,
+	operation sessionOperation,
+	sql string,
+	token string,
+) (domain.PrincipalContext, bool, error) {
 	var principalJSON []byte
 	var issuedAt time.Time
 	var expiresAt time.Time
+	startedAt := time.Now()
 	if err := s.db.QueryRow(ctx, sql, token).Scan(&principalJSON, &issuedAt, &expiresAt); err != nil {
+		s.recordSessionOperation(operation, startedAt)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
 		}
 		return domain.PrincipalContext{}, false, err
 	}
+	s.recordSessionOperation(operation, startedAt)
 	principal, err := decodePrincipal(principalJSON)
 	if err != nil {
 		return domain.PrincipalContext{}, false, err

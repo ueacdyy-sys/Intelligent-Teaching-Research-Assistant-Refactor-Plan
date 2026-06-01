@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -145,7 +146,7 @@ func newSafeReadRetryTransport(base http.RoundTripper, picker *roundRobinPicker,
 
 func (transport *safeReadRetryTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	response, err := transport.base.RoundTrip(request)
-	if err == nil || !transport.canRetry(request) {
+	if err == nil || !transport.canRetry(request, err) {
 		return response, err
 	}
 	closeResponseBody(response)
@@ -171,10 +172,19 @@ func (transport *safeReadRetryTransport) RoundTrip(request *http.Request) (*http
 	return nil, lastErr
 }
 
-func (transport *safeReadRetryTransport) canRetry(request *http.Request) bool {
-	return transport.upstreamCount > 1 &&
-		isSafeRetryMethod(request.Method) &&
-		canReplayRequestBody(request)
+func (transport *safeReadRetryTransport) canRetry(request *http.Request, err error) bool {
+	if transport.upstreamCount <= 1 {
+		return false
+	}
+	if isSafeRetryMethod(request.Method) && canReplayRequestBody(request) {
+		return true
+	}
+	return isDialTransportError(err)
+}
+
+func isDialTransportError(err error) bool {
+	var netErr *net.OpError
+	return errors.As(err, &netErr) && netErr.Op == "dial"
 }
 
 func (transport *safeReadRetryTransport) nextUnattemptedTarget(attempted map[string]bool) *url.URL {

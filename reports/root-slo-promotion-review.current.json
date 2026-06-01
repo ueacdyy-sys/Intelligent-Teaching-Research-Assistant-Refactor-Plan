@@ -1,0 +1,253 @@
+{
+  "generatedAt": "2026-06-01T15:56:27.447Z",
+  "readiness": "READY",
+  "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
+  "rootRequirements": {
+    "sourcePath": "../智能教研助手/项目根本需求（禁止改动）",
+    "matchedAnchors": [
+      "科研模式",
+      "教学模式",
+      "学生端",
+      "知识库",
+      "模型微调",
+      "操纵电脑上的所有应用",
+      "工作流",
+      "插件"
+    ]
+  },
+  "promotionPolicy": {
+    "reviewedClaim": "FULL_SYSTEM_ULTRA_CONCURRENCY",
+    "interactiveP99TargetMs": 1000,
+    "minimumPgbouncerHeadroomRatio": 0.2,
+    "minimumSustainedStepName": "high",
+    "minimumSustainedStepRank": 4,
+    "rootAnchors": [
+      "科研模式",
+      "教学模式",
+      "学生端",
+      "知识库",
+      "模型微调",
+      "操纵电脑上的所有应用",
+      "工作流",
+      "插件"
+    ]
+  },
+  "evidence": {
+    "rootWorkflowCoverage": {
+      "readiness": "READY",
+      "coveredWorkflows": 8,
+      "totalWorkflows": 8,
+      "contractOnlyWorkflows": [
+        "workflow_plugin_self_evolution"
+      ]
+    },
+    "moduleEvidenceDepth": {
+      "shallowModules": [
+        "teaching_archive_and_quiz:MODULE_SMOKE_ONLY",
+        "knowledge_retrieval:POLICY_SMOKE_ONLY",
+        "ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY",
+        "agent_harness_and_workflow_plugin:REVIEW_ONLY_QUEUE_BOUNDARY"
+      ]
+    },
+    "latency": {
+      "targetP99Ms": 1000,
+      "samples": [
+        {
+          "name": "identity.slowest_p99_ms",
+          "value": 3071.17
+        },
+        {
+          "name": "conversation.burst_p99_ms",
+          "value": 1795.33
+        },
+        {
+          "name": "conversation.low_tail_p99_ms",
+          "value": 349.9
+        },
+        {
+          "name": "sustained_scaleup.max_p99_ms",
+          "value": 42
+        },
+        {
+          "name": "teaching_archive.slowest_p99_ms",
+          "value": 35
+        }
+      ],
+      "maxP99Ms": 3071.17,
+      "maxP99Source": "identity.slowest_p99_ms",
+      "identityRevokeCycleAttribution": {
+        "slowestStep": "login",
+        "slowestStepP99Ms": 1498.29,
+        "stepP99SumMs": 3502.89,
+        "p99ResidualMs": -431.72
+      }
+    },
+    "databaseHeadroom": {
+      "pgbouncerMaxDbConnections": 90,
+      "currentHotPathPoolTotal": 89,
+      "currentHeadroom": 1,
+      "minimumHeadroom": 18,
+      "productionProfile": {
+        "readiness": "READY",
+        "candidateMaxDbConnections": 120,
+        "sourceHotPathHeadroom": 31,
+        "plannedBudgetHeadroom": 24,
+        "minimumHeadroom": 24
+      },
+      "effectiveHeadroom": 31,
+      "effectiveMinimumHeadroom": 24,
+      "satisfiedBy": "production_headroom_profile"
+    },
+    "sustainedScale": {
+      "highestPassedStep": "low",
+      "highestPassedStepRank": 2,
+      "minimumStepName": "high",
+      "minimumStepRank": 4,
+      "totalErrors": 0,
+      "orchestrationErrors": 0
+    },
+    "quality": {
+      "allPassed": true,
+      "commandCount": 0
+    }
+  },
+  "promotion": {
+    "reviewedClaim": "FULL_SYSTEM_ULTRA_CONCURRENCY",
+    "decision": "BLOCK_PROMOTION",
+    "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+    "blockerCount": 4,
+    "blockers": [
+      {
+        "id": "promotion.root_workflows_runtime_slo_covered",
+        "actual": "workflow_plugin_self_evolution",
+        "expected": "no contract-only root workflows in a full-system runtime SLO claim",
+        "remediation": "Add runtime SLO evidence for workflow/plugin self-evolution before promoting the whole system."
+      },
+      {
+        "id": "promotion.module_evidence_depth_sufficient",
+        "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY;agent_harness_and_workflow_plugin:REVIEW_ONLY_QUEUE_BOUNDARY",
+        "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
+        "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
+      },
+      {
+        "id": "promotion.interactive_tail_latency_within_target",
+        "actual": "identity.slowest_p99_ms=3071.17;identityRevokeSlowestStep=login:1498.29;stepP99Sum=3502.89;p99Residual=-431.72",
+        "expected": "max interactive/root workflow P99 <= 1000ms",
+        "remediation": "Reduce the slowest root workflow tail latency before making an ultra-concurrency claim."
+      },
+      {
+        "id": "promotion.sustained_scale_depth_sufficient",
+        "actual": "highest=low;rank=2;errors=0;orchestration=0",
+        "expected": "highest passed sustained mixed workload step >= high with zero errors",
+        "remediation": "Run a higher sustained mixed workload step before promotion."
+      }
+    ],
+    "requiredNextEvidence": [
+      "ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE",
+      "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
+      "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
+      "HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"
+    ]
+  },
+  "auditFindings": [
+    {
+      "id": "root_requirements.present",
+      "passed": true,
+      "severity": "info",
+      "actual": "present",
+      "expected": "immutable root requirements text is readable",
+      "remediation": "Read the immutable root requirements file before reviewing root SLO promotion."
+    },
+    {
+      "id": "root_requirements.anchors_present",
+      "passed": true,
+      "severity": "info",
+      "actual": "科研模式,教学模式,学生端,知识库,模型微调,操纵电脑上的所有应用,工作流,插件",
+      "expected": "科研模式,教学模式,学生端,知识库,模型微调,操纵电脑上的所有应用,工作流,插件",
+      "remediation": "The promotion review must be anchored to teaching, research, student, knowledge, worker, agent, workflow, and plugin requirements."
+    },
+    {
+      "id": "sources.required_reports_parseable",
+      "passed": true,
+      "severity": "info",
+      "actual": "rootWorkflowCoverage:json:reports/root-workflow-coverage.current.json;crossModuleDiagnostics:json:reports/cross-module-db-queue-diagnostics.current.json;pgbouncerProductionHeadroom:json:reports/pgbouncer-production-headroom.current.json;sustainedScaleUp:json:reports/system-sustained-mixed-workload-scaleup.current.json;quality:json:reports/quality-gate.current.json",
+      "expected": "root workflow, cross-module diagnostics, PgBouncer headroom, sustained scale-up, and quality reports are readable JSON",
+      "remediation": "Regenerate the missing prerequisite report before reviewing promotion."
+    },
+    {
+      "id": "root_workflow.coverage_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "READY",
+      "expected": "READY",
+      "remediation": "Root workflow coverage must be ready before promotion review."
+    },
+    {
+      "id": "cross_module.diagnostics_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "READY",
+      "expected": "READY",
+      "remediation": "Cross-module DB and queue diagnostics must be ready before promotion review."
+    },
+    {
+      "id": "pgbouncer.production_headroom_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "READY",
+      "expected": "READY",
+      "remediation": "PgBouncer production headroom profile must be ready before root SLO promotion review."
+    },
+    {
+      "id": "quality.gate_passed",
+      "passed": true,
+      "severity": "info",
+      "actual": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
+      "expected": "quality gate allPassed=true",
+      "remediation": "Never promote capacity from a failing quality gate."
+    }
+  ],
+  "promotionFindings": [
+    {
+      "id": "promotion.root_workflows_runtime_slo_covered",
+      "passed": false,
+      "severity": "promotion_blocker",
+      "actual": "workflow_plugin_self_evolution",
+      "expected": "no contract-only root workflows in a full-system runtime SLO claim",
+      "remediation": "Add runtime SLO evidence for workflow/plugin self-evolution before promoting the whole system."
+    },
+    {
+      "id": "promotion.module_evidence_depth_sufficient",
+      "passed": false,
+      "severity": "promotion_blocker",
+      "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY;agent_harness_and_workflow_plugin:REVIEW_ONLY_QUEUE_BOUNDARY",
+      "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
+      "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
+    },
+    {
+      "id": "promotion.interactive_tail_latency_within_target",
+      "passed": false,
+      "severity": "promotion_blocker",
+      "actual": "identity.slowest_p99_ms=3071.17;identityRevokeSlowestStep=login:1498.29;stepP99Sum=3502.89;p99Residual=-431.72",
+      "expected": "max interactive/root workflow P99 <= 1000ms",
+      "remediation": "Reduce the slowest root workflow tail latency before making an ultra-concurrency claim."
+    },
+    {
+      "id": "promotion.database_headroom_sufficient",
+      "passed": true,
+      "severity": "info",
+      "actual": "satisfiedBy=production_headroom_profile;current=1/90;candidate=31/120;minimum=24",
+      "expected": "PgBouncer headroom >= 20% of max_db_connections",
+      "remediation": "Choose a production pool profile with enough PgBouncer headroom for combined root workflows."
+    },
+    {
+      "id": "promotion.sustained_scale_depth_sufficient",
+      "passed": false,
+      "severity": "promotion_blocker",
+      "actual": "highest=low;rank=2;errors=0;orchestration=0",
+      "expected": "highest passed sustained mixed workload step >= high with zero errors",
+      "remediation": "Run a higher sustained mixed workload step before promotion."
+    }
+  ],
+  "nextAction": "Do not promote full-system ultra-concurrency; remediate the listed root SLO blockers and rerun the review."
+}

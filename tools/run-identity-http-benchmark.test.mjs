@@ -463,10 +463,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "golang:1.26-alpine",
     ]);
     assert.deepEqual(
-      dockerCommand.args.slice(-12),
+      dockerCommand.args.slice(-16),
       [
         "-base-url",
         "http://host.docker.internal:18080,http://host.docker.internal:18081",
+        "-gateway-diagnostics-base-url",
+        "http://host.docker.internal:18100",
+        "-gateway-diagnostics-secret",
+        "ueacd",
         "-out",
         "reports/dockerized.json",
         "-concurrency",
