@@ -10,6 +10,3 @@ CREATE TABLE IF NOT EXISTS research_conversations (
 
 CREATE INDEX IF NOT EXISTS ix_research_conversations_updated_at
     ON research_conversations (updated_at);
-
-CREATE INDEX IF NOT EXISTS ix_research_conversations_title
-    ON research_conversations (title);

@@ -11,12 +11,7 @@ import (
 	"ita-refactor/services/conversation-write-gateway/internal/platform"
 )
 
-type ExecDB interface {
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
-}
-
 type DB interface {
-	ExecDB
 	Acquire(ctx context.Context) (Conn, error)
 }
 
@@ -39,10 +34,6 @@ type poolConn struct {
 
 func NewPoolDB(pool *pgxpool.Pool) PoolDB {
 	return PoolDB{pool: pool}
-}
-
-func (db PoolDB) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
-	return db.pool.Exec(ctx, sql, args...)
 }
 
 func (db PoolDB) Acquire(ctx context.Context) (Conn, error) {
@@ -84,12 +75,38 @@ func NewConversationRepository(db DB) *ConversationRepository {
 	return &ConversationRepository{db: db}
 }
 
-func EnsureSchema(ctx context.Context, db ExecDB) error {
+func EnsureSchema(ctx context.Context, db DB) (err error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	if _, err = conn.Exec(ctx, schemaBeginStatement); err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		if _, rollbackErr := conn.Exec(ctx, schemaRollbackStatement); err == nil && rollbackErr != nil {
+			err = rollbackErr
+		}
+	}()
+
+	if _, err = conn.Exec(ctx, schemaLockStatement, conversationSchemaAdvisoryLockKey); err != nil {
+		return err
+	}
 	for _, statement := range schemaStatements {
-		if _, err := db.Exec(ctx, statement); err != nil {
+		if _, err := conn.Exec(ctx, statement); err != nil {
 			return err
 		}
 	}
+	if _, err = conn.Exec(ctx, schemaCommitStatement); err != nil {
+		return err
+	}
+	committed = true
 	return nil
 }
 
@@ -137,6 +154,16 @@ func recordDBInsertTiming(ctx context.Context, duration time.Duration) {
 	}
 }
 
+const conversationSchemaAdvisoryLockKey int64 = 2092283001
+
+const schemaBeginStatement = `BEGIN`
+
+const schemaLockStatement = `SELECT pg_advisory_xact_lock($1)`
+
+const schemaCommitStatement = `COMMIT`
+
+const schemaRollbackStatement = `ROLLBACK`
+
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS research_conversations (
 		id TEXT PRIMARY KEY,
@@ -149,6 +176,4 @@ var schemaStatements = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS ix_research_conversations_updated_at
 		ON research_conversations (updated_at)`,
-	`CREATE INDEX IF NOT EXISTS ix_research_conversations_title
-		ON research_conversations (title)`,
 }
