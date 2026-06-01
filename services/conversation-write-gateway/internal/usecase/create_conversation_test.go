@@ -22,10 +22,8 @@ func TestCreateConversationTrimsTitleAndPersists(t *testing.T) {
 	)
 
 	got, err := uc.Execute(context.Background(), domain.CreateConversationInput{
-		Title: "  多模型融合研究  ",
-		Settings: domain.Settings{
-			"fusionMode": "balanced",
-		},
+		Title:    "  多模型融合研究  ",
+		Settings: domain.NewSettingsJSON([]byte(`{"fusionMode":"balanced"}`)),
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)

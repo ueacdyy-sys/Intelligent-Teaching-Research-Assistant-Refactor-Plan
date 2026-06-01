@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -21,13 +22,13 @@ type createConversationRequest struct {
 }
 
 type conversationResponse struct {
-	ID           string         `json:"id"`
-	Title        string         `json:"title"`
-	CreatedAt    string         `json:"createdAt"`
-	UpdatedAt    string         `json:"updatedAt"`
-	MessageCount int            `json:"messageCount"`
-	TotalTokens  int            `json:"totalTokens"`
-	Settings     map[string]any `json:"settings,omitempty"`
+	ID           string          `json:"id"`
+	Title        string          `json:"title"`
+	CreatedAt    string          `json:"createdAt"`
+	UpdatedAt    string          `json:"updatedAt"`
+	MessageCount int             `json:"messageCount"`
+	TotalTokens  int             `json:"totalTokens"`
+	Settings     json.RawMessage `json:"settings,omitempty"`
 }
 
 type errorResponse struct {
@@ -104,15 +105,15 @@ func (s *Server) authorized(r *http.Request) bool {
 }
 
 func decodeSettings(w http.ResponseWriter, raw json.RawMessage) (domain.Settings, bool) {
-	if len(raw) == 0 || string(raw) == "null" {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
 		return nil, true
 	}
-	var settings map[string]any
-	if err := json.Unmarshal(raw, &settings); err != nil {
+	if !json.Valid(trimmed) || trimmed[0] != '{' {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "settings must be an object or null")
 		return nil, false
 	}
-	return domain.Settings(settings), true
+	return domain.NewSettingsJSON(trimmed), true
 }
 
 func toResponse(conversation domain.Conversation) conversationResponse {
@@ -123,7 +124,7 @@ func toResponse(conversation domain.Conversation) conversationResponse {
 		UpdatedAt:    formatTime(conversation.UpdatedAt),
 		MessageCount: conversation.MessageCount,
 		TotalTokens:  conversation.TotalTokens,
-		Settings:     map[string]any(conversation.Settings),
+		Settings:     conversation.Settings.JSON(),
 	}
 }
 

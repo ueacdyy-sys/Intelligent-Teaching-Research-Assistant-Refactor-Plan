@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -9,7 +11,7 @@ import (
 
 var ErrInvalidTitle = errors.New("conversation title must be between 1 and 200 characters")
 
-type Settings map[string]any
+type Settings []byte
 
 type Conversation struct {
 	ID           string
@@ -24,6 +26,30 @@ type Conversation struct {
 type CreateConversationInput struct {
 	Title    string
 	Settings Settings
+}
+
+func NewSettingsJSON(raw []byte) Settings {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+	settings := make([]byte, len(trimmed))
+	copy(settings, trimmed)
+	return Settings(settings)
+}
+
+func (s Settings) JSON() json.RawMessage {
+	if len(s) == 0 {
+		return nil
+	}
+	return json.RawMessage(s)
+}
+
+func (s Settings) JSONString() string {
+	if len(s) == 0 {
+		return ""
+	}
+	return string(s)
 }
 
 func NormalizeTitle(title string) (string, error) {

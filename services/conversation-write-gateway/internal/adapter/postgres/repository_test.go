@@ -36,6 +36,7 @@ func TestRepositoryCreateUsesExecutorPortAndJSONBSettings(t *testing.T) {
 	db := &fakeDB{}
 	repository := postgres.NewConversationRepository(db)
 	createdAt := time.Date(2026, 5, 31, 8, 0, 0, 0, time.UTC)
+	rawSettings := `{"fusionMode":"balanced","nested":{"strategy":"fast"}}`
 
 	err := repository.Create(context.Background(), domain.Conversation{
 		ID:           "conv_test",
@@ -44,9 +45,7 @@ func TestRepositoryCreateUsesExecutorPortAndJSONBSettings(t *testing.T) {
 		UpdatedAt:    createdAt,
 		MessageCount: 0,
 		TotalTokens:  0,
-		Settings: domain.Settings{
-			"fusionMode": "balanced",
-		},
+		Settings:     domain.NewSettingsJSON([]byte(rawSettings)),
 	})
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -58,7 +57,7 @@ func TestRepositoryCreateUsesExecutorPortAndJSONBSettings(t *testing.T) {
 	if !strings.Contains(db.statements[0], "$7::jsonb") {
 		t.Fatalf("insert should cast settings as jsonb: %s", db.statements[0])
 	}
-	if got := db.args[6]; got != `{"fusionMode":"balanced"}` {
+	if got := db.args[6]; got != rawSettings {
 		t.Fatalf("settings arg = %#v", got)
 	}
 }

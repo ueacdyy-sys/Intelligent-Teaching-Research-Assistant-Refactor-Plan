@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -32,12 +31,8 @@ func EnsureSchema(ctx context.Context, db DB) error {
 
 func (r *ConversationRepository) Create(ctx context.Context, conversation domain.Conversation) error {
 	var settings any
-	if conversation.Settings != nil {
-		payload, err := json.Marshal(conversation.Settings)
-		if err != nil {
-			return err
-		}
-		settings = string(payload)
+	if len(conversation.Settings) > 0 {
+		settings = conversation.Settings.JSONString()
 	}
 
 	_, err := r.db.Exec(ctx, `
