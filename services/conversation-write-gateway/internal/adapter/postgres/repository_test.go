@@ -10,6 +10,7 @@ import (
 
 	"ita-refactor/services/conversation-write-gateway/internal/adapter/postgres"
 	"ita-refactor/services/conversation-write-gateway/internal/domain"
+	"ita-refactor/services/conversation-write-gateway/internal/platform"
 )
 
 func TestEnsureSchemaCreatesConversationTableAndIndexes(t *testing.T) {
@@ -62,9 +63,36 @@ func TestRepositoryCreateUsesExecutorPortAndJSONBSettings(t *testing.T) {
 	}
 }
 
+func TestRepositoryCreateRecordsDatabaseTimings(t *testing.T) {
+	db := &fakeDB{acquireDelay: time.Millisecond, execDelay: time.Millisecond}
+	repository := postgres.NewConversationRepository(db)
+	timing := &platform.ConversationTiming{}
+	ctx := platform.WithConversationTiming(context.Background(), timing)
+	createdAt := time.Date(2026, 5, 31, 8, 0, 0, 0, time.UTC)
+
+	err := repository.Create(ctx, domain.Conversation{
+		ID:        "conv_test",
+		Title:     "Research",
+		CreatedAt: createdAt,
+		UpdatedAt: createdAt,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if timing.DBAcquire <= 0 {
+		t.Fatalf("DBAcquire = %s want > 0", timing.DBAcquire)
+	}
+	if timing.DBInsert <= 0 {
+		t.Fatalf("DBInsert = %s want > 0", timing.DBInsert)
+	}
+}
+
 type fakeDB struct {
-	statements []string
-	args       []any
+	statements   []string
+	args         []any
+	acquireDelay time.Duration
+	execDelay    time.Duration
 }
 
 func (f *fakeDB) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
@@ -72,3 +100,23 @@ func (f *fakeDB) Exec(_ context.Context, sql string, args ...any) (pgconn.Comman
 	f.args = args
 	return pgconn.CommandTag{}, nil
 }
+
+func (f *fakeDB) Acquire(context.Context) (postgres.Conn, error) {
+	if f.acquireDelay > 0 {
+		time.Sleep(f.acquireDelay)
+	}
+	return fakeConn{db: f}, nil
+}
+
+type fakeConn struct {
+	db *fakeDB
+}
+
+func (f fakeConn) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	if f.db.execDelay > 0 {
+		time.Sleep(f.db.execDelay)
+	}
+	return f.db.Exec(ctx, sql, args...)
+}
+
+func (fakeConn) Release() {}

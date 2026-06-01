@@ -60,14 +60,16 @@ type benchmarkTransportProfile struct {
 }
 
 type phaseReport struct {
-	Name                string          `json:"name"`
-	Operations          int             `json:"operations"`
-	Errors              int64           `json:"errors"`
-	FirstError          string          `json:"firstError,omitempty"`
-	RPS                 float64         `json:"rps"`
-	LatencyMS           latencySummary  `json:"latencyMs"`
-	ServerTimingMS      *latencySummary `json:"serverTimingMs,omitempty"`
-	ServerTimingSamples int             `json:"serverTimingSamples,omitempty"`
+	Name                         string                    `json:"name"`
+	Operations                   int                       `json:"operations"`
+	Errors                       int64                     `json:"errors"`
+	FirstError                   string                    `json:"firstError,omitempty"`
+	RPS                          float64                   `json:"rps"`
+	LatencyMS                    latencySummary            `json:"latencyMs"`
+	ServerTimingMS               *latencySummary           `json:"serverTimingMs,omitempty"`
+	ServerTimingSamples          int                       `json:"serverTimingSamples,omitempty"`
+	ServerTimingBreakdownMS      map[string]latencySummary `json:"serverTimingBreakdownMs,omitempty"`
+	ServerTimingBreakdownSamples map[string]int            `json:"serverTimingBreakdownSamples,omitempty"`
 }
 
 type latencySummary struct {
@@ -305,8 +307,7 @@ func runCreateConversationPhase(ctx context.Context, client *http.Client, baseUR
 }
 
 type operationResult struct {
-	serverTiming    time.Duration
-	hasServerTiming bool
+	serverTimings map[string]time.Duration
 }
 
 func runPhase(
@@ -316,8 +317,7 @@ func runPhase(
 	workerFunc func(workerID int, opIndex int) (operationResult, error),
 ) (phaseReport, error) {
 	latencies := make([]time.Duration, operations)
-	serverTimings := make([]time.Duration, operations)
-	hasServerTimings := make([]bool, operations)
+	serverTimings := make([]map[string]time.Duration, operations)
 	jobs := make(chan int)
 	var errorsCount int64
 	var firstErr error
@@ -341,9 +341,8 @@ func runPhase(
 					}
 					firstErrMu.Unlock()
 				}
-				if result.hasServerTiming {
-					serverTimings[opIndex] = result.serverTiming
-					hasServerTimings[opIndex] = true
+				if len(result.serverTimings) > 0 {
+					serverTimings[opIndex] = result.serverTimings
 				}
 				latencies[opIndex] = time.Since(opStart)
 			}
@@ -355,13 +354,13 @@ func runPhase(
 	close(jobs)
 	wg.Wait()
 
-	return buildPhaseReport(name, latencies, observedTimings(serverTimings, hasServerTimings), errorsCount, time.Since(start)), firstErr
+	return buildPhaseReport(name, latencies, observedTimings(serverTimings), errorsCount, time.Since(start)), firstErr
 }
 
 func buildPhaseReport(
 	name string,
 	latencies []time.Duration,
-	serverTimings []time.Duration,
+	serverTimings map[string][]time.Duration,
 	errorsCount int64,
 	duration time.Duration,
 ) phaseReport {
@@ -378,9 +377,25 @@ func buildPhaseReport(
 		LatencyMS:  summarizeLatencies(latencies),
 	}
 	if len(serverTimings) > 0 {
-		summary := summarizeLatencies(serverTimings)
+		report.ServerTimingBreakdownMS = map[string]latencySummary{}
+		report.ServerTimingBreakdownSamples = map[string]int{}
+		for name, values := range serverTimings {
+			report.ServerTimingBreakdownMS[name] = summarizeLatencies(values)
+			report.ServerTimingBreakdownSamples[name] = len(values)
+		}
+		if values := serverTimings["app"]; len(values) > 0 {
+			summary := summarizeLatencies(values)
+			report.ServerTimingMS = &summary
+			report.ServerTimingSamples = len(values)
+		}
+	} else {
+		report.ServerTimingBreakdownMS = nil
+		report.ServerTimingBreakdownSamples = nil
+	}
+	if report.ServerTimingMS == nil && len(serverTimings["app"]) > 0 {
+		summary := summarizeLatencies(serverTimings["app"])
 		report.ServerTimingMS = &summary
-		report.ServerTimingSamples = len(serverTimings)
+		report.ServerTimingSamples = len(serverTimings["app"])
 	}
 	return report
 }
@@ -494,14 +509,11 @@ func doJSON(ctx context.Context, client *http.Client, method string, endpoint st
 }
 
 func operationResultFromResponse(response *http.Response) operationResult {
-	duration, ok := parseServerTimingDuration(response.Header.Get("Server-Timing"))
-	if !ok {
+	timings := parseServerTimingDurations(response.Header.Get("Server-Timing"))
+	if len(timings) == 0 {
 		return operationResult{}
 	}
-	return operationResult{
-		serverTiming:    duration,
-		hasServerTiming: true,
-	}
+	return operationResult{serverTimings: timings}
 }
 
 func parseBaseURLs(value string) ([]string, error) {
@@ -547,20 +559,22 @@ func reportStatus(errorsCount int64) string {
 	return "FAILED"
 }
 
-func observedTimings(values []time.Duration, observed []bool) []time.Duration {
-	timings := make([]time.Duration, 0, len(values))
-	for index, value := range values {
-		if index < len(observed) && observed[index] {
-			timings = append(timings, value)
+func observedTimings(values []map[string]time.Duration) map[string][]time.Duration {
+	timings := map[string][]time.Duration{}
+	for _, metrics := range values {
+		for name, value := range metrics {
+			timings[name] = append(timings[name], value)
 		}
 	}
 	return timings
 }
 
-func parseServerTimingDuration(value string) (time.Duration, bool) {
+func parseServerTimingDurations(value string) map[string]time.Duration {
+	timings := map[string]time.Duration{}
 	for _, metric := range strings.Split(value, ",") {
 		parts := strings.Split(metric, ";")
-		if len(parts) < 2 || strings.TrimSpace(parts[0]) != "app" {
+		name := strings.TrimSpace(parts[0])
+		if len(parts) < 2 || name == "" {
 			continue
 		}
 		for _, attribute := range parts[1:] {
@@ -570,12 +584,12 @@ func parseServerTimingDuration(value string) (time.Duration, bool) {
 			}
 			durationMS, err := strconv.ParseFloat(strings.TrimPrefix(attribute, "dur="), 64)
 			if err != nil {
-				return 0, false
+				continue
 			}
-			return time.Duration(durationMS * float64(time.Millisecond)), true
+			timings[name] = time.Duration(durationMS * float64(time.Millisecond))
 		}
 	}
-	return 0, false
+	return timings
 }
 
 func maskURL(value string) string {

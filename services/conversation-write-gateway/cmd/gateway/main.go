@@ -24,7 +24,7 @@ func main() {
 	defer pool.Close()
 
 	createConversation := usecase.NewCreateConversation(
-		postgres.NewConversationRepository(pool),
+		postgres.NewConversationRepository(postgres.NewPoolDB(pool)),
 		event.NoopPublisher{},
 		platform.IDGenerator{},
 		platform.Clock{},
@@ -68,7 +68,7 @@ func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
 	if err := pool.Ping(ctx); err != nil {
 		log.Fatal(err)
 	}
-	if err := postgres.EnsureSchema(ctx, pool); err != nil {
+	if err := postgres.EnsureSchema(ctx, postgres.NewPoolDB(pool)); err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("postgres pool ready: maxConns=%d", maxConns)

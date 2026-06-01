@@ -2,25 +2,70 @@ package postgres
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"ita-refactor/services/conversation-write-gateway/internal/domain"
+	"ita-refactor/services/conversation-write-gateway/internal/platform"
 )
 
-type DB interface {
+type ExecDB interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+type DB interface {
+	ExecDB
+	Acquire(ctx context.Context) (Conn, error)
+}
+
+type Conn interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Release()
 }
 
 type ConversationRepository struct {
 	db DB
 }
 
+type PoolDB struct {
+	pool *pgxpool.Pool
+}
+
+type poolConn struct {
+	conn *pgxpool.Conn
+}
+
+func NewPoolDB(pool *pgxpool.Pool) PoolDB {
+	return PoolDB{pool: pool}
+}
+
+func (db PoolDB) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	return db.pool.Exec(ctx, sql, args...)
+}
+
+func (db PoolDB) Acquire(ctx context.Context) (Conn, error) {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return poolConn{conn: conn}, nil
+}
+
+func (conn poolConn) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	return conn.conn.Exec(ctx, sql, args...)
+}
+
+func (conn poolConn) Release() {
+	conn.conn.Release()
+}
+
 func NewConversationRepository(db DB) *ConversationRepository {
 	return &ConversationRepository{db: db}
 }
 
-func EnsureSchema(ctx context.Context, db DB) error {
+func EnsureSchema(ctx context.Context, db ExecDB) error {
 	for _, statement := range schemaStatements {
 		if _, err := db.Exec(ctx, statement); err != nil {
 			return err
@@ -35,7 +80,16 @@ func (r *ConversationRepository) Create(ctx context.Context, conversation domain
 		settings = conversation.Settings.JSONString()
 	}
 
-	_, err := r.db.Exec(ctx, `
+	acquireStart := time.Now()
+	conn, err := r.db.Acquire(ctx)
+	recordDBAcquireTiming(ctx, time.Since(acquireStart))
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	insertStart := time.Now()
+	_, err = conn.Exec(ctx, `
 		INSERT INTO research_conversations
 			(id, title, created_at, updated_at, message_count, total_tokens, settings)
 		VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
@@ -48,7 +102,20 @@ func (r *ConversationRepository) Create(ctx context.Context, conversation domain
 		conversation.TotalTokens,
 		settings,
 	)
+	recordDBInsertTiming(ctx, time.Since(insertStart))
 	return err
+}
+
+func recordDBAcquireTiming(ctx context.Context, duration time.Duration) {
+	if timing := platform.ConversationTimingFromContext(ctx); timing != nil {
+		timing.DBAcquire = duration
+	}
+}
+
+func recordDBInsertTiming(ctx context.Context, duration time.Duration) {
+	if timing := platform.ConversationTimingFromContext(ctx); timing != nil {
+		timing.DBInsert = duration
+	}
 }
 
 var schemaStatements = []string{

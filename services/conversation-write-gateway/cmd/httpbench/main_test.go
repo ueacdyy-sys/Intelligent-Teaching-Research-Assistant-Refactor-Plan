@@ -42,7 +42,9 @@ func TestBuildPhaseReportIncludesServerTimingSummary(t *testing.T) {
 	phase := buildPhaseReport(
 		"createConversation",
 		[]time.Duration{20 * time.Millisecond, 30 * time.Millisecond},
-		[]time.Duration{4 * time.Millisecond, 6 * time.Millisecond},
+		map[string][]time.Duration{
+			"app": {4 * time.Millisecond, 6 * time.Millisecond},
+		},
 		0,
 		100*time.Millisecond,
 	)
@@ -58,13 +60,40 @@ func TestBuildPhaseReportIncludesServerTimingSummary(t *testing.T) {
 	}
 }
 
-func TestParseServerTimingDuration(t *testing.T) {
-	got, ok := parseServerTimingDuration(`db;dur=7.2, app;dur=12.34`)
-	if !ok {
-		t.Fatal("parseServerTimingDuration() ok = false")
+func TestBuildPhaseReportIncludesServerTimingBreakdown(t *testing.T) {
+	phase := buildPhaseReport(
+		"createConversation",
+		[]time.Duration{20 * time.Millisecond, 30 * time.Millisecond},
+		map[string][]time.Duration{
+			"app":        {12 * time.Millisecond, 14 * time.Millisecond},
+			"db.acquire": {2 * time.Millisecond, 3 * time.Millisecond},
+			"db.insert":  {7 * time.Millisecond, 8 * time.Millisecond},
+		},
+		0,
+		100*time.Millisecond,
+	)
+
+	if phase.ServerTimingBreakdownMS["db.acquire"].P95MS != 3 {
+		t.Fatalf("db.acquire P95 = %v want 3", phase.ServerTimingBreakdownMS["db.acquire"].P95MS)
 	}
-	if got != 12340*time.Microsecond {
-		t.Fatalf("duration = %s want 12.34ms", got)
+	if phase.ServerTimingBreakdownSamples["db.insert"] != 2 {
+		t.Fatalf("db.insert samples = %d want 2", phase.ServerTimingBreakdownSamples["db.insert"])
+	}
+	if phase.ServerTimingMS == nil || phase.ServerTimingMS.P95MS != 14 {
+		t.Fatalf("app ServerTimingMS = %#v want P95 14", phase.ServerTimingMS)
+	}
+}
+
+func TestParseServerTimingDurations(t *testing.T) {
+	got := parseServerTimingDurations(`db.acquire;dur=7.2, app;dur=12.34, db.insert;dur=5`)
+	if len(got) != 3 {
+		t.Fatalf("timings = %#v want 3 metrics", got)
+	}
+	if got["app"] != 12340*time.Microsecond {
+		t.Fatalf("app duration = %s want 12.34ms", got["app"])
+	}
+	if got["db.acquire"] != 7200*time.Microsecond {
+		t.Fatalf("db.acquire duration = %s want 7.2ms", got["db.acquire"])
 	}
 }
 

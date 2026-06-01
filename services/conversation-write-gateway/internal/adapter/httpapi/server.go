@@ -6,9 +6,11 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"ita-refactor/services/conversation-write-gateway/internal/domain"
+	"ita-refactor/services/conversation-write-gateway/internal/platform"
 	"ita-refactor/services/conversation-write-gateway/internal/usecase"
 )
 
@@ -82,12 +84,14 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	timing := &platform.ConversationTiming{}
+	ctx := platform.WithConversationTiming(r.Context(), timing)
 	start := time.Now()
-	conversation, err := s.createConversation.Execute(r.Context(), domain.CreateConversationInput{
+	conversation, err := s.createConversation.Execute(ctx, domain.CreateConversationInput{
 		Title:    request.Title,
 		Settings: settings,
 	})
-	writeServerTiming(w, time.Since(start))
+	writeServerTiming(w, time.Since(start), timing)
 	if errors.Is(err, domain.ErrInvalidTitle) {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error())
 		return
@@ -135,8 +139,21 @@ func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
 }
 
-func writeServerTiming(w http.ResponseWriter, duration time.Duration) {
-	w.Header().Set("Server-Timing", "app;dur="+strconv.FormatFloat(float64(duration)/float64(time.Millisecond), 'f', 3, 64))
+func writeServerTiming(w http.ResponseWriter, duration time.Duration, timing *platform.ConversationTiming) {
+	metrics := []string{"app;dur=" + formatServerTimingDuration(duration)}
+	if timing != nil {
+		if timing.DBAcquire > 0 {
+			metrics = append(metrics, "db.acquire;dur="+formatServerTimingDuration(timing.DBAcquire))
+		}
+		if timing.DBInsert > 0 {
+			metrics = append(metrics, "db.insert;dur="+formatServerTimingDuration(timing.DBInsert))
+		}
+	}
+	w.Header().Set("Server-Timing", strings.Join(metrics, ", "))
+}
+
+func formatServerTimingDuration(duration time.Duration) string {
+	return strconv.FormatFloat(float64(duration)/float64(time.Millisecond), 'f', 3, 64)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

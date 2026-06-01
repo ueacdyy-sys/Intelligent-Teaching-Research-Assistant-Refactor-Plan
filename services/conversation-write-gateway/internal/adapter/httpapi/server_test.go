@@ -12,6 +12,7 @@ import (
 
 	"ita-refactor/services/conversation-write-gateway/internal/adapter/httpapi"
 	"ita-refactor/services/conversation-write-gateway/internal/domain"
+	"ita-refactor/services/conversation-write-gateway/internal/platform"
 	"ita-refactor/services/conversation-write-gateway/internal/usecase"
 )
 
@@ -32,6 +33,8 @@ func TestCreateConversationReturnsCreatedResponse(t *testing.T) {
 	}
 	if timing := response.Header().Get("Server-Timing"); !strings.HasPrefix(timing, "app;dur=") {
 		t.Fatalf("Server-Timing = %q, want app duration", timing)
+	} else if !strings.Contains(timing, "db.acquire;dur=") || !strings.Contains(timing, "db.insert;dur=") {
+		t.Fatalf("Server-Timing = %q, want DB timing breakdown", timing)
 	}
 
 	var body map[string]any
@@ -135,8 +138,12 @@ type fakeRepository struct {
 	created domain.Conversation
 }
 
-func (f *fakeRepository) Create(_ context.Context, conversation domain.Conversation) error {
+func (f *fakeRepository) Create(ctx context.Context, conversation domain.Conversation) error {
 	f.created = conversation
+	if timing := platform.ConversationTimingFromContext(ctx); timing != nil {
+		timing.DBAcquire = time.Millisecond
+		timing.DBInsert = 2 * time.Millisecond
+	}
 	return nil
 }
 
