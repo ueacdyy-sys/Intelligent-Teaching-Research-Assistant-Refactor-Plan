@@ -52,6 +52,64 @@ func TestRoundRobinPicker(t *testing.T) {
 	}
 }
 
+func TestIngressHandlerUsesStableBearerTokenUpstream(t *testing.T) {
+	upstreams, err := parseUpstreamBaseURLs("http://gateway-a.test,http://gateway-b.test,http://gateway-c.test")
+	if err != nil {
+		t.Fatalf("parseUpstreamBaseURLs() error = %v", err)
+	}
+	transport := &scriptedRoundTripper{
+		results: []roundTripResult{
+			{statusCode: http.StatusOK, body: "first\n"},
+			{statusCode: http.StatusOK, body: "second\n"},
+		},
+	}
+	handler := newIngressHandler(upstreams, transport)
+
+	for range 2 {
+		request := httptest.NewRequest(http.MethodGet, "/v1/identity/principal", nil)
+		request.Header.Set("Authorization", "Bearer access_same")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("status = %d body = %q, want 200", response.Code, response.Body.String())
+		}
+	}
+
+	if len(transport.hosts) != 2 {
+		t.Fatalf("hosts = %#v", transport.hosts)
+	}
+	if transport.hosts[0] != transport.hosts[1] {
+		t.Fatalf("same bearer token used different upstreams: %#v", transport.hosts)
+	}
+}
+
+func TestIngressHandlerKeepsRoundRobinForTokenlessRequests(t *testing.T) {
+	upstreams, err := parseUpstreamBaseURLs("http://gateway-a.test,http://gateway-b.test")
+	if err != nil {
+		t.Fatalf("parseUpstreamBaseURLs() error = %v", err)
+	}
+	transport := &scriptedRoundTripper{
+		results: []roundTripResult{
+			{statusCode: http.StatusOK, body: "first\n"},
+			{statusCode: http.StatusOK, body: "second\n"},
+		},
+	}
+	handler := newIngressHandler(upstreams, transport)
+
+	for range 2 {
+		request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("status = %d body = %q, want 200", response.Code, response.Body.String())
+		}
+	}
+
+	if got, want := transport.hosts, []string{"gateway-a.test", "gateway-b.test"}; !slices.Equal(got, want) {
+		t.Fatalf("tokenless upstreams = %#v want %#v", got, want)
+	}
+}
+
 func TestBuildUpstreamTransportProfile(t *testing.T) {
 	config := proxyConfig{
 		MaxConnsPerHost:        300,

@@ -1,0 +1,185 @@
+{
+  "generatedAt": "2026-06-02T03:35:00.608Z",
+  "startedAt": "2026-06-02T03:30:50.222Z",
+  "endedAt": "2026-06-02T03:35:00.608Z",
+  "benchmarkKind": "identity_phase_matrix",
+  "workloadType": "IDENTITY_PHASE_MATRIX",
+  "profile": "IDENTITY_PHASE_MATRIX_P63_REVOKED_TOKEN_DENY_CACHE_4400",
+  "status": "PASSED",
+  "stopOnFailure": true,
+  "targetProfile": {
+    "concurrency": 4400,
+    "operationsPerPhase": 8800,
+    "sessionTablePersistence": "unlogged",
+    "benchmarkRuntime": "docker"
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_IDENTITY_PHASE_MATRIX",
+    "managedDocker": true,
+    "dockerCleanup": "reset"
+  },
+  "cases": [
+    {
+      "name": "g12-p10-i16-c150",
+      "executed": true,
+      "status": "PASSED",
+      "reportPath": "reports/identity-phase-matrix.p63-revoked-token-deny-cache-4400.1-g12-p10-i16-c150.json",
+      "config": {
+        "gatewayCount": 12,
+        "sessionDbMaxConnsPerWorker": 10,
+        "sessionDbMaxConnsTotal": 120,
+        "ingressCount": 16,
+        "clientMaxConnsPerHost": 150,
+        "clientWarmConnectionsPerHost": 150,
+        "ingressMaxConnsPerHost": 40,
+        "ingressWarmConnectionsPerHost": 16
+      },
+      "totalErrors": 0,
+      "maxPhaseP99Ms": 2556.38,
+      "slowestPhase": "revokeCycle",
+      "totalPoolAcquireDurationMs": 16439366.72,
+      "totalEmptyAcquireWaitTimeMs": 16439365.05,
+      "phases": [
+        {
+          "name": "passwordLogin",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 3804.3,
+          "p95Ms": 1337.76,
+          "p99Ms": 1480.59,
+          "poolAcquireCount": 8800,
+          "poolAcquireDurationMs": 3789846.96,
+          "emptyAcquireWaitTimeMs": 3789846.96,
+          "sessionOperations": [
+            {
+              "name": "saveSession",
+              "count": 8800,
+              "totalElapsedMs": 4056946.58,
+              "averageElapsedMs": 461.02
+            }
+          ]
+        },
+        {
+          "name": "principalLookup",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 4173.22,
+          "p95Ms": 1172.03,
+          "p99Ms": 1372.62,
+          "poolAcquireCount": 8800,
+          "poolAcquireDurationMs": 1485699.33,
+          "emptyAcquireWaitTimeMs": 1485698.19,
+          "sessionOperations": [
+            {
+              "name": "getPrincipalByAccessToken",
+              "count": 8800,
+              "totalElapsedMs": 1713865,
+              "averageElapsedMs": 194.76
+            }
+          ]
+        },
+        {
+          "name": "refreshRotation",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 4136.33,
+          "p95Ms": 1207.59,
+          "p99Ms": 1300.36,
+          "poolAcquireCount": 8800,
+          "poolAcquireDurationMs": 1535587.54,
+          "emptyAcquireWaitTimeMs": 1535587.54,
+          "sessionOperations": [
+            {
+              "name": "rotateRefreshSession",
+              "count": 8800,
+              "totalElapsedMs": 1764665.99,
+              "averageElapsedMs": 200.53
+            }
+          ]
+        },
+        {
+          "name": "revokeCycle",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1878.83,
+          "p95Ms": 2461.5,
+          "p99Ms": 2556.38,
+          "poolAcquireCount": 25681,
+          "poolAcquireDurationMs": 9628232.89,
+          "emptyAcquireWaitTimeMs": 9628232.36,
+          "sessionOperations": [
+            {
+              "name": "getPrincipalByAccessToken",
+              "count": 8081,
+              "totalElapsedMs": 3373646.79,
+              "averageElapsedMs": 417.48
+            },
+            {
+              "name": "revokeOwnSession",
+              "count": 8800,
+              "totalElapsedMs": 3719904.8,
+              "averageElapsedMs": 422.72
+            },
+            {
+              "name": "saveSession",
+              "count": 8800,
+              "totalElapsedMs": 3089002.25,
+              "averageElapsedMs": 351.02
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredCases": 1,
+    "executedCases": 1,
+    "passedCases": 1,
+    "failedCases": 0,
+    "orchestrationErrors": 0,
+    "totalErrors": 0,
+    "maxPhaseP99Ms": 2556.38,
+    "recommendedCaseName": "g12-p10-i16-c150",
+    "recommendedCaseReportPath": "reports/identity-phase-matrix.p63-revoked-token-deny-cache-4400.1-g12-p10-i16-c150.json",
+    "firstFailedCaseName": null
+  },
+  "setup": [
+    {
+      "phase": "setup-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 1183,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v"
+    },
+    {
+      "phase": "setup-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8212,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    }
+  ],
+  "cleanup": [
+    {
+      "phase": "cleanup",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 3342,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    }
+  ],
+  "runnerErrors": [],
+  "nextAction": "Use the recommended passing case as the next Identity tuning baseline, then rerun a larger phase-aware matrix before any capacity promotion."
+}

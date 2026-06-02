@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log"
 	"net"
@@ -113,7 +114,7 @@ func newIngressHandler(upstreams []*url.URL, transport http.RoundTripper) http.H
 				Path:     request.URL.Path,
 				RawQuery: request.URL.RawQuery,
 			}
-			target := picker.Next()
+			target := picker.NextForRequest(request)
 			*request = *request.WithContext(context.WithValue(request.Context(), proxyOriginalRequestKey{}, original))
 			rewriteProxyRequest(request, target, original)
 		},
@@ -268,6 +269,13 @@ func newRoundRobinPicker(upstreams []*url.URL) *roundRobinPicker {
 	return &roundRobinPicker{upstreams: upstreams}
 }
 
+func (picker *roundRobinPicker) NextForRequest(request *http.Request) *url.URL {
+	if key := bearerAffinityKey(request); key != "" {
+		return picker.NextForAffinityKey(key)
+	}
+	return picker.Next()
+}
+
 func (picker *roundRobinPicker) Next() *url.URL {
 	if len(picker.upstreams) == 0 {
 		return &url.URL{}
@@ -275,6 +283,25 @@ func (picker *roundRobinPicker) Next() *url.URL {
 	index := int((picker.next.Add(1) - 1) % uint64(len(picker.upstreams)))
 	target := *picker.upstreams[index]
 	return &target
+}
+
+func (picker *roundRobinPicker) NextForAffinityKey(key string) *url.URL {
+	if len(picker.upstreams) == 0 {
+		return &url.URL{}
+	}
+	hash := fnv.New64a()
+	_, _ = hash.Write([]byte(key))
+	index := int(hash.Sum64() % uint64(len(picker.upstreams)))
+	target := *picker.upstreams[index]
+	return &target
+}
+
+func bearerAffinityKey(request *http.Request) string {
+	fields := strings.Fields(strings.TrimSpace(request.Header.Get("Authorization")))
+	if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") {
+		return ""
+	}
+	return fields[1]
 }
 
 func buildUpstreamTransport(config proxyConfig, upstreamCount int) (*http.Transport, upstreamTransportProfile) {

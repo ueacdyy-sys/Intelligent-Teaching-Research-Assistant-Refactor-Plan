@@ -43,6 +43,35 @@ func TestRevokeSessionUsesOptimizedOwnSessionRevoke(t *testing.T) {
 	}
 }
 
+func TestRevokeSessionDenyCachesRevokedOwnAccessToken(t *testing.T) {
+	now := time.Date(2026, 5, 28, 8, 0, 0, 0, time.UTC)
+	store := newFastRevokeStore()
+	service := usecase.NewIdentityService(
+		&fakeAuthenticator{},
+		store,
+		fixedIssuer{},
+		fixedClock{now: now},
+	)
+	session, err := service.CreatePasswordSession(context.Background(), domain.PasswordSessionInput{
+		Identifier: "student001",
+		Password:   "ueacd",
+		EntryPoint: domain.EntryPointStudentApp,
+	})
+	if err != nil {
+		t.Fatalf("CreatePasswordSession error = %v", err)
+	}
+
+	if err := service.RevokeSession(context.Background(), session.AccessToken, session.Principal.SessionID); err != nil {
+		t.Fatalf("RevokeSession error = %v", err)
+	}
+	if _, err := service.GetPrincipal(context.Background(), session.AccessToken); !errors.Is(err, domain.ErrInvalidSession) {
+		t.Fatalf("revoked access err = %v", err)
+	}
+	if store.accessLookupCalls != 0 {
+		t.Fatalf("deny-cached revoked token should not hit store, accessLookupCalls = %d", store.accessLookupCalls)
+	}
+}
+
 func TestRevokeSessionFallsBackForDifferentSession(t *testing.T) {
 	now := time.Date(2026, 5, 28, 8, 0, 0, 0, time.UTC)
 	store := newFastRevokeStore()
@@ -74,6 +103,16 @@ func TestRevokeSessionFallsBackForDifferentSession(t *testing.T) {
 	}
 	if store.revoked {
 		t.Fatal("different-session revoke should not revoke")
+	}
+	principal, lookupErr := service.GetPrincipal(context.Background(), session.AccessToken)
+	if lookupErr != nil {
+		t.Fatalf("current access token was deny-cached after failed revoke, err = %v", lookupErr)
+	}
+	if principal.SessionID != session.Principal.SessionID {
+		t.Fatalf("session id = %s, want %s", principal.SessionID, session.Principal.SessionID)
+	}
+	if store.accessLookupCalls != 2 {
+		t.Fatalf("post-fallback lookup should still hit store, accessLookupCalls = %d", store.accessLookupCalls)
 	}
 }
 

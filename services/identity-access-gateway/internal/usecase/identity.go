@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -83,6 +84,7 @@ type IdentityService struct {
 	sessions          SessionStore
 	issuer            TokenIssuer
 	clock             Clock
+	revokedTokens     *revokedAccessTokenDenyCache
 }
 
 func NewIdentityService(
@@ -122,6 +124,7 @@ func NewIdentityServiceWithWeChatAndReplayGuard(
 		sessions:          sessions,
 		issuer:            issuer,
 		clock:             clock,
+		revokedTokens:     newRevokedAccessTokenDenyCache(revokedAccessTokenDenyCacheMaxEntries),
 	}
 }
 
@@ -226,14 +229,19 @@ func (s *IdentityService) GetPrincipal(
 	ctx context.Context,
 	accessToken string,
 ) (domain.PrincipalContext, error) {
+	accessToken = strings.TrimSpace(accessToken)
 	if accessToken == "" {
+		return domain.PrincipalContext{}, domain.ErrInvalidSession
+	}
+	now := s.clock.Now().UTC()
+	if s.revokedTokens != nil && s.revokedTokens.contains(accessToken, now) {
 		return domain.PrincipalContext{}, domain.ErrInvalidSession
 	}
 	principal, ok, err := s.sessions.GetPrincipalByAccessToken(ctx, accessToken)
 	if err != nil {
 		return domain.PrincipalContext{}, err
 	}
-	if !ok || principal.ExpiresAt.Before(s.clock.Now().UTC()) {
+	if !ok || principal.ExpiresAt.Before(now) {
 		return domain.PrincipalContext{}, domain.ErrInvalidSession
 	}
 	return principal, nil
@@ -334,6 +342,7 @@ func (s *IdentityService) RevokeSession(
 			return err
 		}
 		if revoked {
+			s.rememberRevokedAccessToken(normalized.AccessToken, now)
 			return nil
 		}
 	}
@@ -344,7 +353,13 @@ func (s *IdentityService) RevokeSession(
 	if principal.SessionID != normalized.SessionID && !hasScope(principal, domain.ScopeAdminSystem) {
 		return domain.ErrForbidden
 	}
-	return s.sessions.RevokeSession(ctx, normalized.SessionID)
+	if err := s.sessions.RevokeSession(ctx, normalized.SessionID); err != nil {
+		return err
+	}
+	if principal.SessionID == normalized.SessionID {
+		s.rememberRevokedAccessToken(normalized.AccessToken, now)
+	}
+	return nil
 }
 
 func (s *IdentityService) CreateRemoteCommandGrant(
@@ -401,9 +416,13 @@ func (s *IdentityService) CreateRemoteCommandGrant(
 }
 
 const (
-	remoteCommandGrantTTL           = 10 * time.Minute
-	remoteCommandIssuedAtMaxAge     = 2 * time.Minute
-	remoteCommandIssuedAtFutureSkew = 30 * time.Second
+	remoteCommandGrantTTL                 = 10 * time.Minute
+	remoteCommandIssuedAtMaxAge           = 2 * time.Minute
+	remoteCommandIssuedAtFutureSkew       = 30 * time.Second
+	revokedAccessTokenDenyTTL             = 30 * time.Second
+	revokedAccessTokenDenyPruneInterval   = time.Second
+	revokedAccessTokenDenyPruneWriteCount = 4096
+	revokedAccessTokenDenyCacheMaxEntries = 262144
 )
 
 var errDuplicateSessionID = errors.New("duplicate generated session id")
@@ -505,6 +524,111 @@ func hasScope(principal domain.PrincipalContext, scope domain.Scope) bool {
 		}
 	}
 	return false
+}
+
+func (s *IdentityService) rememberRevokedAccessToken(accessToken string, now time.Time) {
+	if s.revokedTokens == nil {
+		return
+	}
+	s.revokedTokens.remember(accessToken, now.Add(revokedAccessTokenDenyTTL), now)
+}
+
+type revokedAccessTokenDenyCache struct {
+	mu               sync.RWMutex
+	expiresAt        map[string]time.Time
+	maxEntries       int
+	lastPrune        time.Time
+	writesSincePrune int
+}
+
+func newRevokedAccessTokenDenyCache(maxEntries int) *revokedAccessTokenDenyCache {
+	if maxEntries < 1 {
+		maxEntries = 1
+	}
+	return &revokedAccessTokenDenyCache{
+		expiresAt:  map[string]time.Time{},
+		maxEntries: maxEntries,
+	}
+}
+
+func (c *revokedAccessTokenDenyCache) contains(accessToken string, now time.Time) bool {
+	if accessToken == "" {
+		return false
+	}
+	now = now.UTC()
+	c.mu.RLock()
+	expiresAt, ok := c.expiresAt[accessToken]
+	c.mu.RUnlock()
+	if !ok {
+		return false
+	}
+	if expiresAt.After(now) {
+		return true
+	}
+
+	c.mu.Lock()
+	if currentExpiresAt, stillPresent := c.expiresAt[accessToken]; stillPresent && !currentExpiresAt.After(now) {
+		delete(c.expiresAt, accessToken)
+	}
+	c.mu.Unlock()
+	return false
+}
+
+func (c *revokedAccessTokenDenyCache) remember(accessToken string, expiresAt time.Time, now time.Time) {
+	if accessToken == "" {
+		return
+	}
+	now = now.UTC()
+	expiresAt = expiresAt.UTC()
+	if !expiresAt.After(now) {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.writesSincePrune += 1
+	if c.shouldPruneLocked(now) {
+		c.pruneExpiredLocked(now)
+		c.lastPrune = now
+		c.writesSincePrune = 0
+	}
+	if len(c.expiresAt) >= c.maxEntries {
+		c.pruneExpiredLocked(now)
+		if len(c.expiresAt) >= c.maxEntries {
+			c.dropEarliestLocked()
+		}
+	}
+	c.expiresAt[accessToken] = expiresAt
+}
+
+func (c *revokedAccessTokenDenyCache) shouldPruneLocked(now time.Time) bool {
+	return c.lastPrune.IsZero() ||
+		now.Sub(c.lastPrune) >= revokedAccessTokenDenyPruneInterval ||
+		c.writesSincePrune >= revokedAccessTokenDenyPruneWriteCount
+}
+
+func (c *revokedAccessTokenDenyCache) pruneExpiredLocked(now time.Time) {
+	for accessToken, expiresAt := range c.expiresAt {
+		if !expiresAt.After(now) {
+			delete(c.expiresAt, accessToken)
+		}
+	}
+}
+
+func (c *revokedAccessTokenDenyCache) dropEarliestLocked() {
+	var (
+		oldestToken     string
+		oldestExpiresAt time.Time
+	)
+	for accessToken, expiresAt := range c.expiresAt {
+		if oldestToken == "" || expiresAt.Before(oldestExpiresAt) {
+			oldestToken = accessToken
+			oldestExpiresAt = expiresAt
+		}
+	}
+	if oldestToken != "" {
+		delete(c.expiresAt, oldestToken)
+	}
 }
 
 type MemoryRemoteCommandReplayGuard struct {
