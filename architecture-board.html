@@ -1870,6 +1870,12 @@
         </div>
       </div>
 
+      <div class="callout">
+        本轮借鉴的是成熟 Agent 项目的工程骨架，而不是医疗场景本身：复杂问题先分诊，专业 Worker 再分工，原子 Skill 负责可测试能力，Harness 统一拦住文件、命令、插件、工作流和隐私数据。对智能教研助手来说，目标不是堆更多 Agent 名字，而是让每次智能体动作都能解释、能审批、能回放、能压测、能降级。
+      </div>
+
+      <div style="height: 12px"></div>
+
       <div class="split">
         <div class="grid">
           <div class="card blue">
@@ -2063,6 +2069,12 @@
             <td>可做 OCR 批改、多模态资料解析、模型实验和推理评估，但只走可选 Worker。</td>
             <td>AIWorkerAdmission、资源预算、数据脱敏、评估报告、回滚计划。</td>
             <td>不安装训练/OCR/RAG/vector/embedding/Mem0/Milvus/vLLM 重依赖到基线。</td>
+          </tr>
+          <tr>
+            <td>面试项目的实战感</td>
+            <td>把“智能体会做事”拆成可展示的任务轨迹、权限轨迹、证据轨迹和性能轨迹。</td>
+            <td>AgentRun Trace、Permission Trace、Evidence Pack、SLO Report。</td>
+            <td>不能用术语替代实测；没有证据链就不能写成已完成能力。</td>
           </tr>
         </tbody>
       </table>
@@ -2357,6 +2369,57 @@
             <td>ModelExperimentAgent 只生成实验计划，AI Worker Admission 决定是否允许执行。</td>
             <td>默认关闭；无脱敏、无资源预算、无评估报告时不接入主系统或默认安装包。</td>
             <td>实验指标、资源成本、数据范围、适配器风险、回滚方案。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>Agent 落地阶段</th>
+            <th>先做什么</th>
+            <th>为什么这样排</th>
+            <th>最低验收证据</th>
+            <th>禁止跳级</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A0 契约骨架</td>
+            <td>先固化 AgentTask、WorkerRoleManifest、SkillManifest、SharedContext、Evidence、GuardrailResult。</td>
+            <td>让后续任何语言和模型都按同一套边界通信，避免 AI 临时造字段。</td>
+            <td>契约 schema、示例、结构校验、回滚说明。</td>
+            <td>未定义契约就写 Agent 运行时代码。</td>
+          </tr>
+          <tr>
+            <td>A1 单 Agent 只读通道</td>
+            <td>TeachingAgent、StudentTutorAgent、ResearchAgent 先只做检索、解释、引用和建议。</td>
+            <td>最快形成可用体验，同时风险最低，能验证 Skill 选择、引用和上下文裁剪。</td>
+            <td>P95/P99、引用命中、错误率、无越权读取。</td>
+            <td>一开始就启动 Swarm 或写主库。</td>
+          </tr>
+          <tr>
+            <td>A2 受控写入通道</td>
+            <td>把测验草稿、批改建议、档案事件、工作流草稿接入 Harness 审批和事件流。</td>
+            <td>教研系统真正的价值在读写闭环，必须先把写入、回滚、人工复核做稳。</td>
+            <td>审批记录、业务事件、diff/evidence、回滚测试、混合读写压测。</td>
+            <td>Agent 直接写库、直接改最终成绩、直接发布工作流。</td>
+          </tr>
+          <tr>
+            <td>A3 选择性 Swarm</td>
+            <td>只在跨教学、科研、学情、工具控制或性能诊断时打开多 Worker 协作。</td>
+            <td>Swarm 能提升复杂任务质量，但也会提高延迟、成本和权限风险。</td>
+            <td>RouteDecision、ConflictResolution、FinalMergePolicy、预算和降级记录。</td>
+            <td>把 Swarm 当默认问答路径。</td>
+          </tr>
+          <tr>
+            <td>A4 可选实验 Worker</td>
+            <td>OCR、多模态、训练、量化、vLLM、Mem0、Milvus 等只进实验 Worker 或插件。</td>
+            <td>保留学习和扩展空间，但不拖垮基线安装包、启动速度和稳定性。</td>
+            <td>AIWorkerAdmission、脱敏状态、资源账单、评估报告、回滚计划。</td>
+            <td>把训练和重依赖装进默认虚拟环境。</td>
           </tr>
         </tbody>
       </table>
