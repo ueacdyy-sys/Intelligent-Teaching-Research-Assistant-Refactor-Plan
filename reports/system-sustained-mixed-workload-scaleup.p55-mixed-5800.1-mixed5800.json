@@ -1,0 +1,110 @@
+{
+  "generatedAt": "2026-06-02T02:56:33.635Z",
+  "startedAt": "2026-06-02T02:51:58.168Z",
+  "endedAt": "2026-06-02T02:56:33.635Z",
+  "benchmarkKind": "system_sustained_mixed_workload",
+  "workloadType": "SUSTAINED_MIXED_WORKLOAD",
+  "profile": "SUSTAINED_SCALEUP_P55_MIXED_5800_MIXED5800",
+  "status": "FAILED",
+  "stopOnFailure": true,
+  "sampleIntervalMs": 0,
+  "concurrencyProfile": {
+    "identityConcurrency": 5800,
+    "conversationConcurrency": 5800,
+    "teachingConcurrency": 290,
+    "identityGatewayCount": 12,
+    "conversationGatewayCount": 16,
+    "configuredSamples": 1
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 400,
+    "sharedWarmConnectionsPerHost": 100,
+    "identityMaxConnsPerHost": 150,
+    "identityWarmConnectionsPerHost": 150
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 19080,
+    "workerCount": 16,
+    "upstreamGatewayCount": 12,
+    "maxConnsPerHost": 40,
+    "warmConnectionsPerHost": 16
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 10,
+    "conversationDbMaxConns": 1,
+    "teachingDbMaxConns": 1,
+    "conversationWriteBatchSize": 64
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_SUSTAINED_ORCHESTRATOR",
+    "managedDocker": false,
+    "dockerCleanup": "none"
+  },
+  "samples": [
+    {
+      "name": "sample-1",
+      "sampleNumber": 1,
+      "executed": true,
+      "status": "FAILED",
+      "reportPath": "reports/system-sustained-mixed-workload-scaleup.p55-mixed-5800.1-mixed5800.1.json",
+      "totalErrors": 62,
+      "maxP95Ms": 2760.41,
+      "maxP99Ms": 2816.32,
+      "workloads": [
+        {
+          "name": "identity_http",
+          "status": "PASSED",
+          "errors": 0,
+          "p95Ms": 2760.41,
+          "p99Ms": 2816.32
+        },
+        {
+          "name": "conversation_write",
+          "status": "FAILED",
+          "errors": 62,
+          "p95Ms": 955.8,
+          "p99Ms": 985.05
+        },
+        {
+          "name": "teaching_archive",
+          "status": "PASSED",
+          "errors": 0,
+          "p95Ms": 1835,
+          "p99Ms": 1909
+        },
+        {
+          "name": "knowledge_retrieval",
+          "status": "READY",
+          "errors": 0,
+          "p95Ms": 2.55,
+          "p99Ms": null
+        },
+        {
+          "name": "ai_worker_admission",
+          "status": "READY",
+          "errors": 0,
+          "p95Ms": null,
+          "p99Ms": null
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredSamples": 1,
+    "executedSamples": 1,
+    "passedSamples": 0,
+    "failedSamples": 1,
+    "totalErrors": 62,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 2760.41,
+    "maxP99Ms": 2816.32,
+    "p99DriftMs": null,
+    "highestPassedSample": null,
+    "firstFailedSample": "sample-1"
+  },
+  "setup": [],
+  "cleanup": [],
+  "runnerErrors": [],
+  "nextAction": "Fix the first failed sustained mixed workload sample before increasing duration or concurrency."
+}
