@@ -12,8 +12,10 @@ DROP INDEX IF EXISTS idx_identity_sessions_access_active;
 
 DROP INDEX IF EXISTS idx_identity_sessions_refresh_active;
 
-CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at
-    ON identity_sessions (expires_at);
+DROP INDEX IF EXISTS idx_identity_sessions_expires_at;
+
+CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at_brin
+    ON identity_sessions USING BRIN (expires_at);
 
 CREATE TABLE IF NOT EXISTS identity_remote_command_nonces (
     provider TEXT NOT NULL,

@@ -384,6 +384,27 @@ func TestEnsureSchemaDropsRedundantActiveTokenIndexes(t *testing.T) {
 	}
 }
 
+func TestEnsureSchemaUsesLowWriteAmplificationExpiresIndex(t *testing.T) {
+	db := newFakeDB()
+
+	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
+		t.Fatalf("EnsureSchema error = %v", err)
+	}
+
+	schemaSQL := strings.Join(db.execSQL, "\n")
+	if !strings.Contains(schemaSQL, "DROP INDEX IF EXISTS idx_identity_sessions_expires_at") {
+		t.Fatalf("schema should drop the old btree expires_at index:\n%s", schemaSQL)
+	}
+	if !strings.Contains(schemaSQL, "CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at_brin") ||
+		!strings.Contains(schemaSQL, "USING BRIN") ||
+		!strings.Contains(schemaSQL, "ON identity_sessions USING BRIN (expires_at)") {
+		t.Fatalf("schema should create a BRIN expires_at index:\n%s", schemaSQL)
+	}
+	if strings.Contains(schemaSQL, "CREATE INDEX IF NOT EXISTS idx_identity_sessions_expires_at\n\t\tON identity_sessions (expires_at)") {
+		t.Fatalf("schema still creates the old btree expires_at index:\n%s", schemaSQL)
+	}
+}
+
 func TestSessionStoreAcceptRemoteCommandRejectsReplayNonce(t *testing.T) {
 	db := newFakeDB()
 	store := postgres.NewSessionStore(db)

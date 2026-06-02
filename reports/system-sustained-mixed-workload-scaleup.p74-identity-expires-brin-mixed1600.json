@@ -1,0 +1,346 @@
+{
+  "generatedAt": "2026-06-02T07:10:07.739Z",
+  "startedAt": "2026-06-02T07:08:35.085Z",
+  "endedAt": "2026-06-02T07:10:07.739Z",
+  "benchmarkKind": "system_sustained_mixed_workload_scale_up",
+  "workloadType": "SUSTAINED_MIXED_WORKLOAD_SCALE_UP",
+  "profile": "SUSTAINED_SCALEUP_P74_IDENTITY_EXPIRES_BRIN_MIXED1600",
+  "status": "PASSED",
+  "stopOnFailure": true,
+  "scaleGuardrails": {
+    "maxP99Ms": 3000,
+    "maxP99DriftMs": 1000,
+    "maxTotalErrors": 0
+  },
+  "concurrencyProfile": {
+    "identityGatewayCount": 12,
+    "conversationGatewayCount": 16,
+    "configuredSteps": 1,
+    "samplesPerStep": 1
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 128,
+    "sharedWarmConnectionsPerHost": 32,
+    "identityMaxConnsPerHost": 150,
+    "identityWarmConnectionsPerHost": 150
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 19080,
+    "workerCount": 16,
+    "upstreamGatewayCount": 12,
+    "maxConnsPerHost": 40,
+    "warmConnectionsPerHost": 16
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 10,
+    "identitySessionDbWriteConcurrency": 0,
+    "identitySessionTablePersistence": "unlogged",
+    "conversationDbMaxConns": 1,
+    "teachingDbMaxConns": 1,
+    "conversationWriteBatchSize": 64
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_SUSTAINED_SCALEUP_ORCHESTRATOR",
+    "managedDocker": true,
+    "dockerCleanup": "reset"
+  },
+  "conversationBenchmarkRuntimeProfile": {
+    "runtime": "local",
+    "executor": "LOCAL_GO",
+    "dockerImage": null,
+    "dockerHostAlias": null,
+    "wslDistro": null,
+    "wslHostAlias": null,
+    "wslWorkspace": null
+  },
+  "steps": [
+    {
+      "name": "mixed1600",
+      "executed": true,
+      "status": "PASSED",
+      "guardrailStatus": "PASSED",
+      "reportPath": "reports/system-sustained-mixed-workload-scaleup.p74-identity-expires-brin-mixed1600.1-mixed1600.json",
+      "identityConcurrency": 1600,
+      "identityOperations": 3200,
+      "conversationConcurrency": 1600,
+      "conversationOperations": 3200,
+      "teachingConcurrency": 80,
+      "teachingOperations": 160,
+      "samples": 1,
+      "totalErrors": 0,
+      "maxP95Ms": 654.3,
+      "maxP99Ms": 685.19,
+      "p99DriftMs": 0,
+      "workloads": [
+        {
+          "name": "identity_http",
+          "errors": 0,
+          "maxP99Ms": 685.19,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 654.3,
+            "p99Ms": 685.19,
+            "rps": 2559.58,
+            "concurrency": 1600,
+            "phases": {
+              "passwordLogin": {
+                "errors": 0,
+                "p95Ms": 575.77,
+                "p99Ms": 641.01,
+                "rps": 3480.4
+              },
+              "principalLookup": {
+                "errors": 0,
+                "p95Ms": 404.64,
+                "p99Ms": 435.87,
+                "rps": 4335.42
+              },
+              "refreshRotation": {
+                "errors": 0,
+                "p95Ms": 360.28,
+                "p99Ms": 392.17,
+                "rps": 4513.25
+              },
+              "revokeCycle": {
+                "errors": 0,
+                "p95Ms": 654.3,
+                "p99Ms": 685.19,
+                "rps": 2559.58,
+                "slowestStep": "revoke",
+                "slowestStepP99Ms": 385.95
+              }
+            },
+            "dominantPhase": "revokeCycle",
+            "dominantPhaseP99Ms": 685.19
+          }
+        },
+        {
+          "name": "conversation_write",
+          "errors": 0,
+          "maxP99Ms": 336.24,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 306.29,
+            "p99Ms": 336.24,
+            "rps": 8734.4,
+            "concurrency": 1600,
+            "serverTimingP99Ms": 170.05,
+            "clientServerGapP99Ms": 287.32,
+            "dbAcquireP99Ms": 0,
+            "dbBatchWaitP99Ms": 97.44,
+            "dbInsertP99Ms": 124.45,
+            "benchmarkRuntimeProfile": {
+              "executor": "LOCAL_GO",
+              "dockerImage": null,
+              "dockerHostAlias": null,
+              "targetBaseUrls": [
+                "http://127.0.0.1:18400",
+                "http://127.0.0.1:18401",
+                "http://127.0.0.1:18402",
+                "http://127.0.0.1:18403",
+                "http://127.0.0.1:18404",
+                "http://127.0.0.1:18405",
+                "http://127.0.0.1:18406",
+                "http://127.0.0.1:18407",
+                "http://127.0.0.1:18408",
+                "http://127.0.0.1:18409",
+                "http://127.0.0.1:18410",
+                "http://127.0.0.1:18411",
+                "http://127.0.0.1:18412",
+                "http://127.0.0.1:18413",
+                "http://127.0.0.1:18414",
+                "http://127.0.0.1:18415"
+              ]
+            },
+            "gatewayExitCode": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "gatewaySignal": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "runtimeDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 1,
+                "totalAcceptedConns": 16,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 129,
+                "totalAcceptedConns": 1915,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              }
+            },
+            "databaseDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 176.98
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 176.98
+              }
+            }
+          }
+        },
+        {
+          "name": "teaching_archive",
+          "errors": 0,
+          "maxP99Ms": 321,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 314,
+            "p99Ms": 321,
+            "rps": 240.6,
+            "concurrency": 80
+          }
+        },
+        {
+          "name": "knowledge_retrieval",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0,
+            "p95Ms": 2.55
+          }
+        },
+        {
+          "name": "ai_worker_admission",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0
+          }
+        }
+      ],
+      "guardrailFindings": [
+        {
+          "id": "step.status_passed",
+          "passed": true,
+          "actual": "PASSED",
+          "expected": "PASSED"
+        },
+        {
+          "id": "step.total_errors_zero",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        },
+        {
+          "id": "step.max_p99_within_guardrail",
+          "passed": true,
+          "actual": 685.19,
+          "expected": "<=3000"
+        },
+        {
+          "id": "step.p99_drift_within_guardrail",
+          "passed": true,
+          "actual": 0,
+          "expected": "abs<=1000"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredSteps": 1,
+    "executedSteps": 1,
+    "passedSteps": 1,
+    "blockedSteps": 0,
+    "totalErrors": 0,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 654.3,
+    "maxP99Ms": 685.19,
+    "maxP99DriftMs": 0,
+    "highestPassedStep": "mixed1600",
+    "firstBlockedStep": null
+  },
+  "setup": [
+    {
+      "phase": "setup-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 1200,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v"
+    },
+    {
+      "phase": "setup-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8130,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    }
+  ],
+  "cleanup": [
+    {
+      "phase": "cleanup",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2593,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    }
+  ],
+  "runnerErrors": [],
+  "nextAction": "Treat this as sustained mixed workload scale-up evidence only; add root workflow coverage and cross-module diagnostics before any full-system capacity promotion."
+}
