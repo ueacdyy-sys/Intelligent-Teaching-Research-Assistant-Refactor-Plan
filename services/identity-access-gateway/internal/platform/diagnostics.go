@@ -39,10 +39,15 @@ type SessionWriteLimiterOperationStat struct {
 }
 
 type SessionOperationTimingStat struct {
-	Count            int64   `json:"count"`
-	TotalElapsedMs   float64 `json:"totalElapsedMs"`
-	AverageElapsedMs float64 `json:"averageElapsedMs"`
-	MaxElapsedMs     float64 `json:"maxElapsedMs"`
+	Count                       int64   `json:"count"`
+	TotalElapsedMs              float64 `json:"totalElapsedMs"`
+	AverageElapsedMs            float64 `json:"averageElapsedMs"`
+	MaxElapsedMs                float64 `json:"maxElapsedMs"`
+	PoolAcquireCount            int64   `json:"poolAcquireCount,omitempty"`
+	PoolAcquireElapsedMs        float64 `json:"poolAcquireElapsedMs,omitempty"`
+	AveragePoolAcquireElapsedMs float64 `json:"averagePoolAcquireElapsedMs,omitempty"`
+	DBExecuteElapsedMs          float64 `json:"dbExecuteElapsedMs,omitempty"`
+	AverageDBExecuteElapsedMs   float64 `json:"averageDbExecuteElapsedMs,omitempty"`
 }
 
 type SessionDBPoolStatsProvider interface {

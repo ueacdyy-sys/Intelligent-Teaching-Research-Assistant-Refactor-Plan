@@ -352,13 +352,22 @@ function toRunnableCommand(command, args) {
 function summarizeSessionOperations(operations) {
   if (!operations || typeof operations !== "object") return [];
   return Object.entries(operations)
-    .map(([name, stats]) => ({
+    .map(([name, stats]) => omitNullish({
       name,
       count: numberOrZero(stats?.count),
       totalElapsedMs: numberOrNull(stats?.totalElapsedMs),
       averageElapsedMs: numberOrNull(stats?.averageElapsedMs),
+      poolAcquireCount: numberOrNull(stats?.poolAcquireCount),
+      poolAcquireElapsedMs: numberOrNull(stats?.poolAcquireElapsedMs),
+      averagePoolAcquireElapsedMs: numberOrNull(stats?.averagePoolAcquireElapsedMs),
+      dbExecuteElapsedMs: numberOrNull(stats?.dbExecuteElapsedMs),
+      averageDbExecuteElapsedMs: numberOrNull(stats?.averageDbExecuteElapsedMs),
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function omitNullish(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, entryValue]) => entryValue !== null && entryValue !== undefined));
 }
 
 function countCommandErrors(entries) {

@@ -33,6 +33,11 @@ describe("system identity phase summary", () => {
                 count: 16,
                 totalElapsedMs: 160,
                 averageElapsedMs: 10,
+                poolAcquireCount: 16,
+                poolAcquireElapsedMs: 96,
+                averagePoolAcquireElapsedMs: 6,
+                dbExecuteElapsedMs: 48,
+                averageDbExecuteElapsedMs: 3,
               },
             },
           },
@@ -61,6 +66,11 @@ describe("system identity phase summary", () => {
       count: 16,
       totalElapsedMs: 160,
       averageElapsedMs: 10,
+      poolAcquireCount: 16,
+      poolAcquireElapsedMs: 96,
+      averagePoolAcquireElapsedMs: 6,
+      dbExecuteElapsedMs: 48,
+      averageDbExecuteElapsedMs: 3,
     });
     assert.equal(summary.phases.revokeCycle.slowestSessionOperation, "revokeOwnSession");
     assert.equal(summary.phases.revokeCycle.slowestSessionOperationAverageElapsedMs, 20);
@@ -80,6 +90,11 @@ describe("system identity phase summary", () => {
                 count: 16,
                 totalElapsedMs: 320,
                 averageElapsedMs: 20,
+                poolAcquireCount: 16,
+                poolAcquireElapsedMs: 240,
+                averagePoolAcquireElapsedMs: 15,
+                dbExecuteElapsedMs: 80,
+                averageDbExecuteElapsedMs: 5,
               },
               saveSession: {
                 count: 16,
@@ -102,6 +117,11 @@ describe("system identity phase summary", () => {
                 count: 24,
                 totalElapsedMs: 720,
                 averageElapsedMs: 30,
+                poolAcquireCount: 24,
+                poolAcquireElapsedMs: 480,
+                averagePoolAcquireElapsedMs: 20,
+                dbExecuteElapsedMs: 120,
+                averageDbExecuteElapsedMs: 5,
               },
               saveSession: {
                 count: 24,
@@ -118,6 +138,11 @@ describe("system identity phase summary", () => {
       count: 40,
       totalElapsedMs: 1040,
       averageElapsedMs: 26,
+      poolAcquireCount: 40,
+      poolAcquireElapsedMs: 720,
+      averagePoolAcquireElapsedMs: 18,
+      dbExecuteElapsedMs: 200,
+      averageDbExecuteElapsedMs: 5,
     });
     assert.deepEqual(merged.phases.revokeCycle.sessionOperations.saveSession, {
       count: 40,

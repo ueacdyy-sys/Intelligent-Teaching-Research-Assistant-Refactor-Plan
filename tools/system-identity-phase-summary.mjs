@@ -105,13 +105,25 @@ function summarizeSessionOperation(name, stats) {
   const count = numberOrZero(stats.count);
   const totalElapsedMs = numberOrNull(stats.totalElapsedMs);
   const averageElapsedMs = averageElapsed(totalElapsedMs, count, stats.averageElapsedMs);
+  const poolAcquireCount = numberOrZero(stats.poolAcquireCount);
+  const poolAcquireElapsedMs = numberOrNull(stats.poolAcquireElapsedMs);
+  const dbExecuteElapsedMs = numberOrNull(stats.dbExecuteElapsedMs);
   return [
     name,
-    {
+    omitNullish({
       count,
       totalElapsedMs,
       averageElapsedMs,
-    },
+      poolAcquireCount: poolAcquireCount > 0 ? poolAcquireCount : null,
+      poolAcquireElapsedMs,
+      averagePoolAcquireElapsedMs: averageElapsed(
+        poolAcquireElapsedMs,
+        poolAcquireCount,
+        stats.averagePoolAcquireElapsedMs,
+      ),
+      dbExecuteElapsedMs,
+      averageDbExecuteElapsedMs: averageElapsed(dbExecuteElapsedMs, count, stats.averageDbExecuteElapsedMs),
+    }),
   ];
 }
 
@@ -133,11 +145,22 @@ function mergeSessionOperation(left, right) {
   if (!right || typeof right !== "object") return copySummary(left);
   const count = numberOrZero(left.count) + numberOrZero(right.count);
   const totalElapsedMs = sumNullable(numberOrNull(left.totalElapsedMs), numberOrNull(right.totalElapsedMs));
-  return {
+  const poolAcquireCount = numberOrZero(left.poolAcquireCount) + numberOrZero(right.poolAcquireCount);
+  const poolAcquireElapsedMs = sumNullable(
+    numberOrNull(left.poolAcquireElapsedMs),
+    numberOrNull(right.poolAcquireElapsedMs),
+  );
+  const dbExecuteElapsedMs = sumNullable(numberOrNull(left.dbExecuteElapsedMs), numberOrNull(right.dbExecuteElapsedMs));
+  return omitNullish({
     count,
     totalElapsedMs,
     averageElapsedMs: averageElapsed(totalElapsedMs, count),
-  };
+    poolAcquireCount: poolAcquireCount > 0 ? poolAcquireCount : null,
+    poolAcquireElapsedMs,
+    averagePoolAcquireElapsedMs: averageElapsed(poolAcquireElapsedMs, poolAcquireCount),
+    dbExecuteElapsedMs,
+    averageDbExecuteElapsedMs: averageElapsed(dbExecuteElapsedMs, count),
+  });
 }
 
 function slowestSessionOperation(operations) {
@@ -173,6 +196,10 @@ function minNullable(left, right) {
 function sumNullable(left, right) {
   if (Number.isFinite(left) && Number.isFinite(right)) return roundFloat(left + right);
   return Number.isFinite(left) ? left : right;
+}
+
+function omitNullish(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, entryValue]) => entryValue !== null && entryValue !== undefined));
 }
 
 function roundFloat(value) {

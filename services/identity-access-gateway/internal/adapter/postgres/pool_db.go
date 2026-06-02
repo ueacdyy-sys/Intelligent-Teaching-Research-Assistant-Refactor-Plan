@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -42,6 +43,25 @@ func NewSessionDBStatsProvider(
 
 func (db PoolDB) Exec(ctx context.Context, sql string, args ...any) (CommandTag, error) {
 	return db.pool.Exec(ctx, sql, args...)
+}
+
+func (db PoolDB) ExecMeasured(ctx context.Context, sql string, args ...any) (CommandTag, DBOperationMeasurement, error) {
+	acquireStartedAt := time.Now()
+	conn, err := db.pool.Acquire(ctx)
+	measurement := DBOperationMeasurement{
+		PoolAcquireElapsed:  time.Since(acquireStartedAt),
+		PoolAcquireMeasured: true,
+	}
+	if err != nil {
+		return nil, measurement, err
+	}
+	defer conn.Release()
+
+	execStartedAt := time.Now()
+	tag, err := conn.Exec(ctx, sql, args...)
+	measurement.DBExecuteElapsed = time.Since(execStartedAt)
+	measurement.DBExecuteMeasured = true
+	return tag, measurement, err
 }
 
 func (db PoolDB) QueryRow(ctx context.Context, sql string, args ...any) Row {

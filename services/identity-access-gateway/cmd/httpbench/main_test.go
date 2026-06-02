@@ -180,8 +180,13 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 					"emptyAcquireWaitTimeMs": float64(80),
 					"sessionOperations": map[string]any{
 						"saveSession": map[string]any{
-							"count":          float64(2),
-							"totalElapsedMs": float64(20),
+							"count":                       float64(2),
+							"totalElapsedMs":              float64(20),
+							"poolAcquireCount":            float64(2),
+							"poolAcquireElapsedMs":        float64(6),
+							"averagePoolAcquireElapsedMs": float64(3),
+							"dbExecuteElapsedMs":          float64(8),
+							"averageDbExecuteElapsedMs":   float64(4),
 						},
 					},
 				},
@@ -198,8 +203,13 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 					"emptyAcquireWaitTimeMs": float64(139),
 					"sessionOperations": map[string]any{
 						"saveSession": map[string]any{
-							"count":          float64(5),
-							"totalElapsedMs": float64(41),
+							"count":                       float64(5),
+							"totalElapsedMs":              float64(41),
+							"poolAcquireCount":            float64(5),
+							"poolAcquireElapsedMs":        float64(21),
+							"averagePoolAcquireElapsedMs": float64(4.2),
+							"dbExecuteElapsedMs":          float64(20),
+							"averageDbExecuteElapsedMs":   float64(4),
 						},
 						"getPrincipalByAccessToken": map[string]any{
 							"count":          float64(4),
@@ -225,6 +235,12 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 	save := phaseDiagnostics.Delta.SessionOperations["saveSession"]
 	if save.Count != 3 || save.TotalElapsedMS != 21 || save.AverageElapsedMS != 7 {
 		t.Fatalf("saveSession delta = %#v", save)
+	}
+	if save.PoolAcquireCount != 3 || save.PoolAcquireElapsedMS != 15 || save.AveragePoolAcquireElapsedMS != 5 {
+		t.Fatalf("saveSession pool acquire delta = %#v", save)
+	}
+	if save.DBExecuteElapsedMS != 12 || save.AverageDBExecuteElapsedMS != 4 {
+		t.Fatalf("saveSession db execute delta = %#v", save)
 	}
 	lookup := phaseDiagnostics.Delta.SessionOperations["getPrincipalByAccessToken"]
 	if lookup.Count != 4 || lookup.TotalElapsedMS != 16 || lookup.AverageElapsedMS != 4 {

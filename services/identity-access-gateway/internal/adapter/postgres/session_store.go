@@ -27,6 +27,17 @@ type DB interface {
 	QueryRow(ctx context.Context, sql string, args ...any) Row
 }
 
+type DBOperationMeasurement struct {
+	PoolAcquireElapsed  time.Duration
+	DBExecuteElapsed    time.Duration
+	PoolAcquireMeasured bool
+	DBExecuteMeasured   bool
+}
+
+type MeasuredExecDB interface {
+	ExecMeasured(ctx context.Context, sql string, args ...any) (CommandTag, DBOperationMeasurement, error)
+}
+
 type SessionStore struct {
 	db                            DB
 	operationTimings              map[sessionOperation]*sessionOperationTimingStats
@@ -104,9 +115,12 @@ type sessionWriteLimiterOperationStats struct {
 }
 
 type sessionOperationTimingStats struct {
-	count             atomic.Int64
-	totalElapsedNanos atomic.Int64
-	maxElapsedNanos   atomic.Int64
+	count                   atomic.Int64
+	totalElapsedNanos       atomic.Int64
+	maxElapsedNanos         atomic.Int64
+	poolAcquireCount        atomic.Int64
+	poolAcquireElapsedNanos atomic.Int64
+	dbExecuteElapsedNanos   atomic.Int64
 }
 
 func NewSessionStore(db DB) *SessionStore {
@@ -199,7 +213,7 @@ func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refr
 	}
 	defer release()
 	startedAt := time.Now()
-	_, err = s.db.Exec(
+	_, measurement, err := s.execMeasured(
 		ctx,
 		`INSERT INTO identity_sessions (
 			session_id,
@@ -218,7 +232,7 @@ func (s *SessionStore) SaveSession(ctx context.Context, accessToken string, refr
 		principal.IssuedAt,
 		principal.ExpiresAt,
 	)
-	s.recordSessionOperation(sessionOperation(writeOperationSaveSession), startedAt)
+	s.recordSessionOperation(sessionOperation(writeOperationSaveSession), startedAt, measurement)
 	return err
 }
 
@@ -259,7 +273,7 @@ func (s *SessionStore) RotateSession(
 	}
 	defer release()
 	startedAt := time.Now()
-	tag, err := s.db.Exec(
+	tag, measurement, err := s.execMeasured(
 		ctx,
 		`UPDATE identity_sessions
 		SET access_token = $1,
@@ -276,7 +290,7 @@ func (s *SessionStore) RotateSession(
 		principal.ExpiresAt,
 		refreshToken,
 	)
-	s.recordSessionOperation(sessionOperation(writeOperationRotateSession), startedAt)
+	s.recordSessionOperation(sessionOperation(writeOperationRotateSession), startedAt, measurement)
 	if err != nil {
 		return err
 	}
@@ -321,7 +335,7 @@ func (s *SessionStore) RotateRefreshSession(
 		expiresAt,
 		refreshToken,
 	).Scan(&principalJSON, &storedIssuedAt, &storedExpiresAt)
-	s.recordSessionOperation(sessionOperation(writeOperationRotateRefreshSession), startedAt)
+	s.recordSessionOperation(sessionOperation(writeOperationRotateRefreshSession), startedAt, DBOperationMeasurement{})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
@@ -344,14 +358,14 @@ func (s *SessionStore) RevokeSession(ctx context.Context, sessionID string) erro
 	}
 	defer release()
 	startedAt := time.Now()
-	_, err = s.db.Exec(
+	_, measurement, err := s.execMeasured(
 		ctx,
 		`DELETE FROM identity_sessions
 		WHERE session_id = $1
 			AND revoked_at IS NULL`,
 		sessionID,
 	)
-	s.recordSessionOperation(sessionOperation(writeOperationRevokeSession), startedAt)
+	s.recordSessionOperation(sessionOperation(writeOperationRevokeSession), startedAt, measurement)
 	return err
 }
 
@@ -362,7 +376,7 @@ func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string,
 	}
 	defer release()
 	startedAt := time.Now()
-	tag, err := s.db.Exec(
+	tag, measurement, err := s.execMeasured(
 		ctx,
 		`DELETE FROM identity_sessions
 		WHERE session_id = $1
@@ -373,7 +387,7 @@ func (s *SessionStore) RevokeOwnSession(ctx context.Context, accessToken string,
 		accessToken,
 		now,
 	)
-	s.recordSessionOperation(sessionOperation(writeOperationRevokeOwnSession), startedAt)
+	s.recordSessionOperation(sessionOperation(writeOperationRevokeOwnSession), startedAt, measurement)
 	if err != nil {
 		return false, err
 	}
@@ -390,7 +404,7 @@ func (s *SessionStore) PruneInactiveSessions(ctx context.Context, cutoff time.Ti
 	}
 	defer release()
 	startedAt := time.Now()
-	tag, err := s.db.Exec(
+	tag, measurement, err := s.execMeasured(
 		ctx,
 		`WITH inactive_sessions AS (
 			SELECT session_id
@@ -405,7 +419,7 @@ func (s *SessionStore) PruneInactiveSessions(ctx context.Context, cutoff time.Ti
 		cutoff,
 		limit,
 	)
-	s.recordSessionOperation(sessionOperation(writeOperationPruneInactive), startedAt)
+	s.recordSessionOperation(sessionOperation(writeOperationPruneInactive), startedAt, measurement)
 	if err != nil {
 		return 0, err
 	}
@@ -426,7 +440,7 @@ func (s *SessionStore) AcceptRemoteCommand(
 	}
 	defer release()
 	startedAt := time.Now()
-	tag, err := s.db.Exec(
+	tag, measurement, err := s.execMeasured(
 		ctx,
 		`INSERT INTO identity_remote_command_nonces (
 			provider,
@@ -442,7 +456,7 @@ func (s *SessionStore) AcceptRemoteCommand(
 		now,
 		expiresAt,
 	)
-	s.recordSessionOperation(sessionOperation(writeOperationAcceptRemoteCommand), startedAt)
+	s.recordSessionOperation(sessionOperation(writeOperationAcceptRemoteCommand), startedAt, measurement)
 	if err != nil {
 		return err
 	}
@@ -544,6 +558,18 @@ func (s *SessionStore) sessionWriteOperationStats() map[string]platform.SessionW
 	return stats
 }
 
+func (s *SessionStore) execMeasured(
+	ctx context.Context,
+	sql string,
+	args ...any,
+) (CommandTag, DBOperationMeasurement, error) {
+	if measuredDB, ok := s.db.(MeasuredExecDB); ok {
+		return measuredDB.ExecMeasured(ctx, sql, args...)
+	}
+	tag, err := s.db.Exec(ctx, sql, args...)
+	return tag, DBOperationMeasurement{}, err
+}
+
 func (s *SessionStore) SessionOperationTimingStats() map[string]platform.SessionOperationTimingStat {
 	if len(s.operationTimings) == 0 {
 		return nil
@@ -560,17 +586,37 @@ func (s *SessionStore) SessionOperationTimingStats() map[string]platform.Session
 		if count > 0 {
 			averageElapsedMs = totalElapsedMs / float64(count)
 		}
+		poolAcquireCount := operationStats.poolAcquireCount.Load()
+		poolAcquireElapsedMs := nanosToMillis(operationStats.poolAcquireElapsedNanos.Load())
+		var averagePoolAcquireElapsedMs float64
+		if poolAcquireCount > 0 {
+			averagePoolAcquireElapsedMs = poolAcquireElapsedMs / float64(poolAcquireCount)
+		}
+		dbExecuteElapsedMs := nanosToMillis(operationStats.dbExecuteElapsedNanos.Load())
+		var averageDBExecuteElapsedMs float64
+		if count > 0 && dbExecuteElapsedMs > 0 {
+			averageDBExecuteElapsedMs = dbExecuteElapsedMs / float64(count)
+		}
 		stats[string(operation)] = platform.SessionOperationTimingStat{
-			Count:            count,
-			TotalElapsedMs:   totalElapsedMs,
-			AverageElapsedMs: averageElapsedMs,
-			MaxElapsedMs:     nanosToMillis(operationStats.maxElapsedNanos.Load()),
+			Count:                       count,
+			TotalElapsedMs:              totalElapsedMs,
+			AverageElapsedMs:            averageElapsedMs,
+			MaxElapsedMs:                nanosToMillis(operationStats.maxElapsedNanos.Load()),
+			PoolAcquireCount:            poolAcquireCount,
+			PoolAcquireElapsedMs:        poolAcquireElapsedMs,
+			AveragePoolAcquireElapsedMs: averagePoolAcquireElapsedMs,
+			DBExecuteElapsedMs:          dbExecuteElapsedMs,
+			AverageDBExecuteElapsedMs:   averageDBExecuteElapsedMs,
 		}
 	}
 	return stats
 }
 
-func (s *SessionStore) recordSessionOperation(operation sessionOperation, startedAt time.Time) {
+func (s *SessionStore) recordSessionOperation(
+	operation sessionOperation,
+	startedAt time.Time,
+	measurement DBOperationMeasurement,
+) {
 	if len(s.operationTimings) == 0 {
 		return
 	}
@@ -581,6 +627,13 @@ func (s *SessionStore) recordSessionOperation(operation sessionOperation, starte
 	elapsedNanos := time.Since(startedAt).Nanoseconds()
 	operationStats.count.Add(1)
 	operationStats.totalElapsedNanos.Add(elapsedNanos)
+	if measurement.PoolAcquireMeasured {
+		operationStats.poolAcquireCount.Add(1)
+		operationStats.poolAcquireElapsedNanos.Add(measurement.PoolAcquireElapsed.Nanoseconds())
+	}
+	if measurement.DBExecuteMeasured {
+		operationStats.dbExecuteElapsedNanos.Add(measurement.DBExecuteElapsed.Nanoseconds())
+	}
 	for {
 		current := operationStats.maxElapsedNanos.Load()
 		if elapsedNanos <= current || operationStats.maxElapsedNanos.CompareAndSwap(current, elapsedNanos) {
@@ -604,13 +657,13 @@ func (s *SessionStore) getPrincipal(
 	var expiresAt time.Time
 	startedAt := time.Now()
 	if err := s.db.QueryRow(ctx, sql, token).Scan(&principalJSON, &issuedAt, &expiresAt); err != nil {
-		s.recordSessionOperation(operation, startedAt)
+		s.recordSessionOperation(operation, startedAt, DBOperationMeasurement{})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
 		}
 		return domain.PrincipalContext{}, false, err
 	}
-	s.recordSessionOperation(operation, startedAt)
+	s.recordSessionOperation(operation, startedAt, DBOperationMeasurement{})
 	principal, err := decodePrincipal(principalJSON)
 	if err != nil {
 		return domain.PrincipalContext{}, false, err
