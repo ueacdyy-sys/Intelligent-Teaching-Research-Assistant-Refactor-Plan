@@ -352,6 +352,15 @@ describe("system mixed workload benchmark runner", () => {
       p95Ms: 20,
       p99Ms: 30,
       rps: 110,
+      sessionOperations: {
+        saveSession: {
+          count: 16,
+          totalElapsedMs: 160,
+          averageElapsedMs: 10,
+        },
+      },
+      slowestSessionOperation: "saveSession",
+      slowestSessionOperationAverageElapsedMs: 10,
     });
     assert.deepEqual(identity.summary.phases.revokeCycle, {
       errors: 0,
@@ -360,6 +369,20 @@ describe("system mixed workload benchmark runner", () => {
       rps: 90,
       slowestStep: "revoke",
       slowestStepP99Ms: 44,
+      sessionOperations: {
+        revokeOwnSession: {
+          count: 16,
+          totalElapsedMs: 320,
+          averageElapsedMs: 20,
+        },
+        saveSession: {
+          count: 16,
+          totalElapsedMs: 240,
+          averageElapsedMs: 15,
+        },
+      },
+      slowestSessionOperation: "revokeOwnSession",
+      slowestSessionOperationAverageElapsedMs: 20,
     });
     const conversation = report.workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.serverTimingP99Ms, 21);
@@ -467,6 +490,35 @@ function identityReport() {
           slowestStep: "revoke",
           slowestStepP99Ms: 44,
           phaseP99Ms: 66,
+        },
+      },
+    },
+    gatewayDatabasePhaseDiagnostics: {
+      passwordLogin: {
+        delta: {
+          sessionOperations: {
+            saveSession: {
+              count: 16,
+              totalElapsedMs: 160,
+              averageElapsedMs: 10,
+            },
+          },
+        },
+      },
+      revokeCycle: {
+        delta: {
+          sessionOperations: {
+            revokeOwnSession: {
+              count: 16,
+              totalElapsedMs: 320,
+              averageElapsedMs: 20,
+            },
+            saveSession: {
+              count: 16,
+              totalElapsedMs: 240,
+              averageElapsedMs: 15,
+            },
+          },
         },
       },
     },

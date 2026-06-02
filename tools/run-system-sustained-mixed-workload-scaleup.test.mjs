@@ -308,8 +308,26 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(identity.summary.dominantPhase, "revokeCycle");
     assert.equal(identity.summary.dominantPhaseP99Ms, 88);
     assert.equal(identity.summary.phases.passwordLogin.p99Ms, 35);
+    assert.deepEqual(identity.summary.phases.passwordLogin.sessionOperations.saveSession, {
+      count: 40,
+      totalElapsedMs: 520,
+      averageElapsedMs: 13,
+    });
+    assert.equal(identity.summary.phases.passwordLogin.slowestSessionOperation, "saveSession");
     assert.equal(identity.summary.phases.revokeCycle.slowestStep, "revoke");
     assert.equal(identity.summary.phases.revokeCycle.slowestStepP99Ms, 55);
+    assert.deepEqual(identity.summary.phases.revokeCycle.sessionOperations.revokeOwnSession, {
+      count: 40,
+      totalElapsedMs: 1040,
+      averageElapsedMs: 26,
+    });
+    assert.deepEqual(identity.summary.phases.revokeCycle.sessionOperations.saveSession, {
+      count: 40,
+      totalElapsedMs: 720,
+      averageElapsedMs: 18,
+    });
+    assert.equal(identity.summary.phases.revokeCycle.slowestSessionOperation, "revokeOwnSession");
+    assert.equal(identity.summary.phases.revokeCycle.slowestSessionOperationAverageElapsedMs, 26);
     const conversation = report.steps[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 101);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 14);
@@ -384,6 +402,15 @@ function identitySummary(index) {
         p95Ms: index === 0 ? 20 : 25,
         p99Ms: index === 0 ? 30 : 35,
         rps: index === 0 ? 110 : 100,
+        sessionOperations: {
+          saveSession: {
+            count: index === 0 ? 16 : 24,
+            totalElapsedMs: index === 0 ? 160 : 360,
+            averageElapsedMs: index === 0 ? 10 : 15,
+          },
+        },
+        slowestSessionOperation: "saveSession",
+        slowestSessionOperationAverageElapsedMs: index === 0 ? 10 : 15,
       },
       revokeCycle: {
         errors: 0,
@@ -392,6 +419,20 @@ function identitySummary(index) {
         rps: index === 0 ? 90 : 85,
         slowestStep: "revoke",
         slowestStepP99Ms: index === 0 ? 44 : 55,
+        sessionOperations: {
+          revokeOwnSession: {
+            count: index === 0 ? 16 : 24,
+            totalElapsedMs: index === 0 ? 320 : 720,
+            averageElapsedMs: index === 0 ? 20 : 30,
+          },
+          saveSession: {
+            count: index === 0 ? 16 : 24,
+            totalElapsedMs: index === 0 ? 240 : 480,
+            averageElapsedMs: index === 0 ? 15 : 20,
+          },
+        },
+        slowestSessionOperation: "revokeOwnSession",
+        slowestSessionOperationAverageElapsedMs: index === 0 ? 20 : 30,
       },
     },
   };

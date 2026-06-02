@@ -277,7 +277,11 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(identity.summary.dominantPhase, "revokeCycle");
     assert.equal(identity.summary.dominantPhaseP99Ms, 66);
     assert.equal(identity.summary.phases.passwordLogin.p99Ms, 30);
+    assert.equal(identity.summary.phases.passwordLogin.slowestSessionOperation, "saveSession");
+    assert.equal(identity.summary.phases.passwordLogin.sessionOperations.saveSession.averageElapsedMs, 10);
     assert.equal(identity.summary.phases.revokeCycle.slowestStep, "revoke");
+    assert.equal(identity.summary.phases.revokeCycle.slowestSessionOperation, "revokeOwnSession");
+    assert.equal(identity.summary.phases.revokeCycle.sessionOperations.revokeOwnSession.averageElapsedMs, 20);
     const conversation = report.samples[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 77);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 12);
@@ -329,6 +333,15 @@ function identitySummary() {
         p95Ms: 20,
         p99Ms: 30,
         rps: 110,
+        sessionOperations: {
+          saveSession: {
+            count: 16,
+            totalElapsedMs: 160,
+            averageElapsedMs: 10,
+          },
+        },
+        slowestSessionOperation: "saveSession",
+        slowestSessionOperationAverageElapsedMs: 10,
       },
       revokeCycle: {
         errors: 0,
@@ -337,6 +350,20 @@ function identitySummary() {
         rps: 90,
         slowestStep: "revoke",
         slowestStepP99Ms: 44,
+        sessionOperations: {
+          revokeOwnSession: {
+            count: 16,
+            totalElapsedMs: 320,
+            averageElapsedMs: 20,
+          },
+          saveSession: {
+            count: 16,
+            totalElapsedMs: 240,
+            averageElapsedMs: 15,
+          },
+        },
+        slowestSessionOperation: "revokeOwnSession",
+        slowestSessionOperationAverageElapsedMs: 20,
       },
     },
   };

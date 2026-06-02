@@ -441,7 +441,7 @@ function summarizeIdentity(report) {
     p99Ms: p99Values.length ? Math.max(...p99Values) : null,
     rps: minFinite(phases.map((phase) => numberOrNull(phase.rps))),
     concurrency: numberOrNull(report.concurrency),
-    ...buildSystemIdentityPhaseSummary(report.phases),
+    ...buildSystemIdentityPhaseSummary(report.phases, report.gatewayDatabasePhaseDiagnostics),
   };
 }
 
