@@ -35,11 +35,11 @@ describe("root SLO promotion review audit", () => {
       /identityRevokeSlowestStep=login:1498\.29/,
     );
     assert.equal(report.evidence.productionThroughput.targetReadWriteRps, 10000);
-    assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, null);
-    assert.equal(report.evidence.productionThroughput.source, "missing");
+    assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, 1089.87);
+    assert.equal(report.evidence.productionThroughput.source, "sustained_scaleup.summary.highestPassedReadWriteRps");
     assert.equal(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.production_read_write_rps_target_met").actual,
-      "missing",
+      "1089.87 rps from sustained_scaleup.summary.highestPassedReadWriteRps",
     );
     assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));

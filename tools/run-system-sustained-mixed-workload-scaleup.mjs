@@ -268,7 +268,7 @@ export function formatSystemSustainedMixedWorkloadScaleUp(report) {
   ];
   for (const step of report.steps) {
     lines.push(
-      `- ${step.name} ${step.status}/${step.guardrailStatus} identity=${step.identityConcurrency} conversation=${step.conversationConcurrency} teaching=${step.teachingConcurrency} maxP99=${step.maxP99Ms ?? "n/a"}ms drift=${step.p99DriftMs ?? "n/a"}ms errors=${step.totalErrors}`,
+      `- ${step.name} ${step.status}/${step.guardrailStatus} readWriteRps=${step.readWriteRps ?? "n/a"} identity=${step.identityConcurrency} conversation=${step.conversationConcurrency} teaching=${step.teachingConcurrency} maxP99=${step.maxP99Ms ?? "n/a"}ms drift=${step.p99DriftMs ?? "n/a"}ms errors=${step.totalErrors}`,
     );
   }
   lines.push("", report.nextAction);

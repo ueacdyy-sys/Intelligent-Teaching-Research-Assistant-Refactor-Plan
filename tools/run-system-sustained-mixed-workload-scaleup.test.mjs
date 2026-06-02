@@ -133,6 +133,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.summary.highestPassedStep, "low");
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/scaleup.json"), "utf8")).status, "PASSED");
     assert.match(formatSystemSustainedMixedWorkloadScaleUp(report), /System sustained mixed workload scale-up: PASSED/u);
+    assert.match(formatSystemSustainedMixedWorkloadScaleUp(report), /low PASSED\/PASSED readWriteRps=370/u);
   });
 
   it("stops after the first failed sustained step by default", async () => {
