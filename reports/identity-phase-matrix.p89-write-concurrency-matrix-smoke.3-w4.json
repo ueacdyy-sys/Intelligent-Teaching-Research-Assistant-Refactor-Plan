@@ -1,0 +1,5062 @@
+{
+  "generatedAt": "2026-06-02T13:50:54.520633261Z",
+  "benchmarkKind": "identity_http_gateway",
+  "workloadType": "HTTP_BENCHMARK",
+  "status": "PASSED",
+  "baseUrl": "http://host.docker.internal:19080",
+  "gatewayCount": 2,
+  "gatewayBaseUrls": [
+    "http://host.docker.internal:19080",
+    "http://host.docker.internal:19081"
+  ],
+  "loadBalancingStrategy": "ROUND_ROBIN",
+  "transportProfile": {
+    "maxIdleConns": 512,
+    "maxIdleConnsPerHost": 512,
+    "maxConnsPerHost": 64,
+    "warmConnectionsPerHost": 32,
+    "warmConnectionsTotal": 64
+  },
+  "concurrency": 128,
+  "operationsPerPhase": 256,
+  "totalDurationMs": 5462.49,
+  "phases": {
+    "passwordLogin": {
+      "name": "passwordLogin",
+      "operations": 256,
+      "errors": 0,
+      "rps": 1639.15,
+      "latencyMs": {
+        "min": 19.81,
+        "avg": 62.88,
+        "p50": 58.51,
+        "p95": 104.83,
+        "p99": 110.57,
+        "max": 114.29
+      }
+    },
+    "principalLookup": {
+      "name": "principalLookup",
+      "operations": 256,
+      "errors": 0,
+      "rps": 2765.22,
+      "latencyMs": {
+        "min": 15.47,
+        "avg": 39.05,
+        "p50": 38.22,
+        "p95": 63.54,
+        "p99": 66.08,
+        "max": 67.09
+      }
+    },
+    "refreshRotation": {
+      "name": "refreshRotation",
+      "operations": 256,
+      "errors": 0,
+      "rps": 2765.16,
+      "latencyMs": {
+        "min": 9.8,
+        "avg": 35.18,
+        "p50": 37.12,
+        "p95": 49.89,
+        "p99": 53.63,
+        "max": 56.57
+      }
+    },
+    "revokeCycle": {
+      "name": "revokeCycle",
+      "operations": 256,
+      "errors": 0,
+      "rps": 1588.7,
+      "latencyMs": {
+        "min": 44.51,
+        "avg": 68.66,
+        "p50": 67.94,
+        "p95": 88.85,
+        "p99": 96.02,
+        "max": 102.88
+      },
+      "stepLatencyMs": {
+        "login": {
+          "min": 8.99,
+          "avg": 30.5,
+          "p50": 29.56,
+          "p95": 43.32,
+          "p99": 48.34,
+          "max": 50.01
+        },
+        "revoke": {
+          "min": 13.54,
+          "avg": 35.16,
+          "p50": 35.09,
+          "p95": 45.07,
+          "p99": 47.94,
+          "max": 48.44
+        },
+        "revokedPrincipalLookup": {
+          "min": 1.26,
+          "avg": 3,
+          "p50": 2.14,
+          "p95": 7.7,
+          "p99": 10.49,
+          "max": 10.76
+        }
+      },
+      "stepLatencyAttribution": {
+        "slowestStep": "login",
+        "slowestStepP99Ms": 48.34,
+        "phaseP99Ms": 96.02,
+        "stepP99SumMs": 106.77,
+        "p99ResidualMs": -10.75,
+        "phaseAvgMs": 68.66,
+        "stepAvgSumMs": 68.66,
+        "avgResidualMs": 0
+      },
+      "stepOperationAttribution": {
+        "login": {
+          "stepLatencyMs": {
+            "min": 8.99,
+            "avg": 30.5,
+            "p50": 29.56,
+            "p95": 43.32,
+            "p99": 48.34,
+            "max": 50.01
+          },
+          "expectedSessionOperations": [
+            "saveSession"
+          ],
+          "sessionOperations": {
+            "saveSession": {
+              "count": 256,
+              "totalElapsedMs": 627.4,
+              "averageElapsedMs": 2.45,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 0.55,
+              "dbExecuteElapsedMs": 624.14,
+              "averageDbExecuteElapsedMs": 2.44,
+              "rowsAffectedCount": 256,
+              "rowsAffected": 256,
+              "averageRowsAffected": 1
+            }
+          },
+          "writeLimiterOperations": {
+            "saveSession": {
+              "acquireCount": 256,
+              "acquireWaitTimeMs": 5860.56,
+              "averageAcquireWaitTimeMs": 22.89
+            }
+          }
+        },
+        "revoke": {
+          "stepLatencyMs": {
+            "min": 13.54,
+            "avg": 35.16,
+            "p50": 35.09,
+            "p95": 45.07,
+            "p99": 47.94,
+            "max": 48.44
+          },
+          "expectedSessionOperations": [
+            "revokeOwnSession"
+          ],
+          "sessionOperations": {
+            "revokeOwnSession": {
+              "count": 256,
+              "totalElapsedMs": 559.35,
+              "averageElapsedMs": 2.18,
+              "poolAcquireCount": 256,
+              "dbExecuteElapsedMs": 558.81,
+              "averageDbExecuteElapsedMs": 2.18,
+              "rowsAffectedCount": 256,
+              "rowsAffected": 256,
+              "averageRowsAffected": 1
+            }
+          },
+          "writeLimiterOperations": {
+            "revokeOwnSession": {
+              "acquireCount": 256,
+              "acquireWaitTimeMs": 7553.8,
+              "averageAcquireWaitTimeMs": 29.51
+            }
+          }
+        },
+        "revokedPrincipalLookup": {
+          "stepLatencyMs": {
+            "min": 1.26,
+            "avg": 3,
+            "p50": 2.14,
+            "p95": 7.7,
+            "p99": 10.49,
+            "max": 10.76
+          },
+          "expectedSessionOperations": [
+            "getPrincipalByAccessToken"
+          ],
+          "missingSessionOperations": [
+            "getPrincipalByAccessToken"
+          ]
+        }
+      }
+    }
+  },
+  "gatewayDatabasePhaseDiagnostics": {
+    "passwordLogin": {
+      "before": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:49.058426772Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 10,
+              "acquireDurationMs": 31.246,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 1,
+              "emptyAcquireWaitTimeMs": 31.246,
+              "idleConns": 1,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 1,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                }
+              },
+              "totalConns": 1,
+              "writeLimiter": {
+                "acquireCount": 0,
+                "acquireWaitTimeMs": 0,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 10,
+              "acquireDurationMs": 35.916,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 1,
+              "emptyAcquireWaitTimeMs": 35.916,
+              "idleConns": 1,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 1,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                }
+              },
+              "totalConns": 1,
+              "writeLimiter": {
+                "acquireCount": 0,
+                "acquireWaitTimeMs": 0,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "after": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:49.231613055Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 138,
+              "acquireDurationMs": 48.036,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 4,
+              "emptyAcquireWaitTimeMs": 48.036,
+              "idleConns": 4,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 4,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 4.37233359375,
+                  "averageElapsedMs": 4.5260390625,
+                  "averagePoolAcquireElapsedMs": 0.14915703125,
+                  "averageRowsAffected": 1,
+                  "count": 128,
+                  "dbExecuteElapsedMs": 559.6587,
+                  "maxElapsedMs": 30.0382,
+                  "poolAcquireCount": 128,
+                  "poolAcquireElapsedMs": 19.0921,
+                  "rowsAffected": 128,
+                  "rowsAffectedCount": 128,
+                  "totalElapsedMs": 579.333
+                }
+              },
+              "totalConns": 4,
+              "writeLimiter": {
+                "acquireCount": 128,
+                "acquireWaitTimeMs": 5658.29,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 5658.29,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 138,
+              "acquireDurationMs": 53.953,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 4,
+              "emptyAcquireWaitTimeMs": 53.355,
+              "idleConns": 4,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 4,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 4.42411953125,
+                  "averageElapsedMs": 4.58276953125,
+                  "averagePoolAcquireElapsedMs": 0.15865,
+                  "averageRowsAffected": 1,
+                  "count": 128,
+                  "dbExecuteElapsedMs": 566.2873,
+                  "maxElapsedMs": 28.6219,
+                  "poolAcquireCount": 128,
+                  "poolAcquireElapsedMs": 20.3072,
+                  "rowsAffected": 128,
+                  "rowsAffectedCount": 128,
+                  "totalElapsedMs": 586.5945
+                }
+              },
+              "totalConns": 4,
+              "writeLimiter": {
+                "acquireCount": 128,
+                "acquireWaitTimeMs": 5444.5687,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 5444.5687,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "delta": {
+        "pool": {
+          "acquireCount": 256,
+          "acquireDurationMs": 34.83,
+          "emptyAcquireWaitTimeMs": 34.23,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "writeLimiter": {
+          "enabledGateways": 2,
+          "configuredLimitTotal": 8,
+          "acquireCount": 256,
+          "acquireWaitTimeMs": 11102.86,
+          "averageAcquireWaitTimeMs": 43.37,
+          "operations": {
+            "saveSession": {
+              "acquireCount": 256,
+              "acquireWaitTimeMs": 11102.86,
+              "averageAcquireWaitTimeMs": 43.37
+            }
+          }
+        },
+        "sessionOperations": {
+          "saveSession": {
+            "count": 256,
+            "totalElapsedMs": 1165.93,
+            "averageElapsedMs": 4.55,
+            "poolAcquireCount": 256,
+            "poolAcquireElapsedMs": 39.4,
+            "averagePoolAcquireElapsedMs": 0.15,
+            "dbExecuteElapsedMs": 1125.95,
+            "averageDbExecuteElapsedMs": 4.4,
+            "rowsAffectedCount": 256,
+            "rowsAffected": 256,
+            "averageRowsAffected": 1
+          }
+        }
+      }
+    },
+    "principalLookup": {
+      "before": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:51.715147903Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 384,
+              "acquireDurationMs": 48.036,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 4,
+              "emptyAcquireWaitTimeMs": 48.036,
+              "idleConns": 4,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 4,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2869355932203392,
+                  "averageElapsedMs": 2.292287288135593,
+                  "averageRowsAffected": 1,
+                  "count": 118,
+                  "dbExecuteElapsedMs": 269.8584,
+                  "maxElapsedMs": 7.2434,
+                  "poolAcquireCount": 118,
+                  "rowsAffected": 118,
+                  "rowsAffectedCount": 118,
+                  "totalElapsedMs": 270.4899
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.31315625,
+                  "averageElapsedMs": 3.390008984375,
+                  "averagePoolAcquireElapsedMs": 0.074578515625,
+                  "averageRowsAffected": 1,
+                  "count": 256,
+                  "dbExecuteElapsedMs": 848.168,
+                  "maxElapsedMs": 30.0382,
+                  "poolAcquireCount": 256,
+                  "poolAcquireElapsedMs": 19.0921,
+                  "rowsAffected": 256,
+                  "rowsAffectedCount": 256,
+                  "totalElapsedMs": 867.8423
+                }
+              },
+              "totalConns": 4,
+              "writeLimiter": {
+                "acquireCount": 374,
+                "acquireWaitTimeMs": 5660.0448,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 118,
+                    "acquireWaitTimeMs": 1.2153,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 256,
+                    "acquireWaitTimeMs": 5658.8295,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 404,
+              "acquireDurationMs": 54.54,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 4,
+              "emptyAcquireWaitTimeMs": 53.355,
+              "idleConns": 4,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 4,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.257634782608696,
+                  "averageElapsedMs": 2.2804608695652173,
+                  "averagePoolAcquireElapsedMs": 0.009539855072463767,
+                  "averageRowsAffected": 1,
+                  "count": 138,
+                  "dbExecuteElapsedMs": 311.5536,
+                  "maxElapsedMs": 3.6445,
+                  "poolAcquireCount": 138,
+                  "poolAcquireElapsedMs": 1.3165,
+                  "rowsAffected": 138,
+                  "rowsAffectedCount": 138,
+                  "totalElapsedMs": 314.7036
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.3151671875,
+                  "averageElapsedMs": 3.397106640625,
+                  "averagePoolAcquireElapsedMs": 0.079325,
+                  "averageRowsAffected": 1,
+                  "count": 256,
+                  "dbExecuteElapsedMs": 848.6828,
+                  "maxElapsedMs": 28.6219,
+                  "poolAcquireCount": 256,
+                  "poolAcquireElapsedMs": 20.3072,
+                  "rowsAffected": 256,
+                  "rowsAffectedCount": 256,
+                  "totalElapsedMs": 869.6593
+                }
+              },
+              "totalConns": 4,
+              "writeLimiter": {
+                "acquireCount": 394,
+                "acquireWaitTimeMs": 5447.4194,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 138,
+                    "acquireWaitTimeMs": 2.8507,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 256,
+                    "acquireWaitTimeMs": 5444.5687,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "after": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:51.813735611Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 510,
+              "acquireDurationMs": 3305.218,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 126,
+              "emptyAcquireWaitTimeMs": 3305.218,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 30.936275396825394,
+                  "count": 126,
+                  "maxElapsedMs": 52.8917,
+                  "totalElapsedMs": 3897.9707
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2869355932203392,
+                  "averageElapsedMs": 2.292287288135593,
+                  "averageRowsAffected": 1,
+                  "count": 118,
+                  "dbExecuteElapsedMs": 269.8584,
+                  "maxElapsedMs": 7.2434,
+                  "poolAcquireCount": 118,
+                  "rowsAffected": 118,
+                  "rowsAffectedCount": 118,
+                  "totalElapsedMs": 270.4899
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.31315625,
+                  "averageElapsedMs": 3.390008984375,
+                  "averagePoolAcquireElapsedMs": 0.074578515625,
+                  "averageRowsAffected": 1,
+                  "count": 256,
+                  "dbExecuteElapsedMs": 848.168,
+                  "maxElapsedMs": 30.0382,
+                  "poolAcquireCount": 256,
+                  "poolAcquireElapsedMs": 19.0921,
+                  "rowsAffected": 256,
+                  "rowsAffectedCount": 256,
+                  "totalElapsedMs": 867.8423
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 374,
+                "acquireWaitTimeMs": 5660.0448,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 118,
+                    "acquireWaitTimeMs": 1.2153,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 256,
+                    "acquireWaitTimeMs": 5658.8295,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 534,
+              "acquireDurationMs": 3666.291,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 130,
+              "emptyAcquireWaitTimeMs": 3665.106,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 32.86184461538461,
+                  "count": 130,
+                  "maxElapsedMs": 51.1422,
+                  "totalElapsedMs": 4272.0398
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.257634782608696,
+                  "averageElapsedMs": 2.2804608695652173,
+                  "averagePoolAcquireElapsedMs": 0.009539855072463767,
+                  "averageRowsAffected": 1,
+                  "count": 138,
+                  "dbExecuteElapsedMs": 311.5536,
+                  "maxElapsedMs": 3.6445,
+                  "poolAcquireCount": 138,
+                  "poolAcquireElapsedMs": 1.3165,
+                  "rowsAffected": 138,
+                  "rowsAffectedCount": 138,
+                  "totalElapsedMs": 314.7036
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.3151671875,
+                  "averageElapsedMs": 3.397106640625,
+                  "averagePoolAcquireElapsedMs": 0.079325,
+                  "averageRowsAffected": 1,
+                  "count": 256,
+                  "dbExecuteElapsedMs": 848.6828,
+                  "maxElapsedMs": 28.6219,
+                  "poolAcquireCount": 256,
+                  "poolAcquireElapsedMs": 20.3072,
+                  "rowsAffected": 256,
+                  "rowsAffectedCount": 256,
+                  "totalElapsedMs": 869.6593
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 394,
+                "acquireWaitTimeMs": 5447.4194,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 138,
+                    "acquireWaitTimeMs": 2.8507,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 256,
+                    "acquireWaitTimeMs": 5444.5687,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "delta": {
+        "pool": {
+          "acquireCount": 256,
+          "acquireDurationMs": 6868.93,
+          "emptyAcquireWaitTimeMs": 6868.93,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "sessionOperations": {
+          "getPrincipalByAccessToken": {
+            "count": 256,
+            "totalElapsedMs": 8170.01,
+            "averageElapsedMs": 31.91
+          }
+        }
+      }
+    },
+    "refreshRotation": {
+      "before": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:53.661819623Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 700,
+              "acquireDurationMs": 3305.218,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 126,
+              "emptyAcquireWaitTimeMs": 3305.218,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 30.936275396825394,
+                  "count": 126,
+                  "maxElapsedMs": 52.8917,
+                  "totalElapsedMs": 3897.9707
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2353377049180327,
+                  "averageElapsedMs": 2.2451872950819673,
+                  "averagePoolAcquireElapsedMs": 0.0026200819672131145,
+                  "averageRowsAffected": 1,
+                  "count": 244,
+                  "dbExecuteElapsedMs": 545.4224,
+                  "maxElapsedMs": 7.2434,
+                  "poolAcquireCount": 244,
+                  "poolAcquireElapsedMs": 0.6393,
+                  "rowsAffected": 244,
+                  "rowsAffectedCount": 244,
+                  "totalElapsedMs": 547.8257
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.15999375,
+                  "averageElapsedMs": 3.2214759375,
+                  "averagePoolAcquireElapsedMs": 0.059662812499999995,
+                  "averageRowsAffected": 1,
+                  "count": 320,
+                  "dbExecuteElapsedMs": 1011.198,
+                  "maxElapsedMs": 30.0382,
+                  "poolAcquireCount": 320,
+                  "poolAcquireElapsedMs": 19.0921,
+                  "rowsAffected": 320,
+                  "rowsAffectedCount": 320,
+                  "totalElapsedMs": 1030.8723
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 564,
+                "acquireWaitTimeMs": 5660.6643,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 244,
+                    "acquireWaitTimeMs": 1.8348,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 320,
+                    "acquireWaitTimeMs": 5658.8295,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 728,
+              "acquireDurationMs": 3666.291,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 130,
+              "emptyAcquireWaitTimeMs": 3665.106,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 32.86184461538461,
+                  "count": 130,
+                  "maxElapsedMs": 51.1422,
+                  "totalElapsedMs": 4272.0398
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2073141791044777,
+                  "averageElapsedMs": 2.226011567164179,
+                  "averagePoolAcquireElapsedMs": 0.004912313432835821,
+                  "averageRowsAffected": 1,
+                  "count": 268,
+                  "dbExecuteElapsedMs": 591.5602,
+                  "maxElapsedMs": 3.8729,
+                  "poolAcquireCount": 268,
+                  "poolAcquireElapsedMs": 1.3165,
+                  "rowsAffected": 268,
+                  "rowsAffectedCount": 268,
+                  "totalElapsedMs": 596.5711
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.1257181249999997,
+                  "averageElapsedMs": 3.1931015625,
+                  "averagePoolAcquireElapsedMs": 0.06346,
+                  "averageRowsAffected": 1,
+                  "count": 320,
+                  "dbExecuteElapsedMs": 1000.2298,
+                  "maxElapsedMs": 28.6219,
+                  "poolAcquireCount": 320,
+                  "poolAcquireElapsedMs": 20.3072,
+                  "rowsAffected": 320,
+                  "rowsAffectedCount": 320,
+                  "totalElapsedMs": 1021.7925
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 588,
+                "acquireWaitTimeMs": 5448.0462,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 268,
+                    "acquireWaitTimeMs": 2.8507,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 320,
+                    "acquireWaitTimeMs": 5445.1955,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "after": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:53.759720842Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 828,
+              "acquireDurationMs": 3305.218,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 126,
+              "emptyAcquireWaitTimeMs": 3305.218,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 30.936275396825394,
+                  "count": 126,
+                  "maxElapsedMs": 52.8917,
+                  "totalElapsedMs": 3897.9707
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2353377049180327,
+                  "averageElapsedMs": 2.2451872950819673,
+                  "averagePoolAcquireElapsedMs": 0.0026200819672131145,
+                  "averageRowsAffected": 1,
+                  "count": 244,
+                  "dbExecuteElapsedMs": 545.4224,
+                  "maxElapsedMs": 7.2434,
+                  "poolAcquireCount": 244,
+                  "poolAcquireElapsedMs": 0.6393,
+                  "rowsAffected": 244,
+                  "rowsAffectedCount": 244,
+                  "totalElapsedMs": 547.8257
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 2.6305984375,
+                  "count": 128,
+                  "maxElapsedMs": 12.4681,
+                  "totalElapsedMs": 336.7166
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.15999375,
+                  "averageElapsedMs": 3.2214759375,
+                  "averagePoolAcquireElapsedMs": 0.059662812499999995,
+                  "averageRowsAffected": 1,
+                  "count": 320,
+                  "dbExecuteElapsedMs": 1011.198,
+                  "maxElapsedMs": 30.0382,
+                  "poolAcquireCount": 320,
+                  "poolAcquireElapsedMs": 19.0921,
+                  "rowsAffected": 320,
+                  "rowsAffectedCount": 320,
+                  "totalElapsedMs": 1030.8723
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 692,
+                "acquireWaitTimeMs": 8993.0772,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 244,
+                    "acquireWaitTimeMs": 1.8348,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 3332.4129,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 320,
+                    "acquireWaitTimeMs": 5658.8295,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 856,
+              "acquireDurationMs": 3666.291,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 130,
+              "emptyAcquireWaitTimeMs": 3665.106,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 32.86184461538461,
+                  "count": 130,
+                  "maxElapsedMs": 51.1422,
+                  "totalElapsedMs": 4272.0398
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2073141791044777,
+                  "averageElapsedMs": 2.226011567164179,
+                  "averagePoolAcquireElapsedMs": 0.004912313432835821,
+                  "averageRowsAffected": 1,
+                  "count": 268,
+                  "dbExecuteElapsedMs": 591.5602,
+                  "maxElapsedMs": 3.8729,
+                  "poolAcquireCount": 268,
+                  "poolAcquireElapsedMs": 1.3165,
+                  "rowsAffected": 268,
+                  "rowsAffectedCount": 268,
+                  "totalElapsedMs": 596.5711
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 2.64423359375,
+                  "count": 128,
+                  "maxElapsedMs": 13.0409,
+                  "totalElapsedMs": 338.4619
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.1257181249999997,
+                  "averageElapsedMs": 3.1931015625,
+                  "averagePoolAcquireElapsedMs": 0.06346,
+                  "averageRowsAffected": 1,
+                  "count": 320,
+                  "dbExecuteElapsedMs": 1000.2298,
+                  "maxElapsedMs": 28.6219,
+                  "poolAcquireCount": 320,
+                  "poolAcquireElapsedMs": 20.3072,
+                  "rowsAffected": 320,
+                  "rowsAffectedCount": 320,
+                  "totalElapsedMs": 1021.7925
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 716,
+                "acquireWaitTimeMs": 8895.2625,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 268,
+                    "acquireWaitTimeMs": 2.8507,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 3447.2163,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 320,
+                    "acquireWaitTimeMs": 5445.1955,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "delta": {
+        "pool": {
+          "acquireCount": 256,
+          "acquireDurationMs": 0,
+          "emptyAcquireWaitTimeMs": 0,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "writeLimiter": {
+          "enabledGateways": 2,
+          "configuredLimitTotal": 8,
+          "acquireCount": 256,
+          "acquireWaitTimeMs": 6779.63,
+          "averageAcquireWaitTimeMs": 26.48,
+          "operations": {
+            "rotateRefreshSession": {
+              "acquireCount": 256,
+              "acquireWaitTimeMs": 6779.63,
+              "averageAcquireWaitTimeMs": 26.48
+            }
+          }
+        },
+        "sessionOperations": {
+          "rotateRefreshSession": {
+            "count": 256,
+            "totalElapsedMs": 675.18,
+            "averageElapsedMs": 2.64
+          }
+        }
+      }
+    },
+    "revokeCycle": {
+      "before": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:54.352245027Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 884,
+              "acquireDurationMs": 3305.218,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 126,
+              "emptyAcquireWaitTimeMs": 3305.218,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 30.936275396825394,
+                  "count": 126,
+                  "maxElapsedMs": 52.8917,
+                  "totalElapsedMs": 3897.9707
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.228287,
+                  "averageElapsedMs": 2.236298,
+                  "averagePoolAcquireElapsedMs": 0.002131,
+                  "averageRowsAffected": 1,
+                  "count": 300,
+                  "dbExecuteElapsedMs": 668.4861,
+                  "maxElapsedMs": 7.2434,
+                  "poolAcquireCount": 300,
+                  "poolAcquireElapsedMs": 0.6393,
+                  "rowsAffected": 300,
+                  "rowsAffectedCount": 300,
+                  "totalElapsedMs": 670.8894
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 2.6305984375,
+                  "count": 128,
+                  "maxElapsedMs": 12.4681,
+                  "totalElapsedMs": 336.7166
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.15999375,
+                  "averageElapsedMs": 3.2214759375,
+                  "averagePoolAcquireElapsedMs": 0.059662812499999995,
+                  "averageRowsAffected": 1,
+                  "count": 320,
+                  "dbExecuteElapsedMs": 1011.198,
+                  "maxElapsedMs": 30.0382,
+                  "poolAcquireCount": 320,
+                  "poolAcquireElapsedMs": 19.0921,
+                  "rowsAffected": 320,
+                  "rowsAffectedCount": 320,
+                  "totalElapsedMs": 1030.8723
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 748,
+                "acquireWaitTimeMs": 8993.0772,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 300,
+                    "acquireWaitTimeMs": 1.8348,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 3332.4129,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 320,
+                    "acquireWaitTimeMs": 5658.8295,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 928,
+              "acquireDurationMs": 3667.536,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 130,
+              "emptyAcquireWaitTimeMs": 3665.106,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 32.86184461538461,
+                  "count": 130,
+                  "maxElapsedMs": 51.1422,
+                  "totalElapsedMs": 4272.0398
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2030526470588234,
+                  "averageElapsedMs": 2.225250294117647,
+                  "averagePoolAcquireElapsedMs": 0.009565,
+                  "averageRowsAffected": 1,
+                  "count": 340,
+                  "dbExecuteElapsedMs": 749.0379,
+                  "maxElapsedMs": 3.8729,
+                  "poolAcquireCount": 340,
+                  "poolAcquireElapsedMs": 3.2521,
+                  "rowsAffected": 340,
+                  "rowsAffectedCount": 340,
+                  "totalElapsedMs": 756.5851
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 2.64423359375,
+                  "count": 128,
+                  "maxElapsedMs": 13.0409,
+                  "totalElapsedMs": 338.4619
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 3.1257181249999997,
+                  "averageElapsedMs": 3.1931015625,
+                  "averagePoolAcquireElapsedMs": 0.06346,
+                  "averageRowsAffected": 1,
+                  "count": 320,
+                  "dbExecuteElapsedMs": 1000.2298,
+                  "maxElapsedMs": 28.6219,
+                  "poolAcquireCount": 320,
+                  "poolAcquireElapsedMs": 20.3072,
+                  "rowsAffected": 320,
+                  "rowsAffectedCount": 320,
+                  "totalElapsedMs": 1021.7925
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 788,
+                "acquireWaitTimeMs": 8895.9196,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 340,
+                    "acquireWaitTimeMs": 3.5078,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 3447.2163,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 320,
+                    "acquireWaitTimeMs": 5445.1955,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "after": {
+        "endpoint": "/internal/identity/session-db-pool",
+        "secretHeader": "X-Internal-Diagnostics-Secret",
+        "sampledAt": "2026-06-02T13:50:54.517291749Z",
+        "gateways": [
+          {
+            "baseUrl": "http://host.docker.internal:18100",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 1148,
+              "acquireDurationMs": 3305.218,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 126,
+              "emptyAcquireWaitTimeMs": 3305.218,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 30.936275396825394,
+                  "count": 126,
+                  "maxElapsedMs": 52.8917,
+                  "totalElapsedMs": 3897.9707
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.2172107798165137,
+                  "averageElapsedMs": 2.2239534403669725,
+                  "averagePoolAcquireElapsedMs": 0.0014662844036697248,
+                  "averageRowsAffected": 1,
+                  "count": 436,
+                  "dbExecuteElapsedMs": 966.7039,
+                  "maxElapsedMs": 7.2434,
+                  "poolAcquireCount": 436,
+                  "poolAcquireElapsedMs": 0.6393,
+                  "rowsAffected": 436,
+                  "rowsAffectedCount": 436,
+                  "totalElapsedMs": 969.6437
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 2.6305984375,
+                  "count": 128,
+                  "maxElapsedMs": 12.4681,
+                  "totalElapsedMs": 336.7166
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 2.9562604910714287,
+                  "averageElapsedMs": 3.0037495535714283,
+                  "averagePoolAcquireElapsedMs": 0.043853794642857144,
+                  "averageRowsAffected": 1,
+                  "count": 448,
+                  "dbExecuteElapsedMs": 1324.4047,
+                  "maxElapsedMs": 30.0382,
+                  "poolAcquireCount": 448,
+                  "poolAcquireElapsedMs": 19.6465,
+                  "rowsAffected": 448,
+                  "rowsAffectedCount": 448,
+                  "totalElapsedMs": 1345.6798
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 1012,
+                "acquireWaitTimeMs": 16744.4951,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 436,
+                    "acquireWaitTimeMs": 4469.0436,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 3332.4129,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 448,
+                    "acquireWaitTimeMs": 8943.0386,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          },
+          {
+            "baseUrl": "http://host.docker.internal:18101",
+            "status": "OK",
+            "httpStatus": 200,
+            "stats": {
+              "acquireCount": 1176,
+              "acquireDurationMs": 3667.536,
+              "acquiredConns": 0,
+              "canceledAcquireCount": 0,
+              "constructingConns": 0,
+              "emptyAcquireCount": 130,
+              "emptyAcquireWaitTimeMs": 3665.106,
+              "idleConns": 8,
+              "maxConns": 8,
+              "maxIdleDestroyCount": 0,
+              "maxLifetimeDestroyCount": 0,
+              "newConnsCount": 8,
+              "sessionOperations": {
+                "acceptRemoteCommand": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "getPrincipalByAccessToken": {
+                  "averageElapsedMs": 32.86184461538461,
+                  "count": 130,
+                  "maxElapsedMs": 51.1422,
+                  "totalElapsedMs": 4272.0398
+                },
+                "getPrincipalByRefreshToken": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "revokeOwnSession": {
+                  "averageDbExecuteElapsedMs": 2.1948471739130433,
+                  "averageElapsedMs": 2.211254130434783,
+                  "averagePoolAcquireElapsedMs": 0.007069782608695652,
+                  "averageRowsAffected": 1,
+                  "count": 460,
+                  "dbExecuteElapsedMs": 1009.6297,
+                  "maxElapsedMs": 4.4735,
+                  "poolAcquireCount": 460,
+                  "poolAcquireElapsedMs": 3.2521,
+                  "rowsAffected": 460,
+                  "rowsAffectedCount": 460,
+                  "totalElapsedMs": 1017.1769
+                },
+                "revokeSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "rotateRefreshSession": {
+                  "averageElapsedMs": 2.64423359375,
+                  "count": 128,
+                  "maxElapsedMs": 13.0409,
+                  "totalElapsedMs": 338.4619
+                },
+                "rotateSession": {
+                  "averageElapsedMs": 0,
+                  "count": 0,
+                  "maxElapsedMs": 0,
+                  "totalElapsedMs": 0
+                },
+                "saveSession": {
+                  "averageDbExecuteElapsedMs": 2.9267171875,
+                  "averageElapsedMs": 2.9785174107142858,
+                  "averagePoolAcquireElapsedMs": 0.04532857142857143,
+                  "averageRowsAffected": 1,
+                  "count": 448,
+                  "dbExecuteElapsedMs": 1311.1693,
+                  "maxElapsedMs": 28.6219,
+                  "poolAcquireCount": 448,
+                  "poolAcquireElapsedMs": 20.3072,
+                  "rowsAffected": 448,
+                  "rowsAffectedCount": 448,
+                  "totalElapsedMs": 1334.3758
+                }
+              },
+              "totalConns": 8,
+              "writeLimiter": {
+                "acquireCount": 1036,
+                "acquireWaitTimeMs": 14558.8623,
+                "canceledAcquireCount": 0,
+                "canceledAcquireWaitTimeMs": 0,
+                "enabled": true,
+                "inUse": 0,
+                "limit": 4,
+                "operations": {
+                  "acceptRemoteCommand": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "pruneInactiveSessions": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeOwnSession": {
+                    "acquireCount": 460,
+                    "acquireWaitTimeMs": 3090.0928,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "revokeSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateRefreshSession": {
+                    "acquireCount": 128,
+                    "acquireWaitTimeMs": 3447.2163,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "rotateSession": {
+                    "acquireCount": 0,
+                    "acquireWaitTimeMs": 0,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  },
+                  "saveSession": {
+                    "acquireCount": 448,
+                    "acquireWaitTimeMs": 8021.5532,
+                    "canceledAcquireCount": 0,
+                    "canceledAcquireWaitTimeMs": 0,
+                    "waiting": 0
+                  }
+                },
+                "waiting": 0
+              }
+            }
+          }
+        ]
+      },
+      "delta": {
+        "pool": {
+          "acquireCount": 512,
+          "acquireDurationMs": 0,
+          "emptyAcquireWaitTimeMs": 0,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "writeLimiter": {
+          "enabledGateways": 2,
+          "configuredLimitTotal": 8,
+          "acquireCount": 512,
+          "acquireWaitTimeMs": 13414.36,
+          "averageAcquireWaitTimeMs": 26.2,
+          "operations": {
+            "revokeOwnSession": {
+              "acquireCount": 256,
+              "acquireWaitTimeMs": 7553.8,
+              "averageAcquireWaitTimeMs": 29.51
+            },
+            "saveSession": {
+              "acquireCount": 256,
+              "acquireWaitTimeMs": 5860.56,
+              "averageAcquireWaitTimeMs": 22.89
+            }
+          }
+        },
+        "sessionOperations": {
+          "revokeOwnSession": {
+            "count": 256,
+            "totalElapsedMs": 559.35,
+            "averageElapsedMs": 2.18,
+            "poolAcquireCount": 256,
+            "dbExecuteElapsedMs": 558.81,
+            "averageDbExecuteElapsedMs": 2.18,
+            "rowsAffectedCount": 256,
+            "rowsAffected": 256,
+            "averageRowsAffected": 1
+          },
+          "saveSession": {
+            "count": 256,
+            "totalElapsedMs": 627.4,
+            "averageElapsedMs": 2.45,
+            "poolAcquireCount": 256,
+            "poolAcquireElapsedMs": 0.55,
+            "dbExecuteElapsedMs": 624.14,
+            "averageDbExecuteElapsedMs": 2.44,
+            "rowsAffectedCount": 256,
+            "rowsAffected": 256,
+            "averageRowsAffected": 1
+          }
+        }
+      }
+    }
+  },
+  "gatewayWorkerCount": 2,
+  "gatewayDatabaseProfile": {
+    "workerCount": 2,
+    "sessionDbMaxConnsPerWorker": 8,
+    "sessionDbMaxConnsTotal": 16,
+    "sessionDbMinConnsPerWorker": 0,
+    "sessionDbMinConnsTotal": 0,
+    "sessionDbQueryExecMode": "cache_statement",
+    "sessionDbWriteConcurrencyPerWorker": 4,
+    "sessionDbWriteConcurrencyTotal": 8,
+    "sessionTablePersistence": "unlogged"
+  },
+  "benchmarkRuntimeProfile": {
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal",
+    "targetBaseUrls": [
+      "http://host.docker.internal:19080",
+      "http://host.docker.internal:19081"
+    ]
+  },
+  "gatewayDatabaseDiagnostics": {
+    "before": {
+      "endpoint": "/internal/identity/session-db-pool",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-02T13:50:32.147Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18100",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 1,
+            "acquiredConns": 0,
+            "idleConns": 1,
+            "constructingConns": 0,
+            "acquireCount": 10,
+            "acquireDurationMs": 31.246,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 31.246,
+            "newConnsCount": 1,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0,
+            "writeLimiter": {
+              "enabled": true,
+              "limit": 4,
+              "inUse": 0,
+              "waiting": 0,
+              "acquireCount": 0,
+              "acquireWaitTimeMs": 0,
+              "canceledAcquireCount": 0,
+              "canceledAcquireWaitTimeMs": 0,
+              "operations": {
+                "acceptRemoteCommand": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeOwnSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateRefreshSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "saveSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                }
+              }
+            },
+            "sessionOperations": {
+              "acceptRemoteCommand": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "getPrincipalByAccessToken": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "getPrincipalByRefreshToken": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "pruneInactiveSessions": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "revokeOwnSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "revokeSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "rotateRefreshSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "rotateSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "saveSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              }
+            }
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18101",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 1,
+            "acquiredConns": 0,
+            "idleConns": 1,
+            "constructingConns": 0,
+            "acquireCount": 10,
+            "acquireDurationMs": 35.916,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 35.916,
+            "newConnsCount": 1,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0,
+            "writeLimiter": {
+              "enabled": true,
+              "limit": 4,
+              "inUse": 0,
+              "waiting": 0,
+              "acquireCount": 0,
+              "acquireWaitTimeMs": 0,
+              "canceledAcquireCount": 0,
+              "canceledAcquireWaitTimeMs": 0,
+              "operations": {
+                "acceptRemoteCommand": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeOwnSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateRefreshSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "saveSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                }
+              }
+            },
+            "sessionOperations": {
+              "acceptRemoteCommand": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "getPrincipalByAccessToken": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "getPrincipalByRefreshToken": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "pruneInactiveSessions": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "revokeOwnSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "revokeSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "rotateRefreshSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "rotateSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "saveSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "after": {
+      "endpoint": "/internal/identity/session-db-pool",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-02T13:50:55.106Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18100",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 0,
+            "idleConns": 8,
+            "constructingConns": 0,
+            "acquireCount": 1148,
+            "acquireDurationMs": 3305.218,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 126,
+            "emptyAcquireWaitTimeMs": 3305.218,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0,
+            "writeLimiter": {
+              "enabled": true,
+              "limit": 4,
+              "inUse": 0,
+              "waiting": 0,
+              "acquireCount": 1012,
+              "acquireWaitTimeMs": 16744.4951,
+              "canceledAcquireCount": 0,
+              "canceledAcquireWaitTimeMs": 0,
+              "operations": {
+                "acceptRemoteCommand": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeOwnSession": {
+                  "waiting": 0,
+                  "acquireCount": 436,
+                  "acquireWaitTimeMs": 4469.0436,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateRefreshSession": {
+                  "waiting": 0,
+                  "acquireCount": 128,
+                  "acquireWaitTimeMs": 3332.4129,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "saveSession": {
+                  "waiting": 0,
+                  "acquireCount": 448,
+                  "acquireWaitTimeMs": 8943.0386,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                }
+              }
+            },
+            "sessionOperations": {
+              "acceptRemoteCommand": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "getPrincipalByAccessToken": {
+                "count": 126,
+                "totalElapsedMs": 3897.9707,
+                "averageElapsedMs": 30.936275396825394,
+                "maxElapsedMs": 52.8917
+              },
+              "getPrincipalByRefreshToken": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "pruneInactiveSessions": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "revokeOwnSession": {
+                "count": 436,
+                "totalElapsedMs": 969.6437,
+                "averageElapsedMs": 2.2239534403669725,
+                "maxElapsedMs": 7.2434,
+                "poolAcquireCount": 436,
+                "poolAcquireElapsedMs": 0.6393,
+                "averagePoolAcquireElapsedMs": 0.0014662844036697248,
+                "dbExecuteElapsedMs": 966.7039,
+                "averageDbExecuteElapsedMs": 2.2172107798165137,
+                "rowsAffectedCount": 436,
+                "rowsAffected": 436,
+                "averageRowsAffected": 1
+              },
+              "revokeSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "rotateRefreshSession": {
+                "count": 128,
+                "totalElapsedMs": 336.7166,
+                "averageElapsedMs": 2.6305984375,
+                "maxElapsedMs": 12.4681
+              },
+              "rotateSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "saveSession": {
+                "count": 448,
+                "totalElapsedMs": 1345.6798,
+                "averageElapsedMs": 3.0037495535714283,
+                "maxElapsedMs": 30.0382,
+                "poolAcquireCount": 448,
+                "poolAcquireElapsedMs": 19.6465,
+                "averagePoolAcquireElapsedMs": 0.043853794642857144,
+                "dbExecuteElapsedMs": 1324.4047,
+                "averageDbExecuteElapsedMs": 2.9562604910714287,
+                "rowsAffectedCount": 448,
+                "rowsAffected": 448,
+                "averageRowsAffected": 1
+              }
+            }
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18101",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 0,
+            "idleConns": 8,
+            "constructingConns": 0,
+            "acquireCount": 1176,
+            "acquireDurationMs": 3667.536,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 130,
+            "emptyAcquireWaitTimeMs": 3665.106,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0,
+            "writeLimiter": {
+              "enabled": true,
+              "limit": 4,
+              "inUse": 0,
+              "waiting": 0,
+              "acquireCount": 1036,
+              "acquireWaitTimeMs": 14558.8623,
+              "canceledAcquireCount": 0,
+              "canceledAcquireWaitTimeMs": 0,
+              "operations": {
+                "acceptRemoteCommand": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "pruneInactiveSessions": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeOwnSession": {
+                  "waiting": 0,
+                  "acquireCount": 460,
+                  "acquireWaitTimeMs": 3090.0928,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "revokeSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateRefreshSession": {
+                  "waiting": 0,
+                  "acquireCount": 128,
+                  "acquireWaitTimeMs": 3447.2163,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "rotateSession": {
+                  "waiting": 0,
+                  "acquireCount": 0,
+                  "acquireWaitTimeMs": 0,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                },
+                "saveSession": {
+                  "waiting": 0,
+                  "acquireCount": 448,
+                  "acquireWaitTimeMs": 8021.5532,
+                  "canceledAcquireCount": 0,
+                  "canceledAcquireWaitTimeMs": 0
+                }
+              }
+            },
+            "sessionOperations": {
+              "acceptRemoteCommand": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "getPrincipalByAccessToken": {
+                "count": 130,
+                "totalElapsedMs": 4272.0398,
+                "averageElapsedMs": 32.86184461538461,
+                "maxElapsedMs": 51.1422
+              },
+              "getPrincipalByRefreshToken": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "pruneInactiveSessions": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "revokeOwnSession": {
+                "count": 460,
+                "totalElapsedMs": 1017.1769,
+                "averageElapsedMs": 2.211254130434783,
+                "maxElapsedMs": 4.4735,
+                "poolAcquireCount": 460,
+                "poolAcquireElapsedMs": 3.2521,
+                "averagePoolAcquireElapsedMs": 0.007069782608695652,
+                "dbExecuteElapsedMs": 1009.6297,
+                "averageDbExecuteElapsedMs": 2.1948471739130433,
+                "rowsAffectedCount": 460,
+                "rowsAffected": 460,
+                "averageRowsAffected": 1
+              },
+              "revokeSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "rotateRefreshSession": {
+                "count": 128,
+                "totalElapsedMs": 338.4619,
+                "averageElapsedMs": 2.64423359375,
+                "maxElapsedMs": 13.0409
+              },
+              "rotateSession": {
+                "count": 0,
+                "totalElapsedMs": 0,
+                "averageElapsedMs": 0,
+                "maxElapsedMs": 0
+              },
+              "saveSession": {
+                "count": 448,
+                "totalElapsedMs": 1334.3758,
+                "averageElapsedMs": 2.9785174107142858,
+                "maxElapsedMs": 28.6219,
+                "poolAcquireCount": 448,
+                "poolAcquireElapsedMs": 20.3072,
+                "averagePoolAcquireElapsedMs": 0.04532857142857143,
+                "dbExecuteElapsedMs": 1311.1693,
+                "averageDbExecuteElapsedMs": 2.9267171875,
+                "rowsAffectedCount": 448,
+                "rowsAffected": 448,
+                "averageRowsAffected": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "pgbouncerDiagnostics": {
+    "before": {
+      "status": "OK",
+      "sampledAt": "2026-06-02T13:50:34.544Z",
+      "executor": "DOCKER_EXEC_PSQL",
+      "postgresContainer": "ita-identity-session-postgres",
+      "pgbouncerHost": "identity-session-pgbouncer",
+      "pgbouncerPort": 6432,
+      "pgbouncerDatabase": "pgbouncer",
+      "queries": {
+        "stats": {
+          "status": "OK",
+          "query": "SHOW STATS;",
+          "rows": [
+            {
+              "database": "intelligent_teaching_assistant",
+              "total_server_assignment_count": 20,
+              "total_xact_count": 20,
+              "total_query_count": 20,
+              "total_received": 2849,
+              "total_sent": 2326,
+              "total_xact_time": 101265,
+              "total_query_time": 101265,
+              "total_wait_time": 60512,
+              "total_client_parse_count": 0,
+              "total_server_parse_count": 0,
+              "total_bind_count": 0,
+              "avg_server_assignment_count": 4,
+              "avg_xact_count": 4,
+              "avg_query_count": 4,
+              "avg_recv": 675,
+              "avg_sent": 551,
+              "avg_xact_time": 5063,
+              "avg_query_time": 5063,
+              "avg_wait_time": 3025,
+              "avg_client_parse_count": 0,
+              "avg_server_parse_count": 0,
+              "avg_bind_count": 0
+            },
+            {
+              "database": "pgbouncer",
+              "total_server_assignment_count": 0,
+              "total_xact_count": 1,
+              "total_query_count": 1,
+              "total_received": 0,
+              "total_sent": 0,
+              "total_xact_time": 0,
+              "total_query_time": 0,
+              "total_wait_time": 0,
+              "total_client_parse_count": 0,
+              "total_server_parse_count": 0,
+              "total_bind_count": 0,
+              "avg_server_assignment_count": 0,
+              "avg_xact_count": 0,
+              "avg_query_count": 0,
+              "avg_recv": 0,
+              "avg_sent": 0,
+              "avg_xact_time": 0,
+              "avg_query_time": 0,
+              "avg_wait_time": 0,
+              "avg_client_parse_count": 0,
+              "avg_server_parse_count": 0,
+              "avg_bind_count": 0
+            }
+          ]
+        },
+        "pools": {
+          "status": "OK",
+          "query": "SHOW POOLS;",
+          "rows": [
+            {
+              "database": "intelligent_teaching_assistant",
+              "user": "app_user",
+              "cl_active": 2,
+              "cl_waiting": 0,
+              "cl_active_cancel_req": 0,
+              "cl_waiting_cancel_req": 0,
+              "sv_active": 0,
+              "sv_active_cancel": 0,
+              "sv_being_canceled": 0,
+              "sv_idle": 2,
+              "sv_used": 0,
+              "sv_tested": 0,
+              "sv_login": 0,
+              "maxwait": 0,
+              "maxwait_us": 0,
+              "pool_mode": "transaction",
+              "load_balance_hosts": ""
+            },
+            {
+              "database": "pgbouncer",
+              "user": "pgbouncer",
+              "cl_active": 1,
+              "cl_waiting": 0,
+              "cl_active_cancel_req": 0,
+              "cl_waiting_cancel_req": 0,
+              "sv_active": 0,
+              "sv_active_cancel": 0,
+              "sv_being_canceled": 0,
+              "sv_idle": 0,
+              "sv_used": 0,
+              "sv_tested": 0,
+              "sv_login": 0,
+              "maxwait": 0,
+              "maxwait_us": 0,
+              "pool_mode": "statement",
+              "load_balance_hosts": ""
+            }
+          ]
+        },
+        "config": {
+          "status": "OK",
+          "query": "SHOW CONFIG;",
+          "rows": [
+            {
+              "key": "admin_users",
+              "value": "app_user",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "application_name_add_host",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_dbname",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_file",
+              "value": "/etc/pgbouncer/userlist.txt",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_hba_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_ident_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_ldap_options",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_query",
+              "value": "SELECT rolname, CASE WHEN rolvaliduntil < now() THEN NULL ELSE rolpassword END FROM pg_authid WHERE rolname=$1 AND rolcanlogin",
+              "default": "SELECT rolname, CASE WHEN rolvaliduntil < now() THEN NULL ELSE rolpassword END FROM pg_authid WHERE rolname=$1 AND rolcanlogin",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_type",
+              "value": "plain",
+              "default": "md5",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_user",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "autodb_idle_timeout",
+              "value": 3600,
+              "default": 3600,
+              "changeable": "yes"
+            },
+            {
+              "key": "cancel_wait_timeout",
+              "value": 10,
+              "default": 10,
+              "changeable": "yes"
+            },
+            {
+              "key": "client_idle_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "client_login_timeout",
+              "value": 60,
+              "default": 60,
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls13_ciphers",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_ca_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_cert_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_ciphers",
+              "value": "default",
+              "default": "default",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_dheparams",
+              "value": "auto",
+              "default": "auto",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_ecdhcurve",
+              "value": "auto",
+              "default": "auto",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_key_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_protocols",
+              "value": "secure",
+              "default": "secure",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_sslmode",
+              "value": "disable",
+              "default": "disable",
+              "changeable": "yes"
+            },
+            {
+              "key": "conffile",
+              "value": "/etc/pgbouncer/pgbouncer.ini",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "default_pool_size",
+              "value": 100,
+              "default": 20,
+              "changeable": "yes"
+            },
+            {
+              "key": "disable_pqexec",
+              "value": 0,
+              "default": 0,
+              "changeable": "no"
+            },
+            {
+              "key": "dns_max_ttl",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "dns_nxdomain_ttl",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "dns_zone_check_period",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "idle_transaction_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "ignore_startup_parameters",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "job_name",
+              "value": "pgbouncer",
+              "default": "pgbouncer",
+              "changeable": "no"
+            },
+            {
+              "key": "listen_addr",
+              "value": "0.0.0.0",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "listen_backlog",
+              "value": 128,
+              "default": 128,
+              "changeable": "no"
+            },
+            {
+              "key": "listen_port",
+              "value": 6432,
+              "default": 6432,
+              "changeable": "no"
+            },
+            {
+              "key": "log_connections",
+              "value": 0,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "log_disconnections",
+              "value": 0,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "log_pooler_errors",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "log_stats",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "logfile",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "max_client_conn",
+              "value": 10000,
+              "default": 100,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_db_client_connections",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_db_connections",
+              "value": 180,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_packet_size",
+              "value": 2147483647,
+              "default": 2147483647,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_prepared_statements",
+              "value": 200,
+              "default": 200,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_user_client_connections",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_user_connections",
+              "value": 10000,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "min_pool_size",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "peer_id",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "pidfile",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "pkt_buf",
+              "value": 4096,
+              "default": 4096,
+              "changeable": "no"
+            },
+            {
+              "key": "pool_mode",
+              "value": "transaction",
+              "default": "session",
+              "changeable": "yes"
+            },
+            {
+              "key": "query_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "query_wait_notify",
+              "value": 5,
+              "default": 5,
+              "changeable": "yes"
+            },
+            {
+              "key": "query_wait_timeout",
+              "value": 30,
+              "default": 120,
+              "changeable": "yes"
+            },
+            {
+              "key": "reserve_pool_size",
+              "value": 20,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "reserve_pool_timeout",
+              "value": 3,
+              "default": 5,
+              "changeable": "yes"
+            },
+            {
+              "key": "resolv_conf",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "sbuf_loopcnt",
+              "value": 5,
+              "default": 5,
+              "changeable": "yes"
+            },
+            {
+              "key": "scram_iterations",
+              "value": 4096,
+              "default": 4096,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_check_delay",
+              "value": 30,
+              "default": 30,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_check_query",
+              "value": "<empty>",
+              "default": "<empty>",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_connect_timeout",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_fast_close",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_idle_timeout",
+              "value": 600,
+              "default": 600,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_lifetime",
+              "value": 3600,
+              "default": 3600,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_login_retry",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_reset_query",
+              "value": "DISCARD ALL",
+              "default": "DISCARD ALL",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_reset_query_always",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_round_robin",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls13_ciphers",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_ca_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_cert_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_ciphers",
+              "value": "default",
+              "default": "default",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_key_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_protocols",
+              "value": "secure",
+              "default": "secure",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_sslmode",
+              "value": "prefer",
+              "default": "prefer",
+              "changeable": "yes"
+            },
+            {
+              "key": "so_reuseport",
+              "value": 0,
+              "default": 0,
+              "changeable": "no"
+            },
+            {
+              "key": "stats_period",
+              "value": 60,
+              "default": 60,
+              "changeable": "yes"
+            },
+            {
+              "key": "stats_users",
+              "value": "app_user",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "suspend_timeout",
+              "value": 10,
+              "default": 10,
+              "changeable": "yes"
+            },
+            {
+              "key": "syslog",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "syslog_facility",
+              "value": "daemon",
+              "default": "daemon",
+              "changeable": "yes"
+            },
+            {
+              "key": "syslog_ident",
+              "value": "pgbouncer",
+              "default": "pgbouncer",
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_defer_accept",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepalive",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepcnt",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepidle",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepintvl",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_socket_buffer",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_user_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "track_extra_parameters",
+              "value": "IntervalStyle",
+              "default": "IntervalStyle",
+              "changeable": "no"
+            },
+            {
+              "key": "transaction_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "unix_socket_dir",
+              "value": "/tmp",
+              "default": "/tmp",
+              "changeable": "no"
+            },
+            {
+              "key": "unix_socket_group",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "unix_socket_mode",
+              "value": 511,
+              "default": 777,
+              "changeable": "no"
+            },
+            {
+              "key": "user",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "verbose",
+              "value": 0,
+              "default": "",
+              "changeable": "yes"
+            }
+          ]
+        }
+      }
+    },
+    "after": {
+      "status": "OK",
+      "sampledAt": "2026-06-02T13:50:55.838Z",
+      "executor": "DOCKER_EXEC_PSQL",
+      "postgresContainer": "ita-identity-session-postgres",
+      "pgbouncerHost": "identity-session-pgbouncer",
+      "pgbouncerPort": 6432,
+      "pgbouncerDatabase": "pgbouncer",
+      "queries": {
+        "stats": {
+          "status": "OK",
+          "query": "SHOW STATS;",
+          "rows": [
+            {
+              "database": "intelligent_teaching_assistant",
+              "total_server_assignment_count": 2384,
+              "total_xact_count": 2384,
+              "total_query_count": 2384,
+              "total_received": 981245,
+              "total_sent": 415918,
+              "total_xact_time": 1995355,
+              "total_query_time": 1995355,
+              "total_wait_time": 140766,
+              "total_client_parse_count": 46,
+              "total_server_parse_count": 34,
+              "total_bind_count": 2304,
+              "avg_server_assignment_count": 93,
+              "avg_xact_count": 93,
+              "avg_query_count": 93,
+              "avg_recv": 38349,
+              "avg_sent": 16255,
+              "avg_xact_time": 836,
+              "avg_query_time": 836,
+              "avg_wait_time": 59,
+              "avg_client_parse_count": 1,
+              "avg_server_parse_count": 1,
+              "avg_bind_count": 90
+            },
+            {
+              "database": "pgbouncer",
+              "total_server_assignment_count": 0,
+              "total_xact_count": 4,
+              "total_query_count": 4,
+              "total_received": 0,
+              "total_sent": 0,
+              "total_xact_time": 0,
+              "total_query_time": 0,
+              "total_wait_time": 0,
+              "total_client_parse_count": 0,
+              "total_server_parse_count": 0,
+              "total_bind_count": 0,
+              "avg_server_assignment_count": 0,
+              "avg_xact_count": 0,
+              "avg_query_count": 0,
+              "avg_recv": 0,
+              "avg_sent": 0,
+              "avg_xact_time": 0,
+              "avg_query_time": 0,
+              "avg_wait_time": 0,
+              "avg_client_parse_count": 0,
+              "avg_server_parse_count": 0,
+              "avg_bind_count": 0
+            }
+          ]
+        },
+        "pools": {
+          "status": "OK",
+          "query": "SHOW POOLS;",
+          "rows": [
+            {
+              "database": "intelligent_teaching_assistant",
+              "user": "app_user",
+              "cl_active": 16,
+              "cl_waiting": 0,
+              "cl_active_cancel_req": 0,
+              "cl_waiting_cancel_req": 0,
+              "sv_active": 0,
+              "sv_active_cancel": 0,
+              "sv_being_canceled": 0,
+              "sv_idle": 9,
+              "sv_used": 0,
+              "sv_tested": 0,
+              "sv_login": 0,
+              "maxwait": 0,
+              "maxwait_us": 0,
+              "pool_mode": "transaction",
+              "load_balance_hosts": ""
+            },
+            {
+              "database": "pgbouncer",
+              "user": "pgbouncer",
+              "cl_active": 1,
+              "cl_waiting": 0,
+              "cl_active_cancel_req": 0,
+              "cl_waiting_cancel_req": 0,
+              "sv_active": 0,
+              "sv_active_cancel": 0,
+              "sv_being_canceled": 0,
+              "sv_idle": 0,
+              "sv_used": 0,
+              "sv_tested": 0,
+              "sv_login": 0,
+              "maxwait": 0,
+              "maxwait_us": 0,
+              "pool_mode": "statement",
+              "load_balance_hosts": ""
+            }
+          ]
+        },
+        "config": {
+          "status": "OK",
+          "query": "SHOW CONFIG;",
+          "rows": [
+            {
+              "key": "admin_users",
+              "value": "app_user",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "application_name_add_host",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_dbname",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_file",
+              "value": "/etc/pgbouncer/userlist.txt",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_hba_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_ident_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_ldap_options",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_query",
+              "value": "SELECT rolname, CASE WHEN rolvaliduntil < now() THEN NULL ELSE rolpassword END FROM pg_authid WHERE rolname=$1 AND rolcanlogin",
+              "default": "SELECT rolname, CASE WHEN rolvaliduntil < now() THEN NULL ELSE rolpassword END FROM pg_authid WHERE rolname=$1 AND rolcanlogin",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_type",
+              "value": "plain",
+              "default": "md5",
+              "changeable": "yes"
+            },
+            {
+              "key": "auth_user",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "autodb_idle_timeout",
+              "value": 3600,
+              "default": 3600,
+              "changeable": "yes"
+            },
+            {
+              "key": "cancel_wait_timeout",
+              "value": 10,
+              "default": 10,
+              "changeable": "yes"
+            },
+            {
+              "key": "client_idle_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "client_login_timeout",
+              "value": 60,
+              "default": 60,
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls13_ciphers",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_ca_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_cert_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_ciphers",
+              "value": "default",
+              "default": "default",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_dheparams",
+              "value": "auto",
+              "default": "auto",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_ecdhcurve",
+              "value": "auto",
+              "default": "auto",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_key_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_protocols",
+              "value": "secure",
+              "default": "secure",
+              "changeable": "yes"
+            },
+            {
+              "key": "client_tls_sslmode",
+              "value": "disable",
+              "default": "disable",
+              "changeable": "yes"
+            },
+            {
+              "key": "conffile",
+              "value": "/etc/pgbouncer/pgbouncer.ini",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "default_pool_size",
+              "value": 100,
+              "default": 20,
+              "changeable": "yes"
+            },
+            {
+              "key": "disable_pqexec",
+              "value": 0,
+              "default": 0,
+              "changeable": "no"
+            },
+            {
+              "key": "dns_max_ttl",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "dns_nxdomain_ttl",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "dns_zone_check_period",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "idle_transaction_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "ignore_startup_parameters",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "job_name",
+              "value": "pgbouncer",
+              "default": "pgbouncer",
+              "changeable": "no"
+            },
+            {
+              "key": "listen_addr",
+              "value": "0.0.0.0",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "listen_backlog",
+              "value": 128,
+              "default": 128,
+              "changeable": "no"
+            },
+            {
+              "key": "listen_port",
+              "value": 6432,
+              "default": 6432,
+              "changeable": "no"
+            },
+            {
+              "key": "log_connections",
+              "value": 0,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "log_disconnections",
+              "value": 0,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "log_pooler_errors",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "log_stats",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "logfile",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "max_client_conn",
+              "value": 10000,
+              "default": 100,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_db_client_connections",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_db_connections",
+              "value": 180,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_packet_size",
+              "value": 2147483647,
+              "default": 2147483647,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_prepared_statements",
+              "value": 200,
+              "default": 200,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_user_client_connections",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "max_user_connections",
+              "value": 10000,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "min_pool_size",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "peer_id",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "pidfile",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "pkt_buf",
+              "value": 4096,
+              "default": 4096,
+              "changeable": "no"
+            },
+            {
+              "key": "pool_mode",
+              "value": "transaction",
+              "default": "session",
+              "changeable": "yes"
+            },
+            {
+              "key": "query_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "query_wait_notify",
+              "value": 5,
+              "default": 5,
+              "changeable": "yes"
+            },
+            {
+              "key": "query_wait_timeout",
+              "value": 30,
+              "default": 120,
+              "changeable": "yes"
+            },
+            {
+              "key": "reserve_pool_size",
+              "value": 20,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "reserve_pool_timeout",
+              "value": 3,
+              "default": 5,
+              "changeable": "yes"
+            },
+            {
+              "key": "resolv_conf",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "sbuf_loopcnt",
+              "value": 5,
+              "default": 5,
+              "changeable": "yes"
+            },
+            {
+              "key": "scram_iterations",
+              "value": 4096,
+              "default": 4096,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_check_delay",
+              "value": 30,
+              "default": 30,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_check_query",
+              "value": "<empty>",
+              "default": "<empty>",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_connect_timeout",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_fast_close",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_idle_timeout",
+              "value": 600,
+              "default": 600,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_lifetime",
+              "value": 3600,
+              "default": 3600,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_login_retry",
+              "value": 15,
+              "default": 15,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_reset_query",
+              "value": "DISCARD ALL",
+              "default": "DISCARD ALL",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_reset_query_always",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_round_robin",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls13_ciphers",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_ca_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_cert_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_ciphers",
+              "value": "default",
+              "default": "default",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_key_file",
+              "value": "",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_protocols",
+              "value": "secure",
+              "default": "secure",
+              "changeable": "yes"
+            },
+            {
+              "key": "server_tls_sslmode",
+              "value": "prefer",
+              "default": "prefer",
+              "changeable": "yes"
+            },
+            {
+              "key": "so_reuseport",
+              "value": 0,
+              "default": 0,
+              "changeable": "no"
+            },
+            {
+              "key": "stats_period",
+              "value": 60,
+              "default": 60,
+              "changeable": "yes"
+            },
+            {
+              "key": "stats_users",
+              "value": "app_user",
+              "default": "",
+              "changeable": "yes"
+            },
+            {
+              "key": "suspend_timeout",
+              "value": 10,
+              "default": 10,
+              "changeable": "yes"
+            },
+            {
+              "key": "syslog",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "syslog_facility",
+              "value": "daemon",
+              "default": "daemon",
+              "changeable": "yes"
+            },
+            {
+              "key": "syslog_ident",
+              "value": "pgbouncer",
+              "default": "pgbouncer",
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_defer_accept",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepalive",
+              "value": 1,
+              "default": 1,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepcnt",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepidle",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_keepintvl",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_socket_buffer",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "tcp_user_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "track_extra_parameters",
+              "value": "IntervalStyle",
+              "default": "IntervalStyle",
+              "changeable": "no"
+            },
+            {
+              "key": "transaction_timeout",
+              "value": 0,
+              "default": 0,
+              "changeable": "yes"
+            },
+            {
+              "key": "unix_socket_dir",
+              "value": "/tmp",
+              "default": "/tmp",
+              "changeable": "no"
+            },
+            {
+              "key": "unix_socket_group",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "unix_socket_mode",
+              "value": 511,
+              "default": 777,
+              "changeable": "no"
+            },
+            {
+              "key": "user",
+              "value": "",
+              "default": "",
+              "changeable": "no"
+            },
+            {
+              "key": "verbose",
+              "value": 0,
+              "default": "",
+              "changeable": "yes"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "gatewayWriteLimiterDiagnostics": {
+    "before": {
+      "sampledAt": "2026-06-02T13:50:32.147Z",
+      "gatewayCount": 2,
+      "gatewaysWithWriteLimiterStats": 2,
+      "enabledGateways": 2,
+      "configuredLimitTotal": 8,
+      "inUseTotal": 0,
+      "waitingTotal": 0,
+      "acquireCountTotal": 0,
+      "acquireWaitTimeMsTotal": 0,
+      "canceledAcquireCountTotal": 0,
+      "canceledAcquireWaitTimeMsTotal": 0,
+      "maxInUsePerGateway": 0,
+      "maxWaitingPerGateway": 0,
+      "maxAcquireWaitTimeMsPerGateway": 0,
+      "operations": {
+        "acceptRemoteCommand": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "pruneInactiveSessions": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "revokeOwnSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "revokeSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "rotateRefreshSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "rotateSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "saveSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        }
+      }
+    },
+    "after": {
+      "sampledAt": "2026-06-02T13:50:55.106Z",
+      "gatewayCount": 2,
+      "gatewaysWithWriteLimiterStats": 2,
+      "enabledGateways": 2,
+      "configuredLimitTotal": 8,
+      "inUseTotal": 0,
+      "waitingTotal": 0,
+      "acquireCountTotal": 2048,
+      "acquireWaitTimeMsTotal": 31303.3574,
+      "canceledAcquireCountTotal": 0,
+      "canceledAcquireWaitTimeMsTotal": 0,
+      "maxInUsePerGateway": 0,
+      "maxWaitingPerGateway": 0,
+      "maxAcquireWaitTimeMsPerGateway": 16744.4951,
+      "operations": {
+        "acceptRemoteCommand": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "pruneInactiveSessions": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "revokeOwnSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 896,
+          "acquireWaitTimeMsTotal": 7559.136399999999,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 4469.0436
+        },
+        "revokeSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "rotateRefreshSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 256,
+          "acquireWaitTimeMsTotal": 6779.629199999999,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 3447.2163
+        },
+        "rotateSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 0,
+          "acquireWaitTimeMsTotal": 0,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 0
+        },
+        "saveSession": {
+          "waitingTotal": 0,
+          "acquireCountTotal": 896,
+          "acquireWaitTimeMsTotal": 16964.591800000002,
+          "canceledAcquireCountTotal": 0,
+          "canceledAcquireWaitTimeMsTotal": 0,
+          "maxWaitingPerGateway": 0,
+          "maxAcquireWaitTimeMsPerGateway": 8943.0386
+        }
+      }
+    },
+    "delta": {
+      "acquireCount": 2048,
+      "acquireWaitTimeMs": 31303.3574,
+      "canceledAcquireCount": 0,
+      "canceledAcquireWaitTimeMs": 0,
+      "operations": {
+        "acceptRemoteCommand": {
+          "acquireCount": 0,
+          "acquireWaitTimeMs": 0,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "pruneInactiveSessions": {
+          "acquireCount": 0,
+          "acquireWaitTimeMs": 0,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "revokeOwnSession": {
+          "acquireCount": 896,
+          "acquireWaitTimeMs": 7559.136399999999,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "revokeSession": {
+          "acquireCount": 0,
+          "acquireWaitTimeMs": 0,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "rotateRefreshSession": {
+          "acquireCount": 256,
+          "acquireWaitTimeMs": 6779.629199999999,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "rotateSession": {
+          "acquireCount": 0,
+          "acquireWaitTimeMs": 0,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        },
+        "saveSession": {
+          "acquireCount": 896,
+          "acquireWaitTimeMs": 16964.591800000002,
+          "canceledAcquireCount": 0,
+          "canceledAcquireWaitTimeMs": 0
+        }
+      }
+    }
+  },
+  "ingressProfile": {
+    "enabled": true,
+    "workerCount": 2,
+    "baseUrl": "http://127.0.0.1:19080",
+    "baseUrls": [
+      "http://127.0.0.1:19080",
+      "http://127.0.0.1:19081"
+    ],
+    "upstreamBaseUrls": [
+      "http://127.0.0.1:18100",
+      "http://127.0.0.1:18101"
+    ],
+    "upstreamTransportProfile": {
+      "maxConnsPerHost": 32,
+      "warmConnectionsPerHost": 16,
+      "warmConnectionsTotal": 64
+    }
+  }
+}

@@ -153,6 +153,96 @@ describe("identity phase-aware matrix runner", () => {
     assert.match(report.runnerErrors.join("\n"), /sessionDbMinConns must be <= sessionDbMaxConns/u);
   });
 
+  it("inherits global session DB write concurrency for legacy compact cases", () => {
+    const options = parseArgs([
+      "--session-db-write-concurrency", "3",
+      "--cases", "legacy:2:8:2:64:32:32:16,mincase:2:8:4:2:64:32:32:16",
+    ]);
+    const cases = buildMatrixCases(options);
+
+    assert.deepEqual(cases.map((entry) => entry.sessionDbWriteConcurrency), [3, 3]);
+    assert.equal(argValue(cases[0].args, "--session-db-write-concurrency"), "3");
+    assert.equal(argValue(cases[1].args, "--session-db-min-conns"), "4");
+    assert.equal(argValue(cases[1].args, "--session-db-write-concurrency"), "3");
+
+    const report = buildIdentityPhaseMatrixReport({
+      options,
+      cases,
+      caseReports: [
+        { case: cases[0], report: identityReport({ passwordLoginP99: 90 }) },
+        { case: cases[1], report: identityReport({ passwordLoginP99: 80 }) },
+      ],
+      startedAt: "2026-06-02T00:00:00.000Z",
+      endedAt: "2026-06-02T00:00:01.000Z",
+    });
+
+    assert.equal(report.targetProfile.caseScopedSessionDbWriteConcurrency, false);
+    assert.deepEqual(report.targetProfile.sessionDbWriteConcurrencyPerWorkerValues, [3]);
+    assert.equal(report.cases[0].config.sessionDbWriteConcurrencyPerWorker, 3);
+    assert.equal(report.cases[0].config.sessionDbWriteConcurrencyTotal, 6);
+    assert.equal(report.cases[1].config.sessionDbWriteConcurrencyPerWorker, 3);
+    assert.equal(report.cases[1].config.sessionDbWriteConcurrencyTotal, 6);
+  });
+
+  it("allows case-scoped session DB write concurrency in compact matrix cases", () => {
+    const options = parseArgs([
+      "--case-prefix", "reports/custom-identity-phase",
+      "--session-db-write-concurrency", "1",
+      "--cases", "w0:2:8:0:0:2:64:32:32:16,w4:2:8:0:4:2:64:32:32:16",
+    ]);
+    const cases = buildMatrixCases(options);
+
+    assert.deepEqual(cases.map((entry) => entry.sessionDbWriteConcurrency), [0, 4]);
+    assert.equal(argValue(cases[0].args, "--session-db-min-conns"), "0");
+    assert.equal(argValue(cases[0].args, "--session-db-write-concurrency"), "0");
+    assert.equal(argValue(cases[1].args, "--session-db-min-conns"), "0");
+    assert.equal(argValue(cases[1].args, "--session-db-write-concurrency"), "4");
+
+    const report = buildIdentityPhaseMatrixReport({
+      options,
+      cases,
+      caseReports: [
+        { case: cases[0], report: identityReport({ revokeCycleP99: 140 }) },
+        { case: cases[1], report: identityReport({ revokeCycleP99: 110 }) },
+      ],
+      startedAt: "2026-06-02T00:00:00.000Z",
+      endedAt: "2026-06-02T00:00:01.000Z",
+    });
+
+    assert.equal(report.targetProfile.caseScopedSessionDbWriteConcurrency, true);
+    assert.deepEqual(report.targetProfile.sessionDbWriteConcurrencyPerWorkerValues, [0, 4]);
+    assert.equal(report.cases[0].config.sessionDbWriteConcurrencyPerWorker, 0);
+    assert.equal(report.cases[0].config.sessionDbWriteConcurrencyTotal, 0);
+    assert.equal(report.cases[1].config.sessionDbWriteConcurrencyPerWorker, 4);
+    assert.equal(report.cases[1].config.sessionDbWriteConcurrencyTotal, 8);
+    assert.equal(report.summary.recommendedCaseName, "w4");
+  });
+
+  it("rejects case-scoped session DB write concurrency above max before workloads run", async () => {
+    const root = makeTempRoot();
+    const executed = [];
+    const report = await runIdentityPhaseMatrix(
+      {
+        ...defaults,
+        out: "reports/matrix.json",
+        manageDocker: "false",
+        cases: "invalid:2:8:0:9:2:64:32:32:16",
+      },
+      {
+        root,
+        runCase: async (matrixCase) => {
+          executed.push(matrixCase.name);
+          return identityReport();
+        },
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "FAILED");
+    assert.deepEqual(executed, []);
+    assert.match(report.runnerErrors.join("\n"), /sessionDbWriteConcurrency must be <= sessionDbMaxConns/u);
+  });
+
   it("recommends the passing case with the lowest slowest phase P99 and keeps phase diagnostics", () => {
     const cases = buildMatrixCases({
       ...defaults,

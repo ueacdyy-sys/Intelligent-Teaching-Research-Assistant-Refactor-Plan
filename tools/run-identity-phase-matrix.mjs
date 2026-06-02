@@ -51,11 +51,13 @@ export function parseArgs(argv) {
 
 export function buildMatrixCases(options) {
   const defaultSessionDbMinConns = parseInteger(options.sessionDbMinConns);
+  const defaultSessionDbWriteConcurrency = parseInteger(options.sessionDbWriteConcurrency);
   return parseCaseSpecs(options.cases).map((matrixCase, index) => {
     const reportPath = `${options.casePrefix}.${index + 1}-${safeName(matrixCase.name)}.json`;
     const resolvedCase = {
       ...matrixCase,
       sessionDbMinConns: matrixCase.sessionDbMinConns ?? defaultSessionDbMinConns,
+      sessionDbWriteConcurrency: matrixCase.sessionDbWriteConcurrency ?? defaultSessionDbWriteConcurrency,
       sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(options.sessionDbQueryExecMode),
       reportPath,
     };
@@ -158,6 +160,9 @@ export function buildIdentityPhaseMatrixReport({
       sessionDbMinConnsPerWorker: parseInteger(options.sessionDbMinConns),
       caseScopedSessionDbMinConns: hasCaseScopedSessionDbMinConns(cases),
       sessionDbMinConnsPerWorkerValues: uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbMinConns)),
+      sessionDbWriteConcurrencyPerWorker: parseInteger(options.sessionDbWriteConcurrency),
+      caseScopedSessionDbWriteConcurrency: hasCaseScopedSessionDbWriteConcurrency(cases),
+      sessionDbWriteConcurrencyPerWorkerValues: uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbWriteConcurrency)),
       sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(options.sessionDbQueryExecMode),
       sessionTablePersistence: options.sessionDbSessionTablePersistence,
       benchmarkRuntime: options.benchmarkRuntime,
@@ -206,7 +211,7 @@ function buildCaseArgs(options, matrixCase, reportPath) {
     "--session-db-max-conns", String(matrixCase.sessionDbMaxConns),
     "--session-db-min-conns", String(matrixCase.sessionDbMinConns),
     "--session-db-query-exec-mode", sessionDbQueryExecModeForProfile(options.sessionDbQueryExecMode),
-    "--session-db-write-concurrency", options.sessionDbWriteConcurrency,
+    "--session-db-write-concurrency", String(matrixCase.sessionDbWriteConcurrency),
     "--session-db-session-table-persistence", options.sessionDbSessionTablePersistence,
     "--gateway-count", String(matrixCase.gatewayCount),
     "--ingress-count", String(matrixCase.ingressCount),
@@ -234,6 +239,8 @@ function summarizeCase(matrixCase, report) {
       sessionDbMaxConnsTotal: matrixCase.gatewayCount * matrixCase.sessionDbMaxConns,
       sessionDbMinConnsPerWorker: matrixCase.sessionDbMinConns,
       sessionDbMinConnsTotal: matrixCase.gatewayCount * matrixCase.sessionDbMinConns,
+      sessionDbWriteConcurrencyPerWorker: matrixCase.sessionDbWriteConcurrency,
+      sessionDbWriteConcurrencyTotal: matrixCase.gatewayCount * matrixCase.sessionDbWriteConcurrency,
       sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(matrixCase.sessionDbQueryExecMode),
       ingressCount: matrixCase.ingressCount,
       clientMaxConnsPerHost: matrixCase.clientMaxConnsPerHost,
@@ -326,6 +333,10 @@ function hasCaseScopedSessionDbMinConns(cases) {
   return uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbMinConns)).length > 1;
 }
 
+function hasCaseScopedSessionDbWriteConcurrency(cases) {
+  return uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbWriteConcurrency)).length > 1;
+}
+
 function uniqueSortedNumbers(values) {
   return [...new Set(values.filter((value) => typeof value === "number" && Number.isFinite(value)))]
     .sort((left, right) => left - right);
@@ -351,26 +362,52 @@ function parseCaseSpecs(value) {
 
 function parseCaseSpec(value) {
   const parts = value.split(":");
-  if (![8, 9].includes(parts.length)) {
-    throw new Error(`invalid identity phase matrix case ${value}: expected 8 or 9 colon-separated fields`);
+  if (![8, 9, 10].includes(parts.length)) {
+    throw new Error(`invalid identity phase matrix case ${value}: expected 8, 9, or 10 colon-separated fields`);
   }
   const [
     name,
     gatewayCount,
     sessionDbMaxConns,
-    sessionDbMinConnsOrIngressCount,
-    ingressCountOrClientMaxConnsPerHost,
-    clientMaxConnsPerHostOrClientWarmConnectionsPerHost,
-    clientWarmConnectionsPerHostOrIngressMaxConnsPerHost,
-    ingressMaxConnsPerHostOrIngressWarmConnectionsPerHost,
-    ingressWarmConnectionsPerHost,
+    ...caseShape
   ] = parts;
-  const hasCaseScopedMinConns = parts.length === 9;
-  const ingressCount = hasCaseScopedMinConns ? ingressCountOrClientMaxConnsPerHost : sessionDbMinConnsOrIngressCount;
-  const clientMaxConnsPerHost = hasCaseScopedMinConns ? clientMaxConnsPerHostOrClientWarmConnectionsPerHost : ingressCountOrClientMaxConnsPerHost;
-  const clientWarmConnectionsPerHost = hasCaseScopedMinConns ? clientWarmConnectionsPerHostOrIngressMaxConnsPerHost : clientMaxConnsPerHostOrClientWarmConnectionsPerHost;
-  const ingressMaxConnsPerHost = hasCaseScopedMinConns ? ingressMaxConnsPerHostOrIngressWarmConnectionsPerHost : clientWarmConnectionsPerHostOrIngressMaxConnsPerHost;
-  const resolvedIngressWarmConnectionsPerHost = hasCaseScopedMinConns ? ingressWarmConnectionsPerHost : ingressMaxConnsPerHostOrIngressWarmConnectionsPerHost;
+  const hasCaseScopedMinConns = parts.length >= 9;
+  const hasCaseScopedWriteConcurrency = parts.length === 10;
+  let sessionDbMinConns;
+  let sessionDbWriteConcurrency;
+  let ingressCount;
+  let clientMaxConnsPerHost;
+  let clientWarmConnectionsPerHost;
+  let ingressMaxConnsPerHost;
+  let ingressWarmConnectionsPerHost;
+  if (hasCaseScopedWriteConcurrency) {
+    [
+      sessionDbMinConns,
+      sessionDbWriteConcurrency,
+      ingressCount,
+      clientMaxConnsPerHost,
+      clientWarmConnectionsPerHost,
+      ingressMaxConnsPerHost,
+      ingressWarmConnectionsPerHost,
+    ] = caseShape;
+  } else if (hasCaseScopedMinConns) {
+    [
+      sessionDbMinConns,
+      ingressCount,
+      clientMaxConnsPerHost,
+      clientWarmConnectionsPerHost,
+      ingressMaxConnsPerHost,
+      ingressWarmConnectionsPerHost,
+    ] = caseShape;
+  } else {
+    [
+      ingressCount,
+      clientMaxConnsPerHost,
+      clientWarmConnectionsPerHost,
+      ingressMaxConnsPerHost,
+      ingressWarmConnectionsPerHost,
+    ] = caseShape;
+  }
   if (!name) throw new Error(`invalid identity phase matrix case ${value}: name is required`);
   const parsedCase = {
     name,
@@ -380,10 +417,13 @@ function parseCaseSpec(value) {
     clientMaxConnsPerHost: nonNegativeInteger(clientMaxConnsPerHost, value, "clientMaxConnsPerHost"),
     clientWarmConnectionsPerHost: nonNegativeInteger(clientWarmConnectionsPerHost, value, "clientWarmConnectionsPerHost"),
     ingressMaxConnsPerHost: nonNegativeInteger(ingressMaxConnsPerHost, value, "ingressMaxConnsPerHost"),
-    ingressWarmConnectionsPerHost: nonNegativeInteger(resolvedIngressWarmConnectionsPerHost, value, "ingressWarmConnectionsPerHost"),
+    ingressWarmConnectionsPerHost: nonNegativeInteger(ingressWarmConnectionsPerHost, value, "ingressWarmConnectionsPerHost"),
   };
   if (hasCaseScopedMinConns) {
-    parsedCase.sessionDbMinConns = nonNegativeInteger(sessionDbMinConnsOrIngressCount, value, "sessionDbMinConns");
+    parsedCase.sessionDbMinConns = nonNegativeInteger(sessionDbMinConns, value, "sessionDbMinConns");
+  }
+  if (hasCaseScopedWriteConcurrency) {
+    parsedCase.sessionDbWriteConcurrency = nonNegativeInteger(sessionDbWriteConcurrency, value, "sessionDbWriteConcurrency");
   }
   return parsedCase;
 }
@@ -392,6 +432,7 @@ function validateOptions(options, cases) {
   positiveInteger(options.concurrency, "options", "concurrency");
   positiveInteger(options.operations, "options", "operations");
   nonNegativeInteger(options.sessionDbMinConns, "options", "sessionDbMinConns");
+  nonNegativeInteger(options.sessionDbWriteConcurrency, "options", "sessionDbWriteConcurrency");
   validateSessionDbQueryExecMode(options);
   const caseIsolation = normalizeCaseIsolation(options.caseIsolation);
   if (caseIsolation === "docker-reset" && !parseBoolean(options.manageDocker)) {
@@ -400,6 +441,9 @@ function validateOptions(options, cases) {
   for (const matrixCase of cases) {
     if (matrixCase.sessionDbMinConns > matrixCase.sessionDbMaxConns) {
       throw new Error(`sessionDbMinConns must be <= sessionDbMaxConns for case ${matrixCase.name}`);
+    }
+    if (matrixCase.sessionDbWriteConcurrency > matrixCase.sessionDbMaxConns) {
+      throw new Error(`sessionDbWriteConcurrency must be <= sessionDbMaxConns for case ${matrixCase.name}`);
     }
   }
   if (!["down", "reset"].includes(options.dockerCleanup)) {
