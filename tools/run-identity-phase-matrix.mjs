@@ -43,14 +43,17 @@ export function parseArgs(argv) {
 }
 
 export function buildMatrixCases(options) {
-  const sessionDbMinConns = parseInteger(options.sessionDbMinConns);
+  const defaultSessionDbMinConns = parseInteger(options.sessionDbMinConns);
   return parseCaseSpecs(options.cases).map((matrixCase, index) => {
     const reportPath = `${options.casePrefix}.${index + 1}-${safeName(matrixCase.name)}.json`;
-    return {
+    const resolvedCase = {
       ...matrixCase,
-      sessionDbMinConns,
+      sessionDbMinConns: matrixCase.sessionDbMinConns ?? defaultSessionDbMinConns,
       reportPath,
-      args: buildCaseArgs(options, matrixCase, reportPath),
+    };
+    return {
+      ...resolvedCase,
+      args: buildCaseArgs(options, resolvedCase, reportPath),
     };
   });
 }
@@ -140,6 +143,8 @@ export function buildIdentityPhaseMatrixReport({
       concurrency: parseInteger(options.concurrency),
       operationsPerPhase: parseInteger(options.operations),
       sessionDbMinConnsPerWorker: parseInteger(options.sessionDbMinConns),
+      caseScopedSessionDbMinConns: hasCaseScopedSessionDbMinConns(cases),
+      sessionDbMinConnsPerWorkerValues: uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbMinConns)),
       sessionTablePersistence: options.sessionDbSessionTablePersistence,
       benchmarkRuntime: options.benchmarkRuntime,
     },
@@ -183,7 +188,7 @@ function buildCaseArgs(options, matrixCase, reportPath) {
     "--concurrency", options.concurrency,
     "--operations", options.operations,
     "--session-db-max-conns", String(matrixCase.sessionDbMaxConns),
-    "--session-db-min-conns", options.sessionDbMinConns,
+    "--session-db-min-conns", String(matrixCase.sessionDbMinConns),
     "--session-db-write-concurrency", options.sessionDbWriteConcurrency,
     "--session-db-session-table-persistence", options.sessionDbSessionTablePersistence,
     "--gateway-count", String(matrixCase.gatewayCount),
@@ -288,6 +293,15 @@ function recommendCase(cases) {
     )[0] ?? null;
 }
 
+function hasCaseScopedSessionDbMinConns(cases) {
+  return uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbMinConns)).length > 1;
+}
+
+function uniqueSortedNumbers(values) {
+  return [...new Set(values.filter((value) => typeof value === "number" && Number.isFinite(value)))]
+    .sort((left, right) => left - right);
+}
+
 async function runCase(matrixCase, _options, root) {
   removeReport(root, matrixCase.reportPath);
   const result = runSync("node", ["tools/run-identity-http-benchmark.mjs", ...matrixCase.args], root);
@@ -308,12 +322,28 @@ function parseCaseSpecs(value) {
 
 function parseCaseSpec(value) {
   const parts = value.split(":");
-  if (parts.length !== 8) {
-    throw new Error(`invalid identity phase matrix case ${value}: expected 8 colon-separated fields`);
+  if (![8, 9].includes(parts.length)) {
+    throw new Error(`invalid identity phase matrix case ${value}: expected 8 or 9 colon-separated fields`);
   }
-  const [name, gatewayCount, sessionDbMaxConns, ingressCount, clientMaxConnsPerHost, clientWarmConnectionsPerHost, ingressMaxConnsPerHost, ingressWarmConnectionsPerHost] = parts;
+  const [
+    name,
+    gatewayCount,
+    sessionDbMaxConns,
+    sessionDbMinConnsOrIngressCount,
+    ingressCountOrClientMaxConnsPerHost,
+    clientMaxConnsPerHostOrClientWarmConnectionsPerHost,
+    clientWarmConnectionsPerHostOrIngressMaxConnsPerHost,
+    ingressMaxConnsPerHostOrIngressWarmConnectionsPerHost,
+    ingressWarmConnectionsPerHost,
+  ] = parts;
+  const hasCaseScopedMinConns = parts.length === 9;
+  const ingressCount = hasCaseScopedMinConns ? ingressCountOrClientMaxConnsPerHost : sessionDbMinConnsOrIngressCount;
+  const clientMaxConnsPerHost = hasCaseScopedMinConns ? clientMaxConnsPerHostOrClientWarmConnectionsPerHost : ingressCountOrClientMaxConnsPerHost;
+  const clientWarmConnectionsPerHost = hasCaseScopedMinConns ? clientWarmConnectionsPerHostOrIngressMaxConnsPerHost : clientMaxConnsPerHostOrClientWarmConnectionsPerHost;
+  const ingressMaxConnsPerHost = hasCaseScopedMinConns ? ingressMaxConnsPerHostOrIngressWarmConnectionsPerHost : clientWarmConnectionsPerHostOrIngressMaxConnsPerHost;
+  const resolvedIngressWarmConnectionsPerHost = hasCaseScopedMinConns ? ingressWarmConnectionsPerHost : ingressMaxConnsPerHostOrIngressWarmConnectionsPerHost;
   if (!name) throw new Error(`invalid identity phase matrix case ${value}: name is required`);
-  return {
+  const parsedCase = {
     name,
     gatewayCount: positiveInteger(gatewayCount, value, "gatewayCount"),
     sessionDbMaxConns: positiveInteger(sessionDbMaxConns, value, "sessionDbMaxConns"),
@@ -321,16 +351,20 @@ function parseCaseSpec(value) {
     clientMaxConnsPerHost: nonNegativeInteger(clientMaxConnsPerHost, value, "clientMaxConnsPerHost"),
     clientWarmConnectionsPerHost: nonNegativeInteger(clientWarmConnectionsPerHost, value, "clientWarmConnectionsPerHost"),
     ingressMaxConnsPerHost: nonNegativeInteger(ingressMaxConnsPerHost, value, "ingressMaxConnsPerHost"),
-    ingressWarmConnectionsPerHost: nonNegativeInteger(ingressWarmConnectionsPerHost, value, "ingressWarmConnectionsPerHost"),
+    ingressWarmConnectionsPerHost: nonNegativeInteger(resolvedIngressWarmConnectionsPerHost, value, "ingressWarmConnectionsPerHost"),
   };
+  if (hasCaseScopedMinConns) {
+    parsedCase.sessionDbMinConns = nonNegativeInteger(sessionDbMinConnsOrIngressCount, value, "sessionDbMinConns");
+  }
+  return parsedCase;
 }
 
 function validateOptions(options, cases) {
   positiveInteger(options.concurrency, "options", "concurrency");
   positiveInteger(options.operations, "options", "operations");
-  const sessionDbMinConns = nonNegativeInteger(options.sessionDbMinConns, "options", "sessionDbMinConns");
+  nonNegativeInteger(options.sessionDbMinConns, "options", "sessionDbMinConns");
   for (const matrixCase of cases) {
-    if (sessionDbMinConns > matrixCase.sessionDbMaxConns) {
+    if (matrixCase.sessionDbMinConns > matrixCase.sessionDbMaxConns) {
       throw new Error(`sessionDbMinConns must be <= sessionDbMaxConns for case ${matrixCase.name}`);
     }
   }

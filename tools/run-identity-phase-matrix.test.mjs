@@ -63,6 +63,66 @@ describe("identity phase-aware matrix runner", () => {
     assert.equal(report.cases[0].config.sessionDbMinConnsTotal, 32);
   });
 
+  it("allows case-scoped session DB min connections in compact matrix cases", () => {
+    const options = parseArgs([
+      "--case-prefix", "reports/custom-identity-phase",
+      "--cases", "min0:2:8:0:2:64:32:32:16,min8:2:8:8:2:64:32:32:16",
+    ]);
+    const cases = buildMatrixCases(options);
+
+    assert.deepEqual(cases.map((entry) => entry.sessionDbMinConns), [0, 8]);
+    assert.equal(argValue(cases[0].args, "--session-db-max-conns"), "8");
+    assert.equal(argValue(cases[0].args, "--session-db-min-conns"), "0");
+    assert.equal(argValue(cases[0].args, "--session-db-write-concurrency"), "0");
+    assert.equal(argValue(cases[1].args, "--session-db-max-conns"), "8");
+    assert.equal(argValue(cases[1].args, "--session-db-min-conns"), "8");
+    assert.equal(argValue(cases[1].args, "--session-db-write-concurrency"), "0");
+
+    const report = buildIdentityPhaseMatrixReport({
+      options,
+      cases,
+      caseReports: [
+        { case: cases[0], report: identityReport({ passwordLoginP99: 90 }) },
+        { case: cases[1], report: identityReport({ passwordLoginP99: 110 }) },
+      ],
+      startedAt: "2026-06-02T00:00:00.000Z",
+      endedAt: "2026-06-02T00:00:01.000Z",
+    });
+
+    assert.equal(report.cases[0].config.sessionDbMinConnsPerWorker, 0);
+    assert.equal(report.cases[0].config.sessionDbMinConnsTotal, 0);
+    assert.equal(report.cases[1].config.sessionDbMinConnsPerWorker, 8);
+    assert.equal(report.cases[1].config.sessionDbMinConnsTotal, 16);
+    assert.equal(report.targetProfile.caseScopedSessionDbMinConns, true);
+    assert.deepEqual(report.targetProfile.sessionDbMinConnsPerWorkerValues, [0, 8]);
+    assert.equal(report.summary.recommendedCaseName, "min0");
+  });
+
+  it("rejects case-scoped session DB min connections above max before workloads run", async () => {
+    const root = makeTempRoot();
+    const executed = [];
+    const report = await runIdentityPhaseMatrix(
+      {
+        ...defaults,
+        out: "reports/matrix.json",
+        manageDocker: "false",
+        cases: "invalid:2:8:9:2:64:32:32:16",
+      },
+      {
+        root,
+        runCase: async (matrixCase) => {
+          executed.push(matrixCase.name);
+          return identityReport();
+        },
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "FAILED");
+    assert.deepEqual(executed, []);
+    assert.match(report.runnerErrors.join("\n"), /sessionDbMinConns must be <= sessionDbMaxConns/u);
+  });
+
   it("recommends the passing case with the lowest slowest phase P99 and keeps phase diagnostics", () => {
     const cases = buildMatrixCases({
       ...defaults,
@@ -294,4 +354,10 @@ function makeTempRoot() {
 function fixedClock() {
   let tick = 0;
   return () => `2026-06-02T00:00:0${tick++}.000Z`;
+}
+
+function argValue(args, name) {
+  const index = args.indexOf(name);
+  assert.notEqual(index, -1, `${name} should be present`);
+  return args[index + 1];
 }
