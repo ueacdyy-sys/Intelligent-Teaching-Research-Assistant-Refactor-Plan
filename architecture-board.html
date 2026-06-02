@@ -669,7 +669,7 @@
       <div>
         <h1>智能教研助手重构架构板</h1>
         <p class="subtitle">
-          目标架构：平台化模块单体优先，核心能力由 Agent Harness 统一管控；智能体采用 Skills-Agent 两层架构，LeadAgent 负责任务分解，Worker Agents 承接教学、科研、学习分析、工作流和工具操控，并通过原子 Skills、SharedContext、路由决策、失败降级和证据链闭环。多语言用于边界治理和学习扩展，不用于一次性重写。当前实测读路径约 4.3k RPS，混合读写约 1.9k RPS，纯写约 1.0k RPS；优先治理写路径、契约、队列和权限，再按边界引入 Go/Rust。
+          目标架构：平台化模块单体优先，核心能力由 Agent Harness 统一管控；智能体采用教育场景 Skills-Agent 两层架构，LeadAgent 负责任务分解，Worker Agents 承接教学、学生辅导、科研、学习分析、工作流和工具操控，并通过原子 Skills、Agent Loop、SharedContext、路由决策、失败降级和证据链闭环。多语言用于边界治理和学习扩展，不用于一次性重写。当前实测读路径约 4.3k RPS，高档持续混合读写约 2.1k RPS，纯写约 1.0k RPS；优先治理写路径、契约、队列和权限，再按边界引入 Go/Rust。
         </p>
       </div>
       <div class="top-meta" aria-label="Architecture summary">
@@ -729,7 +729,7 @@
           <div class="lane-title"><span>Domain Subsystems</span><span>Go + Rust + Python</span></div>
           <div class="node"><h3>Teaching Subsystem</h3><p>测验、批改、点名、资源、辅导、学生档案、教学资料。</p></div>
           <div class="node"><h3>Research Subsystem</h3><p>多模型对话、节点、知识库、收藏、训练、设备协同。</p></div>
-          <div class="node"><h3>Agent Subsystem</h3><p>LeadAgent、领域 Worker Agents、原子 Skills、SharedContext、单 Agent/Swarm 路由、失败降级、工作流、插件、外部应用操控。</p></div>
+          <div class="node"><h3>Agent Subsystem</h3><p>LeadAgent、领域 Worker Agents、原子 Skills、教育版 ReAct/Agent Loop、SharedContext、单 Agent/Swarm 路由、失败降级、工作流、插件、外部应用操控。</p></div>
           <div class="node"><h3>Student Subsystem</h3><p>学生认证、学习资源、个性化题库、扫码答题、AI 辅导。</p></div>
         </div>
         <div class="arrow">></div>
@@ -1880,9 +1880,13 @@
             <h3>Skills-Agent 两层</h3>
             <p>底层是可测试、可复用、可限权的原子 Skills；上层是 LeadAgent 和 Worker Agents。Agent 只负责计划、选择和汇总，真正影响文件、网络、系统和业务数据的动作必须交给 Harness 执行。</p>
           </div>
+          <div class="card green">
+            <h3>教育版 ReAct / Agent Loop</h3>
+            <p>每个 AgentRun 都走“观察意图、制定计划、选择 Skill、执行/检索、校验证据、反思降级、输出结论”的闭环；循环次数、token、耗时、风险和证据不足都会触发停止或转人工。</p>
+          </div>
           <div class="card violet">
             <h3>SwarmCoordinator</h3>
-            <p>先判断走单 Agent 快速通道还是多 Agent 协作。只有跨教学、科研、知识库、工具或外部应用的复杂任务才进入 Swarm，并且必须写入 SharedContext 和预算。</p>
+            <p>先判断走单 Agent 快速通道还是多 Agent 协作。路由依据包括领域数量、风险级别、数据敏感度、是否写入工具、证据要求和预算；只有跨教学、科研、知识库、工具或外部应用的复杂任务才进入 Swarm。</p>
           </div>
           <div class="card red">
             <h3>Harness 执行链路</h3>
@@ -1909,7 +1913,7 @@
           </div>
           <div class="card teal">
             <h3>记忆与上下文</h3>
-            <p>短期记忆只属于当前 AgentRun；长期记忆必须通过 Memory Port 写入。学生隐私、私密科研资料、外部模型上下文都必须可脱敏、可撤销、可解释来源。</p>
+            <p>短期记忆只属于当前 AgentRun 和 SharedContext；长期记忆必须通过 Memory Port 写入。学生隐私、私密科研资料、外部模型上下文都必须可脱敏、可撤销、可解释来源。</p>
           </div>
           <div class="card blue">
             <h3>渐进式 Skill 披露</h3>
@@ -1918,6 +1922,10 @@
           <div class="card amber">
             <h3>约束与熵管理</h3>
             <p>每轮 Agent Loop 都检查预算、循环次数、上下文漂移、输出证据和人工确认点；高风险、低置信或无证据结果必须降级。</p>
+          </div>
+          <div class="card red">
+            <h3>可借鉴，不照搬</h3>
+            <p>借鉴的是原子 Skill、专业 Worker、Lead/Swarm、记忆、Harness 和证据化指标；医疗诊断、VLM 训练、Milvus、Mem0、vLLM、SFT/RL 只允许作为未来插件或实验 Worker，不进入基线依赖。</p>
           </div>
         </div>
 
@@ -1971,6 +1979,13 @@
           <div>输入输出 hash、调用链、耗时、错误、引用来源。</div>
           <div>条件放行</div>
 
+          <div class="topic">Agent Loop</div>
+          <div>intent、plan、selectedSkills、observations、reflection、stopReason。</div>
+          <div>单轮预算、最大循环、证据门槛、风险阈值、人工确认点。</div>
+          <div>Go Orchestrator + Python LLM Adapter</div>
+          <div>planDiff、skillTrace、guardrailResult、fallbackDecision。</div>
+          <div>受限放行</div>
+
           <div class="topic">Swarm 协作</div>
           <div>任务拆分、参与 Agent、共享上下文、合并策略。</div>
           <div>复杂度阈值、跨域权限、冲突检测、人工确认点。</div>
@@ -1985,6 +2000,13 @@
           <div>memoryId、sourceEvidence、redactionState、expiry。</div>
           <div>短期受限</div>
 
+          <div class="topic">多模态/训练插件</div>
+          <div>模型能力声明、数据范围、推理/训练预算、产物归属。</div>
+          <div>默认不安装重依赖；必须走 AI Worker Admission、数据脱敏和资源隔离。</div>
+          <div>Optional AI Worker Adapter</div>
+          <div>jobId、datasetScope、modelAdapter、resourceUsage、评估报告。</div>
+          <div>默认关闭</div>
+
           <div class="topic">失败降级</div>
           <div>失败 Skill、错误类型、剩余预算、人工确认点。</div>
           <div>重试上限、备用 Skill、只读降级、转人工、禁止无限循环。</div>
@@ -1993,6 +2015,63 @@
           <div>强制记录</div>
         </div>
       </div>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>可借鉴模式</th>
+            <th>当前系统落点</th>
+            <th>工程收益</th>
+            <th>保留边界</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ReAct / Agent Loop</td>
+            <td>教育任务统一记录 plan、observation、skill result、reflection、stopReason。</td>
+            <td>复杂任务可复盘，面试和工程审计都能说清“为什么这样做”。</td>
+            <td>不能让模型无限循环；每轮都有预算、证据和停止条件。</td>
+          </tr>
+          <tr>
+            <td>Skills-Agent 两层</td>
+            <td>原子 Skills 承接检索、出题、批改、辅导、科研、配置检查、工具调用。</td>
+            <td>能力可测试、可复用、可限权，后续换模型或换语言不改业务逻辑。</td>
+            <td>Agent 不直接写库、不直接执行命令、不绕过 SkillManifest。</td>
+          </tr>
+          <tr>
+            <td>专业 Worker Agent</td>
+            <td>Teaching、StudentTutor、Research、Analysis、Workflow、ToolControl 分工。</td>
+            <td>把“会聊天”拆成可落地岗位：教学、科研、学情、工具、工作流各自验收。</td>
+            <td>Worker 不能越权拿其他域数据，跨域必须由 LeadAgent 和 SharedContext 协调。</td>
+          </tr>
+          <tr>
+            <td>Agent Swarm</td>
+            <td>跨教学、科研、学生档案、工具写入或性能诊断时启动多 Agent 协作。</td>
+            <td>复杂问题不靠一个大提示词硬扛，能分工、并行、冲突校验和人工确认。</td>
+            <td>简单只读问题走单 Agent 快速通道，避免 Swarm 变成性能和成本黑洞。</td>
+          </tr>
+          <tr>
+            <td>双层记忆</td>
+            <td>短期记忆进 AgentRun/SharedContext，长期记忆经 Memory Port 进入用户或课程范围。</td>
+            <td>多轮教学、辅导、科研能延续上下文，也能追溯来源和撤销。</td>
+            <td>学生隐私、私密科研资料默认不出域；外部记忆适配器只能作为插件。</td>
+          </tr>
+          <tr>
+            <td>Harness Engineering</td>
+            <td>所有文件、命令、浏览器、Office、插件、工作流执行都经过 Harness。</td>
+            <td>把高风险 AI 自动化变成可审批、可审计、可回滚的工程能力。</td>
+            <td>无审批、无证据、无 rollback、无 manifest 的动作默认拒绝。</td>
+          </tr>
+          <tr>
+            <td>多模态/RAG/训练栈</td>
+            <td>只放在 AI Worker Port、插件或远程实验节点，不进入默认安装包。</td>
+            <td>未来能扩展 OCR、多模态批改、模型实验，但不拖慢核心应用安装和启动。</td>
+            <td>Milvus、Mem0、vLLM、SFT/RL、FP8 等都不是基线依赖，必须单独验收。</td>
+          </tr>
+        </tbody>
+      </table>
 
       <div style="height: 12px"></div>
 
@@ -2010,14 +2089,21 @@
           <tr>
             <td>TeachingAgent</td>
             <td>课堂、测验、批改、点名、辅导的教学任务专家。</td>
-            <td>search_teaching_material、create_quiz、grade_answer、update_profile。</td>
+            <td>search_teaching_material、create_quiz、grade_answer、assess_learning_risk、update_profile。</td>
             <td>不能直接读取科研私密库，不能绕过教师复核改最终成绩。</td>
             <td>每个教学写入产生事件，P95/P99 和错误率进入模块报告。</td>
           </tr>
           <tr>
+            <td>StudentTutorAgent</td>
+            <td>学生端答疑、错题解释、个性化练习、学习档案反馈专家。</td>
+            <td>tutor_student、explain_mistake、recommend_practice、read_student_profile。</td>
+            <td>不能泄露其他学生信息，不能把建议当成绩结论，不能绕过家校/教师策略。</td>
+            <td>必须记录依据材料、学生范围、建议置信度和教师可复核摘要。</td>
+          </tr>
+          <tr>
             <td>ResearchAgent</td>
             <td>科研对话、知识检索、节点选择、资料整理专家。</td>
-            <td>search_knowledge、compare_nodes、cite_sources、bookmark_result。</td>
+            <td>search_knowledge、deep_research、compare_nodes、cite_sources、bookmark_result。</td>
             <td>不能把私密资料发给未授权云模型，不能直接生成训练任务。</td>
             <td>回答必须带来源、节点运行证据、知识范围审计。</td>
           </tr>
@@ -2031,7 +2117,7 @@
           <tr>
             <td>WorkflowAgent</td>
             <td>工作流生成、插件缺口分析、自动测试和发布草稿。</td>
-            <td>draft_workflow、generate_plugin_manifest、run_sandbox_test。</td>
+            <td>draft_workflow、generate_plugin_manifest、run_sandbox_test、collect_feedback。</td>
             <td>不能直接启用生成代码，不能安装未签名依赖。</td>
             <td>发布前必须通过 manifest、沙箱、权限 diff、人工确认。</td>
           </tr>
@@ -2041,6 +2127,13 @@
             <td>run_cli、read_file、write_file、browser_action、external_app_action。</td>
             <td>不能自行扩大权限，不能绕过 Harness 审批。</td>
             <td>所有执行都有 Evidence 和 Rollback；高风险默认拒绝。</td>
+          </tr>
+          <tr>
+            <td>ModelExperimentAgent</td>
+            <td>可选的模型实验、OCR/多模态、训练任务编排和推理部署评估专家。</td>
+            <td>draft_model_job、evaluate_model_result、profile_inference、register_model_adapter。</td>
+            <td>不能作为默认运行时依赖，不能接触未脱敏学生数据，不能绕过资源隔离。</td>
+            <td>默认关闭；必须有 AI Worker Admission、资源账单、评估报告和回滚方案。</td>
           </tr>
         </tbody>
       </table>
@@ -2060,17 +2153,45 @@
         <tbody>
           <tr>
             <td>search_teaching_material</td>
-            <td>TeachingAgent</td>
+            <td>TeachingAgent / StudentTutorAgent</td>
             <td>按课程、班级、知识点检索教案、导学案、试卷和课堂资料。</td>
             <td>materialId、visibility、sourceHash、classScope。</td>
             <td>不跨班级读取私密资料。</td>
           </tr>
           <tr>
+            <td>create_quiz</td>
+            <td>TeachingAgent</td>
+            <td>根据教学目标、题型、难度和知识点生成测验草稿。</td>
+            <td>objectiveRef、rubricVersion、difficulty、teacherReviewId。</td>
+            <td>不直接发布给学生，不绕过教师复核。</td>
+          </tr>
+          <tr>
+            <td>grade_answer</td>
+            <td>TeachingAgent</td>
+            <td>按评分规则生成批改建议、错因摘要和复核队列。</td>
+            <td>submissionId、rubricRef、modelOutputHash、reviewState。</td>
+            <td>不直接写最终成绩，不隐藏低置信结果。</td>
+          </tr>
+          <tr>
             <td>assess_learning_risk</td>
-            <td>TeachingAgent / AnalysisAgent</td>
+            <td>TeachingAgent / StudentTutorAgent / AnalysisAgent</td>
             <td>根据测验、点名、作业、辅导记录给出学习风险提示。</td>
             <td>profileEventRefs、ruleVersion、confidence。</td>
             <td>不替代教师评价，不自动改成绩。</td>
+          </tr>
+          <tr>
+            <td>analyze_learning_gap</td>
+            <td>StudentTutorAgent / AnalysisAgent</td>
+            <td>把错题、缺勤、作业和课堂互动拆成知识点缺口与可行动建议。</td>
+            <td>eventRefs、knowledgePointIds、evidenceScore、suggestedActions。</td>
+            <td>不把相关性当因果，不给不可解释标签。</td>
+          </tr>
+          <tr>
+            <td>recommend_practice</td>
+            <td>StudentTutorAgent</td>
+            <td>为学生选择练习、复习资料和下一步学习任务。</td>
+            <td>studentScope、materialRefs、reason、expiresAt。</td>
+            <td>不跨学生比较，不推荐无权限资料。</td>
           </tr>
           <tr>
             <td>search_knowledge</td>
@@ -2080,6 +2201,13 @@
             <td>不把私密库内容发送给未授权节点。</td>
           </tr>
           <tr>
+            <td>cite_sources</td>
+            <td>ResearchAgent</td>
+            <td>把回答、教案或科研摘要绑定到可追溯来源和引用范围。</td>
+            <td>citationIds、quoteScope、sourceHash、retrievalQuery。</td>
+            <td>不伪造引用，不把未检索内容标成来源事实。</td>
+          </tr>
+          <tr>
             <td>deep_research</td>
             <td>ResearchAgent</td>
             <td>把复杂科研问题拆成检索、对比、引用、汇总和待验证假设。</td>
@@ -2087,11 +2215,32 @@
             <td>不把未验证结论标成事实。</td>
           </tr>
           <tr>
+            <td>inspect_config</td>
+            <td>AnalysisAgent</td>
+            <td>读取运行配置、连接池、队列、worker 和缓存设置，形成瓶颈假设。</td>
+            <td>configRefs、diffHash、riskLevel、hypothesis。</td>
+            <td>不在无审批时修改生产配置。</td>
+          </tr>
+          <tr>
+            <td>run_benchmark</td>
+            <td>AnalysisAgent</td>
+            <td>按计划执行读、写、混合读写、多 worker 和持续压测。</td>
+            <td>profile、RPS、P95/P99、errorRate、dockerCleanupState。</td>
+            <td>不拿空接口或单模块数据冒充整系统能力。</td>
+          </tr>
+          <tr>
             <td>draft_workflow</td>
             <td>WorkflowAgent</td>
             <td>把用户描述转换成工作流草稿、权限声明和测试用例。</td>
             <td>manifestDiff、sandboxResult、testReport。</td>
             <td>不直接发布或启用生成代码。</td>
+          </tr>
+          <tr>
+            <td>evaluate_model_result</td>
+            <td>ModelExperimentAgent</td>
+            <td>评估可选 OCR、多模态、推理或训练实验产物是否值得接入。</td>
+            <td>datasetScope、metricReport、resourceCost、adapterRisk。</td>
+            <td>不把实验依赖变成默认安装项。</td>
           </tr>
           <tr>
             <td>run_tool</td>
@@ -2124,6 +2273,13 @@
             <td>P95、token、引用命中率、错误率。</td>
           </tr>
           <tr>
+            <td>复杂学情求助</td>
+            <td>同时出现错题、缺勤、作业异常、情绪化表达或长期低置信记录。</td>
+            <td>LeadAgent + StudentTutorAgent + AnalysisAgent；必要时 TeachingAgent 复核。</td>
+            <td>高风险只给支持性建议和教师复核摘要，不自动贴标签或下结论。</td>
+            <td>风险依据、知识点缺口、建议置信度、人工复核点。</td>
+          </tr>
+          <tr>
             <td>跨教学与科研任务</td>
             <td>同时涉及学生档案、知识库、节点融合或资料生成。</td>
             <td>LeadAgent + SwarmCoordinator + 多 Worker Agent。</td>
@@ -2143,6 +2299,13 @@
             <td>AnalysisAgent 生成诊断计划，Benchmark Skill 产证据。</td>
             <td>压测证据不足时只给假设，不给“支持超高并发”结论。</td>
             <td>真实混合读写 RPS、P99、错误率、Root SLO 决策。</td>
+          </tr>
+          <tr>
+            <td>多模态或模型实验</td>
+            <td>需要 OCR、多模态批改、训练、量化、推理部署或外部模型评估。</td>
+            <td>ModelExperimentAgent 生成实验计划，AI Worker Admission 决定是否执行。</td>
+            <td>默认关闭；无脱敏、无资源预算、无评估报告时不接入主系统。</td>
+            <td>实验指标、资源成本、数据范围、适配器风险、回滚方案。</td>
           </tr>
         </tbody>
       </table>
