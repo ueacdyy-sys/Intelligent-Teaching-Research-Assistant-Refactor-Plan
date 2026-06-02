@@ -39,6 +39,7 @@ type gatewayDatabasePhaseDiagnostics struct {
 
 type gatewayDatabaseDiagnosticsDelta struct {
 	Pool              gatewayDatabasePoolDelta                        `json:"pool"`
+	WriteLimiter      *gatewayDatabaseWriteLimiterDelta               `json:"writeLimiter,omitempty"`
 	SessionOperations map[string]gatewayDatabaseSessionOperationDelta `json:"sessionOperations,omitempty"`
 }
 
@@ -62,6 +63,27 @@ type gatewayDatabaseSessionOperationDelta struct {
 	RowsAffectedCount           int64   `json:"rowsAffectedCount,omitempty"`
 	RowsAffected                int64   `json:"rowsAffected,omitempty"`
 	AverageRowsAffected         float64 `json:"averageRowsAffected,omitempty"`
+}
+
+type gatewayDatabaseWriteLimiterDelta struct {
+	EnabledGateways                  int64                                                `json:"enabledGateways,omitempty"`
+	ConfiguredLimitTotal             int64                                                `json:"configuredLimitTotal,omitempty"`
+	AcquireCount                     int64                                                `json:"acquireCount,omitempty"`
+	AcquireWaitTimeMS                float64                                              `json:"acquireWaitTimeMs,omitempty"`
+	AverageAcquireWaitTimeMS         float64                                              `json:"averageAcquireWaitTimeMs,omitempty"`
+	CanceledAcquireCount             int64                                                `json:"canceledAcquireCount,omitempty"`
+	CanceledAcquireWaitTimeMS        float64                                              `json:"canceledAcquireWaitTimeMs,omitempty"`
+	AverageCanceledAcquireWaitTimeMS float64                                              `json:"averageCanceledAcquireWaitTimeMs,omitempty"`
+	Operations                       map[string]gatewayDatabaseWriteLimiterOperationDelta `json:"operations,omitempty"`
+}
+
+type gatewayDatabaseWriteLimiterOperationDelta struct {
+	AcquireCount                     int64   `json:"acquireCount,omitempty"`
+	AcquireWaitTimeMS                float64 `json:"acquireWaitTimeMs,omitempty"`
+	AverageAcquireWaitTimeMS         float64 `json:"averageAcquireWaitTimeMs,omitempty"`
+	CanceledAcquireCount             int64   `json:"canceledAcquireCount,omitempty"`
+	CanceledAcquireWaitTimeMS        float64 `json:"canceledAcquireWaitTimeMs,omitempty"`
+	AverageCanceledAcquireWaitTimeMS float64 `json:"averageCanceledAcquireWaitTimeMs,omitempty"`
 }
 
 type gatewayDatabaseDiagnosticsCollector struct {
@@ -181,6 +203,8 @@ func buildGatewayDatabaseDiagnosticsDelta(
 ) gatewayDatabaseDiagnosticsDelta {
 	beforePool := summarizeGatewayDatabasePoolSnapshot(before)
 	afterPool := summarizeGatewayDatabasePoolSnapshot(after)
+	beforeWriteLimiter := summarizeGatewayDatabaseWriteLimiterSnapshot(before)
+	afterWriteLimiter := summarizeGatewayDatabaseWriteLimiterSnapshot(after)
 	beforeOperations := summarizeGatewayDatabaseSessionOperations(before)
 	afterOperations := summarizeGatewayDatabaseSessionOperations(after)
 	return gatewayDatabaseDiagnosticsDelta{
@@ -191,6 +215,7 @@ func buildGatewayDatabaseDiagnosticsDelta(
 			CanceledAcquireCount:      afterPool.CanceledAcquireCount - beforePool.CanceledAcquireCount,
 			CanceledAcquireWaitTimeMS: roundFloat(afterPool.CanceledAcquireWaitTimeMS - beforePool.CanceledAcquireWaitTimeMS),
 		},
+		WriteLimiter:      deltaGatewayDatabaseWriteLimiter(beforeWriteLimiter, afterWriteLimiter),
 		SessionOperations: deltaGatewayDatabaseSessionOperations(beforeOperations, afterOperations),
 	}
 }
@@ -212,6 +237,160 @@ func summarizeGatewayDatabasePoolSnapshot(snapshot gatewayDatabaseDiagnosticsSna
 	summary.EmptyAcquireWaitTimeMS = roundFloat(summary.EmptyAcquireWaitTimeMS)
 	summary.CanceledAcquireWaitTimeMS = roundFloat(summary.CanceledAcquireWaitTimeMS)
 	return summary
+}
+
+func summarizeGatewayDatabaseWriteLimiterSnapshot(
+	snapshot gatewayDatabaseDiagnosticsSnapshot,
+) *gatewayDatabaseWriteLimiterDelta {
+	var summary gatewayDatabaseWriteLimiterDelta
+	sawLimiterStats := false
+	for _, gateway := range snapshot.Gateways {
+		stats := gateway.Stats
+		if len(stats) == 0 {
+			continue
+		}
+		writeLimiter := mapFromAny(stats["writeLimiter"])
+		if len(writeLimiter) == 0 {
+			continue
+		}
+		sawLimiterStats = true
+		if boolFromMap(writeLimiter, "enabled") {
+			summary.EnabledGateways++
+			summary.ConfiguredLimitTotal += int64(numberFromMap(writeLimiter, "limit"))
+		}
+		summary.AcquireCount += int64(numberFromMap(writeLimiter, "acquireCount"))
+		summary.AcquireWaitTimeMS += numberFromMap(writeLimiter, "acquireWaitTimeMs")
+		summary.CanceledAcquireCount += int64(numberFromMap(writeLimiter, "canceledAcquireCount"))
+		summary.CanceledAcquireWaitTimeMS += numberFromMap(writeLimiter, "canceledAcquireWaitTimeMs")
+		mergeGatewayDatabaseWriteLimiterOperations(&summary, mapFromAny(writeLimiter["operations"]))
+	}
+	if !sawLimiterStats {
+		return nil
+	}
+	roundGatewayDatabaseWriteLimiter(&summary)
+	return &summary
+}
+
+func mergeGatewayDatabaseWriteLimiterOperations(
+	summary *gatewayDatabaseWriteLimiterDelta,
+	operations map[string]any,
+) {
+	for operationName, value := range operations {
+		operationStats := mapFromAny(value)
+		if len(operationStats) == 0 {
+			continue
+		}
+		if summary.Operations == nil {
+			summary.Operations = map[string]gatewayDatabaseWriteLimiterOperationDelta{}
+		}
+		current := summary.Operations[operationName]
+		current.AcquireCount += int64(numberFromMap(operationStats, "acquireCount"))
+		current.AcquireWaitTimeMS += numberFromMap(operationStats, "acquireWaitTimeMs")
+		current.CanceledAcquireCount += int64(numberFromMap(operationStats, "canceledAcquireCount"))
+		current.CanceledAcquireWaitTimeMS += numberFromMap(operationStats, "canceledAcquireWaitTimeMs")
+		summary.Operations[operationName] = current
+	}
+}
+
+func deltaGatewayDatabaseWriteLimiter(
+	before *gatewayDatabaseWriteLimiterDelta,
+	after *gatewayDatabaseWriteLimiterDelta,
+) *gatewayDatabaseWriteLimiterDelta {
+	if before == nil && after == nil {
+		return nil
+	}
+	beforeValue := gatewayDatabaseWriteLimiterDelta{}
+	if before != nil {
+		beforeValue = *before
+	}
+	afterValue := gatewayDatabaseWriteLimiterDelta{}
+	if after != nil {
+		afterValue = *after
+	}
+	delta := gatewayDatabaseWriteLimiterDelta{
+		EnabledGateways:           afterValue.EnabledGateways,
+		ConfiguredLimitTotal:      afterValue.ConfiguredLimitTotal,
+		AcquireCount:              afterValue.AcquireCount - beforeValue.AcquireCount,
+		AcquireWaitTimeMS:         roundFloat(afterValue.AcquireWaitTimeMS - beforeValue.AcquireWaitTimeMS),
+		CanceledAcquireCount:      afterValue.CanceledAcquireCount - beforeValue.CanceledAcquireCount,
+		CanceledAcquireWaitTimeMS: roundFloat(afterValue.CanceledAcquireWaitTimeMS - beforeValue.CanceledAcquireWaitTimeMS),
+		Operations:                deltaGatewayDatabaseWriteLimiterOperations(beforeValue.Operations, afterValue.Operations),
+	}
+	roundGatewayDatabaseWriteLimiter(&delta)
+	if delta.AcquireCount == 0 &&
+		delta.AcquireWaitTimeMS == 0 &&
+		delta.CanceledAcquireCount == 0 &&
+		delta.CanceledAcquireWaitTimeMS == 0 &&
+		len(delta.Operations) == 0 {
+		return nil
+	}
+	return &delta
+}
+
+func deltaGatewayDatabaseWriteLimiterOperations(
+	before map[string]gatewayDatabaseWriteLimiterOperationDelta,
+	after map[string]gatewayDatabaseWriteLimiterOperationDelta,
+) map[string]gatewayDatabaseWriteLimiterOperationDelta {
+	operationNames := map[string]struct{}{}
+	for operationName := range before {
+		operationNames[operationName] = struct{}{}
+	}
+	for operationName := range after {
+		operationNames[operationName] = struct{}{}
+	}
+	if len(operationNames) == 0 {
+		return nil
+	}
+	deltas := map[string]gatewayDatabaseWriteLimiterOperationDelta{}
+	for operationName := range operationNames {
+		beforeOperation := before[operationName]
+		afterOperation := after[operationName]
+		delta := gatewayDatabaseWriteLimiterOperationDelta{
+			AcquireCount:              afterOperation.AcquireCount - beforeOperation.AcquireCount,
+			AcquireWaitTimeMS:         roundFloat(afterOperation.AcquireWaitTimeMS - beforeOperation.AcquireWaitTimeMS),
+			CanceledAcquireCount:      afterOperation.CanceledAcquireCount - beforeOperation.CanceledAcquireCount,
+			CanceledAcquireWaitTimeMS: roundFloat(afterOperation.CanceledAcquireWaitTimeMS - beforeOperation.CanceledAcquireWaitTimeMS),
+		}
+		roundGatewayDatabaseWriteLimiterOperation(&delta)
+		if delta.AcquireCount != 0 || delta.AcquireWaitTimeMS != 0 ||
+			delta.CanceledAcquireCount != 0 || delta.CanceledAcquireWaitTimeMS != 0 {
+			deltas[operationName] = delta
+		}
+	}
+	if len(deltas) == 0 {
+		return nil
+	}
+	return deltas
+}
+
+func roundGatewayDatabaseWriteLimiter(delta *gatewayDatabaseWriteLimiterDelta) {
+	delta.AcquireWaitTimeMS = roundFloat(delta.AcquireWaitTimeMS)
+	delta.CanceledAcquireWaitTimeMS = roundFloat(delta.CanceledAcquireWaitTimeMS)
+	if delta.AcquireCount > 0 {
+		delta.AverageAcquireWaitTimeMS = roundFloat(delta.AcquireWaitTimeMS / float64(delta.AcquireCount))
+	}
+	if delta.CanceledAcquireCount > 0 {
+		delta.AverageCanceledAcquireWaitTimeMS = roundFloat(
+			delta.CanceledAcquireWaitTimeMS / float64(delta.CanceledAcquireCount),
+		)
+	}
+	for operationName, operation := range delta.Operations {
+		roundGatewayDatabaseWriteLimiterOperation(&operation)
+		delta.Operations[operationName] = operation
+	}
+}
+
+func roundGatewayDatabaseWriteLimiterOperation(operation *gatewayDatabaseWriteLimiterOperationDelta) {
+	operation.AcquireWaitTimeMS = roundFloat(operation.AcquireWaitTimeMS)
+	operation.CanceledAcquireWaitTimeMS = roundFloat(operation.CanceledAcquireWaitTimeMS)
+	if operation.AcquireCount > 0 {
+		operation.AverageAcquireWaitTimeMS = roundFloat(operation.AcquireWaitTimeMS / float64(operation.AcquireCount))
+	}
+	if operation.CanceledAcquireCount > 0 {
+		operation.AverageCanceledAcquireWaitTimeMS = roundFloat(
+			operation.CanceledAcquireWaitTimeMS / float64(operation.CanceledAcquireCount),
+		)
+	}
 }
 
 func summarizeGatewayDatabaseSessionOperations(
@@ -351,6 +530,11 @@ func numberFromMap(values map[string]any, key string) float64 {
 	default:
 		return 0
 	}
+}
+
+func boolFromMap(values map[string]any, key string) bool {
+	typed, ok := values[key].(bool)
+	return ok && typed
 }
 
 func maskSensitive(value string) string {

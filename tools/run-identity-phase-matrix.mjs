@@ -245,6 +245,7 @@ function summarizeCase(matrixCase, report) {
   if (!report) return { ...base, totalErrors: 0, maxPhaseP99Ms: null, totalPoolAcquireDurationMs: null, phases: [] };
   const phases = phaseNames.map((phaseName) => summarizePhase(phaseName, report));
   const dominantPoolWait = dominantPoolWaitOperation(phases);
+  const dominantWriteLimiterWait = dominantWriteLimiterWaitOperation(phases);
   return {
     ...base,
     totalErrors: phases.reduce((sum, phase) => sum + phase.errors, 0),
@@ -253,6 +254,9 @@ function summarizeCase(matrixCase, report) {
     dominantPoolWaitPhase: dominantPoolWait?.phase ?? null,
     dominantPoolWaitOperation: dominantPoolWait?.operation ?? null,
     dominantPoolAcquireShare: dominantPoolWait?.poolAcquireShare ?? null,
+    dominantWriteLimiterWaitPhase: dominantWriteLimiterWait?.phase ?? null,
+    dominantWriteLimiterWaitOperation: dominantWriteLimiterWait?.operation ?? null,
+    dominantWriteLimiterAcquireWaitTimeMs: dominantWriteLimiterWait?.acquireWaitTimeMs ?? null,
     totalPoolAcquireDurationMs: roundFloat(phases.reduce((sum, phase) => sum + numberOrZero(phase.poolAcquireDurationMs), 0)),
     totalEmptyAcquireWaitTimeMs: roundFloat(phases.reduce((sum, phase) => sum + numberOrZero(phase.emptyAcquireWaitTimeMs), 0)),
     phases,
@@ -263,8 +267,10 @@ function summarizePhase(phaseName, report) {
   const phase = report.phases?.[phaseName] ?? {};
   const delta = report.gatewayDatabasePhaseDiagnostics?.[phaseName]?.delta ?? {};
   const sessionOperations = summarizeSessionOperations(delta.sessionOperations);
+  const writeLimiter = summarizeWriteLimiter(delta.writeLimiter);
   const slowestOperation = slowestSessionOperation(sessionOperations);
   const highestPoolAcquireShare = highestPoolAcquireShareOperation(sessionOperations);
+  const highestWriteLimiterWait = highestWriteLimiterWaitOperation(writeLimiter?.operations ?? []);
   return omitNullish({
     name: phaseName,
     status: numberOrZero(phase.errors) === 0 ? "PASSED" : "FAILED",
@@ -275,11 +281,14 @@ function summarizePhase(phaseName, report) {
     poolAcquireCount: numberOrZero(delta.pool?.acquireCount),
     poolAcquireDurationMs: numberOrNull(delta.pool?.acquireDurationMs),
     emptyAcquireWaitTimeMs: numberOrNull(delta.pool?.emptyAcquireWaitTimeMs),
+    writeLimiter,
     sessionOperations,
     slowestSessionOperation: slowestOperation?.name ?? null,
     slowestSessionOperationAverageElapsedMs: slowestOperation?.averageElapsedMs ?? null,
     highestPoolAcquireShareOperation: highestPoolAcquireShare?.name ?? null,
     highestPoolAcquireShare: highestPoolAcquireShare?.poolAcquireShare ?? null,
+    highestWriteLimiterWaitOperation: highestWriteLimiterWait?.name ?? null,
+    highestWriteLimiterWaitTimeMs: highestWriteLimiterWait?.acquireWaitTimeMs ?? null,
   });
 }
 
@@ -447,6 +456,44 @@ function summarizeSessionOperations(operations) {
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+function summarizeWriteLimiter(stats) {
+  if (!stats || typeof stats !== "object") return null;
+  const operations = summarizeWriteLimiterOperations(stats.operations);
+  const acquireCount = numberOrZero(stats.acquireCount);
+  const canceledAcquireCount = positiveNumberOrNull(stats.canceledAcquireCount);
+  if (acquireCount === 0 && canceledAcquireCount === null && operations.length === 0) return null;
+  return omitNullish({
+    enabledGateways: numberOrZero(stats.enabledGateways),
+    configuredLimitTotal: numberOrZero(stats.configuredLimitTotal),
+    acquireCount,
+    acquireWaitTimeMs: numberOrNull(stats.acquireWaitTimeMs),
+    averageAcquireWaitTimeMs: numberOrNull(stats.averageAcquireWaitTimeMs),
+    canceledAcquireCount,
+    canceledAcquireWaitTimeMs: numberOrNull(stats.canceledAcquireWaitTimeMs),
+    averageCanceledAcquireWaitTimeMs: numberOrNull(stats.averageCanceledAcquireWaitTimeMs),
+    operations: operations.length > 0 ? operations : null,
+  });
+}
+
+function summarizeWriteLimiterOperations(operations) {
+  if (!operations || typeof operations !== "object") return [];
+  return Object.entries(operations)
+    .map(([name, stats]) => summarizeWriteLimiterOperation(name, stats))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function summarizeWriteLimiterOperation(name, stats) {
+  return omitNullish({
+    name,
+    acquireCount: numberOrZero(stats?.acquireCount),
+    acquireWaitTimeMs: numberOrNull(stats?.acquireWaitTimeMs),
+    averageAcquireWaitTimeMs: numberOrNull(stats?.averageAcquireWaitTimeMs),
+    canceledAcquireCount: positiveNumberOrNull(stats?.canceledAcquireCount),
+    canceledAcquireWaitTimeMs: numberOrNull(stats?.canceledAcquireWaitTimeMs),
+    averageCanceledAcquireWaitTimeMs: numberOrNull(stats?.averageCanceledAcquireWaitTimeMs),
+  });
+}
+
 function summarizeSessionOperation(name, stats) {
   const totalElapsedMs = numberOrNull(stats?.totalElapsedMs);
   const poolAcquireElapsedMs = numberOrNull(stats?.poolAcquireElapsedMs);
@@ -490,6 +537,15 @@ function highestPoolAcquireShareOperation(sessionOperations) {
     )[0] ?? null;
 }
 
+function highestWriteLimiterWaitOperation(operations) {
+  return operations
+    .filter((operation) => typeof operation.acquireWaitTimeMs === "number" && Number.isFinite(operation.acquireWaitTimeMs))
+    .sort((left, right) =>
+      numberOrInfinity(right.acquireWaitTimeMs) - numberOrInfinity(left.acquireWaitTimeMs) ||
+      left.name.localeCompare(right.name),
+    )[0] ?? null;
+}
+
 function dominantPoolWaitOperation(phases) {
   const candidates = phases
     .filter((phase) => typeof phase.highestPoolAcquireShare === "number" && Number.isFinite(phase.highestPoolAcquireShare))
@@ -501,6 +557,23 @@ function dominantPoolWaitOperation(phases) {
     }));
   return candidates.sort((left, right) =>
     numberOrInfinity(right.poolAcquireShare) - numberOrInfinity(left.poolAcquireShare) ||
+    numberOrInfinity(right.p99Ms) - numberOrInfinity(left.p99Ms) ||
+    left.phase.localeCompare(right.phase),
+  )[0] ?? null;
+}
+
+function dominantWriteLimiterWaitOperation(phases) {
+  const candidates = phases
+    .filter((phase) => typeof phase.highestWriteLimiterWaitTimeMs === "number" &&
+      Number.isFinite(phase.highestWriteLimiterWaitTimeMs))
+    .map((phase) => ({
+      phase: phase.name,
+      operation: phase.highestWriteLimiterWaitOperation,
+      acquireWaitTimeMs: phase.highestWriteLimiterWaitTimeMs,
+      p99Ms: phase.p99Ms,
+    }));
+  return candidates.sort((left, right) =>
+    numberOrInfinity(right.acquireWaitTimeMs) - numberOrInfinity(left.acquireWaitTimeMs) ||
     numberOrInfinity(right.p99Ms) - numberOrInfinity(left.p99Ms) ||
     left.phase.localeCompare(right.phase),
   )[0] ?? null;
@@ -567,6 +640,10 @@ function numberOrZero(value) {
 
 function numberOrNull(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function positiveNumberOrNull(value) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
 }
 
 function numberOrInfinity(value) {

@@ -28,6 +28,20 @@ describe("system identity phase summary", () => {
       {
         passwordLogin: {
           delta: {
+            writeLimiter: {
+              enabledGateways: 2,
+              configuredLimitTotal: 4,
+              acquireCount: 16,
+              acquireWaitTimeMs: 64,
+              averageAcquireWaitTimeMs: 4,
+              operations: {
+                saveSession: {
+                  acquireCount: 16,
+                  acquireWaitTimeMs: 64,
+                  averageAcquireWaitTimeMs: 4,
+                },
+              },
+            },
             sessionOperations: {
               saveSession: {
                 count: 16,
@@ -78,6 +92,22 @@ describe("system identity phase summary", () => {
       rowsAffected: 16,
       averageRowsAffected: 1,
     });
+    assert.deepEqual(summary.phases.passwordLogin.writeLimiter, {
+      enabledGateways: 2,
+      configuredLimitTotal: 4,
+      acquireCount: 16,
+      acquireWaitTimeMs: 64,
+      averageAcquireWaitTimeMs: 4,
+      operations: {
+        saveSession: {
+          acquireCount: 16,
+          acquireWaitTimeMs: 64,
+          averageAcquireWaitTimeMs: 4,
+        },
+      },
+    });
+    assert.equal(summary.phases.passwordLogin.highestWriteLimiterWaitOperation, "saveSession");
+    assert.equal(summary.phases.passwordLogin.highestWriteLimiterWaitTimeMs, 64);
     assert.equal(summary.phases.revokeCycle.slowestSessionOperation, "revokeOwnSession");
     assert.equal(summary.phases.revokeCycle.slowestSessionOperationAverageElapsedMs, 20);
   });
@@ -91,6 +121,20 @@ describe("system identity phase summary", () => {
             p95Ms: 60,
             p99Ms: 66,
             rps: 90,
+            writeLimiter: {
+              enabledGateways: 2,
+              configuredLimitTotal: 4,
+              acquireCount: 16,
+              acquireWaitTimeMs: 64,
+              averageAcquireWaitTimeMs: 4,
+              operations: {
+                revokeOwnSession: {
+                  acquireCount: 16,
+                  acquireWaitTimeMs: 64,
+                  averageAcquireWaitTimeMs: 4,
+                },
+              },
+            },
             sessionOperations: {
               revokeOwnSession: {
                 count: 16,
@@ -121,6 +165,20 @@ describe("system identity phase summary", () => {
             p95Ms: 80,
             p99Ms: 88,
             rps: 85,
+            writeLimiter: {
+              enabledGateways: 2,
+              configuredLimitTotal: 4,
+              acquireCount: 24,
+              acquireWaitTimeMs: 120,
+              averageAcquireWaitTimeMs: 5,
+              operations: {
+                revokeOwnSession: {
+                  acquireCount: 24,
+                  acquireWaitTimeMs: 120,
+                  averageAcquireWaitTimeMs: 5,
+                },
+              },
+            },
             sessionOperations: {
               revokeOwnSession: {
                 count: 24,
@@ -159,6 +217,22 @@ describe("system identity phase summary", () => {
       rowsAffected: 40,
       averageRowsAffected: 1,
     });
+    assert.deepEqual(merged.phases.revokeCycle.writeLimiter, {
+      enabledGateways: 2,
+      configuredLimitTotal: 4,
+      acquireCount: 40,
+      acquireWaitTimeMs: 184,
+      averageAcquireWaitTimeMs: 4.6,
+      operations: {
+        revokeOwnSession: {
+          acquireCount: 40,
+          acquireWaitTimeMs: 184,
+          averageAcquireWaitTimeMs: 4.6,
+        },
+      },
+    });
+    assert.equal(merged.phases.revokeCycle.highestWriteLimiterWaitOperation, "revokeOwnSession");
+    assert.equal(merged.phases.revokeCycle.highestWriteLimiterWaitTimeMs, 184);
     assert.deepEqual(merged.phases.revokeCycle.sessionOperations.saveSession, {
       count: 40,
       totalElapsedMs: 720,

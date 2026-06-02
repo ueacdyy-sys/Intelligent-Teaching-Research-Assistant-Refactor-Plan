@@ -193,6 +193,25 @@ describe("identity phase-aware matrix runner", () => {
         {
           case: cases[0],
           report: identityReport({
+            revokeWriteLimiter: {
+              enabledGateways: 2,
+              configuredLimitTotal: 4,
+              acquireCount: 512,
+              acquireWaitTimeMs: 1400,
+              averageAcquireWaitTimeMs: 2.73,
+              operations: {
+                revokeOwnSession: {
+                  acquireCount: 256,
+                  acquireWaitTimeMs: 900,
+                  averageAcquireWaitTimeMs: 3.52,
+                },
+                saveSession: {
+                  acquireCount: 256,
+                  acquireWaitTimeMs: 500,
+                  averageAcquireWaitTimeMs: 1.95,
+                },
+              },
+            },
             revokeSessionOperations: {
               revokeOwnSession: {
                 count: 256,
@@ -237,13 +256,26 @@ describe("identity phase-aware matrix runner", () => {
     assert.equal(revokeOwnSession.rowsAffectedCount, 256);
     assert.equal(revokeOwnSession.rowsAffected, 256);
     assert.equal(revokeOwnSession.averageRowsAffected, 1);
+    assert.equal(revokeCycle.writeLimiter.acquireWaitTimeMs, 1400);
+    assert.equal(revokeCycle.writeLimiter.averageAcquireWaitTimeMs, 2.73);
+    assert.deepEqual(revokeCycle.writeLimiter.operations[0], {
+      name: "revokeOwnSession",
+      acquireCount: 256,
+      acquireWaitTimeMs: 900,
+      averageAcquireWaitTimeMs: 3.52,
+    });
     assert.equal(revokeCycle.slowestSessionOperation, "revokeOwnSession");
     assert.equal(revokeCycle.slowestSessionOperationAverageElapsedMs, 24.25);
     assert.equal(revokeCycle.highestPoolAcquireShareOperation, "revokeOwnSession");
     assert.equal(revokeCycle.highestPoolAcquireShare, 0.86);
+    assert.equal(revokeCycle.highestWriteLimiterWaitOperation, "revokeOwnSession");
+    assert.equal(revokeCycle.highestWriteLimiterWaitTimeMs, 900);
     assert.equal(measured.dominantPoolWaitPhase, "revokeCycle");
     assert.equal(measured.dominantPoolWaitOperation, "revokeOwnSession");
     assert.equal(measured.dominantPoolAcquireShare, 0.86);
+    assert.equal(measured.dominantWriteLimiterWaitPhase, "revokeCycle");
+    assert.equal(measured.dominantWriteLimiterWaitOperation, "revokeOwnSession");
+    assert.equal(measured.dominantWriteLimiterAcquireWaitTimeMs, 900);
   });
 
   it("keeps older operation diagnostics parseable when pool attribution is absent", () => {
@@ -424,7 +456,7 @@ function identityReport(overrides = {}) {
       passwordLogin: diagnostics(acquireMs, { saveSession: { count: 64, totalElapsedMs: 128, averageElapsedMs: 2 } }),
       principalLookup: diagnostics(100, { getPrincipalByAccessToken: { count: 64, totalElapsedMs: 64, averageElapsedMs: 1 } }),
       refreshRotation: diagnostics(200, { rotateRefreshSession: { count: 64, totalElapsedMs: 96, averageElapsedMs: 1.5 } }),
-      revokeCycle: diagnostics(600, revokeSessionOperations),
+      revokeCycle: diagnostics(600, revokeSessionOperations, overrides.revokeWriteLimiter),
     },
   };
 }
@@ -441,7 +473,7 @@ function phase(name, errors, p99) {
   };
 }
 
-function diagnostics(acquireDurationMs, sessionOperations) {
+function diagnostics(acquireDurationMs, sessionOperations, writeLimiter) {
   return {
     delta: {
       pool: {
@@ -450,6 +482,7 @@ function diagnostics(acquireDurationMs, sessionOperations) {
         emptyAcquireWaitTimeMs: acquireDurationMs,
       },
       sessionOperations,
+      ...(writeLimiter ? { writeLimiter } : {}),
     },
   };
 }

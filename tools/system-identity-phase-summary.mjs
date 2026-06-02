@@ -46,6 +46,13 @@ function summarizeIdentityPhases(phases, gatewayDatabasePhaseDiagnostics) {
     const sessionOperations = summarizeSessionOperations(
       gatewayDatabasePhaseDiagnostics?.[phaseName]?.delta?.sessionOperations,
     );
+    const writeLimiter = summarizeWriteLimiter(gatewayDatabasePhaseDiagnostics?.[phaseName]?.delta?.writeLimiter);
+    if (writeLimiter) {
+      const highestWriteLimiterWait = highestWriteLimiterWaitOperation(writeLimiter.operations);
+      summarized[phaseName].writeLimiter = writeLimiter;
+      summarized[phaseName].highestWriteLimiterWaitOperation = highestWriteLimiterWait?.name ?? null;
+      summarized[phaseName].highestWriteLimiterWaitTimeMs = highestWriteLimiterWait?.acquireWaitTimeMs ?? null;
+    }
     if (Object.keys(sessionOperations).length > 0) {
       const slowest = slowestSessionOperation(sessionOperations);
       summarized[phaseName].sessionOperations = sessionOperations;
@@ -83,6 +90,13 @@ function mergePhase(left, right) {
     merged.slowestSessionOperation = slowest?.name ?? null;
     merged.slowestSessionOperationAverageElapsedMs = slowest?.averageElapsedMs ?? null;
   }
+  const writeLimiter = mergeWriteLimiter(left.writeLimiter, right.writeLimiter);
+  if (writeLimiter) {
+    const highestWriteLimiterWait = highestWriteLimiterWaitOperation(writeLimiter.operations);
+    merged.writeLimiter = writeLimiter;
+    merged.highestWriteLimiterWaitOperation = highestWriteLimiterWait?.name ?? null;
+    merged.highestWriteLimiterWaitTimeMs = highestWriteLimiterWait?.acquireWaitTimeMs ?? null;
+  }
   return merged;
 }
 
@@ -98,6 +112,66 @@ function summarizeSessionOperations(operations) {
       .filter((entry) => entry !== null)
       .sort((left, right) => left[0].localeCompare(right[0])),
   );
+}
+
+function summarizeWriteLimiter(stats) {
+  if (!stats || typeof stats !== "object") return null;
+  const operations = summarizeWriteLimiterOperations(stats.operations);
+  const acquireCount = numberOrZero(stats.acquireCount);
+  const canceledAcquireCount = positiveNumberOrNull(stats.canceledAcquireCount);
+  if (acquireCount === 0 && canceledAcquireCount === null && Object.keys(operations).length === 0) return null;
+  return omitNullish({
+    enabledGateways: numberOrZero(stats.enabledGateways),
+    configuredLimitTotal: numberOrZero(stats.configuredLimitTotal),
+    acquireCount,
+    acquireWaitTimeMs: numberOrNull(stats.acquireWaitTimeMs),
+    averageAcquireWaitTimeMs: averageElapsed(
+      numberOrNull(stats.acquireWaitTimeMs),
+      acquireCount,
+      stats.averageAcquireWaitTimeMs,
+    ),
+    canceledAcquireCount,
+    canceledAcquireWaitTimeMs: numberOrNull(stats.canceledAcquireWaitTimeMs),
+    averageCanceledAcquireWaitTimeMs: averageElapsed(
+      numberOrNull(stats.canceledAcquireWaitTimeMs),
+      numberOrZero(stats.canceledAcquireCount),
+      stats.averageCanceledAcquireWaitTimeMs,
+    ),
+    operations: Object.keys(operations).length > 0 ? operations : null,
+  });
+}
+
+function summarizeWriteLimiterOperations(operations) {
+  if (!operations || typeof operations !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(operations)
+      .map(([name, stats]) => summarizeWriteLimiterOperation(name, stats))
+      .filter((entry) => entry !== null)
+      .sort((left, right) => left[0].localeCompare(right[0])),
+  );
+}
+
+function summarizeWriteLimiterOperation(name, stats) {
+  if (!stats || typeof stats !== "object") return null;
+  const acquireCount = numberOrZero(stats.acquireCount);
+  const acquireWaitTimeMs = numberOrNull(stats.acquireWaitTimeMs);
+  const canceledAcquireCount = numberOrZero(stats.canceledAcquireCount);
+  const canceledAcquireWaitTimeMs = numberOrNull(stats.canceledAcquireWaitTimeMs);
+  return [
+    name,
+    omitNullish({
+      acquireCount,
+      acquireWaitTimeMs,
+      averageAcquireWaitTimeMs: averageElapsed(acquireWaitTimeMs, acquireCount, stats.averageAcquireWaitTimeMs),
+      canceledAcquireCount: canceledAcquireCount > 0 ? canceledAcquireCount : null,
+      canceledAcquireWaitTimeMs,
+      averageCanceledAcquireWaitTimeMs: averageElapsed(
+        canceledAcquireWaitTimeMs,
+        canceledAcquireCount,
+        stats.averageCanceledAcquireWaitTimeMs,
+      ),
+    }),
+  ];
 }
 
 function summarizeSessionOperation(name, stats) {
@@ -130,6 +204,63 @@ function summarizeSessionOperation(name, stats) {
       averageRowsAffected: averageRowsAffected(rowsAffected, rowsAffectedCount, stats.averageRowsAffected),
     }),
   ];
+}
+
+function mergeWriteLimiter(left, right) {
+  if (!left || typeof left !== "object") return copySummary(right);
+  if (!right || typeof right !== "object") return copySummary(left);
+  const acquireCount = numberOrZero(left.acquireCount) + numberOrZero(right.acquireCount);
+  const acquireWaitTimeMs = sumNullable(numberOrNull(left.acquireWaitTimeMs), numberOrNull(right.acquireWaitTimeMs));
+  const canceledAcquireCount = numberOrZero(left.canceledAcquireCount) + numberOrZero(right.canceledAcquireCount);
+  const canceledAcquireWaitTimeMs = sumNullable(
+    numberOrNull(left.canceledAcquireWaitTimeMs),
+    numberOrNull(right.canceledAcquireWaitTimeMs),
+  );
+  const operations = mergeWriteLimiterOperations(left.operations, right.operations);
+  return omitNullish({
+    enabledGateways: maxNullable(numberOrNull(left.enabledGateways), numberOrNull(right.enabledGateways)),
+    configuredLimitTotal: maxNullable(numberOrNull(left.configuredLimitTotal), numberOrNull(right.configuredLimitTotal)),
+    acquireCount,
+    acquireWaitTimeMs,
+    averageAcquireWaitTimeMs: averageElapsed(acquireWaitTimeMs, acquireCount),
+    canceledAcquireCount: canceledAcquireCount > 0 ? canceledAcquireCount : null,
+    canceledAcquireWaitTimeMs,
+    averageCanceledAcquireWaitTimeMs: averageElapsed(canceledAcquireWaitTimeMs, canceledAcquireCount),
+    operations: Object.keys(operations).length > 0 ? operations : null,
+  });
+}
+
+function mergeWriteLimiterOperations(left, right) {
+  const operationNames = new Set([
+    ...Object.keys(left ?? {}),
+    ...Object.keys(right ?? {}),
+  ]);
+  return Object.fromEntries(
+    [...operationNames]
+      .map((name) => [name, mergeWriteLimiterOperation(left?.[name], right?.[name])])
+      .filter(([, value]) => value !== undefined)
+      .sort((leftEntry, rightEntry) => leftEntry[0].localeCompare(rightEntry[0])),
+  );
+}
+
+function mergeWriteLimiterOperation(left, right) {
+  if (!left || typeof left !== "object") return copySummary(right);
+  if (!right || typeof right !== "object") return copySummary(left);
+  const acquireCount = numberOrZero(left.acquireCount) + numberOrZero(right.acquireCount);
+  const acquireWaitTimeMs = sumNullable(numberOrNull(left.acquireWaitTimeMs), numberOrNull(right.acquireWaitTimeMs));
+  const canceledAcquireCount = numberOrZero(left.canceledAcquireCount) + numberOrZero(right.canceledAcquireCount);
+  const canceledAcquireWaitTimeMs = sumNullable(
+    numberOrNull(left.canceledAcquireWaitTimeMs),
+    numberOrNull(right.canceledAcquireWaitTimeMs),
+  );
+  return omitNullish({
+    acquireCount,
+    acquireWaitTimeMs,
+    averageAcquireWaitTimeMs: averageElapsed(acquireWaitTimeMs, acquireCount),
+    canceledAcquireCount: canceledAcquireCount > 0 ? canceledAcquireCount : null,
+    canceledAcquireWaitTimeMs,
+    averageCanceledAcquireWaitTimeMs: averageElapsed(canceledAcquireWaitTimeMs, canceledAcquireCount),
+  });
 }
 
 function mergeSessionOperations(left, right) {
@@ -180,6 +311,13 @@ function slowestSessionOperation(operations) {
     .sort((left, right) => right.averageElapsedMs - left.averageElapsedMs || left.name.localeCompare(right.name))[0] ?? null;
 }
 
+function highestWriteLimiterWaitOperation(operations) {
+  return Object.entries(operations ?? {})
+    .map(([name, stats]) => ({ name, acquireWaitTimeMs: numberOrNull(stats?.acquireWaitTimeMs) }))
+    .filter((entry) => Number.isFinite(entry.acquireWaitTimeMs))
+    .sort((left, right) => right.acquireWaitTimeMs - left.acquireWaitTimeMs || left.name.localeCompare(right.name))[0] ?? null;
+}
+
 function averageElapsed(totalElapsedMs, count, fallback = undefined) {
   if (Number.isFinite(totalElapsedMs) && count > 0) return roundFloat(totalElapsedMs / count);
   return numberOrNull(fallback);
@@ -196,6 +334,10 @@ function numberOrNull(value) {
 
 function numberOrZero(value) {
   return Number.isFinite(value) ? value : 0;
+}
+
+function positiveNumberOrNull(value) {
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 function maxNullable(left, right) {

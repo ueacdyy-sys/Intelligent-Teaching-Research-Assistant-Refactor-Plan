@@ -178,6 +178,22 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 					"acquireCount":           float64(10),
 					"acquireDurationMs":      float64(100),
 					"emptyAcquireWaitTimeMs": float64(80),
+					"writeLimiter": map[string]any{
+						"enabled":                   true,
+						"limit":                     float64(2),
+						"acquireCount":              float64(10),
+						"acquireWaitTimeMs":         float64(100),
+						"canceledAcquireCount":      float64(1),
+						"canceledAcquireWaitTimeMs": float64(8),
+						"operations": map[string]any{
+							"saveSession": map[string]any{
+								"acquireCount":              float64(2),
+								"acquireWaitTimeMs":         float64(6),
+								"canceledAcquireCount":      float64(1),
+								"canceledAcquireWaitTimeMs": float64(8),
+							},
+						},
+					},
 					"sessionOperations": map[string]any{
 						"saveSession": map[string]any{
 							"count":                       float64(2),
@@ -204,6 +220,22 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 					"acquireCount":           float64(17),
 					"acquireDurationMs":      float64(163),
 					"emptyAcquireWaitTimeMs": float64(139),
+					"writeLimiter": map[string]any{
+						"enabled":                   true,
+						"limit":                     float64(2),
+						"acquireCount":              float64(17),
+						"acquireWaitTimeMs":         float64(163),
+						"canceledAcquireCount":      float64(1),
+						"canceledAcquireWaitTimeMs": float64(8),
+						"operations": map[string]any{
+							"saveSession": map[string]any{
+								"acquireCount":              float64(5),
+								"acquireWaitTimeMs":         float64(21),
+								"canceledAcquireCount":      float64(1),
+								"canceledAcquireWaitTimeMs": float64(8),
+							},
+						},
+					},
 					"sessionOperations": map[string]any{
 						"saveSession": map[string]any{
 							"count":                       float64(5),
@@ -237,6 +269,23 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 	}
 	if phaseDiagnostics.Delta.Pool.EmptyAcquireWaitTimeMS != 59 {
 		t.Fatalf("pool empty acquire wait delta = %#v want 59", phaseDiagnostics.Delta.Pool)
+	}
+	if phaseDiagnostics.Delta.WriteLimiter == nil {
+		t.Fatal("missing write limiter phase delta")
+	}
+	if phaseDiagnostics.Delta.WriteLimiter.EnabledGateways != 1 || phaseDiagnostics.Delta.WriteLimiter.ConfiguredLimitTotal != 2 {
+		t.Fatalf("write limiter shape delta = %#v", phaseDiagnostics.Delta.WriteLimiter)
+	}
+	if phaseDiagnostics.Delta.WriteLimiter.AcquireCount != 7 ||
+		phaseDiagnostics.Delta.WriteLimiter.AcquireWaitTimeMS != 63 ||
+		phaseDiagnostics.Delta.WriteLimiter.AverageAcquireWaitTimeMS != 9 {
+		t.Fatalf("write limiter acquire delta = %#v", phaseDiagnostics.Delta.WriteLimiter)
+	}
+	saveLimiter := phaseDiagnostics.Delta.WriteLimiter.Operations["saveSession"]
+	if saveLimiter.AcquireCount != 3 ||
+		saveLimiter.AcquireWaitTimeMS != 15 ||
+		saveLimiter.AverageAcquireWaitTimeMS != 5 {
+		t.Fatalf("saveSession write limiter delta = %#v", saveLimiter)
 	}
 	save := phaseDiagnostics.Delta.SessionOperations["saveSession"]
 	if save.Count != 3 || save.TotalElapsedMS != 21 || save.AverageElapsedMS != 7 {
