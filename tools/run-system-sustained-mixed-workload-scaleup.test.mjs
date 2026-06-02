@@ -304,6 +304,12 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
+    const identity = report.steps[0].workloads.find((workload) => workload.name === "identity_http");
+    assert.equal(identity.summary.dominantPhase, "revokeCycle");
+    assert.equal(identity.summary.dominantPhaseP99Ms, 88);
+    assert.equal(identity.summary.phases.passwordLogin.p99Ms, 35);
+    assert.equal(identity.summary.phases.revokeCycle.slowestStep, "revoke");
+    assert.equal(identity.summary.phases.revokeCycle.slowestStepP99Ms, 55);
     const conversation = report.steps[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 101);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 14);
@@ -350,7 +356,7 @@ function sustainedReport(options, overrides = {}) {
     samples: Array.from({ length: sampleCount }, (_entry, index) => ({
       name: `sample-${index + 1}`,
       workloads: [
-        workload("identity_http", index === 0 ? errors : 0, maxP99Ms),
+        workload("identity_http", index === 0 ? errors : 0, maxP99Ms, identitySummary(index)),
         workload("conversation_write", 0, maxP99Ms - 1, conversationSummary(index)),
         workload("teaching_archive", 0, maxP99Ms - 2),
       ],
@@ -364,6 +370,30 @@ function workload(name, errors, p99Ms, summary = undefined) {
     errors,
     p99Ms,
     summary,
+  };
+}
+
+function identitySummary(index) {
+  return {
+    errors: 0,
+    dominantPhase: "revokeCycle",
+    dominantPhaseP99Ms: index === 0 ? 66 : 88,
+    phases: {
+      passwordLogin: {
+        errors: 0,
+        p95Ms: index === 0 ? 20 : 25,
+        p99Ms: index === 0 ? 30 : 35,
+        rps: index === 0 ? 110 : 100,
+      },
+      revokeCycle: {
+        errors: 0,
+        p95Ms: index === 0 ? 60 : 80,
+        p99Ms: index === 0 ? 66 : 88,
+        rps: index === 0 ? 90 : 85,
+        slowestStep: "revoke",
+        slowestStepP99Ms: index === 0 ? 44 : 55,
+      },
+    },
   };
 }
 

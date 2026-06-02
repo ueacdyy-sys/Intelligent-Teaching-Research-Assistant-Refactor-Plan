@@ -14,6 +14,7 @@ import {
   defaultSessionTablePersistence,
   normalizeSessionTablePersistence,
 } from "./identity-http-benchmark-session-profile.mjs";
+import { mergeSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 
 export const defaults = {
   out: "reports/system-sustained-mixed-workload-scaleup.current.json",
@@ -377,7 +378,7 @@ function copyWorkloadSummary(summary) {
 function mergeWorkloadSummary(left, right) {
   if (!left || typeof left !== "object") return copyWorkloadSummary(right);
   if (!right || typeof right !== "object") return left;
-  return {
+  const merged = {
     ...left,
     ...right,
     errors: numberOrZero(left.errors) + numberOrZero(right.errors),
@@ -396,6 +397,13 @@ function mergeWorkloadSummary(left, right) {
     gatewayExitCode: right.gatewayExitCode ?? left.gatewayExitCode,
     gatewaySignal: right.gatewaySignal ?? left.gatewaySignal,
   };
+  if (left.phases || right.phases || left.dominantPhase || right.dominantPhase) {
+    const identityPhaseSummary = mergeSystemIdentityPhaseSummary(left, right);
+    merged.phases = identityPhaseSummary?.phases;
+    merged.dominantPhase = identityPhaseSummary?.dominantPhase ?? null;
+    merged.dominantPhaseP99Ms = identityPhaseSummary?.dominantPhaseP99Ms ?? null;
+  }
+  return merged;
 }
 
 function summarizeScaleUp(steps, orchestrationErrors) {

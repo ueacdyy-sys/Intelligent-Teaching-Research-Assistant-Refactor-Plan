@@ -12,6 +12,7 @@ import {
   buildSystemConversationBenchmarkRuntimeProfile,
   systemConversationBenchmarkRuntime,
 } from "./system-conversation-benchmark-runtime-profile.mjs";
+import { buildSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 
 export const defaults = {
   out: "reports/system-mixed-workload-benchmark.current.json",
@@ -440,6 +441,7 @@ function summarizeIdentity(report) {
     p99Ms: p99Values.length ? Math.max(...p99Values) : null,
     rps: minFinite(phases.map((phase) => numberOrNull(phase.rps))),
     concurrency: numberOrNull(report.concurrency),
+    ...buildSystemIdentityPhaseSummary(report.phases),
   };
 }
 

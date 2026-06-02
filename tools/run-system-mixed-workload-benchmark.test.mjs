@@ -323,7 +323,7 @@ describe("system mixed workload benchmark runner", () => {
 
     assert.equal(report.status, "PASSED");
     assert.equal(report.workloadType, "MIXED_WORKLOAD");
-    assert.equal(report.summary.maxP99Ms, 35);
+    assert.equal(report.summary.maxP99Ms, 66);
     assert.equal(report.workloads.find((workload) => workload.name === "knowledge_retrieval").status, "READY");
     assert.deepEqual(report.transportProfile, {
       sharedMaxConnsPerHost: 70,
@@ -344,6 +344,23 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
+    const identity = report.workloads.find((workload) => workload.name === "identity_http");
+    assert.equal(identity.summary.dominantPhase, "revokeCycle");
+    assert.equal(identity.summary.dominantPhaseP99Ms, 66);
+    assert.deepEqual(identity.summary.phases.passwordLogin, {
+      errors: 0,
+      p95Ms: 20,
+      p99Ms: 30,
+      rps: 110,
+    });
+    assert.deepEqual(identity.summary.phases.revokeCycle, {
+      errors: 0,
+      p95Ms: 60,
+      p99Ms: 66,
+      rps: 90,
+      slowestStep: "revoke",
+      slowestStepP99Ms: 44,
+    });
     const conversation = report.workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.serverTimingP99Ms, 21);
     assert.equal(conversation.summary.clientServerGapP99Ms, 44);
@@ -442,7 +459,16 @@ function identityReport() {
     concurrency: 16,
     phases: {
       passwordLogin: phase("passwordLogin", 20, 30, 110),
+      principalLookup: phase("principalLookup", 12, 18, 150),
       refreshRotation: phase("refreshRotation", 18, 25, 120),
+      revokeCycle: {
+        ...phase("revokeCycle", 60, 66, 90),
+        stepLatencyAttribution: {
+          slowestStep: "revoke",
+          slowestStepP99Ms: 44,
+          phaseP99Ms: 66,
+        },
+      },
     },
   };
 }

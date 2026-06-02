@@ -273,6 +273,11 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
+    const identity = report.samples[0].workloads.find((workload) => workload.name === "identity_http");
+    assert.equal(identity.summary.dominantPhase, "revokeCycle");
+    assert.equal(identity.summary.dominantPhaseP99Ms, 66);
+    assert.equal(identity.summary.phases.passwordLogin.p99Ms, 30);
+    assert.equal(identity.summary.phases.revokeCycle.slowestStep, "revoke");
     const conversation = report.samples[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 77);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 12);
@@ -293,7 +298,7 @@ function mixedReport(options, overrides = {}) {
       maxP99Ms,
     },
     workloads: [
-      workload("identity_http", status, errors, maxP99Ms),
+      workload("identity_http", status, errors, maxP99Ms, identitySummary()),
       workload("conversation_write", status, 0, maxP99Ms - 1, conversationSummary()),
       workload("teaching_archive", status, 0, maxP99Ms - 2),
       workload("knowledge_retrieval", "READY", 0, null),
@@ -310,6 +315,30 @@ function workload(name, status, errors, p99Ms, summary = undefined) {
     p95Ms: Number.isFinite(p99Ms) ? p99Ms * 0.8 : null,
     p99Ms,
     summary,
+  };
+}
+
+function identitySummary() {
+  return {
+    errors: 0,
+    dominantPhase: "revokeCycle",
+    dominantPhaseP99Ms: 66,
+    phases: {
+      passwordLogin: {
+        errors: 0,
+        p95Ms: 20,
+        p99Ms: 30,
+        rps: 110,
+      },
+      revokeCycle: {
+        errors: 0,
+        p95Ms: 60,
+        p99Ms: 66,
+        rps: 90,
+        slowestStep: "revoke",
+        slowestStepP99Ms: 44,
+      },
+    },
   };
 }
 
