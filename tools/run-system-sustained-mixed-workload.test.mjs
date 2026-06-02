@@ -24,6 +24,12 @@ describe("system sustained mixed workload runner", () => {
       "25",
       "--teaching-concurrency",
       "6",
+      "--conversation-benchmark-runtime",
+      "wsl",
+      "--conversation-benchmark-wsl-host",
+      "172.28.160.1",
+      "--conversation-benchmark-wsl-workspace",
+      "/mnt/c/workspace",
       "--identity-ingress-proxy",
       "true",
       "--identity-ingress-count",
@@ -42,6 +48,9 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(parsed.samples, "3");
     assert.equal(parsed.sampleIntervalMs, "25");
     assert.equal(parsed.teachingConcurrency, "6");
+    assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
+    assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
+    assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
@@ -69,6 +78,9 @@ describe("system sustained mixed workload runner", () => {
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      conversationBenchmarkRuntime: "wsl",
+      conversationBenchmarkWslHost: "172.28.160.1",
+      conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
     });
 
     assert.deepEqual(samples.map((sample) => sample.name), ["sample-1", "sample-2"]);
@@ -87,6 +99,9 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(samples[0].options.identityIngressMaxConnsPerHost, "40");
     assert.equal(samples[0].options.identitySessionDbSessionTablePersistence, "unlogged");
     assert.equal(samples[0].options.identitySessionDbWriteConcurrency, "10");
+    assert.equal(samples[0].options.conversationBenchmarkRuntime, "wsl");
+    assert.equal(samples[0].options.conversationBenchmarkWslHost, "172.28.160.1");
+    assert.equal(samples[0].options.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
   });
 
   it("runs every sample and writes a passed sustained report", async () => {
@@ -218,6 +233,9 @@ describe("system sustained mixed workload runner", () => {
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      conversationBenchmarkRuntime: "wsl",
+      conversationBenchmarkWslHost: "172.28.160.1",
+      conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
     };
     const samples = buildSampleRuns({
       ...options,
@@ -252,9 +270,13 @@ describe("system sustained mixed workload runner", () => {
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
+    assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
+    assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
     const conversation = report.samples[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 77);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 12);
+    assert.equal(conversation.summary.benchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(conversation.summary.runtimeDiagnostics.after.maxCurrentConns, 33);
   });
 });
@@ -296,6 +318,13 @@ function conversationSummary() {
     errors: 0,
     clientServerGapP99Ms: 77,
     dbBatchWaitP99Ms: 12,
+    benchmarkRuntimeProfile: {
+      executor: "WSL_GO",
+      wslDistro: "Ubuntu",
+      wslHostAlias: "172.28.160.1",
+      wslWorkspace: "/mnt/c/workspace",
+      targetBaseUrls: ["http://172.28.160.1:18100"],
+    },
     runtimeDiagnostics: {
       after: {
         gatewayCount: 2,

@@ -7,6 +7,11 @@ import {
   defaultSessionTablePersistence,
   normalizeSessionTablePersistence,
 } from "./identity-http-benchmark-session-profile.mjs";
+import { benchmarkRuntimeDefaults } from "./conversation-benchmark-runtime.mjs";
+import {
+  buildSystemConversationBenchmarkRuntimeProfile,
+  systemConversationBenchmarkRuntime,
+} from "./system-conversation-benchmark-runtime-profile.mjs";
 
 export const defaults = {
   out: "reports/system-mixed-workload-benchmark.current.json",
@@ -35,6 +40,12 @@ export const defaults = {
   conversationDbMaxConns: "4",
   teachingDbMaxConns: "2",
   conversationWriteBatchSize: "32",
+  conversationBenchmarkRuntime: benchmarkRuntimeDefaults.benchmarkRuntime,
+  conversationBenchmarkDockerImage: benchmarkRuntimeDefaults.benchmarkDockerImage,
+  conversationBenchmarkDockerHost: benchmarkRuntimeDefaults.benchmarkDockerHost,
+  conversationBenchmarkWslDistro: benchmarkRuntimeDefaults.benchmarkWslDistro,
+  conversationBenchmarkWslHost: benchmarkRuntimeDefaults.benchmarkWslHost,
+  conversationBenchmarkWslWorkspace: benchmarkRuntimeDefaults.benchmarkWslWorkspace,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   identityMaxConnsPerHost: "",
@@ -131,6 +142,18 @@ export function buildWorkloadCommands(options) {
         options.conversationWriteBatchSize,
         "--write-batch-delay-ms",
         "0",
+        "--benchmark-runtime",
+        systemConversationBenchmarkRuntime(options),
+        "--benchmark-docker-image",
+        options.conversationBenchmarkDockerImage,
+        "--benchmark-docker-host",
+        options.conversationBenchmarkDockerHost,
+        "--benchmark-wsl-distro",
+        options.conversationBenchmarkWslDistro,
+        "--benchmark-wsl-host",
+        options.conversationBenchmarkWslHost,
+        "--benchmark-wsl-workspace",
+        options.conversationBenchmarkWslWorkspace,
         "--agent-api-key",
         "ueacd",
         "--concurrency",
@@ -292,6 +315,7 @@ export function buildSystemMixedWorkloadReport({
       managedDocker: parseBoolean(options.manageDocker),
       dockerCleanup: options.dockerCleanup,
     },
+    conversationBenchmarkRuntimeProfile: buildMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     workloads,
     summary: summarizeMixedWorkload(workloads, orchestrationErrors),
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
@@ -328,6 +352,10 @@ export function buildMixedWorkloadIdentityIngressProfile(options) {
     maxConnsPerHost: parseInteger(options.identityIngressMaxConnsPerHost),
     warmConnectionsPerHost: parseInteger(options.identityIngressWarmConnectionsPerHost),
   };
+}
+
+export function buildMixedWorkloadConversationBenchmarkRuntimeProfile(options) {
+  return buildSystemConversationBenchmarkRuntimeProfile(options);
 }
 
 export function formatSystemMixedWorkloadBenchmark(report) {
@@ -428,6 +456,7 @@ function summarizeConversation(report) {
     dbAcquireP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.acquire"]?.p99),
     dbBatchWaitP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.batch_wait"]?.p99),
     dbInsertP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99),
+    benchmarkRuntimeProfile: report.benchmarkRuntimeProfile ?? null,
     gatewayExitCode: report.gatewayExitCode ?? null,
     gatewaySignal: report.gatewaySignal ?? null,
     runtimeDiagnostics: summarizeGatewayDiagnostics(report.gatewayRuntimeDiagnostics),
@@ -510,6 +539,7 @@ function validateOptions(options) {
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
+  systemConversationBenchmarkRuntime(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
   if (parseBoolean(options.identityIngressProxy)) {
     assertPositiveInteger(options.identityIngressCount, "identity-ingress-count");

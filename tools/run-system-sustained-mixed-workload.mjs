@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 
 import {
   buildMixedWorkloadIdentityIngressProfile,
+  buildMixedWorkloadConversationBenchmarkRuntimeProfile,
   buildMixedWorkloadTransportProfile,
   defaults as mixedDefaults,
   runSystemMixedWorkloadBenchmark,
@@ -41,6 +42,12 @@ export const defaults = {
   conversationDbMaxConns: "1",
   teachingDbMaxConns: "1",
   conversationWriteBatchSize: "8",
+  conversationBenchmarkRuntime: mixedDefaults.conversationBenchmarkRuntime,
+  conversationBenchmarkDockerImage: mixedDefaults.conversationBenchmarkDockerImage,
+  conversationBenchmarkDockerHost: mixedDefaults.conversationBenchmarkDockerHost,
+  conversationBenchmarkWslDistro: mixedDefaults.conversationBenchmarkWslDistro,
+  conversationBenchmarkWslHost: mixedDefaults.conversationBenchmarkWslHost,
+  conversationBenchmarkWslWorkspace: mixedDefaults.conversationBenchmarkWslWorkspace,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   identityMaxConnsPerHost: mixedDefaults.identityMaxConnsPerHost,
@@ -112,6 +119,12 @@ export function buildSampleRuns(options) {
         conversationDbMaxConns: options.conversationDbMaxConns,
         teachingDbMaxConns: options.teachingDbMaxConns,
         conversationWriteBatchSize: options.conversationWriteBatchSize,
+        conversationBenchmarkRuntime: options.conversationBenchmarkRuntime,
+        conversationBenchmarkDockerImage: options.conversationBenchmarkDockerImage,
+        conversationBenchmarkDockerHost: options.conversationBenchmarkDockerHost,
+        conversationBenchmarkWslDistro: options.conversationBenchmarkWslDistro,
+        conversationBenchmarkWslHost: options.conversationBenchmarkWslHost,
+        conversationBenchmarkWslWorkspace: options.conversationBenchmarkWslWorkspace,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
@@ -236,6 +249,7 @@ export function buildSystemSustainedMixedWorkloadReport({
       managedDocker: parseBoolean(options.manageDocker),
       dockerCleanup: options.dockerCleanup,
     },
+    conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     samples,
     summary: summarizeSustainedSamples(samples, orchestrationErrors),
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
@@ -253,6 +267,10 @@ export function buildSustainedMixedWorkloadTransportProfile(options) {
 
 export function buildSustainedMixedWorkloadIdentityIngressProfile(options) {
   return buildMixedWorkloadIdentityIngressProfile(options);
+}
+
+export function buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options) {
+  return buildMixedWorkloadConversationBenchmarkRuntimeProfile(options);
 }
 
 export function formatSystemSustainedMixedWorkload(report) {

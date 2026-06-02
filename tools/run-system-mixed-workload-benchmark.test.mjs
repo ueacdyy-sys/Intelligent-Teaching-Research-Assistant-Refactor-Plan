@@ -22,6 +22,12 @@ describe("system mixed workload benchmark runner", () => {
       "16",
       "--conversation-write-batch-size",
       "64",
+      "--conversation-benchmark-runtime",
+      "wsl",
+      "--conversation-benchmark-wsl-host",
+      "172.28.160.1",
+      "--conversation-benchmark-wsl-workspace",
+      "/mnt/c/workspace",
       "--teaching-concurrency",
       "6",
       "--identity-ingress-proxy",
@@ -41,6 +47,9 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.identityBaseUrl, "http://127.0.0.1:19000");
     assert.equal(parsed.conversationGatewayCount, "16");
     assert.equal(parsed.conversationWriteBatchSize, "64");
+    assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
+    assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
+    assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
     assert.equal(parsed.teachingConcurrency, "6");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
@@ -73,6 +82,9 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      conversationBenchmarkRuntime: "wsl",
+      conversationBenchmarkWslHost: "172.28.160.1",
+      conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
     });
 
     assert.deepEqual(commands.map((command) => command.name), [
@@ -94,6 +106,9 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[0].args, "--session-db-write-concurrency"), "10");
     assert.equal(argumentAfter(commands[1].args, "--base-url"), "http://127.0.0.1:19100");
     assert.equal(argumentAfter(commands[1].args, "--agent-api-key"), "ueacd");
+    assert.equal(argumentAfter(commands[1].args, "--benchmark-runtime"), "wsl");
+    assert.equal(argumentAfter(commands[1].args, "--benchmark-wsl-host"), "172.28.160.1");
+    assert.equal(argumentAfter(commands[1].args, "--benchmark-wsl-workspace"), "/mnt/c/workspace");
     assert.equal(argumentAfter(commands[1].args, "--max-conns-per-host"), "70");
     assert.equal(argumentAfter(commands[1].args, "--warm-connections-per-host"), "9");
     assert.equal(argumentAfter(commands[2].args, "--base-url"), "http://127.0.0.1:19200");
@@ -284,6 +299,9 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      conversationBenchmarkRuntime: "wsl",
+      conversationBenchmarkWslHost: "172.28.160.1",
+      conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
     };
     const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
@@ -323,6 +341,9 @@ describe("system mixed workload benchmark runner", () => {
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
+    assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
+    assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
     const conversation = report.workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.serverTimingP99Ms, 21);
     assert.equal(conversation.summary.clientServerGapP99Ms, 44);
@@ -331,6 +352,7 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(conversation.summary.dbInsertP99Ms, 15.2);
     assert.deepEqual(conversation.summary.gatewayExitCode, [null, null]);
     assert.deepEqual(conversation.summary.gatewaySignal, [null, null]);
+    assert.equal(conversation.summary.benchmarkRuntimeProfile.executor, "WSL_GO");
     assert.deepEqual(conversation.summary.runtimeDiagnostics.after, {
       gatewayCount: 2,
       okGateways: 2,
@@ -363,6 +385,21 @@ describe("system mixed workload benchmark runner", () => {
         { root, runCommand: successfulChildCommand },
       ),
       /identity-session-db-write-concurrency must be a non-negative integer/u,
+    );
+  });
+
+  it("rejects unsupported conversation benchmark runtimes", async () => {
+    const root = makeTempRoot();
+
+    await assert.rejects(
+      () => runSystemMixedWorkloadBenchmark(
+        {
+          ...defaults,
+          conversationBenchmarkRuntime: "bad",
+        },
+        { root, runCommand: successfulChildCommand },
+      ),
+      /conversation-benchmark-runtime must be local, docker, or wsl/u,
     );
   });
 });
@@ -414,6 +451,13 @@ function conversationReport() {
   return {
     status: "PASSED",
     concurrency: 64,
+    benchmarkRuntimeProfile: {
+      executor: "WSL_GO",
+      wslDistro: "Ubuntu",
+      wslHostAlias: "172.28.160.1",
+      wslWorkspace: "/mnt/c/workspace",
+      targetBaseUrls: ["http://172.28.160.1:18100"],
+    },
     gatewayExitCode: [null, null],
     gatewaySignal: [null, null],
     gatewayRuntimeDiagnostics: {

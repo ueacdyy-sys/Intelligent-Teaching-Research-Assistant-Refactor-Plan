@@ -26,6 +26,12 @@ describe("system sustained mixed workload scale-up runner", () => {
       "800",
       "--max-p99-drift-ms",
       "120",
+      "--conversation-benchmark-runtime",
+      "wsl",
+      "--conversation-benchmark-wsl-host",
+      "172.28.160.1",
+      "--conversation-benchmark-wsl-workspace",
+      "/mnt/c/workspace",
       "--identity-ingress-proxy",
       "true",
       "--identity-ingress-count",
@@ -44,6 +50,9 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.samples, "3");
     assert.equal(parsed.maxP99Ms, "800");
     assert.equal(parsed.maxP99DriftMs, "120");
+    assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
+    assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
+    assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
@@ -72,6 +81,9 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      conversationBenchmarkRuntime: "wsl",
+      conversationBenchmarkWslHost: "172.28.160.1",
+      conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
     });
 
     assert.deepEqual(steps.map((step) => step.name), ["smoke", "low"]);
@@ -94,6 +106,9 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.identityIngressMaxConnsPerHost, "40");
     assert.equal(steps[0].options.identitySessionDbSessionTablePersistence, "unlogged");
     assert.equal(steps[0].options.identitySessionDbWriteConcurrency, "10");
+    assert.equal(steps[0].options.conversationBenchmarkRuntime, "wsl");
+    assert.equal(steps[0].options.conversationBenchmarkWslHost, "172.28.160.1");
+    assert.equal(steps[0].options.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
   });
 
   it("runs every scale-up step and writes a passed report", async () => {
@@ -248,6 +263,9 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      conversationBenchmarkRuntime: "wsl",
+      conversationBenchmarkWslHost: "172.28.160.1",
+      conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
     };
     const steps = buildScaleUpSteps({
       ...options,
@@ -283,9 +301,13 @@ describe("system sustained mixed workload scale-up runner", () => {
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
+    assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
+    assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
     const conversation = report.steps[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 101);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 14);
+    assert.equal(conversation.summary.benchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(conversation.summary.runtimeDiagnostics.after.totalAcceptedConns, 240);
   });
 
@@ -350,6 +372,13 @@ function conversationSummary(index) {
     errors: 0,
     clientServerGapP99Ms: index === 0 ? 77 : 101,
     dbBatchWaitP99Ms: index === 0 ? 12 : 14,
+    benchmarkRuntimeProfile: {
+      executor: "WSL_GO",
+      wslDistro: "Ubuntu",
+      wslHostAlias: "172.28.160.1",
+      wslWorkspace: "/mnt/c/workspace",
+      targetBaseUrls: ["http://172.28.160.1:18100"],
+    },
     runtimeDiagnostics: {
       after: {
         gatewayCount: 2,
