@@ -48,6 +48,9 @@ type SessionOperationTimingStat struct {
 	AveragePoolAcquireElapsedMs float64 `json:"averagePoolAcquireElapsedMs,omitempty"`
 	DBExecuteElapsedMs          float64 `json:"dbExecuteElapsedMs,omitempty"`
 	AverageDBExecuteElapsedMs   float64 `json:"averageDbExecuteElapsedMs,omitempty"`
+	RowsAffectedCount           int64   `json:"rowsAffectedCount,omitempty"`
+	RowsAffected                int64   `json:"rowsAffected,omitempty"`
+	AverageRowsAffected         float64 `json:"averageRowsAffected,omitempty"`
 }
 
 type SessionDBPoolStatsProvider interface {

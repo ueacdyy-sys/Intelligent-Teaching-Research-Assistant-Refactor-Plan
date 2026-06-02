@@ -203,6 +203,9 @@ describe("identity phase-aware matrix runner", () => {
                 averagePoolAcquireElapsedMs: 20.96,
                 dbExecuteElapsedMs: 836.08,
                 averageDbExecuteElapsedMs: 3.27,
+                rowsAffectedCount: 256,
+                rowsAffected: 256,
+                averageRowsAffected: 1,
               },
               saveSession: {
                 count: 256,
@@ -213,6 +216,9 @@ describe("identity phase-aware matrix runner", () => {
                 averagePoolAcquireElapsedMs: 16.07,
                 dbExecuteElapsedMs: 860.66,
                 averageDbExecuteElapsedMs: 3.36,
+                rowsAffectedCount: 256,
+                rowsAffected: 256,
+                averageRowsAffected: 1,
               },
             },
           }),
@@ -228,6 +234,9 @@ describe("identity phase-aware matrix runner", () => {
 
     assert.equal(revokeOwnSession.poolAcquireShare, 0.86);
     assert.equal(revokeOwnSession.dbExecuteShare, 0.13);
+    assert.equal(revokeOwnSession.rowsAffectedCount, 256);
+    assert.equal(revokeOwnSession.rowsAffected, 256);
+    assert.equal(revokeOwnSession.averageRowsAffected, 1);
     assert.equal(revokeCycle.slowestSessionOperation, "revokeOwnSession");
     assert.equal(revokeCycle.slowestSessionOperationAverageElapsedMs, 24.25);
     assert.equal(revokeCycle.highestPoolAcquireShareOperation, "revokeOwnSession");

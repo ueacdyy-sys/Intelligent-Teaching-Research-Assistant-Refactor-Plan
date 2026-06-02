@@ -27,17 +27,6 @@ type DB interface {
 	QueryRow(ctx context.Context, sql string, args ...any) Row
 }
 
-type DBOperationMeasurement struct {
-	PoolAcquireElapsed  time.Duration
-	DBExecuteElapsed    time.Duration
-	PoolAcquireMeasured bool
-	DBExecuteMeasured   bool
-}
-
-type MeasuredExecDB interface {
-	ExecMeasured(ctx context.Context, sql string, args ...any) (CommandTag, DBOperationMeasurement, error)
-}
-
 type SessionStore struct {
 	db                            DB
 	operationTimings              map[sessionOperation]*sessionOperationTimingStats
@@ -121,6 +110,8 @@ type sessionOperationTimingStats struct {
 	poolAcquireCount        atomic.Int64
 	poolAcquireElapsedNanos atomic.Int64
 	dbExecuteElapsedNanos   atomic.Int64
+	rowsAffectedCount       atomic.Int64
+	rowsAffected            atomic.Int64
 }
 
 func NewSessionStore(db DB) *SessionStore {
@@ -558,18 +549,6 @@ func (s *SessionStore) sessionWriteOperationStats() map[string]platform.SessionW
 	return stats
 }
 
-func (s *SessionStore) execMeasured(
-	ctx context.Context,
-	sql string,
-	args ...any,
-) (CommandTag, DBOperationMeasurement, error) {
-	if measuredDB, ok := s.db.(MeasuredExecDB); ok {
-		return measuredDB.ExecMeasured(ctx, sql, args...)
-	}
-	tag, err := s.db.Exec(ctx, sql, args...)
-	return tag, DBOperationMeasurement{}, err
-}
-
 func (s *SessionStore) SessionOperationTimingStats() map[string]platform.SessionOperationTimingStat {
 	if len(s.operationTimings) == 0 {
 		return nil
@@ -597,6 +576,12 @@ func (s *SessionStore) SessionOperationTimingStats() map[string]platform.Session
 		if count > 0 && dbExecuteElapsedMs > 0 {
 			averageDBExecuteElapsedMs = dbExecuteElapsedMs / float64(count)
 		}
+		rowsAffectedCount := operationStats.rowsAffectedCount.Load()
+		rowsAffected := operationStats.rowsAffected.Load()
+		var averageRowsAffected float64
+		if rowsAffectedCount > 0 {
+			averageRowsAffected = float64(rowsAffected) / float64(rowsAffectedCount)
+		}
 		stats[string(operation)] = platform.SessionOperationTimingStat{
 			Count:                       count,
 			TotalElapsedMs:              totalElapsedMs,
@@ -607,6 +592,9 @@ func (s *SessionStore) SessionOperationTimingStats() map[string]platform.Session
 			AveragePoolAcquireElapsedMs: averagePoolAcquireElapsedMs,
 			DBExecuteElapsedMs:          dbExecuteElapsedMs,
 			AverageDBExecuteElapsedMs:   averageDBExecuteElapsedMs,
+			RowsAffectedCount:           rowsAffectedCount,
+			RowsAffected:                rowsAffected,
+			AverageRowsAffected:         averageRowsAffected,
 		}
 	}
 	return stats
@@ -633,6 +621,10 @@ func (s *SessionStore) recordSessionOperation(
 	}
 	if measurement.DBExecuteMeasured {
 		operationStats.dbExecuteElapsedNanos.Add(measurement.DBExecuteElapsed.Nanoseconds())
+	}
+	if measurement.RowsAffectedMeasured {
+		operationStats.rowsAffectedCount.Add(1)
+		operationStats.rowsAffected.Add(measurement.RowsAffected)
 	}
 	for {
 		current := operationStats.maxElapsedNanos.Load()

@@ -182,6 +182,9 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 						"saveSession": map[string]any{
 							"count":                       float64(2),
 							"totalElapsedMs":              float64(20),
+							"rowsAffectedCount":           float64(2),
+							"rowsAffected":                float64(2),
+							"averageRowsAffected":         float64(1),
 							"poolAcquireCount":            float64(2),
 							"poolAcquireElapsedMs":        float64(6),
 							"averagePoolAcquireElapsedMs": float64(3),
@@ -205,6 +208,9 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 						"saveSession": map[string]any{
 							"count":                       float64(5),
 							"totalElapsedMs":              float64(41),
+							"rowsAffectedCount":           float64(5),
+							"rowsAffected":                float64(5),
+							"averageRowsAffected":         float64(1),
 							"poolAcquireCount":            float64(5),
 							"poolAcquireElapsedMs":        float64(21),
 							"averagePoolAcquireElapsedMs": float64(4.2),
@@ -241,6 +247,9 @@ func TestBuildGatewayDatabasePhaseDiagnosticsDelta(t *testing.T) {
 	}
 	if save.DBExecuteElapsedMS != 12 || save.AverageDBExecuteElapsedMS != 4 {
 		t.Fatalf("saveSession db execute delta = %#v", save)
+	}
+	if save.RowsAffectedCount != 3 || save.RowsAffected != 3 || save.AverageRowsAffected != 1 {
+		t.Fatalf("saveSession rows affected delta = %#v", save)
 	}
 	lookup := phaseDiagnostics.Delta.SessionOperations["getPrincipalByAccessToken"]
 	if lookup.Count != 4 || lookup.TotalElapsedMS != 16 || lookup.AverageElapsedMS != 4 {

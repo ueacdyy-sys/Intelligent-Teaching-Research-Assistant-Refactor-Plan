@@ -38,6 +38,9 @@ describe("system identity phase summary", () => {
                 averagePoolAcquireElapsedMs: 6,
                 dbExecuteElapsedMs: 48,
                 averageDbExecuteElapsedMs: 3,
+                rowsAffectedCount: 16,
+                rowsAffected: 16,
+                averageRowsAffected: 1,
               },
             },
           },
@@ -71,6 +74,9 @@ describe("system identity phase summary", () => {
       averagePoolAcquireElapsedMs: 6,
       dbExecuteElapsedMs: 48,
       averageDbExecuteElapsedMs: 3,
+      rowsAffectedCount: 16,
+      rowsAffected: 16,
+      averageRowsAffected: 1,
     });
     assert.equal(summary.phases.revokeCycle.slowestSessionOperation, "revokeOwnSession");
     assert.equal(summary.phases.revokeCycle.slowestSessionOperationAverageElapsedMs, 20);
@@ -95,6 +101,9 @@ describe("system identity phase summary", () => {
                 averagePoolAcquireElapsedMs: 15,
                 dbExecuteElapsedMs: 80,
                 averageDbExecuteElapsedMs: 5,
+                rowsAffectedCount: 16,
+                rowsAffected: 16,
+                averageRowsAffected: 1,
               },
               saveSession: {
                 count: 16,
@@ -122,6 +131,9 @@ describe("system identity phase summary", () => {
                 averagePoolAcquireElapsedMs: 20,
                 dbExecuteElapsedMs: 120,
                 averageDbExecuteElapsedMs: 5,
+                rowsAffectedCount: 24,
+                rowsAffected: 24,
+                averageRowsAffected: 1,
               },
               saveSession: {
                 count: 24,
@@ -143,6 +155,9 @@ describe("system identity phase summary", () => {
       averagePoolAcquireElapsedMs: 18,
       dbExecuteElapsedMs: 200,
       averageDbExecuteElapsedMs: 5,
+      rowsAffectedCount: 40,
+      rowsAffected: 40,
+      averageRowsAffected: 1,
     });
     assert.deepEqual(merged.phases.revokeCycle.sessionOperations.saveSession, {
       count: 40,

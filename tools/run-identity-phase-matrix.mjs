@@ -451,6 +451,8 @@ function summarizeSessionOperation(name, stats) {
   const totalElapsedMs = numberOrNull(stats?.totalElapsedMs);
   const poolAcquireElapsedMs = numberOrNull(stats?.poolAcquireElapsedMs);
   const dbExecuteElapsedMs = numberOrNull(stats?.dbExecuteElapsedMs);
+  const rowsAffectedCount = numberOrZero(stats?.rowsAffectedCount);
+  const rowsAffected = numberOrZero(stats?.rowsAffected);
   return omitNullish({
     name,
     count: numberOrZero(stats?.count),
@@ -463,6 +465,9 @@ function summarizeSessionOperation(name, stats) {
     dbExecuteElapsedMs,
     averageDbExecuteElapsedMs: numberOrNull(stats?.averageDbExecuteElapsedMs),
     dbExecuteShare: elapsedShare(dbExecuteElapsedMs, totalElapsedMs),
+    rowsAffectedCount: rowsAffectedCount > 0 ? rowsAffectedCount : null,
+    rowsAffected: rowsAffectedCount > 0 ? rowsAffected : null,
+    averageRowsAffected: numberOrNull(stats?.averageRowsAffected),
   });
 }
 

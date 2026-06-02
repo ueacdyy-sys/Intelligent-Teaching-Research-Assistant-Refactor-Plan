@@ -59,6 +59,9 @@ type gatewayDatabaseSessionOperationDelta struct {
 	AveragePoolAcquireElapsedMS float64 `json:"averagePoolAcquireElapsedMs,omitempty"`
 	DBExecuteElapsedMS          float64 `json:"dbExecuteElapsedMs,omitempty"`
 	AverageDBExecuteElapsedMS   float64 `json:"averageDbExecuteElapsedMs,omitempty"`
+	RowsAffectedCount           int64   `json:"rowsAffectedCount,omitempty"`
+	RowsAffected                int64   `json:"rowsAffected,omitempty"`
+	AverageRowsAffected         float64 `json:"averageRowsAffected,omitempty"`
 }
 
 type gatewayDatabaseDiagnosticsCollector struct {
@@ -225,6 +228,8 @@ func summarizeGatewayDatabaseSessionOperations(
 			current.PoolAcquireCount += int64(numberFromMap(operationStats, "poolAcquireCount"))
 			current.PoolAcquireElapsedMS += numberFromMap(operationStats, "poolAcquireElapsedMs")
 			current.DBExecuteElapsedMS += numberFromMap(operationStats, "dbExecuteElapsedMs")
+			current.RowsAffectedCount += int64(numberFromMap(operationStats, "rowsAffectedCount"))
+			current.RowsAffected += int64(numberFromMap(operationStats, "rowsAffected"))
 			summary[operationName] = current
 		}
 	}
@@ -240,6 +245,9 @@ func summarizeGatewayDatabaseSessionOperations(
 			operation.AveragePoolAcquireElapsedMS = roundFloat(
 				operation.PoolAcquireElapsedMS / float64(operation.PoolAcquireCount),
 			)
+		}
+		if operation.RowsAffectedCount > 0 {
+			operation.AverageRowsAffected = roundFloat(float64(operation.RowsAffected) / float64(operation.RowsAffectedCount))
 		}
 		summary[operationName] = operation
 	}
@@ -267,6 +275,8 @@ func deltaGatewayDatabaseSessionOperations(
 			PoolAcquireCount:     afterOperation.PoolAcquireCount - beforeOperation.PoolAcquireCount,
 			PoolAcquireElapsedMS: roundFloat(afterOperation.PoolAcquireElapsedMS - beforeOperation.PoolAcquireElapsedMS),
 			DBExecuteElapsedMS:   roundFloat(afterOperation.DBExecuteElapsedMS - beforeOperation.DBExecuteElapsedMS),
+			RowsAffectedCount:    afterOperation.RowsAffectedCount - beforeOperation.RowsAffectedCount,
+			RowsAffected:         afterOperation.RowsAffected - beforeOperation.RowsAffected,
 		}
 		if delta.Count > 0 {
 			delta.AverageElapsedMS = roundFloat(delta.TotalElapsedMS / float64(delta.Count))
@@ -275,8 +285,12 @@ func deltaGatewayDatabaseSessionOperations(
 		if delta.PoolAcquireCount > 0 {
 			delta.AveragePoolAcquireElapsedMS = roundFloat(delta.PoolAcquireElapsedMS / float64(delta.PoolAcquireCount))
 		}
+		if delta.RowsAffectedCount > 0 {
+			delta.AverageRowsAffected = roundFloat(float64(delta.RowsAffected) / float64(delta.RowsAffectedCount))
+		}
 		if delta.Count != 0 || delta.TotalElapsedMS != 0 || delta.PoolAcquireCount != 0 ||
-			delta.PoolAcquireElapsedMS != 0 || delta.DBExecuteElapsedMS != 0 {
+			delta.PoolAcquireElapsedMS != 0 || delta.DBExecuteElapsedMS != 0 ||
+			delta.RowsAffectedCount != 0 || delta.RowsAffected != 0 {
 			deltas[operationName] = delta
 		}
 	}

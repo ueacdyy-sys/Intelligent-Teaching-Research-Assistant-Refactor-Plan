@@ -146,6 +146,15 @@ func assertMeasuredOperationTiming(
 	if stat.AverageDBExecuteElapsedMs != 3 {
 		t.Fatalf("%s average db execute = %v want 3", operation, stat.AverageDBExecuteElapsedMs)
 	}
+	if stat.RowsAffectedCount != 1 {
+		t.Fatalf("%s rows affected count = %d want 1", operation, stat.RowsAffectedCount)
+	}
+	if stat.RowsAffected != 1 {
+		t.Fatalf("%s rows affected = %d want 1", operation, stat.RowsAffected)
+	}
+	if stat.AverageRowsAffected != 1 {
+		t.Fatalf("%s average rows affected = %v want 1", operation, stat.AverageRowsAffected)
+	}
 }
 
 type delayedDB struct {

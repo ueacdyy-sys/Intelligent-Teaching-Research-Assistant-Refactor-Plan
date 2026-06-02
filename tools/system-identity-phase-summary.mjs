@@ -108,6 +108,8 @@ function summarizeSessionOperation(name, stats) {
   const poolAcquireCount = numberOrZero(stats.poolAcquireCount);
   const poolAcquireElapsedMs = numberOrNull(stats.poolAcquireElapsedMs);
   const dbExecuteElapsedMs = numberOrNull(stats.dbExecuteElapsedMs);
+  const rowsAffectedCount = numberOrZero(stats.rowsAffectedCount);
+  const rowsAffected = numberOrZero(stats.rowsAffected);
   return [
     name,
     omitNullish({
@@ -123,6 +125,9 @@ function summarizeSessionOperation(name, stats) {
       ),
       dbExecuteElapsedMs,
       averageDbExecuteElapsedMs: averageElapsed(dbExecuteElapsedMs, count, stats.averageDbExecuteElapsedMs),
+      rowsAffectedCount: rowsAffectedCount > 0 ? rowsAffectedCount : null,
+      rowsAffected: rowsAffectedCount > 0 ? rowsAffected : null,
+      averageRowsAffected: averageRowsAffected(rowsAffected, rowsAffectedCount, stats.averageRowsAffected),
     }),
   ];
 }
@@ -151,6 +156,8 @@ function mergeSessionOperation(left, right) {
     numberOrNull(right.poolAcquireElapsedMs),
   );
   const dbExecuteElapsedMs = sumNullable(numberOrNull(left.dbExecuteElapsedMs), numberOrNull(right.dbExecuteElapsedMs));
+  const rowsAffectedCount = numberOrZero(left.rowsAffectedCount) + numberOrZero(right.rowsAffectedCount);
+  const rowsAffected = numberOrZero(left.rowsAffected) + numberOrZero(right.rowsAffected);
   return omitNullish({
     count,
     totalElapsedMs,
@@ -160,6 +167,9 @@ function mergeSessionOperation(left, right) {
     averagePoolAcquireElapsedMs: averageElapsed(poolAcquireElapsedMs, poolAcquireCount),
     dbExecuteElapsedMs,
     averageDbExecuteElapsedMs: averageElapsed(dbExecuteElapsedMs, count),
+    rowsAffectedCount: rowsAffectedCount > 0 ? rowsAffectedCount : null,
+    rowsAffected: rowsAffectedCount > 0 ? rowsAffected : null,
+    averageRowsAffected: averageRowsAffected(rowsAffected, rowsAffectedCount),
   });
 }
 
@@ -172,6 +182,11 @@ function slowestSessionOperation(operations) {
 
 function averageElapsed(totalElapsedMs, count, fallback = undefined) {
   if (Number.isFinite(totalElapsedMs) && count > 0) return roundFloat(totalElapsedMs / count);
+  return numberOrNull(fallback);
+}
+
+function averageRowsAffected(rowsAffected, rowsAffectedCount, fallback = undefined) {
+  if (rowsAffectedCount > 0) return roundFloat(rowsAffected / rowsAffectedCount);
   return numberOrNull(fallback);
 }
 
