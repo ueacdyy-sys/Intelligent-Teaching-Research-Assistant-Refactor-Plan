@@ -34,6 +34,8 @@ describe("system sustained mixed workload scale-up runner", () => {
       "150",
       "--identity-session-db-session-table-persistence",
       "UNLOGGED",
+      "--identity-session-db-write-concurrency",
+      "10",
       "--stop-on-failure",
       "false",
     ]);
@@ -46,6 +48,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
     assert.equal(parsed.identitySessionDbSessionTablePersistence, "unlogged");
+    assert.equal(parsed.identitySessionDbWriteConcurrency, "10");
     assert.equal(parsed.stopOnFailure, "false");
   });
 
@@ -68,6 +71,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
+      identitySessionDbWriteConcurrency: "10",
     });
 
     assert.deepEqual(steps.map((step) => step.name), ["smoke", "low"]);
@@ -89,6 +93,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.identityIngressCount, "16");
     assert.equal(steps[0].options.identityIngressMaxConnsPerHost, "40");
     assert.equal(steps[0].options.identitySessionDbSessionTablePersistence, "unlogged");
+    assert.equal(steps[0].options.identitySessionDbWriteConcurrency, "10");
   });
 
   it("runs every scale-up step and writes a passed report", async () => {
@@ -242,6 +247,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
+      identitySessionDbWriteConcurrency: "10",
     };
     const steps = buildScaleUpSteps({
       ...options,
@@ -276,6 +282,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       warmConnectionsPerHost: 16,
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
+    assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
   });
 
   it("does not convert missing P99 drift into a scale-up drift metric", () => {

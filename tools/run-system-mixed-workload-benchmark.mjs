@@ -30,6 +30,7 @@ export const defaults = {
   identityGatewayCount: "1",
   conversationGatewayCount: "1",
   identitySessionDbMaxConns: "8",
+  identitySessionDbWriteConcurrency: "0",
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "4",
   teachingDbMaxConns: "2",
@@ -83,6 +84,8 @@ export function buildWorkloadCommands(options) {
         options.identityGatewayCount,
         "--session-db-max-conns",
         options.identitySessionDbMaxConns,
+        "--session-db-write-concurrency",
+        options.identitySessionDbWriteConcurrency,
         "--session-db-session-table-persistence",
         identitySessionTablePersistence(options),
         "--concurrency",
@@ -278,6 +281,7 @@ export function buildSystemMixedWorkloadReport({
     identityIngressProfile: buildMixedWorkloadIdentityIngressProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
+      identitySessionDbWriteConcurrency: parseInteger(options.identitySessionDbWriteConcurrency),
       identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
@@ -469,6 +473,7 @@ function validateOptions(options) {
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
   assertPositiveInteger(options.conversationGatewayCount, "conversation-gateway-count");
   assertPositiveInteger(options.identitySessionDbMaxConns, "identity-session-db-max-conns");
+  assertNonNegativeInteger(options.identitySessionDbWriteConcurrency, "identity-session-db-write-concurrency");
   identitySessionTablePersistence(options);
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
@@ -648,6 +653,10 @@ function portFromUrl(urlText, name) {
 function assertPositiveInteger(value, name) {
   const parsed = parseInteger(value);
   if (parsed <= 0) throw new Error(`${name} must be a positive integer`);
+}
+
+function assertNonNegativeInteger(value, name) {
+  if (!/^\d+$/u.test(String(value))) throw new Error(`${name} must be a non-negative integer`);
 }
 
 function parseInteger(value) {

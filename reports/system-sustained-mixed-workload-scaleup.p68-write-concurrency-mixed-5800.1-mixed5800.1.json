@@ -1,0 +1,202 @@
+{
+  "generatedAt": "2026-06-02T05:00:25.860Z",
+  "startedAt": "2026-06-02T04:59:17.457Z",
+  "endedAt": "2026-06-02T05:00:25.860Z",
+  "benchmarkKind": "system_mixed_workload",
+  "workloadType": "MIXED_WORKLOAD",
+  "profile": "SUSTAINED_SCALEUP_P68_WRITE_CONCURRENCY_MIXED_5800_MIXED5800_SAMPLE_1",
+  "status": "FAILED",
+  "concurrencyProfile": {
+    "identityConcurrency": 5800,
+    "conversationConcurrency": 5800,
+    "teachingConcurrency": 290,
+    "identityGatewayCount": 12,
+    "conversationGatewayCount": 16
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 300,
+    "sharedWarmConnectionsPerHost": 75,
+    "identityMaxConnsPerHost": 150,
+    "identityWarmConnectionsPerHost": 150
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 19080,
+    "workerCount": 16,
+    "upstreamGatewayCount": 12,
+    "maxConnsPerHost": 40,
+    "warmConnectionsPerHost": 16
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 10,
+    "identitySessionDbWriteConcurrency": 10,
+    "identitySessionTablePersistence": "unlogged",
+    "conversationDbMaxConns": 1,
+    "teachingDbMaxConns": 1,
+    "conversationWriteBatchSize": 64
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_ORCHESTRATOR",
+    "managedDocker": false,
+    "dockerCleanup": "none"
+  },
+  "workloads": [
+    {
+      "name": "identity_http",
+      "moduleSlice": "Identity And Access",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.identity-http.json",
+      "status": "FAILED",
+      "exitCode": 1,
+      "elapsedMs": 68399,
+      "errors": 0,
+      "p95Ms": null,
+      "p99Ms": null,
+      "rps": null,
+      "readiness": null,
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "passwordLogin failed with 4 errors; first error: Post \"http://127.0.0.1:19085/v1/identity/sessions/password\": dial tcp 127.0.0.1:19085: bind: An operation on a socket could not be performed because the system lacked sufficient buffer space or because a queue was full.\nexit status 1",
+      "summary": {
+        "errors": 0,
+        "p95Ms": null,
+        "p99Ms": null,
+        "rps": null,
+        "concurrency": 5800
+      }
+    },
+    {
+      "name": "conversation_write",
+      "moduleSlice": "Research Conversation Write",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.conversation-write.json",
+      "status": "FAILED",
+      "exitCode": 1,
+      "elapsedMs": 10362,
+      "errors": 7,
+      "p95Ms": 806.76,
+      "p99Ms": 856.79,
+      "rps": 12390.15,
+      "readiness": null,
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "conversation write benchmark exited with code 1",
+      "summary": {
+        "errors": 7,
+        "p95Ms": 806.76,
+        "p99Ms": 856.79,
+        "rps": 12390.15,
+        "concurrency": 5800,
+        "dbAcquireP99Ms": 0
+      }
+    },
+    {
+      "name": "teaching_archive",
+      "moduleSlice": "Teaching Archive And Quiz",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.teaching-archive.json",
+      "status": "PASSED",
+      "exitCode": 0,
+      "elapsedMs": 9359,
+      "errors": 0,
+      "p95Ms": 1529,
+      "p99Ms": 1540,
+      "rps": 213.24,
+      "readiness": null,
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "Teaching archive benchmark: PASSED\nConcurrency: 290\nOperations per phase: 580\nTotal errors: 0\n\nPhase results:\n- createArchiveItem p95=1529ms p99=1540ms errors=0\n- createQuizSubmission p95=1136ms p99=1140ms errors=0\n- listArchiveItems p95=851ms p99=855ms errors=0",
+      "summary": {
+        "errors": 0,
+        "p95Ms": 1529,
+        "p99Ms": 1540,
+        "rps": 213.24,
+        "concurrency": 290
+      }
+    },
+    {
+      "name": "knowledge_retrieval",
+      "moduleSlice": "Knowledge Retrieval",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.knowledge-retrieval.json",
+      "status": "READY",
+      "exitCode": 0,
+      "elapsedMs": 148,
+      "errors": 0,
+      "p95Ms": 2.55,
+      "p99Ms": null,
+      "rps": null,
+      "readiness": "READY",
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "Knowledge retrieval benchmark: READY\n\nP95 query plan: 2.55ms\nMax candidates: directory=1 chunk=2\n\nFindings:\n- PASS profile.non_empty_corpus: actual=documents=4 chunks=8 workloads=4 expected=documents>0 chunks>0 workloads>0\n- PASS profile.workload_coverage: actual=nodes=CLOUD,LOCAL,REMOTE_DEVICE classifications=PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED expected=nodes=CLOUD,LOCAL,REMOTE_DEVICE classifications=PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED\n- PASS policy.hybrid_enabled: actual=default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true expected=default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true\n- PASS benchmark.non_empty_hybrid_plans: actual=cloud_public_lesson_design:HYBRID:dir=1:chunk=2:returned=3;local_private_rag_notes:HYBRID:dir=1:chunk=2:returned=3;local_student_archive_tutoring:HYBRID:dir=1:chunk=2:returned=3;remote_owned_research_notes:HYBRID:dir=1:chunk=2:returned=3 expected=every workload HYBRID with directoryCandidates>0 chunkCandidates>0 returnedCandidates>0\n- PASS benchmark.candidate_budget: actual=directory=1 chunk=2 expected=directory<=24 chunk<=80\n- PASS benchmark.p95_budget: actual=2.55ms expected=<=120ms\n- PASS benchmark.no_cross_classification_leakage: actual=none expected=all expected and returned classifications are allowed by node policy",
+      "summary": {
+        "readiness": "READY",
+        "errors": 0,
+        "p95Ms": 2.55
+      }
+    },
+    {
+      "name": "ai_worker_admission",
+      "moduleSlice": "AI Worker Admission",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.ai-worker-admission.json",
+      "status": "READY",
+      "exitCode": 0,
+      "elapsedMs": 134,
+      "errors": 0,
+      "p95Ms": null,
+      "p99Ms": null,
+      "rps": null,
+      "readiness": "READY",
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "AI Worker job admission: READY\n\nDispatch decision: ALLOW_DISPATCH\n\nFindings:\n- PASS admission.current_jobs_allowed: actual=ai_worker_job_public_rag_cloud_001:ALLOW_DISPATCH;ai_worker_job_private_rag_local_001:ALLOW_DISPATCH;ai_worker_job_student_ocr_local_001:ALLOW_DISPATCH;ai_worker_job_private_finetune_local_001:ALLOW_DISPATCH;ai_worker_job_remote_owned_rag_001:ALLOW_DISPATCH expected=all current AI worker job examples ALLOW_DISPATCH\n- PASS admission.identity_preserved: actual=ai_worker_job_public_rag_cloud_001:CLOUD:RAG_RETRIEVAL;ai_worker_job_private_rag_local_001:LOCAL:RAG_RETRIEVAL;ai_worker_job_student_ocr_local_001:LOCAL:OCR_RECOGNITION;ai_worker_job_private_finetune_local_001:LOCAL:FINE_TUNING;ai_worker_job_remote_owned_rag_001:REMOTE_DEVICE:RAG_RETRIEVAL expected=jobId,nodeType,capabilityKind preserved in every admission\n- PASS admission.policy_version_preserved: actual=2026-05-30.knowledge.access-policy.v1 expected=2026-05-30.knowledge.access-policy.v1\n- PASS admission.no_baseline_runtime_dependency: actual=ai_worker_job_public_rag_cloud_001:baseline=false;ai_worker_job_private_rag_local_001:baseline=false;ai_worker_job_student_ocr_local_001:baseline=false;ai_worker_job_private_finetune_local_001:baseline=false;ai_worker_job_remote_owned_rag_001:baseline=false expected=baselineRuntimeDependencyAllowed=false for every job\n- PASS admission.no_direct_db_write: actual=ai_worker_job_public_rag_cloud_001:directDb=false;ai_worker_job_private_rag_local_001:directDb=false;ai_worker_job_student_ocr_local_001:directDb=false;ai_worker_job_private_finetune_local_001:directDb=false;ai_worker_job_remote_owned_rag_001:directDb=false expected=directMainDatabaseWriteAllowed=false for every job\n- PASS admission.cloud_public_only: actual=ai_worker_job_public_rag_cloud_001:PUBLIC_KNOWLEDGE:student=NONE expected=CLOUD jobs use PUBLIC_KNOWLEDGE with studentDataScope=NONE\n- PASS admission.remote_device_owned_only: actual=ai_worker_job_remote_owned_rag_001:REMOTE_DEVICE_OWNED_KNOWLEDGE:student=NONE expected=REMOTE_DEVICE jobs use REMOTE_DEVICE_OWNED_KNOWLEDGE only",
+      "summary": {
+        "readiness": "READY",
+        "errors": 0
+      }
+    }
+  ],
+  "summary": {
+    "totalErrors": 7,
+    "workloadErrors": 7,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 1529,
+    "maxP99Ms": 1540,
+    "passedWorkloads": 3,
+    "failedWorkloads": 2
+  },
+  "setup": [],
+  "cleanup": [],
+  "runnerErrors": [],
+  "sourceCommands": [
+    {
+      "name": "identity_http",
+      "moduleSlice": "Identity And Access",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.identity-http.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-identity-http-benchmark.mjs --base-url http://127.0.0.1:18300 --gateway-count 12 --session-db-max-conns 10 --session-db-write-concurrency 10 --session-db-session-table-persistence unlogged --concurrency 5800 --operations 11600 --max-conns-per-host 150 --warm-connections-per-host 150 --ingress-proxy true --ingress-port 19080 --ingress-count 16 --ingress-max-conns-per-host 40 --ingress-warm-connections-per-host 16 --out reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.identity-http.json --timeout 2400s --startup-timeout-ms 180000"
+    },
+    {
+      "name": "conversation_write",
+      "moduleSlice": "Research Conversation Write",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.conversation-write.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-conversation-write-benchmark.mjs --base-url http://127.0.0.1:18400 --gateway-count 16 --db-max-conns 1 --write-batch-size 64 --write-batch-delay-ms 0 --agent-api-key *** --concurrency 5800 --operations 11600 --max-conns-per-host 300 --warm-connections-per-host 75 --out reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.conversation-write.json --timeout 2400s --startup-timeout-ms 180000"
+    },
+    {
+      "name": "teaching_archive",
+      "moduleSlice": "Teaching Archive And Quiz",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.teaching-archive.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-teaching-archive-benchmark.mjs --base-url http://127.0.0.1:18500 --db-max-conns 1 --agent-api-key *** --concurrency 290 --operations 580 --out reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.teaching-archive.json --timeout-ms 10000 --startup-timeout-ms 180000"
+    },
+    {
+      "name": "knowledge_retrieval",
+      "moduleSlice": "Knowledge Retrieval",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.knowledge-retrieval.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/knowledge-retrieval-benchmark-audit.mjs --out reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.knowledge-retrieval.json"
+    },
+    {
+      "name": "ai_worker_admission",
+      "moduleSlice": "AI Worker Admission",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.ai-worker-admission.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/ai-worker-job-admission.mjs --out reports/system-sustained-mixed-workload-scaleup.p68-write-concurrency-mixed-5800.1-mixed5800.1.ai-worker-admission.json"
+    }
+  ],
+  "errors": 7,
+  "nextAction": "Fix the failed mixed workload slice before using it for system capacity claims."
+}

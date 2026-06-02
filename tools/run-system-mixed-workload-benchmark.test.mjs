@@ -32,6 +32,8 @@ describe("system mixed workload benchmark runner", () => {
       "150",
       "--identity-session-db-session-table-persistence",
       "UNLOGGED",
+      "--identity-session-db-write-concurrency",
+      "10",
       "--unknown-option",
       "ignored",
     ]);
@@ -44,6 +46,7 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
     assert.equal(parsed.identitySessionDbSessionTablePersistence, "unlogged");
+    assert.equal(parsed.identitySessionDbWriteConcurrency, "10");
     assert.equal(parsed.profile, defaults.profile);
     assert.equal(Object.hasOwn(parsed, "unknownOption"), false);
   });
@@ -69,6 +72,7 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
+      identitySessionDbWriteConcurrency: "10",
     });
 
     assert.deepEqual(commands.map((command) => command.name), [
@@ -87,6 +91,7 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[0].args, "--ingress-max-conns-per-host"), "40");
     assert.equal(argumentAfter(commands[0].args, "--ingress-warm-connections-per-host"), "16");
     assert.equal(argumentAfter(commands[0].args, "--session-db-session-table-persistence"), "unlogged");
+    assert.equal(argumentAfter(commands[0].args, "--session-db-write-concurrency"), "10");
     assert.equal(argumentAfter(commands[1].args, "--base-url"), "http://127.0.0.1:19100");
     assert.equal(argumentAfter(commands[1].args, "--agent-api-key"), "ueacd");
     assert.equal(argumentAfter(commands[1].args, "--max-conns-per-host"), "70");
@@ -278,6 +283,7 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
       identitySessionDbSessionTablePersistence: "unlogged",
+      identitySessionDbWriteConcurrency: "10",
     };
     const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
@@ -316,6 +322,22 @@ describe("system mixed workload benchmark runner", () => {
       warmConnectionsPerHost: 16,
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
+    assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+  });
+
+  it("rejects negative identity write concurrency", async () => {
+    const root = makeTempRoot();
+
+    await assert.rejects(
+      () => runSystemMixedWorkloadBenchmark(
+        {
+          ...defaults,
+          identitySessionDbWriteConcurrency: "-1",
+        },
+        { root, runCommand: successfulChildCommand },
+      ),
+      /identity-session-db-write-concurrency must be a non-negative integer/u,
+    );
   });
 });
 

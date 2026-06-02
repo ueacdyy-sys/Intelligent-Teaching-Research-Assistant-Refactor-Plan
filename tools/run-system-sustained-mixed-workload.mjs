@@ -36,6 +36,7 @@ export const defaults = {
   identityGatewayCount: "1",
   conversationGatewayCount: "1",
   identitySessionDbMaxConns: "4",
+  identitySessionDbWriteConcurrency: "0",
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "1",
   teachingDbMaxConns: "1",
@@ -106,6 +107,7 @@ export function buildSampleRuns(options) {
         identityGatewayCount: options.identityGatewayCount,
         conversationGatewayCount: options.conversationGatewayCount,
         identitySessionDbMaxConns: options.identitySessionDbMaxConns,
+        identitySessionDbWriteConcurrency: options.identitySessionDbWriteConcurrency,
         identitySessionDbSessionTablePersistence: identitySessionTablePersistence(options),
         conversationDbMaxConns: options.conversationDbMaxConns,
         teachingDbMaxConns: options.teachingDbMaxConns,
@@ -223,6 +225,7 @@ export function buildSystemSustainedMixedWorkloadReport({
     identityIngressProfile: buildSustainedMixedWorkloadIdentityIngressProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
+      identitySessionDbWriteConcurrency: parseInteger(options.identitySessionDbWriteConcurrency),
       identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
@@ -338,6 +341,7 @@ function validateOptions(options, sampleRuns) {
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
   assertPositiveInteger(options.conversationGatewayCount, "conversation-gateway-count");
   assertPositiveInteger(options.identitySessionDbMaxConns, "identity-session-db-max-conns");
+  assertNonNegativeInteger(options.identitySessionDbWriteConcurrency, "identity-session-db-write-concurrency");
   identitySessionTablePersistence(options);
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
@@ -421,8 +425,7 @@ function assertPositiveInteger(value, name) {
 }
 
 function assertNonNegativeInteger(value, name) {
-  const parsed = parseInteger(value);
-  if (parsed < 0) throw new Error(`${name} must be a non-negative integer`);
+  if (!/^\d+$/u.test(String(value))) throw new Error(`${name} must be a non-negative integer`);
 }
 
 function parseInteger(value) {
