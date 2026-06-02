@@ -269,6 +269,74 @@ describe("identity phase-aware matrix runner", () => {
     assert.doesNotMatch(JSON.stringify(report), /ueacd/u);
   });
 
+  it("can isolate every case with a managed Docker reset and setup", async () => {
+    const root = makeTempRoot();
+    const executed = [];
+    const report = await runIdentityPhaseMatrix(
+      {
+        ...defaults,
+        out: "reports/matrix.json",
+        manageDocker: "true",
+        dockerCleanup: "reset",
+        caseIsolation: "docker-reset",
+        cases: "min0:2:8:0:2:32:16:32:16,min8:2:8:8:2:32:16:32:16",
+      },
+      {
+        root,
+        runCase: async (matrixCase) => {
+          executed.push(matrixCase.name);
+          return identityReport({ revokeCycleP99: matrixCase.name === "min0" ? 120 : 90 });
+        },
+        runSync: (_command, args) => ({
+          command: "npm",
+          args,
+          exitCode: 0,
+          elapsedMs: 5,
+          outputTail: "",
+        }),
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "PASSED");
+    assert.deepEqual(executed, ["min0", "min8"]);
+    assert.deepEqual(report.setup.map((entry) => entry.phase), [
+      "case-min0-reset",
+      "case-min0-up",
+      "case-min8-reset",
+      "case-min8-up",
+    ]);
+    assert.equal(report.cleanup[0].phase, "cleanup");
+    assert.equal(report.targetProfile.caseIsolation, "docker-reset");
+    assert.equal(report.runtimeProfile.caseIsolation, "docker-reset");
+  });
+
+  it("rejects Docker case isolation when managed Docker is disabled", async () => {
+    const root = makeTempRoot();
+    const executed = [];
+    const report = await runIdentityPhaseMatrix(
+      {
+        ...defaults,
+        out: "reports/matrix.json",
+        manageDocker: "false",
+        caseIsolation: "docker-reset",
+        cases: "a:2:8:2:32:16:32:16",
+      },
+      {
+        root,
+        runCase: async (matrixCase) => {
+          executed.push(matrixCase.name);
+          return identityReport();
+        },
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "FAILED");
+    assert.deepEqual(executed, []);
+    assert.match(report.runnerErrors.join("\n"), /caseIsolation=docker-reset requires manageDocker=true/u);
+  });
+
   it("stops after the first failed case when requested", async () => {
     const root = makeTempRoot();
     const executed = [];

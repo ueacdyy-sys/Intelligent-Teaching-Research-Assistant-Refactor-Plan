@@ -18,6 +18,7 @@ export const defaults = {
   sessionDbWriteConcurrency: "0",
   sessionDbSessionTablePersistence: "unlogged",
   benchmarkRuntime: "docker",
+  caseIsolation: "none",
   pgbouncerDiagnostics: "true",
   timeout: "180s",
   startupTimeoutMs: "120000",
@@ -63,6 +64,8 @@ export async function runIdentityPhaseMatrix(options = parseArgs(process.argv.sl
   const runSyncFn = dependencies.runSync ?? runSync;
   const runCaseFn = dependencies.runCase ?? runCase;
   const now = dependencies.now ?? (() => new Date().toISOString());
+  const managedDocker = parseBoolean(options.manageDocker);
+  const caseIsolation = normalizeCaseIsolation(options.caseIsolation);
   const startedAt = now();
   const setup = [];
   const cleanup = [];
@@ -73,7 +76,7 @@ export async function runIdentityPhaseMatrix(options = parseArgs(process.argv.sl
   try {
     validateOptions(options, cases);
     removeReport(root, options.out);
-    if (parseBoolean(options.manageDocker)) {
+    if (managedDocker && caseIsolation === "none") {
       setup.push({ phase: "setup-reset", ...runSyncFn("npm", ["run", "perf:identity-session:reset"], root) });
       if (setup.at(-1).exitCode !== 0) throw new Error("managed Docker reset failed before matrix execution");
       setup.push({ phase: "setup-up", ...runSyncFn("npm", ["run", "perf:identity-session:up"], root) });
@@ -81,6 +84,9 @@ export async function runIdentityPhaseMatrix(options = parseArgs(process.argv.sl
     }
 
     for (const matrixCase of cases) {
+      if (managedDocker && caseIsolation === "docker-reset") {
+        setup.push(...setupManagedDockerCase(root, runSyncFn, matrixCase));
+      }
       const report = await runCaseFn(matrixCase, options, root);
       caseReports.push({ case: matrixCase, report });
       if (parseBoolean(options.stopOnFailure) && report.status !== "PASSED") break;
@@ -88,7 +94,7 @@ export async function runIdentityPhaseMatrix(options = parseArgs(process.argv.sl
   } catch (error) {
     runnerErrors.push(maskSensitive(error instanceof Error ? error.message : String(error)));
   } finally {
-    if (parseBoolean(options.manageDocker)) {
+    if (managedDocker) {
       cleanup.push({ phase: "cleanup", ...runSyncFn("npm", ["run", `perf:identity-session:${options.dockerCleanup}`], root) });
     }
   }
@@ -147,11 +153,13 @@ export function buildIdentityPhaseMatrixReport({
       sessionDbMinConnsPerWorkerValues: uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbMinConns)),
       sessionTablePersistence: options.sessionDbSessionTablePersistence,
       benchmarkRuntime: options.benchmarkRuntime,
+      caseIsolation: normalizeCaseIsolation(options.caseIsolation),
     },
     runtimeProfile: {
       executor: "LOCAL_NODE_IDENTITY_PHASE_MATRIX",
       managedDocker: parseBoolean(options.manageDocker),
       dockerCleanup: options.dockerCleanup,
+      caseIsolation: normalizeCaseIsolation(options.caseIsolation),
     },
     cases: caseSummaries,
     summary: summarizeMatrix(caseSummaries, orchestrationErrors),
@@ -363,6 +371,10 @@ function validateOptions(options, cases) {
   positiveInteger(options.concurrency, "options", "concurrency");
   positiveInteger(options.operations, "options", "operations");
   nonNegativeInteger(options.sessionDbMinConns, "options", "sessionDbMinConns");
+  const caseIsolation = normalizeCaseIsolation(options.caseIsolation);
+  if (caseIsolation === "docker-reset" && !parseBoolean(options.manageDocker)) {
+    throw new Error("caseIsolation=docker-reset requires manageDocker=true");
+  }
   for (const matrixCase of cases) {
     if (matrixCase.sessionDbMinConns > matrixCase.sessionDbMaxConns) {
       throw new Error(`sessionDbMinConns must be <= sessionDbMaxConns for case ${matrixCase.name}`);
@@ -372,6 +384,16 @@ function validateOptions(options, cases) {
     throw new Error("docker-cleanup must be down or reset");
   }
   if (cases.length === 0) throw new Error("at least one matrix case is required");
+}
+
+function setupManagedDockerCase(root, runSyncFn, matrixCase) {
+  const label = safeName(matrixCase.name);
+  const setup = [];
+  setup.push({ phase: `case-${label}-reset`, ...runSyncFn("npm", ["run", "perf:identity-session:reset"], root) });
+  if (setup.at(-1).exitCode !== 0) throw new Error(`managed Docker case reset failed before matrix case ${matrixCase.name}`);
+  setup.push({ phase: `case-${label}-up`, ...runSyncFn("npm", ["run", "perf:identity-session:up"], root) });
+  if (setup.at(-1).exitCode !== 0) throw new Error(`managed Docker case setup failed before matrix case ${matrixCase.name}`);
+  return setup;
 }
 
 function runSync(command, args, cwd) {
@@ -515,6 +537,12 @@ function nonNegativeInteger(value, source, field) {
 function parseInteger(value) {
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function normalizeCaseIsolation(value) {
+  const normalized = String(value ?? "none").trim().toLowerCase();
+  if (normalized === "none" || normalized === "docker-reset") return normalized;
+  throw new Error(`caseIsolation must be none or docker-reset: ${value}`);
 }
 
 function numberOrZero(value) {
