@@ -24,14 +24,25 @@ describe("root SLO promotion review audit", () => {
 
     assert.equal(report.readiness, "READY");
     assert.equal(report.workloadType, "ROOT_SLO_PROMOTION_REVIEW");
+    assert.equal(report.promotionPolicy.reviewedClaim, "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS");
+    assert.equal(report.promotionPolicy.productionReadWriteRpsTarget, 10000);
+    assert.equal(report.promotionPolicy.interactiveP99TargetMs, 300);
     assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
     assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
-    assert.equal(report.promotion.blockerCount, 4);
+    assert.equal(report.promotion.blockerCount, 5);
     assert.match(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.interactive_tail_latency_within_target").actual,
       /identityRevokeSlowestStep=login:1498\.29/,
     );
+    assert.equal(report.evidence.productionThroughput.targetReadWriteRps, 10000);
+    assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, null);
+    assert.equal(report.evidence.productionThroughput.source, "missing");
+    assert.equal(
+      report.promotion.blockers.find((blocker) => blocker.id === "promotion.production_read_write_rps_target_met").actual,
+      "missing",
+    );
     assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
+    assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE"));
     assert.equal(report.evidence.databaseHeadroom.satisfiedBy, "production_headroom_profile");
     assert.match(formatRootSloPromotionReview(report), /Decision: BLOCK_PROMOTION/);
@@ -94,6 +105,7 @@ describe("root SLO promotion review audit", () => {
     assert(failedGateIds.includes("promotion.interactive_tail_latency_within_target"));
     assert(!failedGateIds.includes("promotion.database_headroom_sufficient"));
     assert(failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
+    assert(failedGateIds.includes("promotion.production_read_write_rps_target_met"));
   });
 
   it("approves promotion only when every root SLO gate is satisfied", () => {
@@ -110,22 +122,23 @@ describe("root SLO promotion review audit", () => {
     const diagnostics = parseReport(inputs, sourceReports.crossModuleDiagnostics);
     diagnostics.databaseTopology.hotPathPool.pgbouncerHeadroom = 30;
     diagnostics.moduleDiagnostics = diagnostics.moduleDiagnostics.map((module) => ({
-      ...module,
-      classification: "RUNTIME_SLO_EVIDENCE",
-      metrics: {
-        ...module.metrics,
-        slowestP99Ms: module.id === "identity_and_access" ? 500 : module.metrics?.slowestP99Ms,
-        lowTailP99Ms: module.id === "research_conversation_write" ? 350 : module.metrics?.lowTailP99Ms,
-        burstP99Ms: module.id === "research_conversation_write" ? 700 : module.metrics?.burstP99Ms,
-      },
-    }));
+        ...module,
+        classification: "RUNTIME_SLO_EVIDENCE",
+        metrics: {
+          ...module.metrics,
+          slowestP99Ms: module.id === "identity_and_access" ? 180 : module.metrics?.slowestP99Ms,
+          lowTailP99Ms: module.id === "research_conversation_write" ? 160 : module.metrics?.lowTailP99Ms,
+          burstP99Ms: module.id === "research_conversation_write" ? 240 : module.metrics?.burstP99Ms,
+        },
+      }));
     diagnostics.mixedWorkloadDiagnostics.highestPassedStep = "high";
-    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 700;
+    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 240;
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(diagnostics);
 
     const scaleUp = parseReport(inputs, sourceReports.sustainedScaleUp);
     scaleUp.summary.highestPassedStep = "high";
-    scaleUp.summary.maxP99Ms = 700;
+    scaleUp.summary.maxP99Ms = 240;
+    scaleUp.summary.highestPassedReadWriteRps = 12000;
     inputs.reports[sourceReports.sustainedScaleUp] = JSON.stringify(scaleUp);
 
     const report = auditRootSloPromotionReview(inputs);

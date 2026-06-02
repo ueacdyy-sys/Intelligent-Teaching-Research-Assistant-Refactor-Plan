@@ -187,15 +187,21 @@ export function auditSystemCapacityClaim(inputs) {
       "docs/sdd/0141-system-sustained-mixed-workload-scale-up-runner.md",
       "docs/sdd/0142-root-workflow-coverage-audit.md",
       "docs/sdd/0144-root-slo-promotion-review-audit.md",
+      "docs/sdd/0181-root-slo-production-rps-target.md",
     ],
   };
 }
 
 export function formatSystemCapacityClaimAudit(report) {
+  const rootSloSummary = report.rootSloPromotionReviewEvidence?.summary ?? {};
+  const reviewedClaim = rootSloSummary.reviewedClaim ?? "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS";
   const lines = [
     `System capacity claim audit: ${report.readiness}`,
     "",
-    `Full-system ultra-concurrency claim: ${report.claim.fullSystemUltraConcurrency.status}`,
+    `Full-system production 10k RPS claim: ${report.claim.fullSystemUltraConcurrency.status}`,
+    `Reviewed claim: ${reviewedClaim}`,
+    `Production RPS target: ${rootSloSummary.productionReadWriteRpsTarget ?? "unknown"}`,
+    `Interactive P99 target: ${rootSloSummary.interactiveP99TargetMs ?? "unknown"}ms`,
     `Mixed workload evidence: ${report.mixedWorkloadEvidence.count}`,
     `Sustained mixed workload evidence: ${report.sustainedMixedWorkloadEvidence?.count ?? 0}`,
     `Sustained scale-up evidence: ${report.sustainedMixedWorkloadScaleUpEvidence?.count ?? 0}`,
@@ -344,6 +350,10 @@ function summarizeRootSloPromotionReview(reportState) {
       readiness: report.readiness ?? null,
       decision: report.promotion?.decision ?? null,
       claimStatus: report.promotion?.claimStatus ?? null,
+      reviewedClaim: report.promotion?.reviewedClaim ?? report.promotionPolicy?.reviewedClaim ?? null,
+      productionReadWriteRpsTarget: numberOrNull(report.promotionPolicy?.productionReadWriteRpsTarget),
+      interactiveP99TargetMs: numberOrNull(report.promotionPolicy?.interactiveP99TargetMs),
+      measuredReadWriteRps: numberOrNull(report.evidence?.productionThroughput?.measuredReadWriteRps),
       blockerCount: numberOrNull(report.promotion?.blockerCount),
       blockerIds: Array.isArray(report.promotion?.blockers)
         ? report.promotion.blockers.map((blocker) => blocker.id).filter(Boolean)

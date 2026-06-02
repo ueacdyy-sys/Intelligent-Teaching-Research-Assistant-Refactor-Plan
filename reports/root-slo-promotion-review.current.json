@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-02T07:12:15.131Z",
+  "generatedAt": "2026-06-02T14:17:36.475Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -16,8 +16,9 @@
     ]
   },
   "promotionPolicy": {
-    "reviewedClaim": "FULL_SYSTEM_ULTRA_CONCURRENCY",
-    "interactiveP99TargetMs": 1000,
+    "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
+    "productionReadWriteRpsTarget": 10000,
+    "interactiveP99TargetMs": 300,
     "minimumPgbouncerHeadroomRatio": 0.2,
     "minimumSustainedStepName": "high",
     "minimumSustainedStepRank": 4,
@@ -50,7 +51,7 @@
       ]
     },
     "latency": {
-      "targetP99Ms": 1000,
+      "targetP99Ms": 300,
       "samples": [
         {
           "name": "identity.slowest_p99_ms",
@@ -106,16 +107,21 @@
       "totalErrors": 0,
       "orchestrationErrors": 0
     },
+    "productionThroughput": {
+      "targetReadWriteRps": 10000,
+      "measuredReadWriteRps": null,
+      "source": "missing"
+    },
     "quality": {
       "allPassed": true,
       "commandCount": 0
     }
   },
   "promotion": {
-    "reviewedClaim": "FULL_SYSTEM_ULTRA_CONCURRENCY",
+    "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
     "decision": "BLOCK_PROMOTION",
     "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-    "blockerCount": 4,
+    "blockerCount": 5,
     "blockers": [
       {
         "id": "promotion.root_workflows_runtime_slo_covered",
@@ -132,21 +138,28 @@
       {
         "id": "promotion.interactive_tail_latency_within_target",
         "actual": "identity.slowest_p99_ms=3071.17;identityRevokeSlowestStep=login:1498.29;stepP99Sum=3502.89;p99Residual=-431.72",
-        "expected": "max interactive/root workflow P99 <= 1000ms",
-        "remediation": "Reduce the slowest root workflow tail latency before making an ultra-concurrency claim."
+        "expected": "max interactive/root workflow P99 <= 300ms",
+        "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
       },
       {
         "id": "promotion.sustained_scale_depth_sufficient",
         "actual": "highest=low;rank=2;errors=0;orchestration=0",
         "expected": "highest passed sustained mixed workload step >= high with zero errors",
         "remediation": "Run a higher sustained mixed workload step before promotion."
+      },
+      {
+        "id": "promotion.production_read_write_rps_target_met",
+        "actual": "missing",
+        "expected": "measured sustained read/write RPS >= 10000",
+        "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
       }
     ],
     "requiredNextEvidence": [
       "ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE",
       "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
       "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
-      "HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"
+      "HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP",
+      "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
     ]
   },
   "auditFindings": [
@@ -229,8 +242,8 @@
       "passed": false,
       "severity": "promotion_blocker",
       "actual": "identity.slowest_p99_ms=3071.17;identityRevokeSlowestStep=login:1498.29;stepP99Sum=3502.89;p99Residual=-431.72",
-      "expected": "max interactive/root workflow P99 <= 1000ms",
-      "remediation": "Reduce the slowest root workflow tail latency before making an ultra-concurrency claim."
+      "expected": "max interactive/root workflow P99 <= 300ms",
+      "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
     },
     {
       "id": "promotion.database_headroom_sufficient",
@@ -247,7 +260,15 @@
       "actual": "highest=low;rank=2;errors=0;orchestration=0",
       "expected": "highest passed sustained mixed workload step >= high with zero errors",
       "remediation": "Run a higher sustained mixed workload step before promotion."
+    },
+    {
+      "id": "promotion.production_read_write_rps_target_met",
+      "passed": false,
+      "severity": "promotion_blocker",
+      "actual": "missing",
+      "expected": "measured sustained read/write RPS >= 10000",
+      "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
     }
   ],
-  "nextAction": "Do not promote full-system ultra-concurrency; remediate the listed root SLO blockers and rerun the review."
+  "nextAction": "Do not promote the production 10k read/write RPS claim; remediate the listed root SLO blockers and rerun the review."
 }

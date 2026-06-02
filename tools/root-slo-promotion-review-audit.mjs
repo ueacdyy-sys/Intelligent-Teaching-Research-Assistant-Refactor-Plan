@@ -20,8 +20,9 @@ export const sourceReports = {
 };
 
 export const rootSloPromotionPolicy = {
-  reviewedClaim: "FULL_SYSTEM_ULTRA_CONCURRENCY",
-  interactiveP99TargetMs: 1000,
+  reviewedClaim: "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
+  productionReadWriteRpsTarget: 10000,
+  interactiveP99TargetMs: 300,
   minimumPgbouncerHeadroomRatio: 0.2,
   minimumSustainedStepName: "high",
   minimumSustainedStepRank: 4,
@@ -81,8 +82,8 @@ export function auditRootSloPromotionReview(inputs) {
     nextAction: readiness !== "READY"
       ? "Fix the root SLO promotion review inputs before capacity assessment."
       : decision === "APPROVE_PROMOTION"
-        ? "Promotion review approves the current full-system claim; keep the exact SLO profile, workload shape, and quality gate attached to the claim."
-        : "Do not promote full-system ultra-concurrency; remediate the listed root SLO blockers and rerun the review.",
+        ? "Promotion review approves the current production 10k read/write RPS claim; keep the exact SLO profile, workload shape, and quality gate attached to the claim."
+        : "Do not promote the production 10k read/write RPS claim; remediate the listed root SLO blockers and rerun the review.",
   };
 }
 
@@ -195,6 +196,7 @@ function buildPromotionEvidence(reports) {
   const productionHeadroomReady = productionHeadroom.readiness === "READY";
   const productionCandidateHeadroom = numberOrNull(productionHeadroom.candidate?.sourceHotPathHeadroom);
   const productionCandidateMinimumHeadroom = numberOrNull(productionHeadroom.candidate?.minimumHeadroom);
+  const productionThroughput = productionThroughputEvidence(sustainedScaleUp, diagnostics);
   const shallowModules = modules
     .filter((module) => isShallowEvidenceClass(module.classification))
     .map((module) => `${module.id}:${module.classification}`);
@@ -250,6 +252,11 @@ function buildPromotionEvidence(reports) {
       totalErrors: numberOrNull(diagnostics.mixedWorkloadDiagnostics?.totalErrors ?? sustainedScaleUp.summary?.totalErrors),
       orchestrationErrors: numberOrNull(diagnostics.mixedWorkloadDiagnostics?.orchestrationErrors ?? sustainedScaleUp.summary?.orchestrationErrors),
     },
+    productionThroughput: {
+      targetReadWriteRps: rootSloPromotionPolicy.productionReadWriteRpsTarget,
+      measuredReadWriteRps: productionThroughput.measuredReadWriteRps,
+      source: productionThroughput.source,
+    },
     quality: {
       allPassed: isQualityGateReportPassing(reports.quality?.value, {
         allowInProgress: allowInProgressQualityGateFromEnv(),
@@ -281,7 +288,7 @@ function buildPromotionFindings(evidence) {
       evidence.latency.maxP99Ms <= rootSloPromotionPolicy.interactiveP99TargetMs,
     actual: formatLatencyActual(evidence.latency),
     expected: `max interactive/root workflow P99 <= ${rootSloPromotionPolicy.interactiveP99TargetMs}ms`,
-    remediation: "Reduce the slowest root workflow tail latency before making an ultra-concurrency claim.",
+    remediation: "Reduce the slowest root workflow tail latency before making a production 10k RPS claim.",
   });
   addPromotionFinding(findings, {
     id: "promotion.database_headroom_sufficient",
@@ -301,6 +308,14 @@ function buildPromotionFindings(evidence) {
     expected: `highest passed sustained mixed workload step >= ${rootSloPromotionPolicy.minimumSustainedStepName} with zero errors`,
     remediation: "Run a higher sustained mixed workload step before promotion.",
   });
+  addPromotionFinding(findings, {
+    id: "promotion.production_read_write_rps_target_met",
+    passed: Number.isFinite(evidence.productionThroughput.measuredReadWriteRps) &&
+      evidence.productionThroughput.measuredReadWriteRps >= rootSloPromotionPolicy.productionReadWriteRpsTarget,
+    actual: formatProductionThroughputActual(evidence.productionThroughput),
+    expected: `measured sustained read/write RPS >= ${rootSloPromotionPolicy.productionReadWriteRpsTarget}`,
+    remediation: "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim.",
+  });
   return findings;
 }
 
@@ -312,8 +327,49 @@ function requiredNextEvidence(blockers) {
     if (blocker.id === "promotion.interactive_tail_latency_within_target") ids.add("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION");
     if (blocker.id === "promotion.database_headroom_sufficient") ids.add("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE");
     if (blocker.id === "promotion.sustained_scale_depth_sufficient") ids.add("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP");
+    if (blocker.id === "promotion.production_read_write_rps_target_met") ids.add("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE");
   }
   return [...ids];
+}
+
+function productionThroughputEvidence(sustainedScaleUp, diagnostics) {
+  const candidates = [
+    {
+      source: "sustained_scaleup.summary.highestPassedReadWriteRps",
+      value: sustainedScaleUp.summary?.highestPassedReadWriteRps,
+    },
+    {
+      source: "sustained_scaleup.summary.highestPassedAggregateRps",
+      value: sustainedScaleUp.summary?.highestPassedAggregateRps,
+    },
+    {
+      source: "sustained_scaleup.summary.aggregateReadWriteRps",
+      value: sustainedScaleUp.summary?.aggregateReadWriteRps,
+    },
+    {
+      source: "cross_module.mixedWorkloadDiagnostics.highestPassedReadWriteRps",
+      value: diagnostics.mixedWorkloadDiagnostics?.highestPassedReadWriteRps,
+    },
+  ];
+  const highestStep = sustainedScaleUp.summary?.highestPassedStep;
+  const highestStepReport = Array.isArray(sustainedScaleUp.steps)
+    ? sustainedScaleUp.steps.find((step) => step.name === highestStep)
+    : null;
+  candidates.push(
+    { source: `sustained_scaleup.steps.${highestStep}.readWriteRps`, value: highestStepReport?.readWriteRps },
+    { source: `sustained_scaleup.steps.${highestStep}.aggregateRps`, value: highestStepReport?.aggregateRps },
+    { source: `sustained_scaleup.steps.${highestStep}.totalRps`, value: highestStepReport?.totalRps },
+  );
+  for (const candidate of candidates) {
+    const value = numberOrNull(candidate.value);
+    if (Number.isFinite(value)) return { measuredReadWriteRps: value, source: candidate.source };
+  }
+  return { measuredReadWriteRps: null, source: "missing" };
+}
+
+function formatProductionThroughputActual(throughput) {
+  if (!Number.isFinite(throughput.measuredReadWriteRps)) return "missing";
+  return `${throughput.measuredReadWriteRps} rps from ${throughput.source}`;
 }
 
 function formatLatencyActual(latency) {
