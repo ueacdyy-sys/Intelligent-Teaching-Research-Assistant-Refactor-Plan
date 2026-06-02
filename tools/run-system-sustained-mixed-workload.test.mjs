@@ -252,6 +252,10 @@ describe("system sustained mixed workload runner", () => {
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    const conversation = report.samples[0].workloads.find((workload) => workload.name === "conversation_write");
+    assert.equal(conversation.summary.clientServerGapP99Ms, 77);
+    assert.equal(conversation.summary.dbBatchWaitP99Ms, 12);
+    assert.equal(conversation.summary.runtimeDiagnostics.after.maxCurrentConns, 33);
   });
 });
 
@@ -268,7 +272,7 @@ function mixedReport(options, overrides = {}) {
     },
     workloads: [
       workload("identity_http", status, errors, maxP99Ms),
-      workload("conversation_write", status, 0, maxP99Ms - 1),
+      workload("conversation_write", status, 0, maxP99Ms - 1, conversationSummary()),
       workload("teaching_archive", status, 0, maxP99Ms - 2),
       workload("knowledge_retrieval", "READY", 0, null),
       workload("ai_worker_admission", "READY", 0, null),
@@ -276,13 +280,30 @@ function mixedReport(options, overrides = {}) {
   };
 }
 
-function workload(name, status, errors, p99Ms) {
+function workload(name, status, errors, p99Ms, summary = undefined) {
   return {
     name,
     status,
     errors,
     p95Ms: Number.isFinite(p99Ms) ? p99Ms * 0.8 : null,
     p99Ms,
+    summary,
+  };
+}
+
+function conversationSummary() {
+  return {
+    errors: 0,
+    clientServerGapP99Ms: 77,
+    dbBatchWaitP99Ms: 12,
+    runtimeDiagnostics: {
+      after: {
+        gatewayCount: 2,
+        okGateways: 2,
+        unavailableGateways: 0,
+        maxCurrentConns: 33,
+      },
+    },
   };
 }
 

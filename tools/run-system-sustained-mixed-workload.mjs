@@ -302,6 +302,7 @@ function summarizeSample(sample, report) {
           errors: numberOrZero(workload.errors),
           p95Ms: numberOrNull(workload.p95Ms),
           p99Ms: numberOrNull(workload.p99Ms),
+          summary: workload.summary && typeof workload.summary === "object" ? workload.summary : undefined,
         }))
       : [],
   };

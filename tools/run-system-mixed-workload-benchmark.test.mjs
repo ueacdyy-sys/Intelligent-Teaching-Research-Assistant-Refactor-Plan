@@ -323,6 +323,32 @@ describe("system mixed workload benchmark runner", () => {
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    const conversation = report.workloads.find((workload) => workload.name === "conversation_write");
+    assert.equal(conversation.summary.serverTimingP99Ms, 21);
+    assert.equal(conversation.summary.clientServerGapP99Ms, 44);
+    assert.equal(conversation.summary.dbAcquireP99Ms, 0.3);
+    assert.equal(conversation.summary.dbBatchWaitP99Ms, 12.5);
+    assert.equal(conversation.summary.dbInsertP99Ms, 15.2);
+    assert.deepEqual(conversation.summary.gatewayExitCode, [null, null]);
+    assert.deepEqual(conversation.summary.gatewaySignal, [null, null]);
+    assert.deepEqual(conversation.summary.runtimeDiagnostics.after, {
+      gatewayCount: 2,
+      okGateways: 2,
+      unavailableGateways: 0,
+      maxCurrentConns: 276,
+      totalAcceptedConns: 546,
+      totalEmptyAcquireCount: 0,
+      totalAcquireWaitTimeMs: 0,
+    });
+    assert.deepEqual(conversation.summary.databaseDiagnostics.after, {
+      gatewayCount: 2,
+      okGateways: 2,
+      unavailableGateways: 0,
+      maxCurrentConns: null,
+      totalAcceptedConns: 0,
+      totalEmptyAcquireCount: 3,
+      totalAcquireWaitTimeMs: 17,
+    });
   });
 
   it("rejects negative identity write concurrency", async () => {
@@ -388,13 +414,41 @@ function conversationReport() {
   return {
     status: "PASSED",
     concurrency: 64,
+    gatewayExitCode: [null, null],
+    gatewaySignal: [null, null],
+    gatewayRuntimeDiagnostics: {
+      before: {
+        gateways: [
+          { status: "OK", stats: { acceptedConns: 1, maxCurrentConns: 1 } },
+          { status: "OK", stats: { acceptedConns: 1, maxCurrentConns: 1 } },
+        ],
+      },
+      after: {
+        gateways: [
+          { status: "OK", stats: { acceptedConns: 276, maxCurrentConns: 276 } },
+          { status: "OK", stats: { acceptedConns: 270, maxCurrentConns: 270 } },
+        ],
+      },
+    },
+    gatewayDatabaseDiagnostics: {
+      after: {
+        gateways: [
+          { status: "OK", stats: { emptyAcquireCount: 1, emptyAcquireWaitTimeMs: 11.5 } },
+          { status: "OK", stats: { emptyAcquireCount: 2, emptyAcquireWaitTimeMs: 5.5 } },
+        ],
+      },
+    },
     phases: {
       createConversation: {
         errors: 0,
         rps: 900,
         latencyMs: { p95: 25, p99: 35 },
+        serverTimingMs: { p99: 21 },
+        clientServerGapMs: { p99: 44 },
         serverTimingBreakdownMs: {
           "db.acquire": { p99: 0.3 },
+          "db.batch_wait": { p99: 12.5 },
+          "db.insert": { p99: 15.2 },
         },
       },
     },

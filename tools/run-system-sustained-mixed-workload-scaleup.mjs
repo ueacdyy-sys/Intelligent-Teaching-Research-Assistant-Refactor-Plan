@@ -342,16 +342,46 @@ function summarizeWorkloads(report) {
         if (existing) {
           existing.errors += numberOrZero(workload.errors);
           existing.maxP99Ms = maxNullable(existing.maxP99Ms, numberOrNull(workload.p99Ms));
+          existing.summary = mergeWorkloadSummary(existing.summary, workload.summary);
           return workloads;
         }
         workloads.push({
           name: workload.name,
           errors: numberOrZero(workload.errors),
           maxP99Ms: numberOrNull(workload.p99Ms),
+          summary: copyWorkloadSummary(workload.summary),
         });
         return workloads;
       }, [])
     : [];
+}
+
+function copyWorkloadSummary(summary) {
+  return summary && typeof summary === "object" ? { ...summary } : undefined;
+}
+
+function mergeWorkloadSummary(left, right) {
+  if (!left || typeof left !== "object") return copyWorkloadSummary(right);
+  if (!right || typeof right !== "object") return left;
+  return {
+    ...left,
+    ...right,
+    errors: numberOrZero(left.errors) + numberOrZero(right.errors),
+    p95Ms: maxNullable(numberOrNull(left.p95Ms), numberOrNull(right.p95Ms)),
+    p99Ms: maxNullable(numberOrNull(left.p99Ms), numberOrNull(right.p99Ms)),
+    serverTimingP99Ms: maxNullable(numberOrNull(left.serverTimingP99Ms), numberOrNull(right.serverTimingP99Ms)),
+    clientServerGapP99Ms: maxNullable(
+      numberOrNull(left.clientServerGapP99Ms),
+      numberOrNull(right.clientServerGapP99Ms),
+    ),
+    dbAcquireP99Ms: maxNullable(numberOrNull(left.dbAcquireP99Ms), numberOrNull(right.dbAcquireP99Ms)),
+    dbBatchWaitP99Ms: maxNullable(numberOrNull(left.dbBatchWaitP99Ms), numberOrNull(right.dbBatchWaitP99Ms)),
+    dbInsertP99Ms: maxNullable(numberOrNull(left.dbInsertP99Ms), numberOrNull(right.dbInsertP99Ms)),
+    runtimeDiagnostics: right.runtimeDiagnostics ?? left.runtimeDiagnostics,
+    databaseDiagnostics: right.databaseDiagnostics ?? left.databaseDiagnostics,
+    gatewayExitCode: right.gatewayExitCode ?? left.gatewayExitCode,
+    gatewaySignal: right.gatewaySignal ?? left.gatewaySignal,
+  };
 }
 
 function summarizeScaleUp(steps, orchestrationErrors) {

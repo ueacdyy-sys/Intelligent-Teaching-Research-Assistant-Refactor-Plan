@@ -283,6 +283,10 @@ describe("system sustained mixed workload scale-up runner", () => {
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    const conversation = report.steps[0].workloads.find((workload) => workload.name === "conversation_write");
+    assert.equal(conversation.summary.clientServerGapP99Ms, 101);
+    assert.equal(conversation.summary.dbBatchWaitP99Ms, 14);
+    assert.equal(conversation.summary.runtimeDiagnostics.after.totalAcceptedConns, 240);
   });
 
   it("does not convert missing P99 drift into a scale-up drift metric", () => {
@@ -311,6 +315,7 @@ function sustainedReport(options, overrides = {}) {
   const status = overrides.status ?? "PASSED";
   const maxP99Ms = overrides.maxP99Ms ?? Number(options.conversationConcurrency) + 10;
   const p99DriftMs = Object.hasOwn(overrides, "p99DriftMs") ? overrides.p99DriftMs : 0;
+  const sampleCount = Number(options.samples);
   return {
     status,
     summary: {
@@ -320,24 +325,39 @@ function sustainedReport(options, overrides = {}) {
       maxP99Ms,
       p99DriftMs,
     },
-    samples: [
-      {
-        name: "sample-1",
-        workloads: [
-          workload("identity_http", errors, maxP99Ms),
-          workload("conversation_write", 0, maxP99Ms - 1),
-          workload("teaching_archive", 0, maxP99Ms - 2),
-        ],
-      },
-    ],
+    samples: Array.from({ length: sampleCount }, (_entry, index) => ({
+      name: `sample-${index + 1}`,
+      workloads: [
+        workload("identity_http", index === 0 ? errors : 0, maxP99Ms),
+        workload("conversation_write", 0, maxP99Ms - 1, conversationSummary(index)),
+        workload("teaching_archive", 0, maxP99Ms - 2),
+      ],
+    })),
   };
 }
 
-function workload(name, errors, p99Ms) {
+function workload(name, errors, p99Ms, summary = undefined) {
   return {
     name,
     errors,
     p99Ms,
+    summary,
+  };
+}
+
+function conversationSummary(index) {
+  return {
+    errors: 0,
+    clientServerGapP99Ms: index === 0 ? 77 : 101,
+    dbBatchWaitP99Ms: index === 0 ? 12 : 14,
+    runtimeDiagnostics: {
+      after: {
+        gatewayCount: 2,
+        okGateways: 2,
+        unavailableGateways: 0,
+        totalAcceptedConns: index === 0 ? 120 : 240,
+      },
+    },
   };
 }
 

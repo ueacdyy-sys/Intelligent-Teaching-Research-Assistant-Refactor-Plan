@@ -423,7 +423,39 @@ function summarizeConversation(report) {
     p99Ms: numberOrNull(phase.latencyMs?.p99),
     rps: numberOrNull(phase.rps),
     concurrency: numberOrNull(report.concurrency),
+    serverTimingP99Ms: numberOrNull(phase.serverTimingMs?.p99),
+    clientServerGapP99Ms: numberOrNull(phase.clientServerGapMs?.p99),
     dbAcquireP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.acquire"]?.p99),
+    dbBatchWaitP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.batch_wait"]?.p99),
+    dbInsertP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99),
+    gatewayExitCode: report.gatewayExitCode ?? null,
+    gatewaySignal: report.gatewaySignal ?? null,
+    runtimeDiagnostics: summarizeGatewayDiagnostics(report.gatewayRuntimeDiagnostics),
+    databaseDiagnostics: summarizeGatewayDiagnostics(report.gatewayDatabaseDiagnostics),
+  };
+}
+
+function summarizeGatewayDiagnostics(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== "object") return undefined;
+  const summarized = Object.fromEntries(
+    ["before", "after"].map((snapshotName) => [snapshotName, summarizeGatewaySnapshot(diagnostics[snapshotName])])
+      .filter(([_name, snapshot]) => snapshot !== undefined),
+  );
+  return Object.keys(summarized).length > 0 ? summarized : undefined;
+}
+
+function summarizeGatewaySnapshot(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.gateways)) return undefined;
+  const gateways = snapshot.gateways;
+  const stats = gateways.map((gateway) => gateway.stats ?? {});
+  return {
+    gatewayCount: gateways.length,
+    okGateways: gateways.filter((gateway) => gateway.status === "OK").length,
+    unavailableGateways: gateways.filter((gateway) => gateway.status !== "OK").length,
+    maxCurrentConns: maxFinite(stats.map((entry) => numberOrNull(entry.maxCurrentConns))),
+    totalAcceptedConns: sumFinite(stats.map((entry) => numberOrNull(entry.acceptedConns))),
+    totalEmptyAcquireCount: sumFinite(stats.map((entry) => numberOrNull(entry.emptyAcquireCount))),
+    totalAcquireWaitTimeMs: round(sumFinite(stats.map((entry) => numberOrNull(entry.emptyAcquireWaitTimeMs))), 2),
   };
 }
 
@@ -701,6 +733,15 @@ function maxFinite(values) {
 function minFinite(values) {
   const finite = values.filter(Number.isFinite);
   return finite.length ? Math.min(...finite) : null;
+}
+
+function sumFinite(values) {
+  return values.filter(Number.isFinite).reduce((total, value) => total + value, 0);
+}
+
+function round(value, digits) {
+  const multiplier = 10 ** digits;
+  return Math.round(value * multiplier) / multiplier;
 }
 
 function countCommandErrors(results) {
