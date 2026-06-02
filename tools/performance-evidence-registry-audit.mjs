@@ -45,6 +45,8 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool14-client200-db-pool-diagnostics-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-ingress19080-clean-table-docker-bench.json",
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json",
+  "reports/identity-phase-matrix.4400-triad.json",
+  "reports/identity-phase-matrix.4400-triad.3-g12-p10-i16-c150.json",
   "reports/conversation-write-http-benchmark.current.json",
   "reports/conversation-write-low-concurrency-batch-guard.current.json",
   "reports/conversation-write-http-benchmark.direct8-concurrency2900-multi8-warm363-raw-settings-repeat.json",

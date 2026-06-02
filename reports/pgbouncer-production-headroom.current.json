@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-06-01T15:56:26.615Z",
+  "generatedAt": "2026-06-02T01:52:39.666Z",
   "readiness": "READY",
   "workloadType": "PGBOUNCER_PRODUCTION_HEADROOM_PROFILE",
-  "profileId": "pgbouncer-production-headroom-120",
+  "profileId": "pgbouncer-production-headroom-180",
   "policy": {
     "minimumHeadroomRatio": 0.2
   },
@@ -16,10 +16,10 @@
     "maxClientConn": 10000,
     "defaultPoolSize": 100,
     "reservePoolSize": 20,
-    "maxDbConnections": 120,
-    "minimumHeadroom": 24,
-    "sourceHotPathHeadroom": 31,
-    "plannedBudgetHeadroom": 24
+    "maxDbConnections": 180,
+    "minimumHeadroom": 36,
+    "sourceHotPathHeadroom": 91,
+    "plannedBudgetHeadroom": 84
   },
   "connectionBudget": {
     "passed": true,
@@ -57,7 +57,7 @@
       "id": "pgbouncer.pool_sum_within_cap",
       "passed": true,
       "severity": "info",
-      "actual": "default=100;reserve=20;maxDb=120",
+      "actual": "default=100;reserve=20;maxDb=180",
       "expected": "default_pool_size + reserve_pool_size <= max_db_connections",
       "remediation": "Keep default and reserve server pools inside the PgBouncer max_db_connections cap."
     },
@@ -65,7 +65,7 @@
       "id": "pgbouncer.current_hot_path_headroom",
       "passed": true,
       "severity": "info",
-      "actual": "sourceHotPath=89;candidateMax=120;headroom=31;minimum=24",
+      "actual": "sourceHotPath=89;candidateMax=180;headroom=91;minimum=36",
       "expected": "candidate headroom >= 20% of max_db_connections for current hot-path source evidence",
       "remediation": "Raise the candidate PgBouncer max_db_connections or reduce per-service hot-path pools before root SLO promotion review."
     },
@@ -73,7 +73,7 @@
       "id": "pgbouncer.planned_budget_headroom",
       "passed": true,
       "severity": "info",
-      "actual": "planned=96;candidateMax=120;headroom=24;minimum=24",
+      "actual": "planned=96;candidateMax=180;headroom=84;minimum=36",
       "expected": "candidate headroom >= 20% of max_db_connections for planned cross-service budget",
       "remediation": "Keep the explicit planned connection budget below the candidate PgBouncer cap with root SLO headroom."
     },
@@ -81,7 +81,7 @@
       "id": "postgres.safe_budget_ceiling",
       "passed": true,
       "severity": "info",
-      "actual": "candidateMax=120;safeLimit=190",
+      "actual": "candidateMax=180;safeLimit=190",
       "expected": "candidate PgBouncer max_db_connections stays within the PostgreSQL safe budget",
       "remediation": "Do not raise PgBouncer server connections above the explicit PostgreSQL safe budget without a new database capacity profile."
     },
@@ -89,7 +89,7 @@
       "id": "pgbouncer.improves_current_headroom",
       "passed": true,
       "severity": "info",
-      "actual": "currentMax=90;currentHeadroom=1;candidateMax=120;candidateHeadroom=31",
+      "actual": "currentMax=90;currentHeadroom=1;candidateMax=180;candidateHeadroom=91",
       "expected": "candidate profile increases PgBouncer headroom over current source evidence",
       "remediation": "Choose a candidate profile that materially improves the current PgBouncer headroom bottleneck."
     }

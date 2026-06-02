@@ -41,7 +41,7 @@ intelligent_teaching_assistant = host=identity-session-postgres port=5432 dbname
 [pgbouncer]
 listen_port = 6432
 pool_mode = transaction
-max_db_connections = 120
+max_db_connections = 180
 `;
 
 const userlistText = `"app_user" "ueacd"\n`;
@@ -123,7 +123,7 @@ describe("identity session runtime profile audit", () => {
   it("fails when PgBouncer server capacity is below the tuned performance profile", () => {
     const report = auditIdentitySessionRuntimeProfile({
       composeText,
-      pgbouncerIniText: pgbouncerIni.replace("max_db_connections = 120", "max_db_connections = 32"),
+      pgbouncerIniText: pgbouncerIni.replace("max_db_connections = 180", "max_db_connections = 32"),
       userlistText,
     });
 

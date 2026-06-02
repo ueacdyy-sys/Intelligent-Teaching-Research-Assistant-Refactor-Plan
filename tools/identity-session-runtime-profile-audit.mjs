@@ -17,7 +17,7 @@ const expected = {
   pgbouncerPoolMode: "transaction",
   postgresMinMaxConnections: 300,
   postgresMinSharedBuffers: "1GB",
-  pgbouncerMaxDbConnections: 120,
+  pgbouncerMaxDbConnections: 180,
   databaseName: "intelligent_teaching_assistant",
   databaseUser: "app_user",
   secretValue: "ueacd",
@@ -129,7 +129,7 @@ export function auditIdentitySessionRuntimeProfile(sourceTexts) {
     passed: toInteger(pgbouncerSection.max_db_connections) === expected.pgbouncerMaxDbConnections,
     actual: toInteger(pgbouncerSection.max_db_connections),
     expected: expected.pgbouncerMaxDbConnections,
-    remediation: "Set identity runtime PgBouncer max_db_connections to 120 to match the reviewed production headroom profile.",
+    remediation: "Set identity runtime PgBouncer max_db_connections to 180 to match the reviewed production headroom profile.",
   });
   addFinding(findings, {
     id: "pgbouncer.userlist_secret",

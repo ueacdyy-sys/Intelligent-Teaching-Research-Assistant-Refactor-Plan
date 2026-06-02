@@ -16,9 +16,9 @@ describe("PgBouncer production headroom profile audit", () => {
 
     assert.equal(report.readiness, "READY");
     assert.equal(report.workloadType, "PGBOUNCER_PRODUCTION_HEADROOM_PROFILE");
-    assert.equal(report.candidate.maxDbConnections, 120);
-    assert.equal(report.candidate.sourceHotPathHeadroom, 31);
-    assert.equal(report.candidate.plannedBudgetHeadroom, 24);
+    assert.equal(report.candidate.maxDbConnections, 180);
+    assert.equal(report.candidate.sourceHotPathHeadroom, 91);
+    assert.equal(report.candidate.plannedBudgetHeadroom, 84);
     assert.match(formatPgbouncerProductionHeadroomProfileAudit(report), /PgBouncer production headroom profile: READY/u);
   });
 
@@ -41,7 +41,7 @@ describe("PgBouncer production headroom profile audit", () => {
 
   it("fails when default and reserve pools exceed the server connection cap", () => {
     const inputs = loadCurrentInputs();
-    inputs.profile.pgbouncer.defaultPoolSize = 110;
+    inputs.profile.pgbouncer.defaultPoolSize = 170;
     inputs.profile.pgbouncer.reservePoolSize = 20;
 
     const report = auditPgbouncerProductionHeadroomProfile(inputs);
