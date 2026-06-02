@@ -1,0 +1,326 @@
+{
+  "generatedAt": "2026-06-02T08:19:51.065Z",
+  "startedAt": "2026-06-02T08:18:32.597Z",
+  "endedAt": "2026-06-02T08:19:51.065Z",
+  "benchmarkKind": "system_sustained_mixed_workload",
+  "workloadType": "SUSTAINED_MIXED_WORKLOAD",
+  "profile": "SUSTAINED_SCALEUP_P77_PRINCIPAL_JSON_ELISION_MIXED1600",
+  "status": "PASSED",
+  "stopOnFailure": true,
+  "sampleIntervalMs": 0,
+  "concurrencyProfile": {
+    "identityConcurrency": 1600,
+    "conversationConcurrency": 1600,
+    "teachingConcurrency": 80,
+    "identityGatewayCount": 12,
+    "conversationGatewayCount": 16,
+    "configuredSamples": 1
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 128,
+    "sharedWarmConnectionsPerHost": 32,
+    "identityMaxConnsPerHost": 150,
+    "identityWarmConnectionsPerHost": 150
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 19080,
+    "workerCount": 16,
+    "upstreamGatewayCount": 12,
+    "maxConnsPerHost": 40,
+    "warmConnectionsPerHost": 16
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 10,
+    "identitySessionDbWriteConcurrency": 0,
+    "identitySessionTablePersistence": "unlogged",
+    "conversationDbMaxConns": 1,
+    "teachingDbMaxConns": 1,
+    "conversationWriteBatchSize": 64
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_SUSTAINED_ORCHESTRATOR",
+    "managedDocker": false,
+    "dockerCleanup": "none"
+  },
+  "conversationBenchmarkRuntimeProfile": {
+    "runtime": "local",
+    "executor": "LOCAL_GO",
+    "dockerImage": null,
+    "dockerHostAlias": null,
+    "wslDistro": null,
+    "wslHostAlias": null,
+    "wslWorkspace": null
+  },
+  "samples": [
+    {
+      "name": "sample-1",
+      "sampleNumber": 1,
+      "executed": true,
+      "status": "PASSED",
+      "reportPath": "reports/system-sustained-mixed-workload-scaleup.p77-principal-json-elision-mixed1600.1-mixed1600.1.json",
+      "totalErrors": 0,
+      "maxP95Ms": 625.31,
+      "maxP99Ms": 657.79,
+      "workloads": [
+        {
+          "name": "identity_http",
+          "status": "PASSED",
+          "errors": 0,
+          "p95Ms": 625.31,
+          "p99Ms": 657.79,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 625.31,
+            "p99Ms": 657.79,
+            "rps": 2648.78,
+            "concurrency": 1600,
+            "phases": {
+              "passwordLogin": {
+                "errors": 0,
+                "p95Ms": 475.77,
+                "p99Ms": 554.69,
+                "rps": 3982.33,
+                "sessionOperations": {
+                  "saveSession": {
+                    "count": 3200,
+                    "totalElapsedMs": 838971.48,
+                    "averageElapsedMs": 262.18
+                  }
+                },
+                "slowestSessionOperation": "saveSession",
+                "slowestSessionOperationAverageElapsedMs": 262.18
+              },
+              "principalLookup": {
+                "errors": 0,
+                "p95Ms": 398.33,
+                "p99Ms": 449.13,
+                "rps": 4405.1,
+                "sessionOperations": {
+                  "getPrincipalByAccessToken": {
+                    "count": 3200,
+                    "totalElapsedMs": 829155.41,
+                    "averageElapsedMs": 259.11
+                  }
+                },
+                "slowestSessionOperation": "getPrincipalByAccessToken",
+                "slowestSessionOperationAverageElapsedMs": 259.11
+              },
+              "refreshRotation": {
+                "errors": 0,
+                "p95Ms": 353.35,
+                "p99Ms": 382.34,
+                "rps": 4547.17,
+                "sessionOperations": {
+                  "rotateRefreshSession": {
+                    "count": 3200,
+                    "totalElapsedMs": 833460.6,
+                    "averageElapsedMs": 260.46
+                  }
+                },
+                "slowestSessionOperation": "rotateRefreshSession",
+                "slowestSessionOperationAverageElapsedMs": 260.46
+              },
+              "revokeCycle": {
+                "errors": 0,
+                "p95Ms": 625.31,
+                "p99Ms": 657.79,
+                "rps": 2648.78,
+                "slowestStep": "revoke",
+                "slowestStepP99Ms": 384.84,
+                "sessionOperations": {
+                  "revokeOwnSession": {
+                    "count": 3200,
+                    "totalElapsedMs": 941028.62,
+                    "averageElapsedMs": 294.07
+                  },
+                  "saveSession": {
+                    "count": 3200,
+                    "totalElapsedMs": 720391.25,
+                    "averageElapsedMs": 225.12
+                  }
+                },
+                "slowestSessionOperation": "revokeOwnSession",
+                "slowestSessionOperationAverageElapsedMs": 294.07
+              }
+            },
+            "dominantPhase": "revokeCycle",
+            "dominantPhaseP99Ms": 657.79
+          }
+        },
+        {
+          "name": "conversation_write",
+          "status": "PASSED",
+          "errors": 0,
+          "p95Ms": 265.74,
+          "p99Ms": 281.98,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 265.74,
+            "p99Ms": 281.98,
+            "rps": 10483.46,
+            "concurrency": 1600,
+            "serverTimingP99Ms": 80.66,
+            "clientServerGapP99Ms": 257.4,
+            "dbAcquireP99Ms": 0,
+            "dbBatchWaitP99Ms": 42.45,
+            "dbInsertP99Ms": 51.07,
+            "benchmarkRuntimeProfile": {
+              "executor": "LOCAL_GO",
+              "dockerImage": null,
+              "dockerHostAlias": null,
+              "targetBaseUrls": [
+                "http://127.0.0.1:18400",
+                "http://127.0.0.1:18401",
+                "http://127.0.0.1:18402",
+                "http://127.0.0.1:18403",
+                "http://127.0.0.1:18404",
+                "http://127.0.0.1:18405",
+                "http://127.0.0.1:18406",
+                "http://127.0.0.1:18407",
+                "http://127.0.0.1:18408",
+                "http://127.0.0.1:18409",
+                "http://127.0.0.1:18410",
+                "http://127.0.0.1:18411",
+                "http://127.0.0.1:18412",
+                "http://127.0.0.1:18413",
+                "http://127.0.0.1:18414",
+                "http://127.0.0.1:18415"
+              ]
+            },
+            "gatewayExitCode": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "gatewaySignal": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "runtimeDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 1,
+                "totalAcceptedConns": 16,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 129,
+                "totalAcceptedConns": 1791,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              }
+            },
+            "databaseDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 134.62
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 134.62
+              }
+            }
+          }
+        },
+        {
+          "name": "teaching_archive",
+          "status": "PASSED",
+          "errors": 0,
+          "p95Ms": 331,
+          "p99Ms": 347,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 331,
+            "p99Ms": 347,
+            "rps": 226.95,
+            "concurrency": 80
+          }
+        },
+        {
+          "name": "knowledge_retrieval",
+          "status": "READY",
+          "errors": 0,
+          "p95Ms": 2.55,
+          "p99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0,
+            "p95Ms": 2.55
+          }
+        },
+        {
+          "name": "ai_worker_admission",
+          "status": "READY",
+          "errors": 0,
+          "p95Ms": null,
+          "p99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredSamples": 1,
+    "executedSamples": 1,
+    "passedSamples": 1,
+    "failedSamples": 0,
+    "totalErrors": 0,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 625.31,
+    "maxP99Ms": 657.79,
+    "p99DriftMs": 0,
+    "highestPassedSample": "sample-1",
+    "firstFailedSample": null
+  },
+  "setup": [],
+  "cleanup": [],
+  "runnerErrors": [],
+  "nextAction": "Treat this as sustained mixed workload smoke evidence only; increase duration, concurrency, and workflow coverage before any full-system capacity promotion."
+}
