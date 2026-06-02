@@ -30,6 +30,8 @@ describe("system sustained mixed workload runner", () => {
       "16",
       "--identity-max-conns-per-host",
       "150",
+      "--identity-session-db-session-table-persistence",
+      "UNLOGGED",
       "--stop-on-failure",
       "false",
     ]);
@@ -41,6 +43,7 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
+    assert.equal(parsed.identitySessionDbSessionTablePersistence, "unlogged");
     assert.equal(parsed.stopOnFailure, "false");
   });
 
@@ -61,6 +64,7 @@ describe("system sustained mixed workload runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbSessionTablePersistence: "unlogged",
     });
 
     assert.deepEqual(samples.map((sample) => sample.name), ["sample-1", "sample-2"]);
@@ -77,6 +81,7 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(samples[0].options.identityIngressPort, "19080");
     assert.equal(samples[0].options.identityIngressCount, "16");
     assert.equal(samples[0].options.identityIngressMaxConnsPerHost, "40");
+    assert.equal(samples[0].options.identitySessionDbSessionTablePersistence, "unlogged");
   });
 
   it("runs every sample and writes a passed sustained report", async () => {
@@ -206,6 +211,7 @@ describe("system sustained mixed workload runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbSessionTablePersistence: "unlogged",
     };
     const samples = buildSampleRuns({
       ...options,
@@ -238,6 +244,7 @@ describe("system sustained mixed workload runner", () => {
       maxConnsPerHost: 40,
       warmConnectionsPerHost: 16,
     });
+    assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
   });
 });
 

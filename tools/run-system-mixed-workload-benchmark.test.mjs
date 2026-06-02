@@ -30,6 +30,8 @@ describe("system mixed workload benchmark runner", () => {
       "16",
       "--identity-max-conns-per-host",
       "150",
+      "--identity-session-db-session-table-persistence",
+      "UNLOGGED",
       "--unknown-option",
       "ignored",
     ]);
@@ -41,6 +43,7 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
+    assert.equal(parsed.identitySessionDbSessionTablePersistence, "unlogged");
     assert.equal(parsed.profile, defaults.profile);
     assert.equal(Object.hasOwn(parsed, "unknownOption"), false);
   });
@@ -65,6 +68,7 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbSessionTablePersistence: "unlogged",
     });
 
     assert.deepEqual(commands.map((command) => command.name), [
@@ -82,6 +86,7 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[0].args, "--ingress-count"), "16");
     assert.equal(argumentAfter(commands[0].args, "--ingress-max-conns-per-host"), "40");
     assert.equal(argumentAfter(commands[0].args, "--ingress-warm-connections-per-host"), "16");
+    assert.equal(argumentAfter(commands[0].args, "--session-db-session-table-persistence"), "unlogged");
     assert.equal(argumentAfter(commands[1].args, "--base-url"), "http://127.0.0.1:19100");
     assert.equal(argumentAfter(commands[1].args, "--agent-api-key"), "ueacd");
     assert.equal(argumentAfter(commands[1].args, "--max-conns-per-host"), "70");
@@ -272,6 +277,7 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbSessionTablePersistence: "unlogged",
     };
     const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
@@ -309,6 +315,7 @@ describe("system mixed workload benchmark runner", () => {
       maxConnsPerHost: 40,
       warmConnectionsPerHost: 16,
     });
+    assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
   });
 });
 

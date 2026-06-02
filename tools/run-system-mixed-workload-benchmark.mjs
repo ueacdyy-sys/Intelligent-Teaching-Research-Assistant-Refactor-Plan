@@ -3,6 +3,11 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
+import {
+  defaultSessionTablePersistence,
+  normalizeSessionTablePersistence,
+} from "./identity-http-benchmark-session-profile.mjs";
+
 export const defaults = {
   out: "reports/system-mixed-workload-benchmark.current.json",
   profile: "SMOKE",
@@ -25,6 +30,7 @@ export const defaults = {
   identityGatewayCount: "1",
   conversationGatewayCount: "1",
   identitySessionDbMaxConns: "8",
+  identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "4",
   teachingDbMaxConns: "2",
   conversationWriteBatchSize: "32",
@@ -48,6 +54,11 @@ export function parseArgs(argv) {
     const key = argv[index];
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
+    if (key === "--identity-session-db-session-table-persistence") {
+      parsed.identitySessionDbSessionTablePersistence = normalizeSessionTablePersistence(value);
+      index += 1;
+      continue;
+    }
     const property = kebabToCamel(key.slice(2));
     if (Object.hasOwn(parsed, property)) {
       parsed[property] = value;
@@ -72,6 +83,8 @@ export function buildWorkloadCommands(options) {
         options.identityGatewayCount,
         "--session-db-max-conns",
         options.identitySessionDbMaxConns,
+        "--session-db-session-table-persistence",
+        identitySessionTablePersistence(options),
         "--concurrency",
         options.identityConcurrency,
         "--operations",
@@ -265,6 +278,7 @@ export function buildSystemMixedWorkloadReport({
     identityIngressProfile: buildMixedWorkloadIdentityIngressProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
+      identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
@@ -455,6 +469,7 @@ function validateOptions(options) {
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
   assertPositiveInteger(options.conversationGatewayCount, "conversation-gateway-count");
   assertPositiveInteger(options.identitySessionDbMaxConns, "identity-session-db-max-conns");
+  identitySessionTablePersistence(options);
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
@@ -651,6 +666,10 @@ function identityMaxConnsPerHost(options) {
 
 function identityWarmConnectionsPerHost(options) {
   return optionOrFallback(options.identityWarmConnectionsPerHost, options.warmConnectionsPerHost);
+}
+
+function identitySessionTablePersistence(options) {
+  return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence);
 }
 
 function optionOrFallback(value, fallback) {

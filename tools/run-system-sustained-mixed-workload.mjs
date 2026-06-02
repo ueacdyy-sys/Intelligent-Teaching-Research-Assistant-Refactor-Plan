@@ -10,6 +10,10 @@ import {
   defaults as mixedDefaults,
   runSystemMixedWorkloadBenchmark,
 } from "./run-system-mixed-workload-benchmark.mjs";
+import {
+  defaultSessionTablePersistence,
+  normalizeSessionTablePersistence,
+} from "./identity-http-benchmark-session-profile.mjs";
 
 export const defaults = {
   out: "reports/system-sustained-mixed-workload.current.json",
@@ -32,6 +36,7 @@ export const defaults = {
   identityGatewayCount: "1",
   conversationGatewayCount: "1",
   identitySessionDbMaxConns: "4",
+  identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "1",
   teachingDbMaxConns: "1",
   conversationWriteBatchSize: "8",
@@ -55,6 +60,11 @@ export function parseArgs(argv) {
     const key = argv[index];
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
+    if (key === "--identity-session-db-session-table-persistence") {
+      parsed.identitySessionDbSessionTablePersistence = normalizeSessionTablePersistence(value);
+      index += 1;
+      continue;
+    }
     const property = kebabToCamel(key.slice(2));
     if (Object.hasOwn(parsed, property)) {
       parsed[property] = value;
@@ -96,6 +106,7 @@ export function buildSampleRuns(options) {
         identityGatewayCount: options.identityGatewayCount,
         conversationGatewayCount: options.conversationGatewayCount,
         identitySessionDbMaxConns: options.identitySessionDbMaxConns,
+        identitySessionDbSessionTablePersistence: identitySessionTablePersistence(options),
         conversationDbMaxConns: options.conversationDbMaxConns,
         teachingDbMaxConns: options.teachingDbMaxConns,
         conversationWriteBatchSize: options.conversationWriteBatchSize,
@@ -212,6 +223,7 @@ export function buildSystemSustainedMixedWorkloadReport({
     identityIngressProfile: buildSustainedMixedWorkloadIdentityIngressProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
+      identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
@@ -326,6 +338,7 @@ function validateOptions(options, sampleRuns) {
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
   assertPositiveInteger(options.conversationGatewayCount, "conversation-gateway-count");
   assertPositiveInteger(options.identitySessionDbMaxConns, "identity-session-db-max-conns");
+  identitySessionTablePersistence(options);
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
@@ -420,6 +433,10 @@ function parseInteger(value) {
 
 function parseBoolean(value) {
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+function identitySessionTablePersistence(options) {
+  return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence);
 }
 
 function numberOrNull(value) {

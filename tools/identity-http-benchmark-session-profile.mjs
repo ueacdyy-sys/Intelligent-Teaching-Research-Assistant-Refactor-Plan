@@ -23,7 +23,7 @@ function sessionTablePersistence(options) {
   return normalizeSessionTablePersistence(options.sessionDbSessionTablePersistence);
 }
 
-function normalizeSessionTablePersistence(value = defaultSessionTablePersistence) {
+export function normalizeSessionTablePersistence(value = defaultSessionTablePersistence) {
   const normalized = String(value || defaultSessionTablePersistence).trim().toLowerCase();
   if (normalized === "logged" || normalized === "unlogged") return normalized;
   throw new Error(`session table persistence must be logged or unlogged: ${value}`);

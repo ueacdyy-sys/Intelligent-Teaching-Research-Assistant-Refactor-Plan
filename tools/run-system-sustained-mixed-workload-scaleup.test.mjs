@@ -32,6 +32,8 @@ describe("system sustained mixed workload scale-up runner", () => {
       "16",
       "--identity-max-conns-per-host",
       "150",
+      "--identity-session-db-session-table-persistence",
+      "UNLOGGED",
       "--stop-on-failure",
       "false",
     ]);
@@ -43,6 +45,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
+    assert.equal(parsed.identitySessionDbSessionTablePersistence, "unlogged");
     assert.equal(parsed.stopOnFailure, "false");
   });
 
@@ -64,6 +67,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbSessionTablePersistence: "unlogged",
     });
 
     assert.deepEqual(steps.map((step) => step.name), ["smoke", "low"]);
@@ -84,6 +88,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.identityIngressPort, "19080");
     assert.equal(steps[0].options.identityIngressCount, "16");
     assert.equal(steps[0].options.identityIngressMaxConnsPerHost, "40");
+    assert.equal(steps[0].options.identitySessionDbSessionTablePersistence, "unlogged");
   });
 
   it("runs every scale-up step and writes a passed report", async () => {
@@ -236,6 +241,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbSessionTablePersistence: "unlogged",
     };
     const steps = buildScaleUpSteps({
       ...options,
@@ -269,6 +275,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       maxConnsPerHost: 40,
       warmConnectionsPerHost: 16,
     });
+    assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
   });
 
   it("does not convert missing P99 drift into a scale-up drift metric", () => {
