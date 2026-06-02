@@ -4,6 +4,8 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 import {
+  buildSustainedMixedWorkloadIdentityIngressProfile,
+  buildSustainedMixedWorkloadTransportProfile,
   defaults as sustainedDefaults,
   runSystemSustainedMixedWorkload,
 } from "./run-system-sustained-mixed-workload.mjs";
@@ -29,6 +31,13 @@ export const defaults = {
   conversationWriteBatchSize: "8",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  identityMaxConnsPerHost: sustainedDefaults.identityMaxConnsPerHost,
+  identityWarmConnectionsPerHost: sustainedDefaults.identityWarmConnectionsPerHost,
+  identityIngressProxy: sustainedDefaults.identityIngressProxy,
+  identityIngressPort: sustainedDefaults.identityIngressPort,
+  identityIngressCount: sustainedDefaults.identityIngressCount,
+  identityIngressMaxConnsPerHost: sustainedDefaults.identityIngressMaxConnsPerHost,
+  identityIngressWarmConnectionsPerHost: sustainedDefaults.identityIngressWarmConnectionsPerHost,
   timeout: "180s",
   teachingTimeoutMs: sustainedDefaults.teachingTimeoutMs,
   startupTimeoutMs: "120000",
@@ -78,6 +87,13 @@ export function buildScaleUpSteps(options) {
         conversationWriteBatchSize: options.conversationWriteBatchSize,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
+        identityMaxConnsPerHost: options.identityMaxConnsPerHost,
+        identityWarmConnectionsPerHost: options.identityWarmConnectionsPerHost,
+        identityIngressProxy: options.identityIngressProxy,
+        identityIngressPort: options.identityIngressPort,
+        identityIngressCount: options.identityIngressCount,
+        identityIngressMaxConnsPerHost: options.identityIngressMaxConnsPerHost,
+        identityIngressWarmConnectionsPerHost: options.identityIngressWarmConnectionsPerHost,
         timeout: options.timeout,
         teachingTimeoutMs: options.teachingTimeoutMs,
         startupTimeoutMs: options.startupTimeoutMs,
@@ -185,6 +201,8 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
       configuredSteps: steps.length,
       samplesPerStep: parseInteger(options.samples),
     },
+    transportProfile: buildSustainedMixedWorkloadTransportProfile(options),
+    identityIngressProfile: buildSustainedMixedWorkloadIdentityIngressProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
@@ -490,7 +508,7 @@ function parseInteger(value) {
 }
 
 function parseBoolean(value) {
-  return String(value).toLowerCase() === "true";
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
 function numberOrNull(value) {

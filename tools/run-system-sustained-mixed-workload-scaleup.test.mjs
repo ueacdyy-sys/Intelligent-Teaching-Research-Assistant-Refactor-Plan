@@ -26,6 +26,12 @@ describe("system sustained mixed workload scale-up runner", () => {
       "800",
       "--max-p99-drift-ms",
       "120",
+      "--identity-ingress-proxy",
+      "true",
+      "--identity-ingress-count",
+      "16",
+      "--identity-max-conns-per-host",
+      "150",
       "--stop-on-failure",
       "false",
     ]);
@@ -34,6 +40,9 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.samples, "3");
     assert.equal(parsed.maxP99Ms, "800");
     assert.equal(parsed.maxP99DriftMs, "120");
+    assert.equal(parsed.identityIngressProxy, "true");
+    assert.equal(parsed.identityIngressCount, "16");
+    assert.equal(parsed.identityMaxConnsPerHost, "150");
     assert.equal(parsed.stopOnFailure, "false");
   });
 
@@ -46,6 +55,15 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityBaseUrl: "http://127.0.0.1:19000",
       conversationBaseUrl: "http://127.0.0.1:19100",
       teachingBaseUrl: "http://127.0.0.1:19200",
+      maxConnsPerHost: "70",
+      warmConnectionsPerHost: "9",
+      identityMaxConnsPerHost: "150",
+      identityWarmConnectionsPerHost: "150",
+      identityIngressProxy: "true",
+      identityIngressPort: "19080",
+      identityIngressCount: "16",
+      identityIngressMaxConnsPerHost: "40",
+      identityIngressWarmConnectionsPerHost: "16",
     });
 
     assert.deepEqual(steps.map((step) => step.name), ["smoke", "low"]);
@@ -60,6 +78,12 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.identityBaseUrl, "http://127.0.0.1:19000");
     assert.equal(steps[0].options.conversationBaseUrl, "http://127.0.0.1:19100");
     assert.equal(steps[0].options.teachingBaseUrl, "http://127.0.0.1:19200");
+    assert.equal(steps[0].options.maxConnsPerHost, "70");
+    assert.equal(steps[0].options.identityMaxConnsPerHost, "150");
+    assert.equal(steps[0].options.identityIngressProxy, "true");
+    assert.equal(steps[0].options.identityIngressPort, "19080");
+    assert.equal(steps[0].options.identityIngressCount, "16");
+    assert.equal(steps[0].options.identityIngressMaxConnsPerHost, "40");
   });
 
   it("runs every scale-up step and writes a passed report", async () => {
@@ -199,13 +223,25 @@ describe("system sustained mixed workload scale-up runner", () => {
   });
 
   it("builds a rollup with scale-up guardrail findings", () => {
-    const steps = buildScaleUpSteps({
+    const options = {
       ...defaults,
       steps: "smoke:2:4:8:16,low:4:8:16:32",
       maxP99Ms: "100",
+      maxConnsPerHost: "70",
+      warmConnectionsPerHost: "9",
+      identityMaxConnsPerHost: "150",
+      identityWarmConnectionsPerHost: "150",
+      identityIngressProxy: "true",
+      identityIngressPort: "19080",
+      identityIngressCount: "16",
+      identityIngressMaxConnsPerHost: "40",
+      identityIngressWarmConnectionsPerHost: "16",
+    };
+    const steps = buildScaleUpSteps({
+      ...options,
     });
     const report = buildSystemSustainedMixedWorkloadScaleUpReport({
-      options: { ...defaults, maxP99Ms: "100" },
+      options,
       steps,
       stepReports: [
         { step: steps[0], report: sustainedReport(steps[0].options, { maxP99Ms: 40 }) },
@@ -219,6 +255,20 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.summary.highestPassedStep, "smoke");
     assert.equal(report.summary.firstBlockedStep, "low");
     assert.equal(report.steps[1].guardrailFindings.find((finding) => finding.id === "step.max_p99_within_guardrail").passed, false);
+    assert.deepEqual(report.transportProfile, {
+      sharedMaxConnsPerHost: 70,
+      sharedWarmConnectionsPerHost: 9,
+      identityMaxConnsPerHost: 150,
+      identityWarmConnectionsPerHost: 150,
+    });
+    assert.deepEqual(report.identityIngressProfile, {
+      enabled: true,
+      basePort: 19080,
+      workerCount: 16,
+      upstreamGatewayCount: 1,
+      maxConnsPerHost: 40,
+      warmConnectionsPerHost: 16,
+    });
   });
 
   it("does not convert missing P99 drift into a scale-up drift metric", () => {

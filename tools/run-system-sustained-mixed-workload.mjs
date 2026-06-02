@@ -5,6 +5,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 import {
+  buildMixedWorkloadIdentityIngressProfile,
+  buildMixedWorkloadTransportProfile,
   defaults as mixedDefaults,
   runSystemMixedWorkloadBenchmark,
 } from "./run-system-mixed-workload-benchmark.mjs";
@@ -35,6 +37,13 @@ export const defaults = {
   conversationWriteBatchSize: "8",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  identityMaxConnsPerHost: mixedDefaults.identityMaxConnsPerHost,
+  identityWarmConnectionsPerHost: mixedDefaults.identityWarmConnectionsPerHost,
+  identityIngressProxy: mixedDefaults.identityIngressProxy,
+  identityIngressPort: mixedDefaults.identityIngressPort,
+  identityIngressCount: mixedDefaults.identityIngressCount,
+  identityIngressMaxConnsPerHost: mixedDefaults.identityIngressMaxConnsPerHost,
+  identityIngressWarmConnectionsPerHost: mixedDefaults.identityIngressWarmConnectionsPerHost,
   timeout: "180s",
   teachingTimeoutMs: mixedDefaults.teachingTimeoutMs,
   startupTimeoutMs: "120000",
@@ -92,6 +101,13 @@ export function buildSampleRuns(options) {
         conversationWriteBatchSize: options.conversationWriteBatchSize,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
+        identityMaxConnsPerHost: options.identityMaxConnsPerHost,
+        identityWarmConnectionsPerHost: options.identityWarmConnectionsPerHost,
+        identityIngressProxy: options.identityIngressProxy,
+        identityIngressPort: options.identityIngressPort,
+        identityIngressCount: options.identityIngressCount,
+        identityIngressMaxConnsPerHost: options.identityIngressMaxConnsPerHost,
+        identityIngressWarmConnectionsPerHost: options.identityIngressWarmConnectionsPerHost,
         timeout: options.timeout,
         teachingTimeoutMs: options.teachingTimeoutMs,
         startupTimeoutMs: options.startupTimeoutMs,
@@ -192,6 +208,8 @@ export function buildSystemSustainedMixedWorkloadReport({
       conversationGatewayCount: parseInteger(options.conversationGatewayCount),
       configuredSamples: sampleRuns.length,
     },
+    transportProfile: buildSustainedMixedWorkloadTransportProfile(options),
+    identityIngressProfile: buildSustainedMixedWorkloadIdentityIngressProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
@@ -212,6 +230,14 @@ export function buildSystemSustainedMixedWorkloadReport({
       ? "Treat this as sustained mixed workload smoke evidence only; increase duration, concurrency, and workflow coverage before any full-system capacity promotion."
       : "Fix the first failed sustained mixed workload sample before increasing duration or concurrency.",
   };
+}
+
+export function buildSustainedMixedWorkloadTransportProfile(options) {
+  return buildMixedWorkloadTransportProfile(options);
+}
+
+export function buildSustainedMixedWorkloadIdentityIngressProfile(options) {
+  return buildMixedWorkloadIdentityIngressProfile(options);
 }
 
 export function formatSystemSustainedMixedWorkload(report) {
@@ -393,7 +419,7 @@ function parseInteger(value) {
 }
 
 function parseBoolean(value) {
-  return String(value).toLowerCase() === "true";
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
 function numberOrNull(value) {

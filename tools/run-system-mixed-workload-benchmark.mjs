@@ -30,6 +30,13 @@ export const defaults = {
   conversationWriteBatchSize: "32",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  identityMaxConnsPerHost: "",
+  identityWarmConnectionsPerHost: "",
+  identityIngressProxy: "false",
+  identityIngressPort: "18080",
+  identityIngressCount: "1",
+  identityIngressMaxConnsPerHost: "0",
+  identityIngressWarmConnectionsPerHost: "0",
   timeout: "180s",
   teachingTimeoutMs: "10000",
   startupTimeoutMs: "120000",
@@ -70,9 +77,19 @@ export function buildWorkloadCommands(options) {
         "--operations",
         options.identityOperations,
         "--max-conns-per-host",
-        options.maxConnsPerHost,
+        identityMaxConnsPerHost(options),
         "--warm-connections-per-host",
-        options.warmConnectionsPerHost,
+        identityWarmConnectionsPerHost(options),
+        "--ingress-proxy",
+        options.identityIngressProxy,
+        "--ingress-port",
+        options.identityIngressPort,
+        "--ingress-count",
+        options.identityIngressCount,
+        "--ingress-max-conns-per-host",
+        options.identityIngressMaxConnsPerHost,
+        "--ingress-warm-connections-per-host",
+        options.identityIngressWarmConnectionsPerHost,
         "--out",
         options.identityOut,
         "--timeout",
@@ -244,6 +261,8 @@ export function buildSystemMixedWorkloadReport({
       identityGatewayCount: parseInteger(options.identityGatewayCount),
       conversationGatewayCount: parseInteger(options.conversationGatewayCount),
     },
+    transportProfile: buildMixedWorkloadTransportProfile(options),
+    identityIngressProfile: buildMixedWorkloadIdentityIngressProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
@@ -270,6 +289,26 @@ export function buildSystemMixedWorkloadReport({
     nextAction: status === "PASSED"
       ? "Treat this as mixed workload smoke evidence only; increase duration, concurrency, and root workflow coverage before promoting full-system ultra-concurrency."
       : "Fix the failed mixed workload slice before using it for system capacity claims.",
+  };
+}
+
+export function buildMixedWorkloadTransportProfile(options) {
+  return {
+    sharedMaxConnsPerHost: parseInteger(options.maxConnsPerHost),
+    sharedWarmConnectionsPerHost: parseInteger(options.warmConnectionsPerHost),
+    identityMaxConnsPerHost: parseInteger(identityMaxConnsPerHost(options)),
+    identityWarmConnectionsPerHost: parseInteger(identityWarmConnectionsPerHost(options)),
+  };
+}
+
+export function buildMixedWorkloadIdentityIngressProfile(options) {
+  return {
+    enabled: parseBoolean(options.identityIngressProxy),
+    basePort: parseInteger(options.identityIngressPort),
+    workerCount: parseInteger(options.identityIngressCount),
+    upstreamGatewayCount: parseInteger(options.identityGatewayCount),
+    maxConnsPerHost: parseInteger(options.identityIngressMaxConnsPerHost),
+    warmConnectionsPerHost: parseInteger(options.identityIngressWarmConnectionsPerHost),
   };
 }
 
@@ -420,11 +459,17 @@ function validateOptions(options) {
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
+  if (parseBoolean(options.identityIngressProxy)) {
+    assertPositiveInteger(options.identityIngressCount, "identity-ingress-count");
+  }
   assertNoPortOverlap(options);
 }
 
 function assertNoPortOverlap(options) {
   const identityPorts = portRange(options.identityBaseUrl, parseInteger(options.identityGatewayCount), "identity-base-url");
+  const identityIngressPorts = parseBoolean(options.identityIngressProxy)
+    ? portSequence(options.identityIngressPort, parseInteger(options.identityIngressCount), "identity-ingress-port")
+    : [];
   const conversationPorts = portRange(
     options.conversationBaseUrl,
     parseInteger(options.conversationGatewayCount),
@@ -432,10 +477,13 @@ function assertNoPortOverlap(options) {
   );
   const teachingPorts = portRange(options.teachingBaseUrl, 1, "teaching-base-url");
   const overlap = identityPorts
-    .filter((port) => conversationPorts.includes(port) || teachingPorts.includes(port))
+    .filter((port) =>
+      identityIngressPorts.includes(port) || conversationPorts.includes(port) || teachingPorts.includes(port))
+    .concat(identityIngressPorts.filter((port) =>
+      conversationPorts.includes(port) || teachingPorts.includes(port)))
     .concat(conversationPorts.filter((port) => teachingPorts.includes(port)));
   if (overlap.length > 0) {
-    throw new Error(`mixed workload gateway port overlap: ${overlap.join(", ")}`);
+    throw new Error(`mixed workload gateway port overlap: ${[...new Set(overlap)].join(", ")}`);
   }
 }
 
@@ -555,7 +603,20 @@ function tailText(value, maxLines = 80) {
 
 function portRange(urlText, count, name) {
   const start = portFromUrl(urlText, name);
+  return portSequence(start, count, name);
+}
+
+function portSequence(startPort, count, name) {
+  const start = portFromValue(startPort, name);
   return Array.from({ length: count }, (_, index) => start + index);
+}
+
+function portFromValue(value, name) {
+  const port = Number.parseInt(value, 10);
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error(`${name} must include an explicit positive port`);
+  }
+  return port;
 }
 
 function portFromUrl(urlText, name) {
@@ -581,7 +642,19 @@ function parseInteger(value) {
 }
 
 function parseBoolean(value) {
-  return String(value).toLowerCase() === "true";
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+function identityMaxConnsPerHost(options) {
+  return optionOrFallback(options.identityMaxConnsPerHost, options.maxConnsPerHost);
+}
+
+function identityWarmConnectionsPerHost(options) {
+  return optionOrFallback(options.identityWarmConnectionsPerHost, options.warmConnectionsPerHost);
+}
+
+function optionOrFallback(value, fallback) {
+  return String(value ?? "").trim() === "" ? fallback : value;
 }
 
 function numberOrNull(value) {

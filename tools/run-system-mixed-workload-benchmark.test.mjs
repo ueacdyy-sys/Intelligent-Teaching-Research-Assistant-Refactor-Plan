@@ -24,6 +24,12 @@ describe("system mixed workload benchmark runner", () => {
       "64",
       "--teaching-concurrency",
       "6",
+      "--identity-ingress-proxy",
+      "true",
+      "--identity-ingress-count",
+      "16",
+      "--identity-max-conns-per-host",
+      "150",
       "--unknown-option",
       "ignored",
     ]);
@@ -32,6 +38,9 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.conversationGatewayCount, "16");
     assert.equal(parsed.conversationWriteBatchSize, "64");
     assert.equal(parsed.teachingConcurrency, "6");
+    assert.equal(parsed.identityIngressProxy, "true");
+    assert.equal(parsed.identityIngressCount, "16");
+    assert.equal(parsed.identityMaxConnsPerHost, "150");
     assert.equal(parsed.profile, defaults.profile);
     assert.equal(Object.hasOwn(parsed, "unknownOption"), false);
   });
@@ -47,6 +56,15 @@ describe("system mixed workload benchmark runner", () => {
       teachingOut: "reports/teaching.json",
       knowledgeOut: "reports/knowledge.json",
       aiAdmissionOut: "reports/ai.json",
+      maxConnsPerHost: "70",
+      warmConnectionsPerHost: "9",
+      identityMaxConnsPerHost: "150",
+      identityWarmConnectionsPerHost: "150",
+      identityIngressProxy: "true",
+      identityIngressPort: "19080",
+      identityIngressCount: "16",
+      identityIngressMaxConnsPerHost: "40",
+      identityIngressWarmConnectionsPerHost: "16",
     });
 
     assert.deepEqual(commands.map((command) => command.name), [
@@ -57,8 +75,17 @@ describe("system mixed workload benchmark runner", () => {
       "ai_worker_admission",
     ]);
     assert.equal(argumentAfter(commands[0].args, "--base-url"), "http://127.0.0.1:19000");
+    assert.equal(argumentAfter(commands[0].args, "--max-conns-per-host"), "150");
+    assert.equal(argumentAfter(commands[0].args, "--warm-connections-per-host"), "150");
+    assert.equal(argumentAfter(commands[0].args, "--ingress-proxy"), "true");
+    assert.equal(argumentAfter(commands[0].args, "--ingress-port"), "19080");
+    assert.equal(argumentAfter(commands[0].args, "--ingress-count"), "16");
+    assert.equal(argumentAfter(commands[0].args, "--ingress-max-conns-per-host"), "40");
+    assert.equal(argumentAfter(commands[0].args, "--ingress-warm-connections-per-host"), "16");
     assert.equal(argumentAfter(commands[1].args, "--base-url"), "http://127.0.0.1:19100");
     assert.equal(argumentAfter(commands[1].args, "--agent-api-key"), "ueacd");
+    assert.equal(argumentAfter(commands[1].args, "--max-conns-per-host"), "70");
+    assert.equal(argumentAfter(commands[1].args, "--warm-connections-per-host"), "9");
     assert.equal(argumentAfter(commands[2].args, "--base-url"), "http://127.0.0.1:19200");
     assert.equal(argumentAfter(commands[2].args, "--agent-api-key"), "ueacd");
     assert.equal(commands[3].sourceReportPath, "reports/knowledge.json");
@@ -176,6 +203,27 @@ describe("system mixed workload benchmark runner", () => {
     );
   });
 
+  it("rejects overlapping identity ingress and downstream gateway ports", async () => {
+    const root = makeTempRoot();
+
+    await assert.rejects(
+      () => runSystemMixedWorkloadBenchmark(
+        {
+          ...defaults,
+          identityBaseUrl: "http://127.0.0.1:18300",
+          identityGatewayCount: "2",
+          identityIngressProxy: "true",
+          identityIngressPort: "18400",
+          identityIngressCount: "2",
+          conversationBaseUrl: "http://127.0.0.1:18401",
+          conversationGatewayCount: "1",
+        },
+        { root, runCommand: successfulChildCommand },
+      ),
+      /port overlap: 18401/u,
+    );
+  });
+
   it("does not execute workloads when managed Docker setup fails, but still records cleanup", async () => {
     const root = makeTempRoot();
     let workloadRuns = 0;
@@ -213,7 +261,19 @@ describe("system mixed workload benchmark runner", () => {
   });
 
   it("builds a direct report object from supplied child reports", () => {
-    const commands = buildWorkloadCommands(defaults);
+    const options = {
+      ...defaults,
+      maxConnsPerHost: "70",
+      warmConnectionsPerHost: "9",
+      identityMaxConnsPerHost: "150",
+      identityWarmConnectionsPerHost: "150",
+      identityIngressProxy: "true",
+      identityIngressPort: "19080",
+      identityIngressCount: "16",
+      identityIngressMaxConnsPerHost: "40",
+      identityIngressWarmConnectionsPerHost: "16",
+    };
+    const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
       name: command.name,
       exitCode: 0,
@@ -223,7 +283,7 @@ describe("system mixed workload benchmark runner", () => {
     const childReports = childReportsFor(commands);
 
     const report = buildSystemMixedWorkloadReport({
-      options: defaults,
+      options,
       commands,
       results,
       childReports,
@@ -235,6 +295,20 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(report.workloadType, "MIXED_WORKLOAD");
     assert.equal(report.summary.maxP99Ms, 35);
     assert.equal(report.workloads.find((workload) => workload.name === "knowledge_retrieval").status, "READY");
+    assert.deepEqual(report.transportProfile, {
+      sharedMaxConnsPerHost: 70,
+      sharedWarmConnectionsPerHost: 9,
+      identityMaxConnsPerHost: 150,
+      identityWarmConnectionsPerHost: 150,
+    });
+    assert.deepEqual(report.identityIngressProfile, {
+      enabled: true,
+      basePort: 19080,
+      workerCount: 16,
+      upstreamGatewayCount: 1,
+      maxConnsPerHost: 40,
+      warmConnectionsPerHost: 16,
+    });
   });
 });
 

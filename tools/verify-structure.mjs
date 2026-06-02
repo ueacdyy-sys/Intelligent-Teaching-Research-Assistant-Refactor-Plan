@@ -279,6 +279,7 @@ const required = [
   "docs/sdd/0153-identity-phase-gateway-db-diagnostics.md",
   "docs/sdd/0154-identity-phase-aware-matrix-runner.md",
   "docs/sdd/0155-identity-4400-phase-matrix-headroom-candidate.md",
+  "docs/sdd/0156-system-mixed-workload-identity-ingress-profile.md",
   "tools/quality-gate.mjs",
   "tools/quality-gate-report-state.mjs",
   "tools/quality-gate.test.mjs", "tools/pgbouncer-perf-profile-audit.mjs", "tools/pgbouncer-perf-profile-audit.test.mjs", "tools/student-app-flow-audit.mjs", "tools/student-app-flow-audit.test.mjs", "tools/agent-harness-flow-audit.mjs", "tools/agent-harness-flow-audit.test.mjs", "tools/workflow-plugin-flow-audit.mjs", "tools/workflow-plugin-flow-audit.test.mjs", "tools/workflow-plugin-registry-admission.mjs", "tools/workflow-plugin-registry-admission.test.mjs", "tools/workflow-plugin-revision-feedback.mjs", "tools/workflow-plugin-revision-feedback.test.mjs", "tools/ai-worker-job-audit.mjs", "tools/ai-worker-job-audit.test.mjs", "tools/knowledge-access-policy-audit.mjs", "tools/knowledge-access-policy-audit.test.mjs", "tools/ai-worker-job-admission.mjs", "tools/ai-worker-job-admission.test.mjs", "tools/knowledge-retrieval-benchmark-audit.mjs", "tools/knowledge-retrieval-benchmark-audit.test.mjs", "tools/ai-worker-runtime-dependency-profile-audit.mjs", "tools/ai-worker-runtime-dependency-profile-audit.test.mjs", "tools/performance-evidence-registry-audit.mjs", "tools/performance-evidence-registry-audit.test.mjs", "tools/verify-structure-sdd-discovery.test.mjs",
