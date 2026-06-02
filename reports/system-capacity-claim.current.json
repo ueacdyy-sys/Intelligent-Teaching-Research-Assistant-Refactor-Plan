@@ -1,13 +1,12 @@
 {
-  "generatedAt": "2026-06-02T17:28:31.376Z",
+  "generatedAt": "2026-06-02T17:57:03.932Z",
   "readiness": "READY",
   "workloadType": "SYSTEM_CAPACITY_CLAIM_AUDIT",
   "claim": {
     "fullSystemUltraConcurrency": {
       "status": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-      "reason": "Root SLO promotion review blocks the claim with 3 blocker(s): promotion.module_evidence_depth_sufficient,promotion.interactive_tail_latency_within_target,promotion.production_read_write_rps_target_met.",
+      "reason": "Root SLO promotion review blocks the claim with 2 blocker(s): promotion.interactive_tail_latency_within_target,promotion.production_read_write_rps_target_met.",
       "requiredNextEvidence": [
-        "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
         "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
         "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
       ]
@@ -16,35 +15,136 @@
       {
         "module": "Identity And Access",
         "status": "MODULE_CAPACITY_ONLY",
-        "summary": "passed 4400 clients with revokeCycle P99 3071.17ms; this is a module benchmark, not a full-system SLO",
+        "summary": "cross-module diagnostics classify identity as MODULE_CAPACITY_ONLY; slowest P99 3071.17ms still blocks root interactive latency",
         "concurrency": 4400,
-        "slowestP99Ms": 3071.17
+        "slowestP99Ms": 3071.17,
+        "crossModuleStatus": "PASSED",
+        "crossModuleSourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
+        "crossModuleMetrics": {
+          "concurrency": 4400,
+          "errors": 0,
+          "slowestP99Ms": 3071.17,
+          "slowestP99Phase": "revokeCycle",
+          "revokeCycleSlowestStep": "login",
+          "revokeCycleSlowestStepP99Ms": 1498.29,
+          "revokeCycleStepP99SumMs": 3502.89,
+          "revokeCycleP99ResidualMs": -431.72
+        }
       },
       {
         "module": "Research Conversation Write",
-        "status": "MODULE_CAPACITY_ONLY",
-        "summary": "low-tail 5800 clients at P99 349.9ms; WSL burst 30000 clients at P99 1795.33ms is functional capacity only",
+        "status": "MODULE_CAPACITY_AND_TRANSPORT_DECISION",
+        "summary": "cross-module diagnostics classify the write path as MODULE_CAPACITY_AND_TRANSPORT_DECISION; low-tail 5800 clients and burst 30000 clients remain module capacity evidence",
         "lowTailConcurrency": 5800,
-        "burstCeilingConcurrency": 30000
+        "burstCeilingConcurrency": 30000,
+        "crossModuleStatus": "PASSED",
+        "crossModuleSourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
+        "crossModuleMetrics": {
+          "lowTailConcurrency": 5800,
+          "lowTailP99Ms": 349.9,
+          "dbAcquireP99Ms": 0,
+          "burstConcurrency": 30000,
+          "burstP99Ms": 1795.33,
+          "burstDbAcquireP99Ms": 0,
+          "runtimeRecommendation": "USE_WSL_LOADGEN_FOR_HIGH_CONCURRENCY_EDGE"
+        }
       },
       {
         "module": "Teaching Archive And Quiz",
-        "status": "MODULE_SMOKE_ONLY",
-        "summary": "passed 2 clients across archive create, quiz submission, and archive list phases; slowest P99 35ms in createArchiveItem",
+        "status": "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        "summary": "runtime-backed by sustained mixed workload high step at 2107.3 read/write RPS; module source slowest P99 35ms",
         "concurrency": 2,
-        "slowestP99Ms": 35
+        "slowestP99Ms": 35,
+        "crossModuleStatus": "PASSED",
+        "crossModuleSourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
+        "crossModuleMetrics": {
+          "concurrency": 2,
+          "errors": 0,
+          "slowestP99Ms": 35,
+          "slowestP99Phase": "createArchiveItem",
+          "sustainedRuntimeEvidence": {
+            "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+            "workloadName": "teaching_archive",
+            "stepName": "high",
+            "present": true,
+            "passed": true,
+            "errors": 0,
+            "p95Ms": 88,
+            "p99Ms": 94,
+            "stepReadWriteRps": 2107.3
+          }
+        }
       },
       {
         "module": "Knowledge Retrieval",
-        "status": "POLICY_SMOKE_ONLY",
-        "summary": "hybrid query-plan P95 2.55ms over 4 policy workloads; not a production corpus throughput benchmark",
-        "p95QueryPlanMs": 2.55
+        "status": "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        "summary": "policy runtime evidence appears in sustained mixed workload high step at 2107.3 read/write RPS; query-plan P95 2.55ms",
+        "p95QueryPlanMs": 2.55,
+        "crossModuleStatus": "READY",
+        "crossModuleSourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
+        "crossModuleMetrics": {
+          "p95QueryPlanMs": 2.55,
+          "totalPlans": 256,
+          "sustainedRuntimeEvidence": {
+            "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+            "workloadName": "knowledge_retrieval",
+            "stepName": "high",
+            "present": true,
+            "passed": true,
+            "errors": 0,
+            "p95Ms": 2.55,
+            "p99Ms": null,
+            "stepReadWriteRps": 2107.3
+          }
+        }
       },
       {
         "module": "AI Worker Runtime",
-        "status": "DEPENDENCY_BOUNDARY_ONLY",
-        "summary": "23 baseline dependencies scanned with forbidden AI dependency hits 0; no worker throughput benchmark yet",
-        "baselineDependenciesScanned": 23
+        "status": "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        "summary": "worker admission runtime evidence appears in sustained mixed workload high step; direct main DB writes=blocked; baseline heavy AI deps=absent",
+        "baselineDependenciesScanned": 23,
+        "crossModuleStatus": "READY",
+        "crossModuleSourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
+        "crossModuleMetrics": {
+          "allowedDispatchExamples": 5,
+          "noDirectDbWrite": true,
+          "noBaselineRuntimeDependency": true,
+          "sustainedRuntimeEvidence": {
+            "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+            "workloadName": "ai_worker_admission",
+            "stepName": "high",
+            "present": true,
+            "passed": true,
+            "errors": 0,
+            "p95Ms": null,
+            "p99Ms": null,
+            "stepReadWriteRps": 2107.3
+          }
+        }
+      },
+      {
+        "module": "Agent Harness And Workflow Plugin",
+        "status": "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
+        "summary": "workflow/plugin dry-run runtime SLO P99 1.57ms with generated-code execution disabled and approval queue review-only",
+        "crossModuleStatus": "READY",
+        "crossModuleSourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
+        "crossModuleMetrics": {
+          "approvalExecutionReadyFalse": true,
+          "workflowSandboxNoHostWrite": true,
+          "workflowRegistryAllowsSave": true,
+          "workflowRuntimeEvidence": {
+            "sourceReportPath": "reports/workflow-plugin-runtime-slo.current.json",
+            "workloadName": "workflow_plugin_runtime_slo",
+            "present": true,
+            "passed": true,
+            "targetP99Ms": 300,
+            "p95Ms": 1.57,
+            "p99Ms": 1.57,
+            "totalErrors": 0,
+            "localGeneratedCodeExecuted": false,
+            "localExecutionEnabled": false
+          }
+        }
       },
       {
         "module": "Quality Gate",
@@ -218,6 +318,128 @@
   },
   "crossModuleDiagnosticsEvidence": {
     "count": 1,
+    "reportPresent": true,
+    "reportParseable": true,
+    "summary": {
+      "readiness": "READY",
+      "workloadType": "CROSS_MODULE_DATABASE_AND_QUEUE_DIAGNOSTICS",
+      "moduleDiagnostics": [
+        {
+          "id": "identity_and_access",
+          "classification": "MODULE_CAPACITY_ONLY",
+          "status": "PASSED",
+          "metrics": {
+            "concurrency": 4400,
+            "errors": 0,
+            "slowestP99Ms": 3071.17,
+            "slowestP99Phase": "revokeCycle",
+            "revokeCycleSlowestStep": "login",
+            "revokeCycleSlowestStepP99Ms": 1498.29,
+            "revokeCycleStepP99SumMs": 3502.89,
+            "revokeCycleP99ResidualMs": -431.72
+          }
+        },
+        {
+          "id": "research_conversation_write",
+          "classification": "MODULE_CAPACITY_AND_TRANSPORT_DECISION",
+          "status": "PASSED",
+          "metrics": {
+            "lowTailConcurrency": 5800,
+            "lowTailP99Ms": 349.9,
+            "dbAcquireP99Ms": 0,
+            "burstConcurrency": 30000,
+            "burstP99Ms": 1795.33,
+            "burstDbAcquireP99Ms": 0,
+            "runtimeRecommendation": "USE_WSL_LOADGEN_FOR_HIGH_CONCURRENCY_EDGE"
+          }
+        },
+        {
+          "id": "teaching_archive_and_quiz",
+          "classification": "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+          "status": "PASSED",
+          "metrics": {
+            "concurrency": 2,
+            "errors": 0,
+            "slowestP99Ms": 35,
+            "slowestP99Phase": "createArchiveItem",
+            "sustainedRuntimeEvidence": {
+              "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+              "workloadName": "teaching_archive",
+              "stepName": "high",
+              "present": true,
+              "passed": true,
+              "errors": 0,
+              "p95Ms": 88,
+              "p99Ms": 94,
+              "stepReadWriteRps": 2107.3
+            }
+          }
+        },
+        {
+          "id": "knowledge_retrieval",
+          "classification": "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+          "status": "READY",
+          "metrics": {
+            "p95QueryPlanMs": 2.55,
+            "totalPlans": 256,
+            "sustainedRuntimeEvidence": {
+              "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+              "workloadName": "knowledge_retrieval",
+              "stepName": "high",
+              "present": true,
+              "passed": true,
+              "errors": 0,
+              "p95Ms": 2.55,
+              "p99Ms": null,
+              "stepReadWriteRps": 2107.3
+            }
+          }
+        },
+        {
+          "id": "ai_worker_optional_runtime",
+          "classification": "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+          "status": "READY",
+          "metrics": {
+            "allowedDispatchExamples": 5,
+            "noDirectDbWrite": true,
+            "noBaselineRuntimeDependency": true,
+            "sustainedRuntimeEvidence": {
+              "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+              "workloadName": "ai_worker_admission",
+              "stepName": "high",
+              "present": true,
+              "passed": true,
+              "errors": 0,
+              "p95Ms": null,
+              "p99Ms": null,
+              "stepReadWriteRps": 2107.3
+            }
+          }
+        },
+        {
+          "id": "agent_harness_and_workflow_plugin",
+          "classification": "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
+          "status": "READY",
+          "metrics": {
+            "approvalExecutionReadyFalse": true,
+            "workflowSandboxNoHostWrite": true,
+            "workflowRegistryAllowsSave": true,
+            "workflowRuntimeEvidence": {
+              "sourceReportPath": "reports/workflow-plugin-runtime-slo.current.json",
+              "workloadName": "workflow_plugin_runtime_slo",
+              "present": true,
+              "passed": true,
+              "targetP99Ms": 300,
+              "p95Ms": 1.57,
+              "p99Ms": 1.57,
+              "totalErrors": 0,
+              "localGeneratedCodeExecuted": false,
+              "localExecutionEnabled": false
+            }
+          }
+        }
+      ]
+    },
     "entries": [
       {
         "evidenceId": "cross_module_db_queue_diagnostics_current",
@@ -238,14 +460,12 @@
       "productionReadWriteRpsTarget": 10000,
       "interactiveP99TargetMs": 300,
       "measuredReadWriteRps": 2107.3,
-      "blockerCount": 3,
+      "blockerCount": 2,
       "blockerIds": [
-        "promotion.module_evidence_depth_sufficient",
         "promotion.interactive_tail_latency_within_target",
         "promotion.production_read_write_rps_target_met"
       ],
       "requiredNextEvidence": [
-        "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
         "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
         "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
       ]
@@ -303,7 +523,7 @@
       "id": "claim.module_limits_are_explicit",
       "passed": true,
       "severity": "info",
-      "actual": "Identity And Access:MODULE_CAPACITY_ONLY;Research Conversation Write:MODULE_CAPACITY_ONLY;Teaching Archive And Quiz:MODULE_SMOKE_ONLY;Knowledge Retrieval:POLICY_SMOKE_ONLY;AI Worker Runtime:DEPENDENCY_BOUNDARY_ONLY;Quality Gate:QUALITY_READY",
+      "actual": "Identity And Access:MODULE_CAPACITY_ONLY;Research Conversation Write:MODULE_CAPACITY_AND_TRANSPORT_DECISION;Teaching Archive And Quiz:MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD;Knowledge Retrieval:POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD;AI Worker Runtime:WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD;Agent Harness And Workflow Plugin:REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY;Quality Gate:QUALITY_READY",
       "expected": "each root module has an explicit current capacity or evidence-gap classification",
       "remediation": "Record the current capacity boundary or evidence gap for every root module."
     }
@@ -319,7 +539,9 @@
     "docs/sdd/0140-system-sustained-mixed-workload-runner.md",
     "docs/sdd/0141-system-sustained-mixed-workload-scale-up-runner.md",
     "docs/sdd/0142-root-workflow-coverage-audit.md",
+    "docs/sdd/0143-cross-module-db-queue-diagnostics-audit.md",
     "docs/sdd/0144-root-slo-promotion-review-audit.md",
-    "docs/sdd/0181-root-slo-production-rps-target.md"
+    "docs/sdd/0181-root-slo-production-rps-target.md",
+    "docs/sdd/0191-module-runtime-depth-from-sustained-evidence.md"
   ]
 }

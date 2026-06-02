@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-02T17:28:30.375Z",
+  "generatedAt": "2026-06-02T17:57:03.043Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -41,12 +41,7 @@
       "contractOnlyWorkflows": []
     },
     "moduleEvidenceDepth": {
-      "shallowModules": [
-        "teaching_archive_and_quiz:MODULE_SMOKE_ONLY",
-        "knowledge_retrieval:POLICY_SMOKE_ONLY",
-        "ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY",
-        "agent_harness_and_workflow_plugin:REVIEW_ONLY_QUEUE_BOUNDARY"
-      ]
+      "shallowModules": []
     },
     "latency": {
       "targetP99Ms": 300,
@@ -119,14 +114,8 @@
     "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
     "decision": "BLOCK_PROMOTION",
     "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-    "blockerCount": 3,
+    "blockerCount": 2,
     "blockers": [
-      {
-        "id": "promotion.module_evidence_depth_sufficient",
-        "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY;agent_harness_and_workflow_plugin:REVIEW_ONLY_QUEUE_BOUNDARY",
-        "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
-        "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
-      },
       {
         "id": "promotion.interactive_tail_latency_within_target",
         "actual": "identity.slowest_p99_ms=3071.17;identityRevokeSlowestStep=login:1498.29;stepP99Sum=3502.89;p99Residual=-431.72",
@@ -141,7 +130,6 @@
       }
     ],
     "requiredNextEvidence": [
-      "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
       "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
       "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
     ]
@@ -215,9 +203,9 @@
     },
     {
       "id": "promotion.module_evidence_depth_sufficient",
-      "passed": false,
-      "severity": "promotion_blocker",
-      "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY;agent_harness_and_workflow_plugin:REVIEW_ONLY_QUEUE_BOUNDARY",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
       "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
       "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
     },

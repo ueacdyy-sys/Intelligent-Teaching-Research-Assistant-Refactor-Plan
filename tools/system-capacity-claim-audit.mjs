@@ -11,6 +11,7 @@ import {
 const defaultOutPath = "reports/system-capacity-claim.current.json";
 const registryPath = "contracts/ops/performance-evidence-registry.current.json";
 const rootSloPromotionReviewReportPath = "reports/root-slo-promotion-review.current.json";
+const crossModuleDiagnosticsReportPath = "reports/cross-module-db-queue-diagnostics.current.json";
 
 export const requiredEvidence = [
   {
@@ -62,6 +63,9 @@ export function auditSystemCapacityClaim(inputs) {
   const rootSloPromotionReview = summarizeRootSloPromotionReview(
     reports[rootSloPromotionReviewReportPath],
   );
+  const crossModuleDiagnostics = summarizeCrossModuleDiagnostics(
+    reports[crossModuleDiagnosticsReportPath],
+  );
 
   const claim = buildClaimAssessment(
     evidence,
@@ -72,6 +76,7 @@ export function auditSystemCapacityClaim(inputs) {
     crossModuleDiagnosticsEntries,
     rootSloPromotionReviewEntries,
     rootSloPromotionReview.summary,
+    crossModuleDiagnostics.summary,
   );
   const findings = [];
   addFinding(findings, {
@@ -157,6 +162,9 @@ export function auditSystemCapacityClaim(inputs) {
     },
     crossModuleDiagnosticsEvidence: {
       count: crossModuleDiagnosticsEntries.length,
+      reportPresent: crossModuleDiagnostics.reportPresent,
+      reportParseable: crossModuleDiagnostics.reportParseable,
+      summary: crossModuleDiagnostics.summary,
       entries: crossModuleDiagnosticsEntries.map((entry) => ({
         evidenceId: entry.evidenceId,
         sourceReportPath: entry.sourceReportPath,
@@ -186,8 +194,10 @@ export function auditSystemCapacityClaim(inputs) {
       "docs/sdd/0140-system-sustained-mixed-workload-runner.md",
       "docs/sdd/0141-system-sustained-mixed-workload-scale-up-runner.md",
       "docs/sdd/0142-root-workflow-coverage-audit.md",
+      "docs/sdd/0143-cross-module-db-queue-diagnostics-audit.md",
       "docs/sdd/0144-root-slo-promotion-review-audit.md",
       "docs/sdd/0181-root-slo-production-rps-target.md",
+      "docs/sdd/0191-module-runtime-depth-from-sustained-evidence.md",
     ],
   };
 }
@@ -365,6 +375,26 @@ function summarizeRootSloPromotionReview(reportState) {
   };
 }
 
+function summarizeCrossModuleDiagnostics(reportState) {
+  const base = { reportPresent: reportState?.present === true, reportParseable: reportState?.parseable === true };
+  if (!reportState?.parseable) return { ...base, summary: {} };
+  const report = reportState.value;
+  const modules = Array.isArray(report.moduleDiagnostics) ? report.moduleDiagnostics : [];
+  return {
+    ...base,
+    summary: {
+      readiness: report.readiness ?? null,
+      workloadType: report.workloadType ?? null,
+      moduleDiagnostics: modules.map((module) => ({
+        id: module.id,
+        classification: module.classification ?? null,
+        status: module.status ?? null,
+        metrics: module.metrics ?? {},
+      })),
+    },
+  };
+}
+
 function buildClaimAssessment(
   evidence,
   mixedWorkloadEntries,
@@ -374,15 +404,16 @@ function buildClaimAssessment(
   crossModuleDiagnosticsEntries = [],
   rootSloPromotionReviewEntries = [],
   rootSloPromotionReview = {},
+  crossModuleDiagnostics = {},
 ) {
-  const moduleLimits = [
+  const moduleLimits = applyCrossModuleDiagnosticsToModuleLimits([
     identityLimit(evidence.identity.summary),
     conversationLimit(evidence.conversation.summary),
     teachingArchiveLimit(evidence.teachingArchive.summary),
     knowledgeLimit(evidence.knowledge.summary),
     aiWorkerLimit(evidence.aiWorker.summary),
     qualityLimit(evidence.quality.summary),
-  ];
+  ], crossModuleDiagnostics, crossModuleDiagnosticsEntries);
   const fullSystemStatus = fullSystemUltraConcurrencyStatus(
     mixedWorkloadEntries,
     rootSloPromotionReviewEntries,
@@ -443,6 +474,76 @@ function buildClaimAssessment(
     },
     moduleLimits,
   };
+}
+
+const moduleLimitToCrossModuleId = {
+  "Identity And Access": "identity_and_access",
+  "Research Conversation Write": "research_conversation_write",
+  "Teaching Archive And Quiz": "teaching_archive_and_quiz",
+  "Knowledge Retrieval": "knowledge_retrieval",
+  "AI Worker Runtime": "ai_worker_optional_runtime",
+};
+
+function applyCrossModuleDiagnosticsToModuleLimits(moduleLimits, diagnosticsSummary, diagnosticsEntries = []) {
+  if (diagnosticsEntries.length === 0 || diagnosticsSummary?.readiness !== "READY" || !Array.isArray(diagnosticsSummary.moduleDiagnostics)) return moduleLimits;
+  const diagnosticsById = new Map(
+    diagnosticsSummary.moduleDiagnostics
+      .filter((module) => module?.id && module?.classification)
+      .map((module) => [module.id, module]),
+  );
+  const upgraded = moduleLimits.map((limit) => {
+    const moduleId = moduleLimitToCrossModuleId[limit.module];
+    const diagnostic = diagnosticsById.get(moduleId);
+    return diagnostic ? mergeCrossModuleDiagnostic(limit, diagnostic) : limit;
+  });
+  const agentWorkflow = diagnosticsById.get("agent_harness_and_workflow_plugin");
+  if (agentWorkflow) {
+    upgraded.splice(upgraded.length - 1, 0, {
+      module: "Agent Harness And Workflow Plugin",
+      status: agentWorkflow.classification,
+      summary: summarizeCrossModuleDiagnosticLimit("Agent Harness And Workflow Plugin", agentWorkflow, {}),
+      crossModuleStatus: agentWorkflow.status ?? null,
+      crossModuleSourceReportPath: crossModuleDiagnosticsReportPath,
+      crossModuleMetrics: agentWorkflow.metrics ?? {},
+    });
+  }
+  return upgraded;
+}
+
+function mergeCrossModuleDiagnostic(limit, diagnostic) {
+  return {
+    ...limit,
+    status: diagnostic.classification,
+    summary: summarizeCrossModuleDiagnosticLimit(limit.module, diagnostic, limit),
+    crossModuleStatus: diagnostic.status ?? null,
+    crossModuleSourceReportPath: crossModuleDiagnosticsReportPath,
+    crossModuleMetrics: diagnostic.metrics ?? {},
+  };
+}
+
+function summarizeCrossModuleDiagnosticLimit(moduleName, diagnostic, fallbackLimit) {
+  const metrics = diagnostic.metrics ?? {};
+  const sustained = metrics.sustainedRuntimeEvidence ?? {};
+  if (moduleName === "Teaching Archive And Quiz") {
+    return `runtime-backed by sustained mixed workload ${sustained.stepName ?? "unknown"} step at ${sustained.stepReadWriteRps ?? "unknown"} read/write RPS; module source slowest P99 ${fallbackLimit.slowestP99Ms ?? "unknown"}ms`;
+  }
+  if (moduleName === "Knowledge Retrieval") {
+    return `policy runtime evidence appears in sustained mixed workload ${sustained.stepName ?? "unknown"} step at ${sustained.stepReadWriteRps ?? "unknown"} read/write RPS; query-plan P95 ${metrics.p95QueryPlanMs ?? fallbackLimit.p95QueryPlanMs ?? "unknown"}ms`;
+  }
+  if (moduleName === "AI Worker Runtime") {
+    return `worker admission runtime evidence appears in sustained mixed workload ${sustained.stepName ?? "unknown"} step; direct main DB writes=${metrics.noDirectDbWrite === true ? "blocked" : "unknown"}; baseline heavy AI deps=${metrics.noBaselineRuntimeDependency === true ? "absent" : "unknown"}`;
+  }
+  if (moduleName === "Research Conversation Write") {
+    return `cross-module diagnostics classify the write path as ${diagnostic.classification}; low-tail ${fallbackLimit.lowTailConcurrency ?? "unknown"} clients and burst ${fallbackLimit.burstCeilingConcurrency ?? "unknown"} clients remain module capacity evidence`;
+  }
+  if (moduleName === "Identity And Access") {
+    return `cross-module diagnostics classify identity as ${diagnostic.classification}; slowest P99 ${fallbackLimit.slowestP99Ms ?? "unknown"}ms still blocks root interactive latency`;
+  }
+  if (moduleName === "Agent Harness And Workflow Plugin") {
+    const workflow = metrics.workflowRuntimeEvidence ?? {};
+    return `workflow/plugin dry-run runtime SLO P99 ${workflow.p99Ms ?? "unknown"}ms with generated-code execution disabled and approval queue review-only`;
+  }
+  return fallbackLimit.summary ?? `cross-module diagnostics classify this module as ${diagnostic.classification}`;
 }
 
 function fullSystemUltraConcurrencyStatus(
@@ -658,6 +759,7 @@ function loadCurrentInputs(root) {
     reports: Object.fromEntries([
       ...requiredEvidence.map((requirement) => requirement.reportPath),
       rootSloPromotionReviewReportPath,
+      crossModuleDiagnosticsReportPath,
     ].map((reportPath) => [
       reportPath,
       fs.existsSync(path.join(root, reportPath))

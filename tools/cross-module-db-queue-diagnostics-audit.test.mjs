@@ -30,6 +30,30 @@ describe("cross-module DB and queue diagnostics audit", () => {
     assert.equal(identity.metrics.revokeCycleSlowestStep, "login");
     assert.equal(identity.metrics.slowestP99Ms, 3071.17);
     assert.equal(identity.metrics.revokeCycleSlowestStepP99Ms, 1498.29);
+    assert.equal(
+      report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").classification,
+      "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+    );
+    assert.equal(
+      report.moduleDiagnostics.find((module) => module.id === "knowledge_retrieval").classification,
+      "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+    );
+    assert.equal(
+      report.moduleDiagnostics.find((module) => module.id === "ai_worker_optional_runtime").classification,
+      "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+    );
+    assert.equal(
+      report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin").classification,
+      "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
+    );
+    assert.equal(
+      report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").metrics.sustainedRuntimeEvidence.stepReadWriteRps,
+      2107.3,
+    );
+    assert.equal(
+      report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin").metrics.workflowRuntimeEvidence.p99Ms <= 300,
+      true,
+    );
     assert.equal(report.queueAndWorkerDiagnostics.every((queue) => queue.status === "READY"), true);
     assert.match(formatCrossModuleDbQueueDiagnostics(report), /Cross-module DB\/queue diagnostics: READY/);
   });
@@ -106,6 +130,38 @@ describe("cross-module DB and queue diagnostics audit", () => {
 
     assert.equal(report.readiness, "NEEDS_REMEDIATION");
     assert.equal(report.findings.find((finding) => finding.id === "performance.mixed_scaleup_clean").passed, false);
+  });
+
+  it("falls back to smoke classification when high-step teaching runtime evidence is missing", () => {
+    const inputs = loadCurrentInputs();
+    const scaleUp = parseSource(inputs, sourceFiles.sustainedScaleUp);
+    scaleUp.steps = scaleUp.steps.map((step) =>
+      step.name === "high"
+        ? { ...step, workloads: step.workloads.filter((workload) => workload.name !== "teaching_archive") }
+        : step,
+    );
+    inputs.sources[sourceFiles.sustainedScaleUp] = JSON.stringify(scaleUp);
+
+    const report = auditCrossModuleDbQueueDiagnostics(inputs);
+    const teaching = report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz");
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(teaching.classification, "MODULE_SMOKE_ONLY");
+    assert.equal(teaching.metrics.sustainedRuntimeEvidence.present, false);
+  });
+
+  it("falls back to review-only classification when workflow runtime SLO evidence is too slow", () => {
+    const inputs = loadCurrentInputs();
+    const runtimeSlo = parseSource(inputs, sourceFiles.workflowPluginRuntimeSlo);
+    runtimeSlo.runtimeSlo.p99Ms = runtimeSlo.runtimeSlo.targetP99Ms + 1;
+    inputs.sources[sourceFiles.workflowPluginRuntimeSlo] = JSON.stringify(runtimeSlo);
+
+    const report = auditCrossModuleDbQueueDiagnostics(inputs);
+    const agentWorkflow = report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin");
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(agentWorkflow.classification, "REVIEW_ONLY_QUEUE_BOUNDARY");
+    assert.equal(agentWorkflow.metrics.workflowRuntimeEvidence.passed, false);
   });
 
   it("fails when strict quality is not passing", () => {

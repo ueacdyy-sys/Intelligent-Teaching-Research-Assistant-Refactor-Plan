@@ -29,7 +29,7 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.promotionPolicy.interactiveP99TargetMs, 300);
     assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
     assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
-    assert.equal(report.promotion.blockerCount, 3);
+    assert.equal(report.promotion.blockerCount, 2);
     assert.match(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.interactive_tail_latency_within_target").actual,
       /identityRevokeSlowestStep=login:1498\.29/,
@@ -44,9 +44,11 @@ describe("root SLO promotion review audit", () => {
     );
     assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
+    assert(!report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
     assert(!report.promotion.requiredNextEvidence.includes("ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE"));
     assert(!report.promotion.requiredNextEvidence.includes("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE"));
+    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.module_evidence_depth_sufficient").passed, true);
     assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.sustained_scale_depth_sufficient").passed, true);
     assert.equal(report.evidence.databaseHeadroom.satisfiedBy, "production_headroom_profile");
     assert.match(formatRootSloPromotionReview(report), /Decision: BLOCK_PROMOTION/);
@@ -100,16 +102,38 @@ describe("root SLO promotion review audit", () => {
   });
 
   it("keeps the review ready but blocks promotion when quality prerequisites pass and SLO gates fail", () => {
-    const report = auditRootSloPromotionReview(loadCurrentInputs());
+    const inputs = loadCurrentInputs();
+    inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(loadCurrentCrossModuleDiagnostics());
+    const report = auditRootSloPromotionReview(inputs);
     const failedGateIds = report.promotionFindings.filter((finding) => !finding.passed).map((finding) => finding.id);
 
     assert.equal(report.readiness, "READY");
     assert(!failedGateIds.includes("promotion.root_workflows_runtime_slo_covered"));
-    assert(failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
+    assert(!failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
     assert(failedGateIds.includes("promotion.interactive_tail_latency_within_target"));
     assert(!failedGateIds.includes("promotion.database_headroom_sufficient"));
     assert(!failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
     assert(failedGateIds.includes("promotion.production_read_write_rps_target_met"));
+  });
+
+  it("blocks module-depth promotion when cross-module classifications fall back to shallow evidence", () => {
+    const inputs = loadCurrentInputs();
+    const diagnostics = loadCurrentCrossModuleDiagnostics();
+    diagnostics.moduleDiagnostics = diagnostics.moduleDiagnostics.map((module) =>
+      module.id === "teaching_archive_and_quiz"
+        ? { ...module, classification: "MODULE_SMOKE_ONLY" }
+        : module,
+    );
+    inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(diagnostics);
+
+    const report = auditRootSloPromotionReview(inputs);
+    const moduleDepthFinding = report.promotionFindings.find((finding) =>
+      finding.id === "promotion.module_evidence_depth_sufficient"
+    );
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(moduleDepthFinding.passed, false);
+    assert(report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
   });
 
   it("blocks promotion when workflow/plugin runtime SLO evidence is removed", () => {

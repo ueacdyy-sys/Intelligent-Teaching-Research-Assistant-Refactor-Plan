@@ -25,6 +25,7 @@ export const sourceFiles = {
   agentHarness: "reports/agent-harness-flow.current.json",
   workflowPluginFlow: "reports/workflow-plugin-flow.current.json",
   workflowPluginRegistry: "reports/workflow-plugin-registry-admission.current.json",
+  workflowPluginRuntimeSlo: "reports/workflow-plugin-runtime-slo.current.json",
   sustainedScaleUp: "reports/system-sustained-mixed-workload-scaleup.current.json",
   rootWorkflowCoverage: "reports/root-workflow-coverage.current.json",
   quality: "reports/quality-gate.current.json",
@@ -37,9 +38,9 @@ export function auditCrossModuleDbQueueDiagnostics(inputs) {
   );
   const budget = safeEvaluateBudget(reports.connectionBudget);
   const topology = buildDatabaseTopology(reports, budget);
-  const modules = buildModuleDiagnostics(reports);
-  const queues = buildQueueAndWorkerDiagnostics(reports);
   const mixedWorkload = buildMixedWorkloadDiagnostics(reports);
+  const modules = buildModuleDiagnostics(reports, mixedWorkload);
+  const queues = buildQueueAndWorkerDiagnostics(reports);
   const findings = [];
 
   addFinding(findings, {
@@ -215,12 +216,16 @@ function buildDatabaseTopology(reports, budget) {
   };
 }
 
-function buildModuleDiagnostics(reports) {
+function buildModuleDiagnostics(reports, mixedWorkload) {
   const identityPhase = slowestPhase(reports.identity?.phases, "p99");
   const identityRevokeAttribution = stepLatencyAttribution(reports.identity?.phases?.revokeCycle);
   const conversationPhase = reports.conversationLowTail?.phases?.createConversation ?? {};
   const conversationBurstPhase = reports.conversationBurst?.phases?.createConversation ?? {};
   const teachingPhase = slowestPhase(reports.teachingArchive?.phases, "p99");
+  const teachingRuntimeEvidence = sustainedWorkloadRuntimeEvidence(reports, mixedWorkload, "teaching_archive");
+  const knowledgeRuntimeEvidence = sustainedWorkloadRuntimeEvidence(reports, mixedWorkload, "knowledge_retrieval");
+  const aiWorkerRuntimeEvidence = sustainedWorkloadRuntimeEvidence(reports, mixedWorkload, "ai_worker_admission");
+  const workflowRuntimeEvidence = workflowPluginRuntimeEvidence(reports);
   return [
     {
       id: "identity_and_access",
@@ -278,7 +283,12 @@ function buildModuleDiagnostics(reports) {
     },
     {
       id: "teaching_archive_and_quiz",
-      classification: "MODULE_SMOKE_ONLY",
+      classification: runtimeBackedClassification({
+        fallback: "MODULE_SMOKE_ONLY",
+        promoted: "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        ready: reports.teachingArchive?.status === "PASSED",
+        evidence: teachingRuntimeEvidence,
+      }),
       sourceReportPath: sourceFiles.teachingArchive,
       status: reports.teachingArchive?.status ?? null,
       database: {
@@ -296,11 +306,17 @@ function buildModuleDiagnostics(reports) {
         errors: numberOrNull(reports.teachingArchive?.summary?.totalErrors),
         slowestP99Ms: teachingPhase?.p99Ms ?? null,
         slowestP99Phase: teachingPhase?.name ?? null,
+        sustainedRuntimeEvidence: teachingRuntimeEvidence,
       },
     },
     {
       id: "knowledge_retrieval",
-      classification: "POLICY_SMOKE_ONLY",
+      classification: runtimeBackedClassification({
+        fallback: "POLICY_SMOKE_ONLY",
+        promoted: "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        ready: reports.knowledgeRetrieval?.readiness === "READY",
+        evidence: knowledgeRuntimeEvidence,
+      }),
       sourceReportPath: sourceFiles.knowledgeRetrieval,
       status: reports.knowledgeRetrieval?.readiness ?? null,
       database: {
@@ -317,11 +333,19 @@ function buildModuleDiagnostics(reports) {
       metrics: {
         p95QueryPlanMs: numberOrNull(reports.knowledgeRetrieval?.benchmark?.metrics?.p95QueryPlanMs),
         totalPlans: numberOrNull(reports.knowledgeRetrieval?.benchmark?.metrics?.totalPlans),
+        sustainedRuntimeEvidence: knowledgeRuntimeEvidence,
       },
     },
     {
       id: "ai_worker_optional_runtime",
-      classification: "WORKER_BOUNDARY_ONLY",
+      classification: runtimeBackedClassification({
+        fallback: "WORKER_BOUNDARY_ONLY",
+        promoted: "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        ready: reports.aiWorkerAdmission?.readiness === "READY" &&
+          findingPassed(reports.aiWorkerAdmission, "admission.no_baseline_runtime_dependency") &&
+          findingPassed(reports.aiWorkerAdmission, "admission.no_direct_db_write"),
+        evidence: aiWorkerRuntimeEvidence,
+      }),
       sourceReportPath: sourceFiles.aiWorkerAdmission,
       status: reports.aiWorkerAdmission?.readiness ?? null,
       database: {
@@ -336,11 +360,21 @@ function buildModuleDiagnostics(reports) {
       metrics: {
         allowedDispatchExamples: countDelimitedFinding(reports.aiWorkerAdmission, "admission.current_jobs_allowed"),
         noDirectDbWrite: findingPassed(reports.aiWorkerAdmission, "admission.no_direct_db_write"),
+        noBaselineRuntimeDependency: findingPassed(reports.aiWorkerAdmission, "admission.no_baseline_runtime_dependency"),
+        sustainedRuntimeEvidence: aiWorkerRuntimeEvidence,
       },
     },
     {
       id: "agent_harness_and_workflow_plugin",
-      classification: "REVIEW_ONLY_QUEUE_BOUNDARY",
+      classification: runtimeBackedClassification({
+        fallback: "REVIEW_ONLY_QUEUE_BOUNDARY",
+        promoted: "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
+        ready: reports.agentHarness?.readiness === "READY" &&
+          findingPassed(reports.agentHarness, "approval.queue.no_execution_candidates") &&
+          findingPassed(reports.workflowPluginFlow, "sandbox.no_host_write") &&
+          reports.workflowPluginRegistry?.decision === "ALLOW_SAVE",
+        evidence: workflowRuntimeEvidence,
+      }),
       sourceReportPath: sourceFiles.agentHarness,
       status: reports.agentHarness?.readiness ?? null,
       database: {
@@ -357,6 +391,7 @@ function buildModuleDiagnostics(reports) {
         approvalExecutionReadyFalse: findingPassed(reports.agentHarness, "approval.decision.execution_ready_false"),
         workflowSandboxNoHostWrite: findingPassed(reports.workflowPluginFlow, "sandbox.no_host_write"),
         workflowRegistryAllowsSave: reports.workflowPluginRegistry?.decision === "ALLOW_SAVE",
+        workflowRuntimeEvidence,
       },
     },
   ];
@@ -419,6 +454,60 @@ function buildMixedWorkloadDiagnostics(reports) {
     workloadNames,
     workloadNamesComplete: requiredNames.every((name) => workloadNames.includes(name)),
   };
+}
+
+function sustainedWorkloadRuntimeEvidence(reports, mixedWorkload, workloadName) {
+  const report = reports.sustainedScaleUp;
+  const highStep = (report?.steps ?? []).find((step) => step.name === "high");
+  const workload = (highStep?.workloads ?? []).find((candidate) => candidate.name === workloadName);
+  const passed = report?.status === "PASSED" &&
+    mixedWorkload?.highestPassedStep === "high" &&
+    mixedWorkload?.totalErrors === 0 &&
+    mixedWorkload?.orchestrationErrors === 0 &&
+    highStep?.status === "PASSED" &&
+    workload?.errors === 0;
+  return {
+    sourceReportPath: sourceFiles.sustainedScaleUp,
+    workloadName,
+    stepName: highStep?.name ?? null,
+    present: Boolean(workload),
+    passed,
+    errors: numberOrNull(workload?.errors),
+    p95Ms: numberOrNull(workload?.summary?.p95Ms),
+    p99Ms: numberOrNull(workload?.summary?.p99Ms ?? workload?.maxP99Ms),
+    stepReadWriteRps: numberOrNull(highStep?.readWriteRps),
+  };
+}
+
+function workflowPluginRuntimeEvidence(reports) {
+  const report = reports.workflowPluginRuntimeSlo;
+  const targetP99Ms = numberOrNull(report?.runtimeSlo?.targetP99Ms);
+  const p99Ms = numberOrNull(report?.runtimeSlo?.p99Ms);
+  const totalErrors = numberOrNull(report?.runtimeSlo?.totalErrors);
+  const passed = report?.readiness === "READY" &&
+    totalErrors === 0 &&
+    Number.isFinite(p99Ms) &&
+    Number.isFinite(targetP99Ms) &&
+    p99Ms <= targetP99Ms &&
+    report?.safetyInvariants?.localExecutionEnabled === false &&
+    report?.safetyInvariants?.localGeneratedCodeExecuted === false &&
+    report?.safetyInvariants?.sandboxNoHostWrite === true;
+  return {
+    sourceReportPath: sourceFiles.workflowPluginRuntimeSlo,
+    workloadName: "workflow_plugin_runtime_slo",
+    present: Boolean(report),
+    passed,
+    targetP99Ms,
+    p95Ms: numberOrNull(report?.runtimeSlo?.p95Ms),
+    p99Ms,
+    totalErrors,
+    localGeneratedCodeExecuted: report?.safetyInvariants?.localGeneratedCodeExecuted ?? null,
+    localExecutionEnabled: report?.safetyInvariants?.localExecutionEnabled ?? null,
+  };
+}
+
+function runtimeBackedClassification({ fallback, promoted, ready, evidence }) {
+  return ready === true && evidence?.passed === true ? promoted : fallback;
 }
 
 function safeEvaluateBudget(config) {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-02T17:28:28.496Z",
+  "generatedAt": "2026-06-02T17:57:01.387Z",
   "readiness": "READY",
   "workloadType": "CROSS_MODULE_DATABASE_AND_QUEUE_DIAGNOSTICS",
   "databaseTopology": {
@@ -124,7 +124,7 @@
     },
     {
       "id": "teaching_archive_and_quiz",
-      "classification": "MODULE_SMOKE_ONLY",
+      "classification": "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
       "sourceReportPath": "reports/teaching-archive-benchmark.current.json",
       "status": "PASSED",
       "database": {
@@ -141,12 +141,23 @@
         "concurrency": 2,
         "errors": 0,
         "slowestP99Ms": 35,
-        "slowestP99Phase": "createArchiveItem"
+        "slowestP99Phase": "createArchiveItem",
+        "sustainedRuntimeEvidence": {
+          "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+          "workloadName": "teaching_archive",
+          "stepName": "high",
+          "present": true,
+          "passed": true,
+          "errors": 0,
+          "p95Ms": 88,
+          "p99Ms": 94,
+          "stepReadWriteRps": 2107.3
+        }
       }
     },
     {
       "id": "knowledge_retrieval",
-      "classification": "POLICY_SMOKE_ONLY",
+      "classification": "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
       "sourceReportPath": "reports/knowledge-retrieval-benchmark.current.json",
       "status": "READY",
       "database": {
@@ -160,12 +171,23 @@
       },
       "metrics": {
         "p95QueryPlanMs": 2.55,
-        "totalPlans": 256
+        "totalPlans": 256,
+        "sustainedRuntimeEvidence": {
+          "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+          "workloadName": "knowledge_retrieval",
+          "stepName": "high",
+          "present": true,
+          "passed": true,
+          "errors": 0,
+          "p95Ms": 2.55,
+          "p99Ms": null,
+          "stepReadWriteRps": 2107.3
+        }
       }
     },
     {
       "id": "ai_worker_optional_runtime",
-      "classification": "WORKER_BOUNDARY_ONLY",
+      "classification": "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
       "sourceReportPath": "reports/ai-worker-job-admission.current.json",
       "status": "READY",
       "database": {
@@ -179,12 +201,24 @@
       },
       "metrics": {
         "allowedDispatchExamples": 5,
-        "noDirectDbWrite": true
+        "noDirectDbWrite": true,
+        "noBaselineRuntimeDependency": true,
+        "sustainedRuntimeEvidence": {
+          "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+          "workloadName": "ai_worker_admission",
+          "stepName": "high",
+          "present": true,
+          "passed": true,
+          "errors": 0,
+          "p95Ms": null,
+          "p99Ms": null,
+          "stepReadWriteRps": 2107.3
+        }
       }
     },
     {
       "id": "agent_harness_and_workflow_plugin",
-      "classification": "REVIEW_ONLY_QUEUE_BOUNDARY",
+      "classification": "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
       "sourceReportPath": "reports/agent-harness-flow.current.json",
       "status": "READY",
       "database": {
@@ -200,7 +234,19 @@
       "metrics": {
         "approvalExecutionReadyFalse": true,
         "workflowSandboxNoHostWrite": true,
-        "workflowRegistryAllowsSave": true
+        "workflowRegistryAllowsSave": true,
+        "workflowRuntimeEvidence": {
+          "sourceReportPath": "reports/workflow-plugin-runtime-slo.current.json",
+          "workloadName": "workflow_plugin_runtime_slo",
+          "present": true,
+          "passed": true,
+          "targetP99Ms": 300,
+          "p95Ms": 1.57,
+          "p99Ms": 1.57,
+          "totalErrors": 0,
+          "localGeneratedCodeExecuted": false,
+          "localExecutionEnabled": false
+        }
       }
     }
   ],
@@ -252,7 +298,7 @@
       "id": "sources.required_json_parseable",
       "passed": true,
       "severity": "info",
-      "actual": "contracts/config/connection-budget.proposed-pgbouncer-transaction.json:json;reports/pgbouncer-perf-profile.current.json:json;reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json:json;reports/conversation-write-http-benchmark.direct16-concurrency5800-multi16-pool1-client-unlimited-batched64-delay0.json:json;reports/conversation-write-http-benchmark.wsl-direct16-concurrency30000-batched64.json:json;reports/conversation-loadgen-runtime-decision.current.json:json;reports/teaching-archive-benchmark.current.json:json;reports/knowledge-retrieval-benchmark.current.json:json;reports/ai-worker-job.current.json:json;reports/ai-worker-job-admission.current.json:json;reports/agent-harness-flow.current.json:json;reports/workflow-plugin-flow.current.json:json;reports/workflow-plugin-registry-admission.current.json:json;reports/system-sustained-mixed-workload-scaleup.current.json:json;reports/root-workflow-coverage.current.json:json;reports/quality-gate.current.json:json",
+      "actual": "contracts/config/connection-budget.proposed-pgbouncer-transaction.json:json;reports/pgbouncer-perf-profile.current.json:json;reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json:json;reports/conversation-write-http-benchmark.direct16-concurrency5800-multi16-pool1-client-unlimited-batched64-delay0.json:json;reports/conversation-write-http-benchmark.wsl-direct16-concurrency30000-batched64.json:json;reports/conversation-loadgen-runtime-decision.current.json:json;reports/teaching-archive-benchmark.current.json:json;reports/knowledge-retrieval-benchmark.current.json:json;reports/ai-worker-job.current.json:json;reports/ai-worker-job-admission.current.json:json;reports/agent-harness-flow.current.json:json;reports/workflow-plugin-flow.current.json:json;reports/workflow-plugin-registry-admission.current.json:json;reports/workflow-plugin-runtime-slo.current.json:json;reports/system-sustained-mixed-workload-scaleup.current.json:json;reports/root-workflow-coverage.current.json:json;reports/quality-gate.current.json:json",
       "expected": "all cross-module diagnostic source files are readable JSON",
       "remediation": "Regenerate the missing report or restore the required config before diagnosing cross-module DB and queue capacity."
     },

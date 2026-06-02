@@ -197,16 +197,61 @@ describe("system capacity claim audit", () => {
       sourceReportPath: "reports/cross-module-db-queue-diagnostics.current.json",
       status: "READY",
     });
+    inputs.reports["reports/cross-module-db-queue-diagnostics.current.json"] = JSON.stringify(crossModuleDiagnosticsReport());
 
     const report = auditSystemCapacityClaim(inputs);
 
     assert.equal(report.readiness, "READY");
     assert.equal(report.rootWorkflowCoverageEvidence.count, 1);
     assert.equal(report.crossModuleDiagnosticsEvidence.count, 1);
+    assert.equal(report.crossModuleDiagnosticsEvidence.reportParseable, true);
+    assert.equal(
+      report.claim.moduleLimits.find((limit) => limit.module === "Teaching Archive And Quiz").status,
+      "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+    );
+    assert.equal(
+      report.claim.moduleLimits.find((limit) => limit.module === "Knowledge Retrieval").status,
+      "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+    );
+    assert.equal(
+      report.claim.moduleLimits.find((limit) => limit.module === "AI Worker Runtime").status,
+      "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+    );
+    assert.equal(
+      report.claim.moduleLimits.find((limit) => limit.module === "Agent Harness And Workflow Plugin").status,
+      "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
+    );
     assert.equal(report.claim.fullSystemUltraConcurrency.status, "MIXED_WORKLOAD_EVIDENCE_PRESENT_REVIEW_REQUIRED");
     assert.deepEqual(report.claim.fullSystemUltraConcurrency.requiredNextEvidence, [
       "PROMOTION_REVIEW_AGAINST_ROOT_SLOS",
     ]);
+  });
+
+  it("keeps conservative module summaries when cross-module diagnostics are missing", () => {
+    const inputs = currentInputs();
+    addCompletePrePromotionEvidence(inputs);
+
+    const report = auditSystemCapacityClaim(inputs);
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(report.crossModuleDiagnosticsEvidence.count, 1);
+    assert.equal(report.crossModuleDiagnosticsEvidence.reportPresent, false);
+    assert.equal(
+      report.claim.moduleLimits.find((limit) => limit.module === "Teaching Archive And Quiz").status,
+      "MODULE_SMOKE_ONLY",
+    );
+    assert.equal(
+      report.claim.moduleLimits.find((limit) => limit.module === "Knowledge Retrieval").status,
+      "POLICY_SMOKE_ONLY",
+    );
+    assert.equal(
+      report.claim.moduleLimits.find((limit) => limit.module === "AI Worker Runtime").status,
+      "DEPENDENCY_BOUNDARY_ONLY",
+    );
+    assert.equal(
+      report.claim.moduleLimits.some((limit) => limit.module === "Agent Harness And Workflow Plugin"),
+      false,
+    );
   });
 
   it("uses a blocked root SLO promotion review to block the full-system claim", () => {
@@ -218,6 +263,7 @@ describe("system capacity claim audit", () => {
       sourceReportPath: "reports/root-slo-promotion-review.current.json",
       status: "READY",
     });
+    inputs.reports["reports/cross-module-db-queue-diagnostics.current.json"] = JSON.stringify(crossModuleDiagnosticsReport());
     inputs.reports["reports/root-slo-promotion-review.current.json"] = JSON.stringify(rootSloReviewReport({
       decision: "BLOCK_PROMOTION",
       claimStatus: "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
@@ -453,6 +499,89 @@ function rootSloReviewReport({ decision, claimStatus, requiredNextEvidence }) {
           ],
       requiredNextEvidence,
     },
+  };
+}
+
+function crossModuleDiagnosticsReport() {
+  return {
+    readiness: "READY",
+    workloadType: "CROSS_MODULE_DATABASE_AND_QUEUE_DIAGNOSTICS",
+    moduleDiagnostics: [
+      {
+        id: "identity_and_access",
+        classification: "MODULE_CAPACITY_ONLY",
+        status: "PASSED",
+        metrics: {
+          concurrency: 4400,
+          slowestP99Ms: 3071.17,
+        },
+      },
+      {
+        id: "research_conversation_write",
+        classification: "MODULE_CAPACITY_AND_TRANSPORT_DECISION",
+        status: "PASSED",
+        metrics: {
+          lowTailConcurrency: 5800,
+          burstConcurrency: 30000,
+        },
+      },
+      {
+        id: "teaching_archive_and_quiz",
+        classification: "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        status: "PASSED",
+        metrics: {
+          sustainedRuntimeEvidence: {
+            present: true,
+            passed: true,
+            stepName: "high",
+            stepReadWriteRps: 2107.3,
+            p99Ms: 94,
+          },
+        },
+      },
+      {
+        id: "knowledge_retrieval",
+        classification: "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        status: "READY",
+        metrics: {
+          p95QueryPlanMs: 2.55,
+          sustainedRuntimeEvidence: {
+            present: true,
+            passed: true,
+            stepName: "high",
+            stepReadWriteRps: 2107.3,
+          },
+        },
+      },
+      {
+        id: "ai_worker_optional_runtime",
+        classification: "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+        status: "READY",
+        metrics: {
+          noDirectDbWrite: true,
+          noBaselineRuntimeDependency: true,
+          sustainedRuntimeEvidence: {
+            present: true,
+            passed: true,
+            stepName: "high",
+            stepReadWriteRps: 2107.3,
+          },
+        },
+      },
+      {
+        id: "agent_harness_and_workflow_plugin",
+        classification: "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
+        status: "READY",
+        metrics: {
+          workflowRuntimeEvidence: {
+            passed: true,
+            p99Ms: 2.08,
+            localExecutionEnabled: false,
+            localGeneratedCodeExecuted: false,
+          },
+        },
+      },
+    ],
   };
 }
 
