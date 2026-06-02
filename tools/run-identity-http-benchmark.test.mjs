@@ -23,6 +23,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       parseArgs,
       runIdentityHttpBenchmark,
       tailText,
+      validateSessionDbQueryExecMode,
       validateSessionDbPoolProfile,
       validateRuntimePortPlan,
     } = await import("./run-identity-http-benchmark.mjs");
@@ -36,6 +37,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "16",
       "--session-db-min-conns",
       "4",
+      "--session-db-query-exec-mode",
+      "exec",
       "--session-db-write-concurrency",
       "8",
       "--session-db-session-table-persistence",
@@ -128,6 +131,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       sessionDbMaxConnsTotal: 32,
       sessionDbMinConnsPerWorker: 4,
       sessionDbMinConnsTotal: 8,
+      sessionDbQueryExecMode: "exec",
       sessionDbWriteConcurrencyPerWorker: 8,
       sessionDbWriteConcurrencyTotal: 16,
       sessionTablePersistence: "unlogged",
@@ -168,6 +172,11 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.postgresDiagnostics.before.queries.activity.rows[0].wait_event_type, "Lock");
     assert(!JSON.stringify(report).includes("ueacd"));
     assert(!JSON.stringify(report).includes("postgres://"));
+    assert.doesNotThrow(() => validateSessionDbQueryExecMode({ sessionDbQueryExecMode: "cache_describe" }));
+    assert.throws(
+      () => validateSessionDbQueryExecMode({ sessionDbQueryExecMode: "prepared" }),
+      /session-db-query-exec-mode/u,
+    );
     assert.equal(
       extractFailureMessage("passwordLogin failed with 354 errors\nexit status 1", 1),
       "passwordLogin failed with 354 errors",
@@ -521,7 +530,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     );
   });
 
-  it("passes session DB min connections to gateway processes", async () => {
+  it("passes session DB min connections and query exec mode to gateway processes", async () => {
     const {
       runIdentityHttpBenchmark,
     } = await import("./run-identity-http-benchmark.mjs");
@@ -541,6 +550,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "8",
       "--session-db-min-conns",
       "4",
+      "--session-db-query-exec-mode",
+      "exec",
       "--session-db-write-concurrency",
       "0",
       "--startup-timeout-ms",
@@ -560,6 +571,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.deepEqual(spawned[0].args, ["run", "./services/identity-access-gateway/cmd/gateway"]);
     assert.equal(spawned[0].env.SESSION_DB_MAX_CONNS, "8");
     assert.equal(spawned[0].env.SESSION_DB_MIN_CONNS, "4");
+    assert.equal(spawned[0].env.SESSION_DB_QUERY_EXEC_MODE, "exec");
     fs.rmSync("tmp/identity-min-conns-report.json", { force: true });
   });
 });

@@ -20,6 +20,7 @@ describe("identity phase-aware matrix runner", () => {
       "--concurrency", "4400",
       "--operations", "8800",
       "--session-db-min-conns", "4",
+      "--session-db-query-exec-mode", "exec",
       "--cases", "g8-p10-i16-c150:8:10:16:150:150:40:16,g10-p12-i22-c200:10:12:22:200:200:50:22",
       "--stop-on-failure", "true",
     ]);
@@ -36,6 +37,7 @@ describe("identity phase-aware matrix runner", () => {
       "--operations", "8800",
       "--session-db-max-conns", "10",
       "--session-db-min-conns", "4",
+      "--session-db-query-exec-mode", "exec",
       "--session-db-write-concurrency", "0",
       "--session-db-session-table-persistence", "unlogged",
       "--gateway-count", "8",
@@ -59,8 +61,36 @@ describe("identity phase-aware matrix runner", () => {
       endedAt: "2026-06-02T00:00:01.000Z",
     });
     assert.equal(report.targetProfile.sessionDbMinConnsPerWorker, 4);
+    assert.equal(report.targetProfile.sessionDbQueryExecMode, "exec");
     assert.equal(report.cases[0].config.sessionDbMinConnsPerWorker, 4);
     assert.equal(report.cases[0].config.sessionDbMinConnsTotal, 32);
+    assert.equal(report.cases[0].config.sessionDbQueryExecMode, "exec");
+  });
+
+  it("rejects invalid session DB query exec mode before workloads run", async () => {
+    const root = makeTempRoot();
+    const executed = [];
+    const report = await runIdentityPhaseMatrix(
+      {
+        ...defaults,
+        out: "reports/matrix.json",
+        manageDocker: "false",
+        sessionDbQueryExecMode: "prepared",
+        cases: "invalid:2:8:2:32:16:32:16",
+      },
+      {
+        root,
+        runCase: async (matrixCase) => {
+          executed.push(matrixCase.name);
+          return identityReport();
+        },
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "FAILED");
+    assert.deepEqual(executed, []);
+    assert.match(report.runnerErrors.join("\n"), /session-db-query-exec-mode/u);
   });
 
   it("allows case-scoped session DB min connections in compact matrix cases", () => {

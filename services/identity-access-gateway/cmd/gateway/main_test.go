@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"ita-refactor/services/identity-access-gateway/internal/adapter/postgres"
 )
 
@@ -76,6 +78,47 @@ func TestParseSessionDBMinConnsRejectsInvalidValues(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if _, err := parseSessionDBMinConns(test.value, test.maxConns); err == nil {
 				t.Fatalf("parseSessionDBMinConns should reject %q with max %d", test.value, test.maxConns)
+			}
+		})
+	}
+}
+
+func TestParseSessionDBQueryExecMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		wantName string
+		wantMode pgx.QueryExecMode
+	}{
+		{name: "default", value: "", wantName: "cache_statement", wantMode: pgx.QueryExecModeCacheStatement},
+		{name: "cache statement", value: "cache_statement", wantName: "cache_statement", wantMode: pgx.QueryExecModeCacheStatement},
+		{name: "cache describe", value: "cache_describe", wantName: "cache_describe", wantMode: pgx.QueryExecModeCacheDescribe},
+		{name: "describe exec", value: "describe_exec", wantName: "describe_exec", wantMode: pgx.QueryExecModeDescribeExec},
+		{name: "exec", value: " EXEC ", wantName: "exec", wantMode: pgx.QueryExecModeExec},
+		{name: "simple protocol", value: "simple_protocol", wantName: "simple_protocol", wantMode: pgx.QueryExecModeSimpleProtocol},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotName, gotMode, err := parseSessionDBQueryExecMode(test.value)
+			if err != nil {
+				t.Fatalf("parseSessionDBQueryExecMode error = %v", err)
+			}
+			if gotName != test.wantName {
+				t.Fatalf("parseSessionDBQueryExecMode name = %q want %q", gotName, test.wantName)
+			}
+			if gotMode != test.wantMode {
+				t.Fatalf("parseSessionDBQueryExecMode mode = %v want %v", gotMode, test.wantMode)
+			}
+		})
+	}
+}
+
+func TestParseSessionDBQueryExecModeRejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{"prepared", "cache-statement", "simple"} {
+		t.Run(value, func(t *testing.T) {
+			if _, _, err := parseSessionDBQueryExecMode(value); err == nil {
+				t.Fatalf("parseSessionDBQueryExecMode should reject %q", value)
 			}
 		})
 	}

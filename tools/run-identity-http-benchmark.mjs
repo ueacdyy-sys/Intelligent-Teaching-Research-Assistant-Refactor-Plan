@@ -3,29 +3,14 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import {
-  collectPgbouncerDiagnostics,
-  parsePsqlUnalignedRows,
-} from "./identity-pgbouncer-diagnostics.mjs";
-import {
-  collectGatewayDatabaseDiagnostics,
-  identityInternalDiagnosticsSecretValue,
-} from "./identity-gateway-diagnostics.mjs";
+import { collectPgbouncerDiagnostics, parsePsqlUnalignedRows } from "./identity-pgbouncer-diagnostics.mjs";
+import { collectGatewayDatabaseDiagnostics, identityInternalDiagnosticsSecretValue } from "./identity-gateway-diagnostics.mjs";
 import { addGatewayWriteLimiterSummary } from "./identity-gateway-diagnostics-summary.mjs";
-import {
-  applyPostgresDiagnosticsArg,
-  collectPostgresDiagnostics,
-  postgresDiagnosticsDefaults,
-  runBenchmarkWithPostgresDiagnostics,
-} from "./identity-postgres-diagnostics.mjs";
+import { applySessionDbQueryExecModeArg, defaultSessionDbQueryExecMode, gatewaySessionQueryExecModeEnv, sessionDbQueryExecModeForProfile, validateSessionDbQueryExecMode } from "./identity-session-query-exec-mode-profile.mjs";
+import { applyPostgresDiagnosticsArg, collectPostgresDiagnostics, postgresDiagnosticsDefaults, runBenchmarkWithPostgresDiagnostics } from "./identity-postgres-diagnostics.mjs";
 import { addSessionPersistenceToDatabaseProfile, applySessionTablePersistenceArg, defaultSessionTablePersistence, gatewaySessionPersistenceEnv } from "./identity-http-benchmark-session-profile.mjs";
 
-export {
-  collectGatewayDatabaseDiagnostics,
-  collectPgbouncerDiagnostics,
-  collectPostgresDiagnostics,
-  parsePsqlUnalignedRows,
-};
+export { collectGatewayDatabaseDiagnostics, collectPgbouncerDiagnostics, collectPostgresDiagnostics, parsePsqlUnalignedRows, validateSessionDbQueryExecMode };
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -36,6 +21,7 @@ export const defaults = {
   operations: "300",
   sessionDbMaxConns: "16",
   sessionDbMinConns: "0",
+  sessionDbQueryExecMode: defaultSessionDbQueryExecMode,
   sessionDbWriteConcurrency: "0",
   sessionDbSessionTablePersistence: defaultSessionTablePersistence,
   gatewayCount: "1",
@@ -74,6 +60,10 @@ export function parseArgs(argv) {
       continue;
     }
     if (applySessionTablePersistenceArg(parsed, key, value)) {
+      index += 1;
+      continue;
+    }
+    if (applySessionDbQueryExecModeArg(parsed, key, value)) {
       index += 1;
       continue;
     }
@@ -228,6 +218,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
   try {
     validateRuntimePortPlan(options);
     validateSessionDbPoolProfile(options);
+    validateSessionDbQueryExecMode(options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const consoleError = dependencies.consoleError ?? console.error;
@@ -429,6 +420,7 @@ function spawnGateway(baseUrl, options, spawnProcess) {
         SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
         SESSION_DB_MIN_CONNS: options.sessionDbMinConns,
         SESSION_DB_WRITE_CONCURRENCY: options.sessionDbWriteConcurrency,
+        ...gatewaySessionQueryExecModeEnv(options),
         ...gatewaySessionPersistenceEnv(options),
         BOOTSTRAP_PASSWORD: "ueacd",
         CHANNEL_SIGNATURE_SECRET: "ueacd",
@@ -636,6 +628,7 @@ export function gatewayDatabaseProfile(options) {
     sessionDbMaxConnsTotal: workerCount * sessionDbMaxConnsPerWorker,
     sessionDbMinConnsPerWorker,
     sessionDbMinConnsTotal: workerCount * sessionDbMinConnsPerWorker,
+    sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(options),
     sessionDbWriteConcurrencyPerWorker,
     sessionDbWriteConcurrencyTotal: workerCount * sessionDbWriteConcurrencyPerWorker,
   }, options);

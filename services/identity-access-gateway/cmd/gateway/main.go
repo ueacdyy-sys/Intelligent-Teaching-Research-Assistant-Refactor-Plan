@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"ita-refactor/services/identity-access-gateway/internal/adapter/bootstrap"
@@ -66,6 +67,10 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 		log.Fatal(err)
 	}
 
+	queryExecModeName, queryExecMode, err := parseSessionDBQueryExecMode(os.Getenv("SESSION_DB_QUERY_EXEC_MODE"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	maxConns := getenvInt("SESSION_DB_MAX_CONNS", 8)
 	minConns, err := parseSessionDBMinConns(os.Getenv("SESSION_DB_MIN_CONNS"), maxConns)
 	if err != nil {
@@ -78,6 +83,7 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 	}
 	config.MaxConns = int32(maxConns)
 	config.MinConns = int32(minConns)
+	config.ConnConfig.DefaultQueryExecMode = queryExecMode
 	config.MaxConnIdleTime = 10 * time.Minute
 	config.MaxConnLifetime = 30 * time.Minute
 
@@ -102,9 +108,10 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 	})
 	statsProvider := identitypostgres.NewSessionDBStatsProvider(db, store)
 	log.Printf(
-		"identity session store ready: postgres maxConns=%d minConns=%d writeConcurrency=%d sessionTablePersistence=%s with durable remote replay guard",
+		"identity session store ready: postgres maxConns=%d minConns=%d queryExecMode=%s writeConcurrency=%d sessionTablePersistence=%s with durable remote replay guard",
 		maxConns,
 		minConns,
+		queryExecModeName,
 		writeConcurrency,
 		sessionTablePersistence,
 	)
@@ -172,6 +179,26 @@ func parseSessionDBMinConns(value string, maxConns int) (int, error) {
 		return 0, fmt.Errorf("SESSION_DB_MIN_CONNS must be <= SESSION_DB_MAX_CONNS: %d > %d", parsed, maxConns)
 	}
 	return parsed, nil
+}
+
+func parseSessionDBQueryExecMode(value string) (string, pgx.QueryExecMode, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "cache_statement":
+		return "cache_statement", pgx.QueryExecModeCacheStatement, nil
+	case "cache_describe":
+		return "cache_describe", pgx.QueryExecModeCacheDescribe, nil
+	case "describe_exec":
+		return "describe_exec", pgx.QueryExecModeDescribeExec, nil
+	case "exec":
+		return "exec", pgx.QueryExecModeExec, nil
+	case "simple_protocol":
+		return "simple_protocol", pgx.QueryExecModeSimpleProtocol, nil
+	default:
+		return "", 0, fmt.Errorf(
+			"SESSION_DB_QUERY_EXEC_MODE must be cache_statement, cache_describe, describe_exec, exec, or simple_protocol: %q",
+			value,
+		)
+	}
 }
 
 func parseSessionTablePersistence(value string) (identitypostgres.SessionTablePersistence, error) {

@@ -1,0 +1,139 @@
+{
+  "generatedAt": "2026-06-02T11:57:56.787Z",
+  "startedAt": "2026-06-02T11:57:23.642Z",
+  "endedAt": "2026-06-02T11:57:56.787Z",
+  "benchmarkKind": "identity_phase_matrix",
+  "workloadType": "IDENTITY_PHASE_MATRIX",
+  "profile": "IDENTITY_PHASE_MATRIX_P85_QUERY_EXEC_SIMPLE_PROTOCOL_SMOKE",
+  "status": "FAILED",
+  "stopOnFailure": false,
+  "targetProfile": {
+    "concurrency": 128,
+    "operationsPerPhase": 256,
+    "sessionDbMinConnsPerWorker": 0,
+    "caseScopedSessionDbMinConns": false,
+    "sessionDbMinConnsPerWorkerValues": [
+      0
+    ],
+    "sessionDbQueryExecMode": "simple_protocol",
+    "sessionTablePersistence": "unlogged",
+    "benchmarkRuntime": "docker",
+    "caseIsolation": "docker-reset"
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_IDENTITY_PHASE_MATRIX",
+    "managedDocker": true,
+    "dockerCleanup": "reset",
+    "caseIsolation": "docker-reset"
+  },
+  "cases": [
+    {
+      "name": "g2-p8-simple-protocol-i2-c64",
+      "executed": true,
+      "status": "FAILED",
+      "reportPath": "reports/identity-phase-matrix.p85-query-exec-simple-protocol-smoke.1-g2-p8-simple-protocol-i2-c64.json",
+      "config": {
+        "gatewayCount": 2,
+        "sessionDbMaxConnsPerWorker": 8,
+        "sessionDbMaxConnsTotal": 16,
+        "sessionDbMinConnsPerWorker": 0,
+        "sessionDbMinConnsTotal": 0,
+        "sessionDbQueryExecMode": "simple_protocol",
+        "ingressCount": 2,
+        "clientMaxConnsPerHost": 64,
+        "clientWarmConnectionsPerHost": 32,
+        "ingressMaxConnsPerHost": 32,
+        "ingressWarmConnectionsPerHost": 16
+      },
+      "totalErrors": 0,
+      "maxPhaseP99Ms": null,
+      "slowestPhase": "passwordLogin",
+      "dominantPoolWaitPhase": null,
+      "dominantPoolWaitOperation": null,
+      "dominantPoolAcquireShare": null,
+      "totalPoolAcquireDurationMs": 0,
+      "totalEmptyAcquireWaitTimeMs": 0,
+      "phases": [
+        {
+          "name": "passwordLogin",
+          "status": "PASSED",
+          "errors": 0,
+          "poolAcquireCount": 0,
+          "sessionOperations": []
+        },
+        {
+          "name": "principalLookup",
+          "status": "PASSED",
+          "errors": 0,
+          "poolAcquireCount": 0,
+          "sessionOperations": []
+        },
+        {
+          "name": "refreshRotation",
+          "status": "PASSED",
+          "errors": 0,
+          "poolAcquireCount": 0,
+          "sessionOperations": []
+        },
+        {
+          "name": "revokeCycle",
+          "status": "PASSED",
+          "errors": 0,
+          "poolAcquireCount": 0,
+          "sessionOperations": []
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredCases": 1,
+    "executedCases": 1,
+    "passedCases": 0,
+    "failedCases": 1,
+    "orchestrationErrors": 0,
+    "totalErrors": 0,
+    "maxPhaseP99Ms": null,
+    "recommendedCaseName": null,
+    "recommendedCaseReportPath": null,
+    "firstFailedCaseName": "g2-p8-simple-protocol-i2-c64"
+  },
+  "setup": [
+    {
+      "phase": "case-g2-p8-simple-protocol-i2-c64-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 1113,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v"
+    },
+    {
+      "phase": "case-g2-p8-simple-protocol-i2-c64-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8113,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    }
+  ],
+  "cleanup": [
+    {
+      "phase": "cleanup",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2740,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    }
+  ],
+  "runnerErrors": [],
+  "nextAction": "Inspect the first failed or highest-tail case before increasing Identity concurrency."
+}

@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import {
+  defaultSessionDbQueryExecMode,
+  sessionDbQueryExecModeForProfile,
+  validateSessionDbQueryExecMode,
+} from "./identity-session-query-exec-mode-profile.mjs";
 
 export const defaults = {
   out: "reports/identity-phase-matrix.current.json",
@@ -15,6 +20,7 @@ export const defaults = {
   concurrency: "64",
   operations: "128",
   sessionDbMinConns: "0",
+  sessionDbQueryExecMode: defaultSessionDbQueryExecMode,
   sessionDbWriteConcurrency: "0",
   sessionDbSessionTablePersistence: "unlogged",
   benchmarkRuntime: "docker",
@@ -50,6 +56,7 @@ export function buildMatrixCases(options) {
     const resolvedCase = {
       ...matrixCase,
       sessionDbMinConns: matrixCase.sessionDbMinConns ?? defaultSessionDbMinConns,
+      sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(options.sessionDbQueryExecMode),
       reportPath,
     };
     return {
@@ -151,6 +158,7 @@ export function buildIdentityPhaseMatrixReport({
       sessionDbMinConnsPerWorker: parseInteger(options.sessionDbMinConns),
       caseScopedSessionDbMinConns: hasCaseScopedSessionDbMinConns(cases),
       sessionDbMinConnsPerWorkerValues: uniqueSortedNumbers(cases.map((matrixCase) => matrixCase.sessionDbMinConns)),
+      sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(options.sessionDbQueryExecMode),
       sessionTablePersistence: options.sessionDbSessionTablePersistence,
       benchmarkRuntime: options.benchmarkRuntime,
       caseIsolation: normalizeCaseIsolation(options.caseIsolation),
@@ -197,6 +205,7 @@ function buildCaseArgs(options, matrixCase, reportPath) {
     "--operations", options.operations,
     "--session-db-max-conns", String(matrixCase.sessionDbMaxConns),
     "--session-db-min-conns", String(matrixCase.sessionDbMinConns),
+    "--session-db-query-exec-mode", sessionDbQueryExecModeForProfile(options.sessionDbQueryExecMode),
     "--session-db-write-concurrency", options.sessionDbWriteConcurrency,
     "--session-db-session-table-persistence", options.sessionDbSessionTablePersistence,
     "--gateway-count", String(matrixCase.gatewayCount),
@@ -225,6 +234,7 @@ function summarizeCase(matrixCase, report) {
       sessionDbMaxConnsTotal: matrixCase.gatewayCount * matrixCase.sessionDbMaxConns,
       sessionDbMinConnsPerWorker: matrixCase.sessionDbMinConns,
       sessionDbMinConnsTotal: matrixCase.gatewayCount * matrixCase.sessionDbMinConns,
+      sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(matrixCase.sessionDbQueryExecMode),
       ingressCount: matrixCase.ingressCount,
       clientMaxConnsPerHost: matrixCase.clientMaxConnsPerHost,
       clientWarmConnectionsPerHost: matrixCase.clientWarmConnectionsPerHost,
@@ -371,6 +381,7 @@ function validateOptions(options, cases) {
   positiveInteger(options.concurrency, "options", "concurrency");
   positiveInteger(options.operations, "options", "operations");
   nonNegativeInteger(options.sessionDbMinConns, "options", "sessionDbMinConns");
+  validateSessionDbQueryExecMode(options);
   const caseIsolation = normalizeCaseIsolation(options.caseIsolation);
   if (caseIsolation === "docker-reset" && !parseBoolean(options.manageDocker)) {
     throw new Error("caseIsolation=docker-reset requires manageDocker=true");
