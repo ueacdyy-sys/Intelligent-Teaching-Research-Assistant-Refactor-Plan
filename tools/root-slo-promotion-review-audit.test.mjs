@@ -38,9 +38,13 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.evidence.productionThroughput.targetReadWriteRps, 10000);
     assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, expectedReadWriteRps);
     assert.equal(report.evidence.productionThroughput.source, "sustained_scaleup.summary.highestPassedReadWriteRps");
+    assert.equal(report.evidence.productionThroughput.targetAttemptStatus, "NOT_CONFIGURED");
+    assert.equal(report.evidence.productionThroughput.targetAttempted, false);
+    assert.equal(report.evidence.productionThroughput.targetConfigured, false);
+    assert.equal(report.evidence.productionThroughput.targetShortfallRps, 7892.7);
     assert.equal(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.production_read_write_rps_target_met").actual,
-      `${expectedReadWriteRps} rps from sustained_scaleup.summary.highestPassedReadWriteRps`,
+      `${expectedReadWriteRps} rps from sustained_scaleup.summary.highestPassedReadWriteRps;targetStatus=NOT_CONFIGURED;targetAttempted=false;shortfall=7892.7`,
     );
     assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
@@ -114,6 +118,37 @@ describe("root SLO promotion review audit", () => {
     assert(!failedGateIds.includes("promotion.database_headroom_sufficient"));
     assert(!failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
     assert(failedGateIds.includes("promotion.production_read_write_rps_target_met"));
+  });
+
+  it("records whether the production 10k target step was attempted", () => {
+    const inputs = loadCurrentInputs();
+    inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(loadCurrentCrossModuleDiagnostics());
+    const scaleUp = parseReport(inputs, sourceReports.sustainedScaleUp);
+    scaleUp.throughputTarget = {
+      targetReadWriteRps: 10000,
+      required: true,
+      configured: true,
+      attempted: false,
+      met: false,
+      status: "NOT_ATTEMPTED",
+      shortfallRps: 7892.7,
+      targetStepNames: ["target-10k"],
+      attemptedStepNames: [],
+    };
+    inputs.reports[sourceReports.sustainedScaleUp] = JSON.stringify(scaleUp);
+
+    const report = auditRootSloPromotionReview(inputs);
+    const throughput = report.evidence.productionThroughput;
+    const blocker = report.promotion.blockers.find((entry) =>
+      entry.id === "promotion.production_read_write_rps_target_met"
+    );
+
+    assert.equal(throughput.targetAttemptStatus, "NOT_ATTEMPTED");
+    assert.equal(throughput.targetAttempted, false);
+    assert.equal(throughput.targetConfigured, true);
+    assert.equal(throughput.targetShortfallRps, 7892.7);
+    assert.match(blocker.actual, /targetStatus=NOT_ATTEMPTED/u);
+    assert.match(blocker.actual, /targetAttempted=false/u);
   });
 
   it("blocks module-depth promotion when cross-module classifications fall back to shallow evidence", () => {

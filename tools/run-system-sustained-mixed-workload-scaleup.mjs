@@ -16,14 +16,26 @@ import {
 } from "./identity-http-benchmark-session-profile.mjs";
 import { mergeSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 
+const standardScaleSteps = "smoke:2:4:8:16:2:4,low:4:8:16:32:4:8,medium:8:16:32:64:8:16,high:16:32:64:128:16:32";
+const production10kScaleSteps = [
+  standardScaleSteps,
+  "target-3k:24:48:96:192:24:48:3000",
+  "target-5k:40:80:160:320:40:80:5000",
+  "target-8k:64:128:256:512:64:128:8000",
+  "target-10k:80:160:320:640:80:160:10000",
+].join(",");
+
 export const defaults = {
   out: "reports/system-sustained-mixed-workload-scaleup.current.json",
   stepPrefix: "reports/system-sustained-mixed-workload-scaleup",
   profile: "SUSTAINED_SCALEUP",
+  scaleProfile: "standard",
   manageDocker: "true",
   dockerCleanup: "reset",
   stopOnFailure: "true",
-  steps: "smoke:2:4:8:16:2:4,low:4:8:16:32:4:8,medium:8:16:32:64:8:16,high:16:32:64:128:16:32",
+  steps: standardScaleSteps,
+  targetReadWriteRps: "0",
+  requireTargetReadWriteRps: "false",
   samples: "2",
   sampleIntervalMs: "0",
   identityBaseUrl: sustainedDefaults.identityBaseUrl,
@@ -59,24 +71,60 @@ export const defaults = {
   maxP99DriftMs: "250",
 };
 
+export const scaleProfileDefaults = {
+  standard: {},
+  production10k: {
+    steps: production10kScaleSteps,
+    targetReadWriteRps: "10000",
+    requireTargetReadWriteRps: "true",
+    identityGatewayCount: "4",
+    conversationGatewayCount: "4",
+    identitySessionDbMaxConns: "16",
+    identitySessionDbWriteConcurrency: "16",
+    identitySessionDbSessionTablePersistence: "unlogged",
+    conversationDbMaxConns: "16",
+    teachingDbMaxConns: "16",
+    conversationWriteBatchSize: "64",
+    identityMaxConnsPerHost: "200",
+    identityWarmConnectionsPerHost: "200",
+    identityIngressProxy: "true",
+    identityIngressCount: "16",
+    identityIngressMaxConnsPerHost: "200",
+    identityIngressWarmConnectionsPerHost: "16",
+  },
+};
+
 export function parseArgs(argv) {
   const parsed = { ...defaults };
+  const explicit = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
     if (key === "--identity-session-db-session-table-persistence") {
       parsed.identitySessionDbSessionTablePersistence = normalizeSessionTablePersistence(value);
+      explicit.add("identitySessionDbSessionTablePersistence");
       index += 1;
       continue;
     }
     const property = kebabToCamel(key.slice(2));
     if (Object.hasOwn(parsed, property)) {
       parsed[property] = value;
+      explicit.add(property);
       index += 1;
     }
   }
-  return parsed;
+  return applyScaleProfile(parsed, explicit);
+}
+
+function applyScaleProfile(options, explicit = new Set()) {
+  const scaleProfile = normalizeScaleProfile(options.scaleProfile);
+  const resolved = { ...options, scaleProfile };
+  const profileDefaults = scaleProfileDefaults[scaleProfile] ?? {};
+  for (const [key, value] of Object.entries(profileDefaults)) {
+    if (!explicit.has(key)) resolved[key] = value;
+  }
+  return resolved;
 }
 
 export function buildScaleUpSteps(options) {
@@ -130,6 +178,7 @@ export function buildScaleUpSteps(options) {
         conversationOperations: String(step.conversationOperations),
         teachingConcurrency: String(step.teachingConcurrency),
         teachingOperations: String(step.teachingOperations),
+        requireTargetReadWriteRps: options.requireTargetReadWriteRps,
       },
     };
   });
@@ -206,7 +255,10 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
   const executedSteps = stepSummaries.filter((step) => step.executed);
   const allStepsPassed = executedSteps.length === steps.length &&
     executedSteps.every((step) => step.status === "PASSED" && step.guardrailStatus === "PASSED");
-  const status = orchestrationErrors === 0 && allStepsPassed ? "PASSED" : "FAILED";
+  const summary = summarizeScaleUp(stepSummaries, orchestrationErrors);
+  const throughputTarget = summarizeThroughputTarget(stepSummaries, summary, options);
+  const targetBlocks = throughputTarget.required && throughputTarget.status !== "MET";
+  const status = orchestrationErrors === 0 && allStepsPassed && !targetBlocks ? "PASSED" : "FAILED";
 
   return {
     generatedAt: endedAt,
@@ -215,6 +267,7 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
     benchmarkKind: "system_sustained_mixed_workload_scale_up",
     workloadType: "SUSTAINED_MIXED_WORKLOAD_SCALE_UP",
     profile: options.profile,
+    scaleProfile: normalizeScaleProfile(options.scaleProfile),
     status,
     stopOnFailure: parseBoolean(options.stopOnFailure),
     scaleGuardrails: {
@@ -245,13 +298,12 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
     },
     conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     steps: stepSummaries,
-    summary: summarizeScaleUp(stepSummaries, orchestrationErrors),
+    summary,
+    throughputTarget,
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
     cleanup: cleanup.map((entry) => sanitizeCommandResult(entry)),
     runnerErrors,
-    nextAction: status === "PASSED"
-      ? "Treat this as sustained mixed workload scale-up evidence only; add root workflow coverage and cross-module diagnostics before any full-system capacity promotion."
-      : "Fix the first failed or guardrail-blocked sustained scale-up step before increasing full-system concurrency.",
+    nextAction: buildNextAction(status, throughputTarget),
   };
 }
 
@@ -259,6 +311,7 @@ export function formatSystemSustainedMixedWorkloadScaleUp(report) {
   const lines = [
     `System sustained mixed workload scale-up: ${report.status}`,
     `Profile: ${report.profile}`,
+    `Scale profile: ${report.scaleProfile ?? "standard"}`,
     `Executed steps: ${report.summary.executedSteps}/${report.summary.configuredSteps}`,
     `Highest passed step: ${report.summary.highestPassedStep ?? "none"}`,
     `First blocked step: ${report.summary.firstBlockedStep ?? "none"}`,
@@ -269,6 +322,12 @@ export function formatSystemSustainedMixedWorkloadScaleUp(report) {
   for (const step of report.steps) {
     lines.push(
       `- ${step.name} ${step.status}/${step.guardrailStatus} readWriteRps=${step.readWriteRps ?? "n/a"} identity=${step.identityConcurrency} conversation=${step.conversationConcurrency} teaching=${step.teachingConcurrency} maxP99=${step.maxP99Ms ?? "n/a"}ms drift=${step.p99DriftMs ?? "n/a"}ms errors=${step.totalErrors}`,
+    );
+  }
+  if (report.throughputTarget?.status && report.throughputTarget.status !== "NOT_CONFIGURED") {
+    lines.push(
+      "",
+      `Target read/write RPS: ${report.throughputTarget.targetReadWriteRps} ${report.throughputTarget.status} attempted=${report.throughputTarget.attempted} highest=${report.throughputTarget.highestPassedReadWriteRps ?? "n/a"} shortfall=${report.throughputTarget.shortfallRps ?? "n/a"}`,
     );
   }
   lines.push("", report.nextAction);
@@ -292,6 +351,8 @@ function summarizeStep(step, report, options) {
       p99DriftMs: null,
       readWriteRps: null,
       aggregateRps: null,
+      targetReadWriteRps: step.targetReadWriteRps,
+      targetCandidate: Number.isFinite(step.targetReadWriteRps),
       guardrailFindings: [],
     };
   }
@@ -316,6 +377,8 @@ function summarizeStep(step, report, options) {
     p99DriftMs: numberOrNull(report.summary?.p99DriftMs),
     readWriteRps: throughput.readWriteRps,
     aggregateRps: throughput.aggregateRps,
+    targetReadWriteRps: step.targetReadWriteRps,
+    targetCandidate: Number.isFinite(step.targetReadWriteRps),
     workloads: summarizeWorkloads(report),
     guardrailFindings,
   };
@@ -439,6 +502,59 @@ function summarizeScaleUp(steps, orchestrationErrors) {
   };
 }
 
+function summarizeThroughputTarget(steps, summary, options) {
+  const configuredTargetSteps = steps.filter((step) => Number.isFinite(step.targetReadWriteRps));
+  const stepTargetReadWriteRps = maxFinite(configuredTargetSteps.map((step) => step.targetReadWriteRps));
+  const optionTargetReadWriteRps = parseInteger(options.targetReadWriteRps);
+  const targetReadWriteRps = optionTargetReadWriteRps > 0 ? optionTargetReadWriteRps : stepTargetReadWriteRps;
+  const configured = Number.isFinite(targetReadWriteRps) && configuredTargetSteps.length > 0;
+  const candidateSteps = configured
+    ? configuredTargetSteps.filter((step) => step.targetReadWriteRps >= targetReadWriteRps)
+    : [];
+  const attemptedStepNames = candidateSteps.filter((step) => step.executed).map((step) => step.name);
+  const highestPassedReadWriteRps = numberOrNull(summary.maxPassedReadWriteRps);
+  const met = configured && Number.isFinite(highestPassedReadWriteRps) &&
+    highestPassedReadWriteRps >= targetReadWriteRps;
+  const attempted = attemptedStepNames.length > 0 || met;
+  const status = targetStatus({ configured, attempted, met });
+  return {
+    targetReadWriteRps: numberOrNull(targetReadWriteRps),
+    required: parseBoolean(options.requireTargetReadWriteRps),
+    configured,
+    attempted,
+    met,
+    status,
+    targetStepNames: candidateSteps.map((step) => step.name),
+    attemptedStepNames,
+    highestPassedStep: summary.highestPassedStep,
+    highestPassedReadWriteRps,
+    shortfallRps: configured && Number.isFinite(highestPassedReadWriteRps)
+      ? roundRps(Math.max(targetReadWriteRps - highestPassedReadWriteRps, 0))
+      : null,
+  };
+}
+
+function targetStatus({ configured, attempted, met }) {
+  if (!configured) return "NOT_CONFIGURED";
+  if (met) return "MET";
+  return attempted ? "ATTEMPTED_NOT_MET" : "NOT_ATTEMPTED";
+}
+
+function buildNextAction(status, throughputTarget) {
+  if (throughputTarget.required && throughputTarget.status === "NOT_CONFIGURED") {
+    return "Configure a target-bearing production 10k sustained scale-up step before making a production RPS claim.";
+  }
+  if (throughputTarget.required && throughputTarget.status === "NOT_ATTEMPTED") {
+    return "Rerun the production 10k scale profile until the target step executes, then review the first blocking step.";
+  }
+  if (throughputTarget.required && throughputTarget.status === "ATTEMPTED_NOT_MET") {
+    return "Optimize the bottlenecked root workflow and rerun the production 10k target step before promotion.";
+  }
+  return status === "PASSED"
+    ? "Treat this as sustained mixed workload scale-up evidence only; add root workflow coverage and cross-module diagnostics before any full-system capacity promotion."
+    : "Fix the first failed or guardrail-blocked sustained scale-up step before increasing full-system concurrency.";
+}
+
 function summarizeStepThroughput(report) {
   const readWriteRps = firstFinite(
     report.summary?.readWriteRps,
@@ -474,6 +590,7 @@ function parseStepSpec(value) {
     conversationOperations,
     teachingConcurrency,
     teachingOperations,
+    targetReadWriteRps,
   ] = value.split(":");
   const name = sanitizeStepName(rawName);
   const step = {
@@ -484,9 +601,11 @@ function parseStepSpec(value) {
     conversationOperations: parseInteger(conversationOperations),
     teachingConcurrency: parseInteger(teachingConcurrency ?? identityConcurrency),
     teachingOperations: parseInteger(teachingOperations ?? identityOperations),
+    targetReadWriteRps: parseOptionalInteger(targetReadWriteRps),
   };
   for (const [field, parsed] of Object.entries(step)) {
     if (field === "name") continue;
+    if (field === "targetReadWriteRps" && parsed === null) continue;
     if (parsed <= 0) throw new Error(`invalid sustained scale-up step ${value}: ${field} must be a positive integer`);
   }
   return step;
@@ -494,6 +613,8 @@ function parseStepSpec(value) {
 
 function validateOptions(options, steps) {
   if (steps.length === 0) throw new Error("at least one sustained scale-up step is required");
+  assertKnownScaleProfile(options.scaleProfile);
+  assertNonNegativeInteger(options.targetReadWriteRps, "target-read-write-rps");
   assertPositiveInteger(options.samples, "samples");
   assertNonNegativeInteger(options.sampleIntervalMs, "sample-interval-ms");
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
@@ -594,14 +715,31 @@ function assertNonNegativeInteger(value, name) {
   if (!/^\d+$/u.test(String(value))) throw new Error(`${name} must be a non-negative integer`);
 }
 
+function assertKnownScaleProfile(value) {
+  const scaleProfile = normalizeScaleProfile(value);
+  if (!Object.hasOwn(scaleProfileDefaults, scaleProfile)) {
+    throw new Error(`scale-profile must be one of ${Object.keys(scaleProfileDefaults).join(",")}`);
+  }
+}
+
 function parseInteger(value) {
   if (!/^-?\d+$/u.test(String(value))) return 0;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function parseOptionalInteger(value) {
+  if (value === undefined || value === "") return null;
+  return parseInteger(value);
+}
+
 function parseBoolean(value) {
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+function normalizeScaleProfile(value) {
+  const normalized = String(value ?? "standard").trim().toLowerCase().replace(/[^a-z0-9]/gu, "");
+  return normalized || "standard";
 }
 
 function identitySessionTablePersistence(options) {
@@ -633,6 +771,10 @@ function maxNullable(left, right) {
 
 function firstFinite(...values) {
   return values.find(Number.isFinite) ?? null;
+}
+
+function roundRps(value) {
+  return Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
 }
 
 function countCommandErrors(results) {

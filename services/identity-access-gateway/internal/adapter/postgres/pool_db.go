@@ -68,6 +68,41 @@ func (db PoolDB) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	return db.pool.QueryRow(ctx, sql, args...)
 }
 
+func (db PoolDB) QueryRowMeasured(ctx context.Context, sql string, args ...any) MeasuredQueryRow {
+	return measuredPoolRow{
+		pool: db.pool,
+		ctx:  ctx,
+		sql:  sql,
+		args: append([]any(nil), args...),
+	}
+}
+
+type measuredPoolRow struct {
+	pool *pgxpool.Pool
+	ctx  context.Context
+	sql  string
+	args []any
+}
+
+func (row measuredPoolRow) ScanMeasured(dest ...any) (DBOperationMeasurement, error) {
+	acquireStartedAt := time.Now()
+	conn, err := row.pool.Acquire(row.ctx)
+	measurement := DBOperationMeasurement{
+		PoolAcquireElapsed:  time.Since(acquireStartedAt),
+		PoolAcquireMeasured: true,
+	}
+	if err != nil {
+		return measurement, err
+	}
+	defer conn.Release()
+
+	execStartedAt := time.Now()
+	err = conn.QueryRow(row.ctx, row.sql, row.args...).Scan(dest...)
+	measurement.DBExecuteElapsed = time.Since(execStartedAt)
+	measurement.DBExecuteMeasured = true
+	return measurement, err
+}
+
 func (db PoolDB) SessionDBPoolStats() platform.SessionDBPoolStats {
 	stats := db.pool.Stat()
 	return platform.SessionDBPoolStats{

@@ -308,7 +308,7 @@ func (s *SessionStore) RotateRefreshSession(
 	var storedIssuedAt time.Time
 	var storedExpiresAt time.Time
 	startedAt := time.Now()
-	err = s.db.QueryRow(
+	measurement, err := s.queryRowMeasured(
 		ctx,
 		`UPDATE identity_sessions
 		SET access_token = $1,
@@ -320,13 +320,14 @@ func (s *SessionStore) RotateRefreshSession(
 			AND revoked_at IS NULL
 			AND expires_at >= $3
 		RETURNING principal_json, issued_at, expires_at`,
+		[]any{&principalJSON, &storedIssuedAt, &storedExpiresAt},
 		newAccessToken,
 		newRefreshToken,
 		issuedAt,
 		expiresAt,
 		refreshToken,
-	).Scan(&principalJSON, &storedIssuedAt, &storedExpiresAt)
-	s.recordSessionOperation(sessionOperation(writeOperationRotateRefreshSession), startedAt, DBOperationMeasurement{})
+	)
+	s.recordSessionOperation(sessionOperation(writeOperationRotateRefreshSession), startedAt, measurement)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
@@ -648,14 +649,15 @@ func (s *SessionStore) getPrincipal(
 	var issuedAt time.Time
 	var expiresAt time.Time
 	startedAt := time.Now()
-	if err := s.db.QueryRow(ctx, sql, token).Scan(&principalJSON, &issuedAt, &expiresAt); err != nil {
-		s.recordSessionOperation(operation, startedAt, DBOperationMeasurement{})
+	measurement, err := s.queryRowMeasured(ctx, sql, []any{&principalJSON, &issuedAt, &expiresAt}, token)
+	if err != nil {
+		s.recordSessionOperation(operation, startedAt, measurement)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.PrincipalContext{}, false, nil
 		}
 		return domain.PrincipalContext{}, false, err
 	}
-	s.recordSessionOperation(operation, startedAt, DBOperationMeasurement{})
+	s.recordSessionOperation(operation, startedAt, measurement)
 	principal, err := decodePrincipal(principalJSON)
 	if err != nil {
 		return domain.PrincipalContext{}, false, err

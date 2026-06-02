@@ -77,6 +77,41 @@ func TestSessionStoreOperationTimingStatsExposeMeasuredDatabaseBreakdown(t *test
 	assertMeasuredOperationTiming(t, stats, "revokeOwnSession")
 }
 
+func TestSessionStoreOperationTimingStatsExposeMeasuredQueryBreakdown(t *testing.T) {
+	db := measuredExecDB{
+		inner:       newFakeDB(),
+		poolAcquire: 4 * time.Millisecond,
+		dbExecute:   5 * time.Millisecond,
+	}
+	store := postgres.NewSessionStore(db)
+	principal := teacherPrincipal("sess_measured_query")
+
+	if err := store.SaveSession(context.Background(), "access_measured_query", "refresh_measured_query", principal); err != nil {
+		t.Fatalf("SaveSession error = %v", err)
+	}
+	if _, ok, err := store.GetPrincipalByAccessToken(context.Background(), "access_measured_query"); err != nil || !ok {
+		t.Fatalf("GetPrincipalByAccessToken ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := store.GetPrincipalByRefreshToken(context.Background(), "refresh_measured_query"); err != nil || !ok {
+		t.Fatalf("GetPrincipalByRefreshToken ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := store.RotateRefreshSession(
+		context.Background(),
+		"refresh_measured_query",
+		"access_measured_query_rotated",
+		"refresh_measured_query_rotated",
+		principal.IssuedAt.Add(time.Minute),
+		principal.IssuedAt.Add(time.Hour),
+	); err != nil || !ok {
+		t.Fatalf("RotateRefreshSession ok=%v err=%v", ok, err)
+	}
+
+	stats := store.SessionOperationTimingStats()
+	assertMeasuredQueryOperationTiming(t, stats, "getPrincipalByAccessToken")
+	assertMeasuredQueryOperationTiming(t, stats, "getPrincipalByRefreshToken")
+	assertMeasuredQueryOperationTiming(t, stats, "rotateRefreshSession")
+}
+
 func TestSessionStoreOperationTimingStatsCountsZeroDurationMeasuredDatabaseBreakdown(t *testing.T) {
 	db := measuredExecDB{inner: newFakeDB()}
 	store := postgres.NewSessionStore(db)
@@ -157,6 +192,33 @@ func assertMeasuredOperationTiming(
 	}
 }
 
+func assertMeasuredQueryOperationTiming(
+	t *testing.T,
+	stats map[string]platform.SessionOperationTimingStat,
+	operation string,
+) {
+	t.Helper()
+	stat := stats[operation]
+	if stat.PoolAcquireCount != 1 {
+		t.Fatalf("%s pool acquire count = %d want 1", operation, stat.PoolAcquireCount)
+	}
+	if stat.PoolAcquireElapsedMs != 4 {
+		t.Fatalf("%s pool acquire elapsed = %v want 4", operation, stat.PoolAcquireElapsedMs)
+	}
+	if stat.AveragePoolAcquireElapsedMs != 4 {
+		t.Fatalf("%s average pool acquire = %v want 4", operation, stat.AveragePoolAcquireElapsedMs)
+	}
+	if stat.DBExecuteElapsedMs != 5 {
+		t.Fatalf("%s db execute elapsed = %v want 5", operation, stat.DBExecuteElapsedMs)
+	}
+	if stat.AverageDBExecuteElapsedMs != 5 {
+		t.Fatalf("%s average db execute = %v want 5", operation, stat.AverageDBExecuteElapsedMs)
+	}
+	if stat.RowsAffectedCount != 0 || stat.RowsAffected != 0 {
+		t.Fatalf("%s query row affected counters should remain zero: %#v", operation, stat)
+	}
+}
+
 type delayedDB struct {
 	inner *fakeDB
 	delay time.Duration
@@ -203,4 +265,25 @@ func (db measuredExecDB) ExecMeasured(ctx context.Context, sql string, args ...a
 
 func (db measuredExecDB) QueryRow(ctx context.Context, sql string, args ...any) postgres.Row {
 	return db.inner.QueryRow(ctx, sql, args...)
+}
+
+func (db measuredExecDB) QueryRowMeasured(ctx context.Context, sql string, args ...any) postgres.MeasuredQueryRow {
+	return measuredQueryRow{
+		inner: db.inner.QueryRow(ctx, sql, args...),
+		measurement: postgres.DBOperationMeasurement{
+			PoolAcquireElapsed:  db.poolAcquire,
+			DBExecuteElapsed:    db.dbExecute,
+			PoolAcquireMeasured: true,
+			DBExecuteMeasured:   true,
+		},
+	}
+}
+
+type measuredQueryRow struct {
+	inner       postgres.Row
+	measurement postgres.DBOperationMeasurement
+}
+
+func (row measuredQueryRow) ScanMeasured(dest ...any) (postgres.DBOperationMeasurement, error) {
+	return row.measurement, row.inner.Scan(dest...)
 }

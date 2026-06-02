@@ -260,6 +260,10 @@ function buildPromotionEvidence(reports) {
       targetReadWriteRps: rootSloPromotionPolicy.productionReadWriteRpsTarget,
       measuredReadWriteRps: productionThroughput.measuredReadWriteRps,
       source: productionThroughput.source,
+      targetAttemptStatus: productionThroughput.targetAttemptStatus,
+      targetAttempted: productionThroughput.targetAttempted,
+      targetConfigured: productionThroughput.targetConfigured,
+      targetShortfallRps: productionThroughput.targetShortfallRps,
     },
     quality: {
       allPassed: isQualityGateReportPassing(reports.quality?.value, {
@@ -337,6 +341,7 @@ function requiredNextEvidence(blockers) {
 }
 
 function productionThroughputEvidence(sustainedScaleUp, diagnostics) {
+  const target = sustainedScaleUp.throughputTarget ?? {};
   const candidates = [
     {
       source: "sustained_scaleup.summary.highestPassedReadWriteRps",
@@ -366,14 +371,36 @@ function productionThroughputEvidence(sustainedScaleUp, diagnostics) {
   );
   for (const candidate of candidates) {
     const value = numberOrNull(candidate.value);
-    if (Number.isFinite(value)) return { measuredReadWriteRps: value, source: candidate.source };
+    if (Number.isFinite(value)) return attachThroughputTarget(target, {
+      measuredReadWriteRps: value,
+      source: candidate.source,
+    });
   }
-  return { measuredReadWriteRps: null, source: "missing" };
+  return attachThroughputTarget(target, { measuredReadWriteRps: null, source: "missing" });
+}
+
+function attachThroughputTarget(target, throughput) {
+  return {
+    ...throughput,
+    targetAttemptStatus: target.status ?? "NOT_CONFIGURED",
+    targetAttempted: typeof target.attempted === "boolean" ? target.attempted : false,
+    targetConfigured: typeof target.configured === "boolean" ? target.configured : false,
+    targetShortfallRps: numberOrNull(target.shortfallRps) ?? throughputShortfall(throughput.measuredReadWriteRps),
+  };
+}
+
+function throughputShortfall(measuredReadWriteRps) {
+  const measured = numberOrNull(measuredReadWriteRps);
+  if (!Number.isFinite(measured)) return null;
+  return Math.round(Math.max(rootSloPromotionPolicy.productionReadWriteRpsTarget - measured, 0) * 100) / 100;
 }
 
 function formatProductionThroughputActual(throughput) {
   if (!Number.isFinite(throughput.measuredReadWriteRps)) return "missing";
-  return `${throughput.measuredReadWriteRps} rps from ${throughput.source}`;
+  const targetSuffix = throughput.targetAttemptStatus
+    ? `;targetStatus=${throughput.targetAttemptStatus};targetAttempted=${throughput.targetAttempted};shortfall=${throughput.targetShortfallRps}`
+    : "";
+  return `${throughput.measuredReadWriteRps} rps from ${throughput.source}${targetSuffix}`;
 }
 
 function formatLatencyActual(latency) {
@@ -416,6 +443,10 @@ function stepRank(step) {
     medium: 3,
     high: 4,
     production_candidate: 5,
+    "target-3k": 5,
+    "target-5k": 6,
+    "target-8k": 7,
+    "target-10k": 8,
   };
   return ranks[String(step ?? "").toLowerCase()] ?? 0;
 }

@@ -24,12 +24,46 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps.at(-1).options.teachingConcurrency, "16");
   });
 
+  it("builds a production 10k candidate ladder without changing the default ladder", () => {
+    const parsed = parseArgs(["--scale-profile", "production10k"]);
+    const steps = buildScaleUpSteps(parsed);
+    const targetStep = steps.find((step) => step.name === "target-10k");
+
+    assert.equal(parsed.scaleProfile, "production10k");
+    assert.deepEqual(steps.map((step) => step.name), [
+      "smoke",
+      "low",
+      "medium",
+      "high",
+      "target-3k",
+      "target-5k",
+      "target-8k",
+      "target-10k",
+    ]);
+    assert.equal(targetStep.targetReadWriteRps, 10000);
+    assert.equal(targetStep.options.identityGatewayCount, "4");
+    assert.equal(targetStep.options.conversationGatewayCount, "4");
+    assert.equal(targetStep.options.identitySessionDbMaxConns, "16");
+    assert.equal(targetStep.options.identitySessionDbSessionTablePersistence, "unlogged");
+    assert.equal(targetStep.options.conversationDbMaxConns, "16");
+    assert.equal(targetStep.options.teachingDbMaxConns, "16");
+    assert.equal(targetStep.options.conversationWriteBatchSize, "64");
+    assert.equal(targetStep.options.identityIngressProxy, "true");
+    assert.equal(targetStep.options.identityIngressCount, "16");
+    assert.equal(targetStep.options.requireTargetReadWriteRps, "true");
+    assert.deepEqual(buildScaleUpSteps(defaults).map((step) => step.name), ["smoke", "low", "medium", "high"]);
+  });
+
   it("parses kebab-case scale-up options", () => {
     const parsed = parseArgs([
       "--step-prefix",
       "reports/custom-scale",
+      "--scale-profile",
+      "production10k",
+      "--target-read-write-rps",
+      "12000",
       "--steps",
-      "smoke:2:4:8:16:2:4,edge:4:8:16:32:4:8",
+      "smoke:2:4:8:16:2:4,edge:4:8:16:32:4:8:12000",
       "--samples",
       "3",
       "--max-p99-ms",
@@ -57,6 +91,8 @@ describe("system sustained mixed workload scale-up runner", () => {
     ]);
 
     assert.equal(parsed.stepPrefix, "reports/custom-scale");
+    assert.equal(parsed.scaleProfile, "production10k");
+    assert.equal(parsed.targetReadWriteRps, "12000");
     assert.equal(parsed.samples, "3");
     assert.equal(parsed.maxP99Ms, "800");
     assert.equal(parsed.maxP99DriftMs, "120");
@@ -103,6 +139,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[1].options.conversationConcurrency, "16");
     assert.equal(steps[1].options.teachingConcurrency, "6");
     assert.equal(steps[1].options.teachingOperations, "12");
+    assert.equal(steps[1].targetReadWriteRps, null);
     assert.equal(steps[0].options.manageDocker, "false");
     assert.equal(steps[0].options.samples, "2");
     assert.equal(steps[0].options.identityBaseUrl, "http://127.0.0.1:19000");
@@ -300,6 +337,8 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.summary.highestPassedAggregateRps, 370);
     assert.equal(report.summary.maxPassedReadWriteRps, 370);
     assert.equal(report.summary.aggregateReadWriteRps, 370);
+    assert.equal(report.throughputTarget.status, "NOT_CONFIGURED");
+    assert.equal(report.throughputTarget.attempted, false);
     assert.equal(report.summary.firstBlockedStep, "low");
     assert.equal(report.steps[1].guardrailFindings.find((finding) => finding.id === "step.max_p99_within_guardrail").passed, false);
     assert.deepEqual(report.transportProfile, {
@@ -352,6 +391,57 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(conversation.summary.runtimeDiagnostics.after.totalAcceptedConns, 240);
   });
 
+  it("blocks a required production target when the target step runs below 10k", () => {
+    const options = {
+      ...defaults,
+      scaleProfile: "production10k",
+      steps: "target-10k:2:4:8:16:2:4:10000",
+      requireTargetReadWriteRps: "true",
+    };
+    const steps = buildScaleUpSteps(options);
+    const report = buildSystemSustainedMixedWorkloadScaleUpReport({
+      options,
+      steps,
+      stepReports: [
+        { step: steps[0], report: sustainedReport(steps[0].options, { readWriteRps: 9200 }) },
+      ],
+      startedAt: "2026-06-01T00:00:00.000Z",
+      endedAt: "2026-06-01T00:00:01.000Z",
+    });
+
+    assert.equal(report.status, "FAILED");
+    assert.equal(report.throughputTarget.status, "ATTEMPTED_NOT_MET");
+    assert.equal(report.throughputTarget.required, true);
+    assert.equal(report.throughputTarget.attempted, true);
+    assert.equal(report.throughputTarget.met, false);
+    assert.equal(report.throughputTarget.shortfallRps, 800);
+    assert.match(formatSystemSustainedMixedWorkloadScaleUp(report), /Target read\/write RPS: 10000 ATTEMPTED_NOT_MET/u);
+  });
+
+  it("passes a required production target only when measured read/write RPS reaches 10k", () => {
+    const options = {
+      ...defaults,
+      scaleProfile: "production10k",
+      steps: "target-10k:2:4:8:16:2:4:10000",
+      requireTargetReadWriteRps: "true",
+    };
+    const steps = buildScaleUpSteps(options);
+    const report = buildSystemSustainedMixedWorkloadScaleUpReport({
+      options,
+      steps,
+      stepReports: [
+        { step: steps[0], report: sustainedReport(steps[0].options, { readWriteRps: 12000 }) },
+      ],
+      startedAt: "2026-06-01T00:00:00.000Z",
+      endedAt: "2026-06-01T00:00:01.000Z",
+    });
+
+    assert.equal(report.status, "PASSED");
+    assert.equal(report.throughputTarget.status, "MET");
+    assert.equal(report.throughputTarget.met, true);
+    assert.equal(report.throughputTarget.shortfallRps, 0);
+  });
+
   it("does not convert missing P99 drift into a scale-up drift metric", () => {
     const steps = buildScaleUpSteps({
       ...defaults,
@@ -378,6 +468,7 @@ function sustainedReport(options, overrides = {}) {
   const status = overrides.status ?? "PASSED";
   const maxP99Ms = overrides.maxP99Ms ?? Number(options.conversationConcurrency) + 10;
   const p99DriftMs = Object.hasOwn(overrides, "p99DriftMs") ? overrides.p99DriftMs : 0;
+  const readWriteRps = overrides.readWriteRps ?? 370;
   const sampleCount = Number(options.samples);
   return {
     status,
@@ -387,15 +478,15 @@ function sustainedReport(options, overrides = {}) {
       maxP95Ms: maxP99Ms * 0.8,
       maxP99Ms,
       p99DriftMs,
-      readWriteRps: 370,
-      aggregateReadWriteRps: 370,
-      minPassedReadWriteRps: 370,
-      maxPassedReadWriteRps: 370,
+      readWriteRps,
+      aggregateReadWriteRps: readWriteRps,
+      minPassedReadWriteRps: readWriteRps,
+      maxPassedReadWriteRps: readWriteRps,
     },
     samples: Array.from({ length: sampleCount }, (_entry, index) => ({
       name: `sample-${index + 1}`,
-      readWriteRps: 370,
-      aggregateRps: 370,
+      readWriteRps,
+      aggregateRps: readWriteRps,
       workloads: [
         workload("identity_http", index === 0 ? errors : 0, maxP99Ms, identitySummary(index)),
         workload("conversation_write", 0, maxP99Ms - 1, conversationSummary(index)),
