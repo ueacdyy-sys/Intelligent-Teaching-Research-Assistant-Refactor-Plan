@@ -254,6 +254,17 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(report.status, "PASSED");
     assert.equal(report.summary.maxP99Ms, 55);
     assert.equal(report.summary.p99DriftMs, 15);
+    assert.equal(report.samples[0].readWriteRps, 370);
+    assert.equal(report.samples[0].aggregateRps, 370);
+    assert.deepEqual(report.samples[0].readWriteWorkloads, [
+      { name: "identity_http", rps: 90 },
+      { name: "conversation_write", rps: 210 },
+      { name: "teaching_archive", rps: 70 },
+    ]);
+    assert.equal(report.summary.readWriteRps, 370);
+    assert.equal(report.summary.aggregateReadWriteRps, 370);
+    assert.equal(report.summary.minPassedReadWriteRps, 370);
+    assert.equal(report.summary.maxPassedReadWriteRps, 370);
     assert.deepEqual(report.transportProfile, {
       sharedMaxConnsPerHost: 70,
       sharedWarmConnectionsPerHost: 9,
@@ -304,9 +315,9 @@ function mixedReport(options, overrides = {}) {
     workloads: [
       workload("identity_http", status, errors, maxP99Ms, identitySummary()),
       workload("conversation_write", status, 0, maxP99Ms - 1, conversationSummary()),
-      workload("teaching_archive", status, 0, maxP99Ms - 2),
-      workload("knowledge_retrieval", "READY", 0, null),
-      workload("ai_worker_admission", "READY", 0, null),
+      workload("teaching_archive", status, 0, maxP99Ms - 2, { rps: 70 }),
+      workload("knowledge_retrieval", "READY", 0, null, { rps: 9999 }),
+      workload("ai_worker_admission", "READY", 0, null, { rps: 9999 }),
     ],
   };
 }
@@ -325,6 +336,7 @@ function workload(name, status, errors, p99Ms, summary = undefined) {
 function identitySummary() {
   return {
     errors: 0,
+    rps: 90,
     dominantPhase: "revokeCycle",
     dominantPhaseP99Ms: 66,
     phases: {
@@ -372,6 +384,7 @@ function identitySummary() {
 function conversationSummary() {
   return {
     errors: 0,
+    rps: 210,
     clientServerGapP99Ms: 77,
     dbBatchWaitP99Ms: 12,
     benchmarkRuntimeProfile: {

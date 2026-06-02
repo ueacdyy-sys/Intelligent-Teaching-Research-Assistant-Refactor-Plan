@@ -16,6 +16,8 @@ import {
   normalizeSessionTablePersistence,
 } from "./identity-http-benchmark-session-profile.mjs";
 
+const readWriteWorkloadNames = new Set(["identity_http", "conversation_write", "teaching_archive"]);
+
 export const defaults = {
   out: "reports/system-sustained-mixed-workload.current.json",
   samplePrefix: "reports/system-sustained-mixed-workload",
@@ -284,7 +286,9 @@ export function formatSystemSustainedMixedWorkload(report) {
     "Sample results:",
   ];
   for (const sample of report.samples) {
-    lines.push(`- ${sample.name} ${sample.status} maxP99=${sample.maxP99Ms ?? "n/a"}ms errors=${sample.totalErrors}`);
+    lines.push(
+      `- ${sample.name} ${sample.status} readWriteRps=${sample.readWriteRps ?? "n/a"} maxP99=${sample.maxP99Ms ?? "n/a"}ms errors=${sample.totalErrors}`,
+    );
   }
   lines.push("", report.nextAction);
   return lines.join("\n");
@@ -301,9 +305,24 @@ function summarizeSample(sample, report) {
       totalErrors: 0,
       maxP95Ms: null,
       maxP99Ms: null,
+      readWriteRps: null,
+      aggregateRps: null,
+      readWriteWorkloads: [],
       workloads: [],
     };
   }
+  const workloads = Array.isArray(report.workloads)
+    ? report.workloads.map((workload) => ({
+        name: workload.name,
+        status: workload.status,
+        errors: numberOrZero(workload.errors),
+        p95Ms: numberOrNull(workload.p95Ms),
+        p99Ms: numberOrNull(workload.p99Ms),
+        rps: workloadRps(workload),
+        summary: workload.summary && typeof workload.summary === "object" ? workload.summary : undefined,
+      }))
+    : [];
+  const throughput = summarizeReadWriteThroughput(workloads);
   return {
     name: sample.name,
     sampleNumber: sample.sampleNumber,
@@ -313,16 +332,10 @@ function summarizeSample(sample, report) {
     totalErrors: numberOrZero(report.summary?.totalErrors),
     maxP95Ms: numberOrNull(report.summary?.maxP95Ms),
     maxP99Ms: numberOrNull(report.summary?.maxP99Ms),
-    workloads: Array.isArray(report.workloads)
-      ? report.workloads.map((workload) => ({
-          name: workload.name,
-          status: workload.status,
-          errors: numberOrZero(workload.errors),
-          p95Ms: numberOrNull(workload.p95Ms),
-          p99Ms: numberOrNull(workload.p99Ms),
-          summary: workload.summary && typeof workload.summary === "object" ? workload.summary : undefined,
-        }))
-      : [],
+    readWriteRps: throughput.readWriteRps,
+    aggregateRps: throughput.aggregateRps,
+    readWriteWorkloads: throughput.readWriteWorkloads,
+    workloads,
   };
 }
 
@@ -332,6 +345,9 @@ function summarizeSustainedSamples(samples, orchestrationErrors) {
   const failedSamples = executedSamples.filter((sample) => sample.status !== "PASSED");
   const firstP99 = passedSamples.at(0)?.maxP99Ms;
   const lastP99 = passedSamples.at(-1)?.maxP99Ms;
+  const passedReadWriteRps = passedSamples.map((sample) => sample.readWriteRps);
+  const sustainedReadWriteRps = minFinite(passedReadWriteRps);
+  const maxPassedReadWriteRps = maxFinite(passedReadWriteRps);
   return {
     configuredSamples: samples.length,
     executedSamples: executedSamples.length,
@@ -342,9 +358,42 @@ function summarizeSustainedSamples(samples, orchestrationErrors) {
     maxP95Ms: maxFinite(executedSamples.map((sample) => sample.maxP95Ms)),
     maxP99Ms: maxFinite(executedSamples.map((sample) => sample.maxP99Ms)),
     p99DriftMs: Number.isFinite(firstP99) && Number.isFinite(lastP99) ? round(lastP99 - firstP99, 2) : null,
+    readWriteRps: sustainedReadWriteRps,
+    aggregateReadWriteRps: sustainedReadWriteRps,
+    minPassedReadWriteRps: sustainedReadWriteRps,
+    maxPassedReadWriteRps,
     highestPassedSample: passedSamples.at(-1)?.name ?? null,
     firstFailedSample: failedSamples.at(0)?.name ?? null,
   };
+}
+
+function summarizeReadWriteThroughput(workloads) {
+  const readWriteWorkloads = workloads
+    .filter((workload) => readWriteWorkloadNames.has(workload.name) && workload.status === "PASSED")
+    .map((workload) => ({ name: workload.name, rps: numberOrNull(workload.rps) }))
+    .filter((workload) => Number.isFinite(workload.rps));
+  if (readWriteWorkloads.length === 0) {
+    return {
+      readWriteRps: null,
+      aggregateRps: null,
+      readWriteWorkloads: [],
+    };
+  }
+  const aggregateRps = round(readWriteWorkloads.reduce((total, workload) => total + workload.rps, 0), 2);
+  return {
+    readWriteRps: aggregateRps,
+    aggregateRps,
+    readWriteWorkloads,
+  };
+}
+
+function workloadRps(workload) {
+  return firstFinite(
+    workload.rps,
+    workload.summary?.rps,
+    workload.summary?.minRps,
+    minFinite(Object.values(workload.summary?.phases ?? {}).map((phase) => numberOrNull(phase.rps))),
+  );
 }
 
 function validateOptions(options, sampleRuns) {
@@ -472,6 +521,15 @@ function numberOrZero(value) {
 function maxFinite(values) {
   const finite = values.filter(Number.isFinite);
   return finite.length ? Math.max(...finite) : null;
+}
+
+function minFinite(values) {
+  const finite = values.filter(Number.isFinite);
+  return finite.length ? Math.min(...finite) : null;
+}
+
+function firstFinite(...values) {
+  return values.find(Number.isFinite) ?? null;
 }
 
 function round(value, digits) {

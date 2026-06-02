@@ -290,10 +290,13 @@ function summarizeStep(step, report, options) {
       maxP95Ms: null,
       maxP99Ms: null,
       p99DriftMs: null,
+      readWriteRps: null,
+      aggregateRps: null,
       guardrailFindings: [],
     };
   }
   const guardrailFindings = buildGuardrailFindings(report, options);
+  const throughput = summarizeStepThroughput(report);
   return {
     name: step.name,
     executed: true,
@@ -311,6 +314,8 @@ function summarizeStep(step, report, options) {
     maxP95Ms: numberOrNull(report.summary?.maxP95Ms),
     maxP99Ms: numberOrNull(report.summary?.maxP99Ms),
     p99DriftMs: numberOrNull(report.summary?.p99DriftMs),
+    readWriteRps: throughput.readWriteRps,
+    aggregateRps: throughput.aggregateRps,
     workloads: summarizeWorkloads(report),
     guardrailFindings,
   };
@@ -410,6 +415,9 @@ function summarizeScaleUp(steps, orchestrationErrors) {
   const executedSteps = steps.filter((step) => step.executed);
   const passedSteps = executedSteps.filter((step) => step.status === "PASSED" && step.guardrailStatus === "PASSED");
   const blockedSteps = executedSteps.filter((step) => step.status !== "PASSED" || step.guardrailStatus !== "PASSED");
+  const highestPassedStep = passedSteps.at(-1) ?? null;
+  const highestPassedReadWriteRps = numberOrNull(highestPassedStep?.readWriteRps);
+  const highestPassedAggregateRps = numberOrNull(highestPassedStep?.aggregateRps);
   return {
     configuredSteps: steps.length,
     executedSteps: executedSteps.length,
@@ -422,8 +430,25 @@ function summarizeScaleUp(steps, orchestrationErrors) {
     maxP99DriftMs: maxFinite(executedSteps.map((step) =>
       Number.isFinite(step.p99DriftMs) ? Math.abs(step.p99DriftMs) : null,
     )),
-    highestPassedStep: passedSteps.at(-1)?.name ?? null,
+    highestPassedReadWriteRps,
+    highestPassedAggregateRps,
+    maxPassedReadWriteRps: maxFinite(passedSteps.map((step) => step.readWriteRps)),
+    aggregateReadWriteRps: highestPassedReadWriteRps,
+    highestPassedStep: highestPassedStep?.name ?? null,
     firstBlockedStep: blockedSteps.at(0)?.name ?? null,
+  };
+}
+
+function summarizeStepThroughput(report) {
+  const readWriteRps = firstFinite(
+    report.summary?.readWriteRps,
+    report.summary?.aggregateReadWriteRps,
+    report.summary?.minPassedReadWriteRps,
+    minFinite((report.samples ?? []).map((sample) => numberOrNull(sample.readWriteRps))),
+  );
+  return {
+    readWriteRps,
+    aggregateRps: firstFinite(report.summary?.aggregateReadWriteRps, report.summary?.readWriteRps, readWriteRps),
   };
 }
 
@@ -596,9 +621,18 @@ function maxFinite(values) {
   return finite.length ? Math.max(...finite) : null;
 }
 
+function minFinite(values) {
+  const finite = values.filter(Number.isFinite);
+  return finite.length ? Math.min(...finite) : null;
+}
+
 function maxNullable(left, right) {
   if (Number.isFinite(left) && Number.isFinite(right)) return Math.max(left, right);
   return Number.isFinite(left) ? left : right;
+}
+
+function firstFinite(...values) {
+  return values.find(Number.isFinite) ?? null;
 }
 
 function countCommandErrors(results) {

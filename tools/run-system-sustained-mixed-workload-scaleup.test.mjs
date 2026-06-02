@@ -283,6 +283,12 @@ describe("system sustained mixed workload scale-up runner", () => {
 
     assert.equal(report.status, "FAILED");
     assert.equal(report.summary.highestPassedStep, "smoke");
+    assert.equal(report.steps[0].readWriteRps, 370);
+    assert.equal(report.steps[0].aggregateRps, 370);
+    assert.equal(report.summary.highestPassedReadWriteRps, 370);
+    assert.equal(report.summary.highestPassedAggregateRps, 370);
+    assert.equal(report.summary.maxPassedReadWriteRps, 370);
+    assert.equal(report.summary.aggregateReadWriteRps, 370);
     assert.equal(report.summary.firstBlockedStep, "low");
     assert.equal(report.steps[1].guardrailFindings.find((finding) => finding.id === "step.max_p99_within_guardrail").passed, false);
     assert.deepEqual(report.transportProfile, {
@@ -370,13 +376,19 @@ function sustainedReport(options, overrides = {}) {
       maxP95Ms: maxP99Ms * 0.8,
       maxP99Ms,
       p99DriftMs,
+      readWriteRps: 370,
+      aggregateReadWriteRps: 370,
+      minPassedReadWriteRps: 370,
+      maxPassedReadWriteRps: 370,
     },
     samples: Array.from({ length: sampleCount }, (_entry, index) => ({
       name: `sample-${index + 1}`,
+      readWriteRps: 370,
+      aggregateRps: 370,
       workloads: [
         workload("identity_http", index === 0 ? errors : 0, maxP99Ms, identitySummary(index)),
         workload("conversation_write", 0, maxP99Ms - 1, conversationSummary(index)),
-        workload("teaching_archive", 0, maxP99Ms - 2),
+        workload("teaching_archive", 0, maxP99Ms - 2, { rps: 70 }),
       ],
     })),
   };
@@ -394,6 +406,7 @@ function workload(name, errors, p99Ms, summary = undefined) {
 function identitySummary(index) {
   return {
     errors: 0,
+    rps: index === 0 ? 90 : 85,
     dominantPhase: "revokeCycle",
     dominantPhaseP99Ms: index === 0 ? 66 : 88,
     phases: {
@@ -441,6 +454,7 @@ function identitySummary(index) {
 function conversationSummary(index) {
   return {
     errors: 0,
+    rps: index === 0 ? 210 : 205,
     clientServerGapP99Ms: index === 0 ? 77 : 101,
     dbBatchWaitP99Ms: index === 0 ? 12 : 14,
     benchmarkRuntimeProfile: {
