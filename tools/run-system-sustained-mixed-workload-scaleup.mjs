@@ -23,7 +23,7 @@ export const defaults = {
   manageDocker: "true",
   dockerCleanup: "reset",
   stopOnFailure: "true",
-  steps: "smoke:2:4:8:16:2:4,low:4:8:16:32:4:8",
+  steps: "smoke:2:4:8:16:2:4,low:4:8:16:32:4:8,medium:8:16:32:64:8:16,high:16:32:64:128:16:32",
   samples: "2",
   sampleIntervalMs: "0",
   identityBaseUrl: sustainedDefaults.identityBaseUrl,

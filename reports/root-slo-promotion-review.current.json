@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-02T15:18:43.686Z",
+  "generatedAt": "2026-06-02T16:04:18.185Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -67,7 +67,7 @@
         },
         {
           "name": "sustained_scaleup.max_p99_ms",
-          "value": 45
+          "value": 94
         },
         {
           "name": "teaching_archive.slowest_p99_ms",
@@ -100,8 +100,8 @@
       "satisfiedBy": "production_headroom_profile"
     },
     "sustainedScale": {
-      "highestPassedStep": "low",
-      "highestPassedStepRank": 2,
+      "highestPassedStep": "high",
+      "highestPassedStepRank": 4,
       "minimumStepName": "high",
       "minimumStepRank": 4,
       "totalErrors": 0,
@@ -109,7 +109,7 @@
     },
     "productionThroughput": {
       "targetReadWriteRps": 10000,
-      "measuredReadWriteRps": 1089.87,
+      "measuredReadWriteRps": 2107.3,
       "source": "sustained_scaleup.summary.highestPassedReadWriteRps"
     },
     "quality": {
@@ -121,7 +121,7 @@
     "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
     "decision": "BLOCK_PROMOTION",
     "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-    "blockerCount": 5,
+    "blockerCount": 4,
     "blockers": [
       {
         "id": "promotion.root_workflows_runtime_slo_covered",
@@ -142,14 +142,8 @@
         "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
       },
       {
-        "id": "promotion.sustained_scale_depth_sufficient",
-        "actual": "highest=low;rank=2;errors=0;orchestration=0",
-        "expected": "highest passed sustained mixed workload step >= high with zero errors",
-        "remediation": "Run a higher sustained mixed workload step before promotion."
-      },
-      {
         "id": "promotion.production_read_write_rps_target_met",
-        "actual": "1089.87 rps from sustained_scaleup.summary.highestPassedReadWriteRps",
+        "actual": "2107.3 rps from sustained_scaleup.summary.highestPassedReadWriteRps",
         "expected": "measured sustained read/write RPS >= 10000",
         "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
       }
@@ -158,7 +152,6 @@
       "ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE",
       "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT",
       "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
-      "HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP",
       "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
     ]
   },
@@ -255,9 +248,9 @@
     },
     {
       "id": "promotion.sustained_scale_depth_sufficient",
-      "passed": false,
-      "severity": "promotion_blocker",
-      "actual": "highest=low;rank=2;errors=0;orchestration=0",
+      "passed": true,
+      "severity": "info",
+      "actual": "highest=high;rank=4;errors=0;orchestration=0",
       "expected": "highest passed sustained mixed workload step >= high with zero errors",
       "remediation": "Run a higher sustained mixed workload step before promotion."
     },
@@ -265,7 +258,7 @@
       "id": "promotion.production_read_write_rps_target_met",
       "passed": false,
       "severity": "promotion_blocker",
-      "actual": "1089.87 rps from sustained_scaleup.summary.highestPassedReadWriteRps",
+      "actual": "2107.3 rps from sustained_scaleup.summary.highestPassedReadWriteRps",
       "expected": "measured sustained read/write RPS >= 10000",
       "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
     }

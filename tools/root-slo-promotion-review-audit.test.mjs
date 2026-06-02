@@ -29,21 +29,24 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.promotionPolicy.interactiveP99TargetMs, 300);
     assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
     assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
-    assert.equal(report.promotion.blockerCount, 5);
+    assert.equal(report.promotion.blockerCount, 4);
     assert.match(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.interactive_tail_latency_within_target").actual,
       /identityRevokeSlowestStep=login:1498\.29/,
     );
+    const expectedReadWriteRps = parseReport(inputs, sourceReports.sustainedScaleUp).summary.highestPassedReadWriteRps;
     assert.equal(report.evidence.productionThroughput.targetReadWriteRps, 10000);
-    assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, 1089.87);
+    assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, expectedReadWriteRps);
     assert.equal(report.evidence.productionThroughput.source, "sustained_scaleup.summary.highestPassedReadWriteRps");
     assert.equal(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.production_read_write_rps_target_met").actual,
-      "1089.87 rps from sustained_scaleup.summary.highestPassedReadWriteRps",
+      `${expectedReadWriteRps} rps from sustained_scaleup.summary.highestPassedReadWriteRps`,
     );
     assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
+    assert(!report.promotion.requiredNextEvidence.includes("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE"));
+    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.sustained_scale_depth_sufficient").passed, true);
     assert.equal(report.evidence.databaseHeadroom.satisfiedBy, "production_headroom_profile");
     assert.match(formatRootSloPromotionReview(report), /Decision: BLOCK_PROMOTION/);
   });
@@ -104,8 +107,28 @@ describe("root SLO promotion review audit", () => {
     assert(failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
     assert(failedGateIds.includes("promotion.interactive_tail_latency_within_target"));
     assert(!failedGateIds.includes("promotion.database_headroom_sufficient"));
-    assert(failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
+    assert(!failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
     assert(failedGateIds.includes("promotion.production_read_write_rps_target_met"));
+  });
+
+  it("blocks promotion when sustained scale-up depth drops below high", () => {
+    const inputs = loadCurrentInputs();
+    const diagnostics = parseReport(inputs, sourceReports.crossModuleDiagnostics);
+    diagnostics.mixedWorkloadDiagnostics.highestPassedStep = "low";
+    inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(diagnostics);
+
+    const scaleUp = parseReport(inputs, sourceReports.sustainedScaleUp);
+    scaleUp.summary.highestPassedStep = "low";
+    inputs.reports[sourceReports.sustainedScaleUp] = JSON.stringify(scaleUp);
+
+    const report = auditRootSloPromotionReview(inputs);
+    const sustainedFinding = report.promotionFindings.find((finding) =>
+      finding.id === "promotion.sustained_scale_depth_sufficient"
+    );
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(sustainedFinding.passed, false);
+    assert(report.promotion.requiredNextEvidence.includes("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"));
   });
 
   it("approves promotion only when every root SLO gate is satisfied", () => {

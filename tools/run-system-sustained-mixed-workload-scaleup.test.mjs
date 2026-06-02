@@ -14,6 +14,16 @@ import {
 } from "./run-system-sustained-mixed-workload-scaleup.mjs";
 
 describe("system sustained mixed workload scale-up runner", () => {
+  it("keeps the default scale-up ladder deep enough for root SLO review", () => {
+    const steps = buildScaleUpSteps(defaults);
+
+    assert.deepEqual(steps.map((step) => step.name), ["smoke", "low", "medium", "high"]);
+    assert.equal(steps.at(-1).options.profile, "SUSTAINED_SCALEUP_HIGH");
+    assert.equal(steps.at(-1).options.identityConcurrency, "16");
+    assert.equal(steps.at(-1).options.conversationConcurrency, "64");
+    assert.equal(steps.at(-1).options.teachingConcurrency, "16");
+  });
+
   it("parses kebab-case scale-up options", () => {
     const parsed = parseArgs([
       "--step-prefix",
