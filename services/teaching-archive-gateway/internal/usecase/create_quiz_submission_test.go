@@ -45,6 +45,90 @@ func TestCreateQuizSubmissionAllowsStudentOwnSubmission(t *testing.T) {
 	}
 }
 
+func TestCreateQuizSubmissionFastPathSkipsArchiveLookupForAuthorizedTeachingQuiz(t *testing.T) {
+	repo := &fakeQuizSubmissionRepository{fastCreateOK: true}
+	uc := usecase.NewCreateQuizSubmission(
+		repo,
+		fixedIDs{id: "quiz_sub_fixed"},
+		fixedClock{now: time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)},
+	)
+
+	got, err := uc.Execute(context.Background(), domain.CreateQuizSubmissionInput{
+		Principal:         studentPrincipal("student_001"),
+		QuizArchiveItemID: " tarch_quiz ",
+		AnswerRef:         " local://answers/student_001/week-3.json ",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+
+	if got.ID != "quiz_sub_fixed" {
+		t.Fatalf("ID = %q", got.ID)
+	}
+	if repo.gets != 0 {
+		t.Fatalf("gets = %d, want 0", repo.gets)
+	}
+	if repo.fastCreates != 1 {
+		t.Fatalf("fastCreates = %d, want 1", repo.fastCreates)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d, want 0", repo.creates)
+	}
+	if repo.fastSubmission.QuizArchiveItemID != "tarch_quiz" {
+		t.Fatalf("fast submission archive item = %q", repo.fastSubmission.QuizArchiveItemID)
+	}
+}
+
+func TestCreateQuizSubmissionFastPathMissFallsBackToNonQuizValidation(t *testing.T) {
+	item := teachingQuizItem("tarch_handout", time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC))
+	item.MaterialType = domain.MaterialTypeHandout
+	repo := &fakeQuizSubmissionRepository{
+		items: map[string]domain.ArchiveItem{"tarch_handout": item},
+	}
+	uc := usecase.NewCreateQuizSubmission(repo, fixedIDs{id: "quiz_sub_fixed"}, fixedClock{})
+
+	_, err := uc.Execute(context.Background(), domain.CreateQuizSubmissionInput{
+		Principal:         studentPrincipal("student_001"),
+		QuizArchiveItemID: "tarch_handout",
+		AnswerRef:         "local://answers/student_001/week-3.json",
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+	if repo.fastCreates != 1 {
+		t.Fatalf("fastCreates = %d, want 1", repo.fastCreates)
+	}
+	if repo.gets != 1 {
+		t.Fatalf("gets = %d, want 1", repo.gets)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
+func TestCreateQuizSubmissionFastPathMissFallsBackToNotFound(t *testing.T) {
+	repo := &fakeQuizSubmissionRepository{items: map[string]domain.ArchiveItem{}}
+	uc := usecase.NewCreateQuizSubmission(repo, fixedIDs{id: "quiz_sub_fixed"}, fixedClock{})
+
+	_, err := uc.Execute(context.Background(), domain.CreateQuizSubmissionInput{
+		Principal:         studentPrincipal("student_001"),
+		QuizArchiveItemID: "tarch_missing",
+		AnswerRef:         "local://answers/student_001/week-3.json",
+	})
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("error = %v, want ErrNotFound", err)
+	}
+	if repo.fastCreates != 1 {
+		t.Fatalf("fastCreates = %d, want 1", repo.fastCreates)
+	}
+	if repo.gets != 1 {
+		t.Fatalf("gets = %d, want 1", repo.gets)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
 func TestCreateQuizSubmissionRejectsOtherStudentBeforeCreate(t *testing.T) {
 	repo := &fakeQuizSubmissionRepository{
 		items: map[string]domain.ArchiveItem{
@@ -64,6 +148,9 @@ func TestCreateQuizSubmissionRejectsOtherStudentBeforeCreate(t *testing.T) {
 	}
 	if repo.gets != 1 {
 		t.Fatalf("gets = %d, want 1", repo.gets)
+	}
+	if repo.fastCreates != 0 {
+		t.Fatalf("fastCreates = %d, want 0", repo.fastCreates)
 	}
 	if repo.creates != 0 {
 		t.Fatalf("creates = %d", repo.creates)
@@ -99,6 +186,9 @@ type fakeQuizSubmissionRepository struct {
 	submission     domain.QuizSubmission
 	createdGrading domain.AIGradingRequest
 	gradingCreates int
+	fastSubmission domain.QuizSubmission
+	fastCreates    int
+	fastCreateOK   bool
 }
 
 func (f *fakeQuizSubmissionRepository) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {
@@ -114,6 +204,15 @@ func (f *fakeQuizSubmissionRepository) CreateQuizSubmission(
 	f.submission = submission
 	f.creates++
 	return nil
+}
+
+func (f *fakeQuizSubmissionRepository) CreateQuizSubmissionForExistingTeachingQuiz(
+	_ context.Context,
+	submission domain.QuizSubmission,
+) (bool, error) {
+	f.fastSubmission = submission
+	f.fastCreates++
+	return f.fastCreateOK, nil
 }
 
 func (f *fakeQuizSubmissionRepository) GetQuizSubmissionByID(
