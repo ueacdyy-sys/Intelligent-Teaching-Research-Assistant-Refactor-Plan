@@ -621,7 +621,19 @@ func (s *SessionStore) getPrincipal(
 }
 
 func encodePrincipal(principal domain.PrincipalContext) ([]byte, error) {
-	return json.Marshal(principal)
+	return json.Marshal(storedPrincipalContext{
+		PrincipalID:             principal.PrincipalID,
+		SubjectType:             principal.SubjectType,
+		Role:                    principal.Role,
+		EntryPoint:              principal.EntryPoint,
+		DisplayName:             principal.DisplayName,
+		Scopes:                  principal.Scopes,
+		KnowledgeAccess:         principal.KnowledgeAccess,
+		StudentAccess:           principal.StudentAccess,
+		Channel:                 principal.Channel,
+		RequiresHarnessApproval: principal.RequiresHarnessApproval,
+		SessionID:               principal.SessionID,
+	})
 }
 
 func decodePrincipal(data []byte) (domain.PrincipalContext, error) {
@@ -630,6 +642,20 @@ func decodePrincipal(data []byte) (domain.PrincipalContext, error) {
 		return domain.PrincipalContext{}, err
 	}
 	return principal, nil
+}
+
+type storedPrincipalContext struct {
+	PrincipalID             string
+	SubjectType             domain.SubjectType
+	Role                    domain.Role
+	EntryPoint              domain.EntryPoint
+	DisplayName             string
+	Scopes                  []domain.Scope
+	KnowledgeAccess         domain.KnowledgeAccess
+	StudentAccess           domain.StudentAccess
+	Channel                 *domain.ChannelContext
+	RequiresHarnessApproval bool
+	SessionID               string
 }
 
 func schemaStatementsFor(persistence SessionTablePersistence) []string {

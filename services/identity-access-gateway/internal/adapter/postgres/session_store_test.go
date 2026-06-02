@@ -508,7 +508,8 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 		accessToken := args[1].(string)
 		refreshToken, _ := args[2].(string)
 		principalJSON := append([]byte(nil), args[3].([]byte)...)
-		principal := decodePrincipalOrFail(principalJSON)
+		issuedAt := args[4].(time.Time)
+		expiresAt := args[5].(time.Time)
 		if _, ok := db.sessionsByID[sessionID]; ok {
 			return fakeCommandTag{}, errors.New("duplicate session id")
 		}
@@ -517,8 +518,8 @@ func (db *fakeDB) Exec(_ context.Context, sql string, args ...any) (postgres.Com
 			accessToken:   accessToken,
 			refreshToken:  refreshToken,
 			principalJSON: principalJSON,
-			issuedAt:      principal.IssuedAt,
-			expiresAt:     principal.ExpiresAt,
+			issuedAt:      issuedAt,
+			expiresAt:     expiresAt,
 		}
 		db.sessionByAccess[accessToken] = sessionID
 		if refreshToken != "" {
