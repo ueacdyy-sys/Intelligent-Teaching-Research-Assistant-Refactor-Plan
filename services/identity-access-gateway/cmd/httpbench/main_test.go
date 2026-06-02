@@ -115,6 +115,95 @@ func TestBuildPhaseReportWithoutStepLatenciesOmitsAttribution(t *testing.T) {
 	}
 }
 
+func TestBuildRevokeCycleStepOperationAttribution(t *testing.T) {
+	phaseDiagnostics := gatewayDatabasePhaseDiagnostics{
+		Delta: gatewayDatabaseDiagnosticsDelta{
+			SessionOperations: map[string]gatewayDatabaseSessionOperationDelta{
+				"saveSession": {
+					Count:                2,
+					TotalElapsedMS:       20,
+					AverageElapsedMS:     10,
+					RowsAffectedCount:    2,
+					RowsAffected:         2,
+					AverageRowsAffected:  1,
+					DBExecuteElapsedMS:   8,
+					PoolAcquireCount:     2,
+					PoolAcquireElapsedMS: 6,
+				},
+				"revokeOwnSession": {
+					Count:               2,
+					TotalElapsedMS:      30,
+					AverageElapsedMS:    15,
+					RowsAffectedCount:   2,
+					RowsAffected:        2,
+					AverageRowsAffected: 1,
+				},
+			},
+			WriteLimiter: &gatewayDatabaseWriteLimiterDelta{
+				Operations: map[string]gatewayDatabaseWriteLimiterOperationDelta{
+					"saveSession": {
+						AcquireCount:             2,
+						AcquireWaitTimeMS:        12,
+						AverageAcquireWaitTimeMS: 6,
+					},
+					"revokeOwnSession": {
+						AcquireCount:             2,
+						AcquireWaitTimeMS:        18,
+						AverageAcquireWaitTimeMS: 9,
+					},
+				},
+			},
+		},
+	}
+	stepLatencies := map[string]latencySummary{
+		"login":                  {P99MS: 40, AvgMS: 20},
+		"revoke":                 {P99MS: 55, AvgMS: 25},
+		"revokedPrincipalLookup": {P99MS: 8, AvgMS: 4},
+	}
+
+	attribution := buildRevokeCycleStepOperationAttribution(stepLatencies, phaseDiagnostics)
+
+	login := attribution["login"]
+	if login.StepLatencyMS == nil || login.StepLatencyMS.P99MS != 40 {
+		t.Fatalf("login step latency = %#v", login.StepLatencyMS)
+	}
+	if got := login.SessionOperations["saveSession"].AverageRowsAffected; got != 1 {
+		t.Fatalf("login saveSession average rows affected = %v want 1", got)
+	}
+	if got := login.WriteLimiterOperations["saveSession"].AcquireWaitTimeMS; got != 12 {
+		t.Fatalf("login saveSession write limiter wait = %v want 12", got)
+	}
+	revoke := attribution["revoke"]
+	if got := revoke.SessionOperations["revokeOwnSession"].AverageRowsAffected; got != 1 {
+		t.Fatalf("revoke revokeOwnSession average rows affected = %v want 1", got)
+	}
+	if got := revoke.WriteLimiterOperations["revokeOwnSession"].AcquireWaitTimeMS; got != 18 {
+		t.Fatalf("revoke revokeOwnSession write limiter wait = %v want 18", got)
+	}
+	lookup := attribution["revokedPrincipalLookup"]
+	if len(lookup.SessionOperations) != 0 {
+		t.Fatalf("revoked lookup should not invent DB operations: %#v", lookup.SessionOperations)
+	}
+	if len(lookup.MissingSessionOperations) != 1 || lookup.MissingSessionOperations[0] != "getPrincipalByAccessToken" {
+		t.Fatalf("revoked lookup missing operations = %#v", lookup.MissingSessionOperations)
+	}
+}
+
+func TestBuildRevokeCycleStepOperationAttributionOmitsEmptyDiagnostics(t *testing.T) {
+	attribution := buildRevokeCycleStepOperationAttribution(
+		map[string]latencySummary{
+			"login":                  {P99MS: 40, AvgMS: 20},
+			"revoke":                 {P99MS: 55, AvgMS: 25},
+			"revokedPrincipalLookup": {P99MS: 8, AvgMS: 4},
+		},
+		gatewayDatabasePhaseDiagnostics{},
+	)
+
+	if attribution != nil {
+		t.Fatalf("empty diagnostics attribution = %#v want nil", attribution)
+	}
+}
+
 func TestParseBaseURLs(t *testing.T) {
 	got, err := parseBaseURLs("http://127.0.0.1:18100, http://127.0.0.1:18101/")
 	if err != nil {

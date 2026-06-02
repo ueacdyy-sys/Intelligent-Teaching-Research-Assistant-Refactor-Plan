@@ -268,6 +268,7 @@ function summarizePhase(phaseName, report) {
   const delta = report.gatewayDatabasePhaseDiagnostics?.[phaseName]?.delta ?? {};
   const sessionOperations = summarizeSessionOperations(delta.sessionOperations);
   const writeLimiter = summarizeWriteLimiter(delta.writeLimiter);
+  const stepOperationAttribution = summarizeStepOperationAttribution(phase.stepOperationAttribution);
   const slowestOperation = slowestSessionOperation(sessionOperations);
   const highestPoolAcquireShare = highestPoolAcquireShareOperation(sessionOperations);
   const highestWriteLimiterWait = highestWriteLimiterWaitOperation(writeLimiter?.operations ?? []);
@@ -289,6 +290,7 @@ function summarizePhase(phaseName, report) {
     highestPoolAcquireShare: highestPoolAcquireShare?.poolAcquireShare ?? null,
     highestWriteLimiterWaitOperation: highestWriteLimiterWait?.name ?? null,
     highestWriteLimiterWaitTimeMs: highestWriteLimiterWait?.acquireWaitTimeMs ?? null,
+    stepOperationAttribution,
   });
 }
 
@@ -494,6 +496,31 @@ function summarizeWriteLimiterOperation(name, stats) {
   });
 }
 
+function summarizeStepOperationAttribution(attribution) {
+  if (!attribution || typeof attribution !== "object") return null;
+  const entries = Object.entries(attribution)
+    .map(([stepName, stats]) => [stepName, summarizeStepOperation(stats)])
+    .filter(([, summary]) => summary !== null)
+    .sort((left, right) => left[0].localeCompare(right[0]));
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+function summarizeStepOperation(stats) {
+  if (!stats || typeof stats !== "object") return null;
+  const stepLatency = stats.stepLatencyMs;
+  const sessionOperations = summarizeSessionOperations(stats.sessionOperations);
+  const writeLimiterOperations = summarizeWriteLimiterOperations(stats.writeLimiterOperations);
+  const summary = omitNullish({
+    stepP99Ms: numberOrNull(stats.stepP99Ms) ?? numberOrNull(stepLatency?.p99),
+    stepAvgMs: numberOrNull(stats.stepAvgMs) ?? numberOrNull(stepLatency?.avg),
+    expectedSessionOperations: stringArray(stats.expectedSessionOperations),
+    missingSessionOperations: stringArray(stats.missingSessionOperations),
+    sessionOperations: sessionOperations.length > 0 ? sessionOperations : null,
+    writeLimiterOperations: writeLimiterOperations.length > 0 ? writeLimiterOperations : null,
+  });
+  return Object.keys(summary).length > 0 ? summary : null;
+}
+
 function summarizeSessionOperation(name, stats) {
   const totalElapsedMs = numberOrNull(stats?.totalElapsedMs);
   const poolAcquireElapsedMs = numberOrNull(stats?.poolAcquireElapsedMs);
@@ -644,6 +671,12 @@ function numberOrNull(value) {
 
 function positiveNumberOrNull(value) {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function stringArray(value) {
+  if (!Array.isArray(value)) return null;
+  const strings = value.filter((entry) => typeof entry === "string" && entry.length > 0);
+  return strings.length > 0 ? strings : null;
 }
 
 function numberOrInfinity(value) {

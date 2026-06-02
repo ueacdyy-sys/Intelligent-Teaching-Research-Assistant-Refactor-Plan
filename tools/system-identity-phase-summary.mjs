@@ -43,6 +43,10 @@ function summarizeIdentityPhases(phases, gatewayDatabasePhaseDiagnostics) {
     const slowestStepP99Ms = numberOrNull(phase.stepLatencyAttribution?.slowestStepP99Ms);
     if (slowestStep) summarized[phaseName].slowestStep = slowestStep;
     if (Number.isFinite(slowestStepP99Ms)) summarized[phaseName].slowestStepP99Ms = slowestStepP99Ms;
+    const stepOperationAttribution = summarizeStepOperationAttribution(phase.stepOperationAttribution);
+    if (Object.keys(stepOperationAttribution).length > 0) {
+      summarized[phaseName].stepOperationAttribution = stepOperationAttribution;
+    }
     const sessionOperations = summarizeSessionOperations(
       gatewayDatabasePhaseDiagnostics?.[phaseName]?.delta?.sessionOperations,
     );
@@ -96,6 +100,13 @@ function mergePhase(left, right) {
     merged.writeLimiter = writeLimiter;
     merged.highestWriteLimiterWaitOperation = highestWriteLimiterWait?.name ?? null;
     merged.highestWriteLimiterWaitTimeMs = highestWriteLimiterWait?.acquireWaitTimeMs ?? null;
+  }
+  const stepOperationAttribution = mergeStepOperationAttribution(
+    left.stepOperationAttribution,
+    right.stepOperationAttribution,
+  );
+  if (Object.keys(stepOperationAttribution).length > 0) {
+    merged.stepOperationAttribution = stepOperationAttribution;
   }
   return merged;
 }
@@ -172,6 +183,30 @@ function summarizeWriteLimiterOperation(name, stats) {
       ),
     }),
   ];
+}
+
+function summarizeStepOperationAttribution(attribution) {
+  if (!attribution || typeof attribution !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(attribution)
+      .map(([stepName, stats]) => [stepName, summarizeStepOperation(stats)])
+      .filter(([, summary]) => Object.keys(summary).length > 0)
+      .sort((left, right) => left[0].localeCompare(right[0])),
+  );
+}
+
+function summarizeStepOperation(stats) {
+  if (!stats || typeof stats !== "object") return {};
+  const sessionOperations = summarizeSessionOperations(stats.sessionOperations);
+  const writeLimiterOperations = summarizeWriteLimiterOperations(stats.writeLimiterOperations);
+  return omitNullish({
+    stepP99Ms: numberOrNull(stats.stepP99Ms) ?? numberOrNull(stats.stepLatencyMs?.p99),
+    stepAvgMs: numberOrNull(stats.stepAvgMs) ?? numberOrNull(stats.stepLatencyMs?.avg),
+    expectedSessionOperations: stringArray(stats.expectedSessionOperations),
+    missingSessionOperations: stringArray(stats.missingSessionOperations),
+    sessionOperations: Object.keys(sessionOperations).length > 0 ? sessionOperations : null,
+    writeLimiterOperations: Object.keys(writeLimiterOperations).length > 0 ? writeLimiterOperations : null,
+  });
 }
 
 function summarizeSessionOperation(name, stats) {
@@ -304,6 +339,34 @@ function mergeSessionOperation(left, right) {
   });
 }
 
+function mergeStepOperationAttribution(left, right) {
+  const stepNames = new Set([
+    ...Object.keys(left ?? {}),
+    ...Object.keys(right ?? {}),
+  ]);
+  return Object.fromEntries(
+    [...stepNames]
+      .map((stepName) => [stepName, mergeStepOperation(left?.[stepName], right?.[stepName])])
+      .filter(([, value]) => value !== undefined)
+      .sort((leftEntry, rightEntry) => leftEntry[0].localeCompare(rightEntry[0])),
+  );
+}
+
+function mergeStepOperation(left, right) {
+  if (!left || typeof left !== "object") return copySummary(right);
+  if (!right || typeof right !== "object") return copySummary(left);
+  const sessionOperations = mergeSessionOperations(left.sessionOperations, right.sessionOperations);
+  const writeLimiterOperations = mergeWriteLimiterOperations(left.writeLimiterOperations, right.writeLimiterOperations);
+  return omitNullish({
+    stepP99Ms: maxNullable(numberOrNull(left.stepP99Ms), numberOrNull(right.stepP99Ms)),
+    stepAvgMs: maxNullable(numberOrNull(left.stepAvgMs), numberOrNull(right.stepAvgMs)),
+    expectedSessionOperations: mergeStringArrays(left.expectedSessionOperations, right.expectedSessionOperations),
+    missingSessionOperations: mergeStringArrays(left.missingSessionOperations, right.missingSessionOperations),
+    sessionOperations: Object.keys(sessionOperations).length > 0 ? sessionOperations : null,
+    writeLimiterOperations: Object.keys(writeLimiterOperations).length > 0 ? writeLimiterOperations : null,
+  });
+}
+
 function slowestSessionOperation(operations) {
   return Object.entries(operations ?? {})
     .map(([name, stats]) => ({ name, averageElapsedMs: numberOrNull(stats?.averageElapsedMs) }))
@@ -338,6 +401,17 @@ function numberOrZero(value) {
 
 function positiveNumberOrNull(value) {
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function stringArray(value) {
+  if (!Array.isArray(value)) return null;
+  const values = [...new Set(value.filter((entry) => typeof entry === "string" && entry.length > 0))];
+  return values.length > 0 ? values : null;
+}
+
+function mergeStringArrays(left, right) {
+  const values = [...new Set([...(left ?? []), ...(right ?? [])].filter((entry) => typeof entry === "string" && entry.length > 0))];
+  return values.length > 0 ? values.sort((leftValue, rightValue) => leftValue.localeCompare(rightValue)) : null;
 }
 
 function maxNullable(left, right) {

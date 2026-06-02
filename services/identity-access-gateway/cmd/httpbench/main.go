@@ -58,13 +58,14 @@ type benchmarkTransportProfile struct {
 }
 
 type phaseReport struct {
-	Name                   string                    `json:"name"`
-	Operations             int                       `json:"operations"`
-	Errors                 int64                     `json:"errors"`
-	RPS                    float64                   `json:"rps"`
-	LatencyMS              latencySummary            `json:"latencyMs"`
-	StepLatencyMS          map[string]latencySummary `json:"stepLatencyMs,omitempty"`
-	StepLatencyAttribution *stepLatencyAttribution   `json:"stepLatencyAttribution,omitempty"`
+	Name                     string                              `json:"name"`
+	Operations               int                                 `json:"operations"`
+	Errors                   int64                               `json:"errors"`
+	RPS                      float64                             `json:"rps"`
+	LatencyMS                latencySummary                      `json:"latencyMs"`
+	StepLatencyMS            map[string]latencySummary           `json:"stepLatencyMs,omitempty"`
+	StepLatencyAttribution   *stepLatencyAttribution             `json:"stepLatencyAttribution,omitempty"`
+	StepOperationAttribution map[string]stepOperationAttribution `json:"stepOperationAttribution,omitempty"`
 }
 
 type latencySummary struct {
@@ -366,9 +367,15 @@ func runRevokeCyclePhase(ctx context.Context, client *http.Client, baseURLs []st
 		return nil
 	})
 	diagnosticsAfter := diagnostics.collect(ctx)
-	diagnostics.recordPhase("revokeCycle", diagnosticsBefore, diagnosticsAfter)
+	phaseDiagnostics, hasDiagnostics := diagnostics.recordPhase("revokeCycle", diagnosticsBefore, diagnosticsAfter)
 	phase.StepLatencyMS = stepLatencies.summarize()
 	phase.StepLatencyAttribution = buildStepLatencyAttribution(phase.LatencyMS, phase.StepLatencyMS)
+	if hasDiagnostics {
+		phase.StepOperationAttribution = buildRevokeCycleStepOperationAttribution(
+			phase.StepLatencyMS,
+			phaseDiagnostics,
+		)
+	}
 	return phase, phaseError("revokeCycle", phase, firstErr)
 }
 

@@ -125,11 +125,13 @@ func (collector *gatewayDatabaseDiagnosticsCollector) recordPhase(
 	phase string,
 	before gatewayDatabaseDiagnosticsSnapshot,
 	after gatewayDatabaseDiagnosticsSnapshot,
-) {
+) (gatewayDatabasePhaseDiagnostics, bool) {
 	if collector == nil {
-		return
+		return gatewayDatabasePhaseDiagnostics{}, false
 	}
-	collector.phases[phase] = buildGatewayDatabasePhaseDiagnostics(before, after)
+	phaseDiagnostics := buildGatewayDatabasePhaseDiagnostics(before, after)
+	collector.phases[phase] = phaseDiagnostics
+	return phaseDiagnostics, true
 }
 
 func collectGatewayDatabaseDiagnostics(

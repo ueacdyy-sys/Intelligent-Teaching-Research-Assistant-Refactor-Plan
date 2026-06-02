@@ -23,6 +23,34 @@ describe("system identity phase summary", () => {
             slowestStep: "revoke",
             slowestStepP99Ms: 44,
           },
+          stepOperationAttribution: {
+            login: {
+              stepLatencyMs: { avg: 12, p99: 20 },
+              expectedSessionOperations: ["saveSession"],
+              sessionOperations: {
+                saveSession: {
+                  count: 16,
+                  totalElapsedMs: 240,
+                  averageElapsedMs: 15,
+                  rowsAffectedCount: 16,
+                  rowsAffected: 16,
+                  averageRowsAffected: 1,
+                },
+              },
+              writeLimiterOperations: {
+                saveSession: {
+                  acquireCount: 16,
+                  acquireWaitTimeMs: 64,
+                  averageAcquireWaitTimeMs: 4,
+                },
+              },
+            },
+            revokedPrincipalLookup: {
+              stepLatencyMs: { avg: 3, p99: 6 },
+              expectedSessionOperations: ["getPrincipalByAccessToken"],
+              missingSessionOperations: ["getPrincipalByAccessToken"],
+            },
+          },
         },
       },
       {
@@ -110,6 +138,24 @@ describe("system identity phase summary", () => {
     assert.equal(summary.phases.passwordLogin.highestWriteLimiterWaitTimeMs, 64);
     assert.equal(summary.phases.revokeCycle.slowestSessionOperation, "revokeOwnSession");
     assert.equal(summary.phases.revokeCycle.slowestSessionOperationAverageElapsedMs, 20);
+    assert.equal(summary.phases.revokeCycle.stepOperationAttribution.login.stepP99Ms, 20);
+    assert.deepEqual(summary.phases.revokeCycle.stepOperationAttribution.login.sessionOperations.saveSession, {
+      count: 16,
+      totalElapsedMs: 240,
+      averageElapsedMs: 15,
+      rowsAffectedCount: 16,
+      rowsAffected: 16,
+      averageRowsAffected: 1,
+    });
+    assert.deepEqual(summary.phases.revokeCycle.stepOperationAttribution.login.writeLimiterOperations.saveSession, {
+      acquireCount: 16,
+      acquireWaitTimeMs: 64,
+      averageAcquireWaitTimeMs: 4,
+    });
+    assert.deepEqual(
+      summary.phases.revokeCycle.stepOperationAttribution.revokedPrincipalLookup.missingSessionOperations,
+      ["getPrincipalByAccessToken"],
+    );
   });
 
   it("merges session operation totals and recomputes averages", () => {
@@ -153,6 +199,29 @@ describe("system identity phase summary", () => {
                 count: 16,
                 totalElapsedMs: 240,
                 averageElapsedMs: 15,
+              },
+            },
+            stepOperationAttribution: {
+              revoke: {
+                stepP99Ms: 44,
+                expectedSessionOperations: ["revokeOwnSession"],
+                sessionOperations: {
+                  revokeOwnSession: {
+                    count: 16,
+                    totalElapsedMs: 320,
+                    averageElapsedMs: 20,
+                    rowsAffectedCount: 16,
+                    rowsAffected: 16,
+                    averageRowsAffected: 1,
+                  },
+                },
+                writeLimiterOperations: {
+                  revokeOwnSession: {
+                    acquireCount: 16,
+                    acquireWaitTimeMs: 64,
+                    averageAcquireWaitTimeMs: 4,
+                  },
+                },
               },
             },
           },
@@ -199,6 +268,29 @@ describe("system identity phase summary", () => {
                 averageElapsedMs: 20,
               },
             },
+            stepOperationAttribution: {
+              revoke: {
+                stepP99Ms: 55,
+                expectedSessionOperations: ["revokeOwnSession"],
+                sessionOperations: {
+                  revokeOwnSession: {
+                    count: 24,
+                    totalElapsedMs: 720,
+                    averageElapsedMs: 30,
+                    rowsAffectedCount: 24,
+                    rowsAffected: 24,
+                    averageRowsAffected: 1,
+                  },
+                },
+                writeLimiterOperations: {
+                  revokeOwnSession: {
+                    acquireCount: 24,
+                    acquireWaitTimeMs: 120,
+                    averageAcquireWaitTimeMs: 5,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -233,6 +325,20 @@ describe("system identity phase summary", () => {
     });
     assert.equal(merged.phases.revokeCycle.highestWriteLimiterWaitOperation, "revokeOwnSession");
     assert.equal(merged.phases.revokeCycle.highestWriteLimiterWaitTimeMs, 184);
+    assert.deepEqual(merged.phases.revokeCycle.stepOperationAttribution.revoke.sessionOperations.revokeOwnSession, {
+      count: 40,
+      totalElapsedMs: 1040,
+      averageElapsedMs: 26,
+      rowsAffectedCount: 40,
+      rowsAffected: 40,
+      averageRowsAffected: 1,
+    });
+    assert.deepEqual(merged.phases.revokeCycle.stepOperationAttribution.revoke.writeLimiterOperations.revokeOwnSession, {
+      acquireCount: 40,
+      acquireWaitTimeMs: 184,
+      averageAcquireWaitTimeMs: 4.6,
+    });
+    assert.equal(merged.phases.revokeCycle.stepOperationAttribution.revoke.stepP99Ms, 55);
     assert.deepEqual(merged.phases.revokeCycle.sessionOperations.saveSession, {
       count: 40,
       totalElapsedMs: 720,

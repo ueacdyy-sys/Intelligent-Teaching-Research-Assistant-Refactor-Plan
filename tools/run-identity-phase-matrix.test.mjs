@@ -278,6 +278,91 @@ describe("identity phase-aware matrix runner", () => {
     assert.equal(measured.dominantWriteLimiterAcquireWaitTimeMs, 900);
   });
 
+  it("keeps revoke cycle step operation attribution for write pressure decisions", () => {
+    const cases = buildMatrixCases({
+      ...defaults,
+      cases: "measured:2:8:2:32:16:32:16",
+    });
+    const report = buildIdentityPhaseMatrixReport({
+      options: defaults,
+      cases,
+      caseReports: [
+        {
+          case: cases[0],
+          report: identityReport({
+            revokeStepOperationAttribution: {
+              login: {
+                stepLatencyMs: { avg: 20, p99: 44 },
+                expectedSessionOperations: ["saveSession"],
+                sessionOperations: {
+                  saveSession: {
+                    count: 256,
+                    totalElapsedMs: 4978.72,
+                    averageElapsedMs: 19.45,
+                    rowsAffectedCount: 256,
+                    rowsAffected: 256,
+                    averageRowsAffected: 1,
+                  },
+                },
+                writeLimiterOperations: {
+                  saveSession: {
+                    acquireCount: 256,
+                    acquireWaitTimeMs: 500,
+                    averageAcquireWaitTimeMs: 1.95,
+                  },
+                },
+              },
+              revoke: {
+                stepLatencyMs: { avg: 25, p99: 55 },
+                expectedSessionOperations: ["revokeOwnSession"],
+                sessionOperations: {
+                  revokeOwnSession: {
+                    count: 256,
+                    totalElapsedMs: 6206.89,
+                    averageElapsedMs: 24.25,
+                    rowsAffectedCount: 256,
+                    rowsAffected: 256,
+                    averageRowsAffected: 1,
+                  },
+                },
+              },
+              revokedPrincipalLookup: {
+                stepLatencyMs: { avg: 3, p99: 8 },
+                expectedSessionOperations: ["getPrincipalByAccessToken"],
+                missingSessionOperations: ["getPrincipalByAccessToken"],
+              },
+            },
+          }),
+        },
+      ],
+      startedAt: "2026-06-02T00:00:00.000Z",
+      endedAt: "2026-06-02T00:00:01.000Z",
+    });
+
+    const revokeCycle = report.cases[0].phases.find((phase) => phase.name === "revokeCycle");
+    assert.equal(revokeCycle.stepOperationAttribution.login.stepP99Ms, 44);
+    assert.deepEqual(revokeCycle.stepOperationAttribution.login.sessionOperations[0], {
+      name: "saveSession",
+      count: 256,
+      totalElapsedMs: 4978.72,
+      averageElapsedMs: 19.45,
+      rowsAffectedCount: 256,
+      rowsAffected: 256,
+      averageRowsAffected: 1,
+    });
+    assert.deepEqual(revokeCycle.stepOperationAttribution.login.writeLimiterOperations[0], {
+      name: "saveSession",
+      acquireCount: 256,
+      acquireWaitTimeMs: 500,
+      averageAcquireWaitTimeMs: 1.95,
+    });
+    assert.equal(revokeCycle.stepOperationAttribution.revoke.sessionOperations[0].name, "revokeOwnSession");
+    assert.deepEqual(
+      revokeCycle.stepOperationAttribution.revokedPrincipalLookup.missingSessionOperations,
+      ["getPrincipalByAccessToken"],
+    );
+  });
+
   it("keeps older operation diagnostics parseable when pool attribution is absent", () => {
     const cases = buildMatrixCases({
       ...defaults,
@@ -444,13 +529,17 @@ function identityReport(overrides = {}) {
   const revokeSessionOperations = overrides.revokeSessionOperations ?? {
     revokeOwnSession: { count: 64, totalElapsedMs: 160, averageElapsedMs: 2.5 },
   };
+  const revokeCycle = phase("revokeCycle", 0, revokeCycleP99);
+  if (overrides.revokeStepOperationAttribution) {
+    revokeCycle.stepOperationAttribution = overrides.revokeStepOperationAttribution;
+  }
   return {
     status,
     phases: {
       passwordLogin: phase("passwordLogin", passwordLoginErrors, passwordLoginP99),
       principalLookup: phase("principalLookup", 0, 55),
       refreshRotation: phase("refreshRotation", 0, 65),
-      revokeCycle: phase("revokeCycle", 0, revokeCycleP99),
+      revokeCycle,
     },
     gatewayDatabasePhaseDiagnostics: {
       passwordLogin: diagnostics(acquireMs, { saveSession: { count: 64, totalElapsedMs: 128, averageElapsedMs: 2 } }),
