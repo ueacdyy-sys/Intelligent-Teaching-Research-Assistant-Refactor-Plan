@@ -14,6 +14,7 @@ export const defaults = {
   ingressPort: "19080",
   concurrency: "64",
   operations: "128",
+  sessionDbMinConns: "0",
   sessionDbWriteConcurrency: "0",
   sessionDbSessionTablePersistence: "unlogged",
   benchmarkRuntime: "docker",
@@ -42,10 +43,12 @@ export function parseArgs(argv) {
 }
 
 export function buildMatrixCases(options) {
+  const sessionDbMinConns = parseInteger(options.sessionDbMinConns);
   return parseCaseSpecs(options.cases).map((matrixCase, index) => {
     const reportPath = `${options.casePrefix}.${index + 1}-${safeName(matrixCase.name)}.json`;
     return {
       ...matrixCase,
+      sessionDbMinConns,
       reportPath,
       args: buildCaseArgs(options, matrixCase, reportPath),
     };
@@ -136,6 +139,7 @@ export function buildIdentityPhaseMatrixReport({
     targetProfile: {
       concurrency: parseInteger(options.concurrency),
       operationsPerPhase: parseInteger(options.operations),
+      sessionDbMinConnsPerWorker: parseInteger(options.sessionDbMinConns),
       sessionTablePersistence: options.sessionDbSessionTablePersistence,
       benchmarkRuntime: options.benchmarkRuntime,
     },
@@ -179,6 +183,7 @@ function buildCaseArgs(options, matrixCase, reportPath) {
     "--concurrency", options.concurrency,
     "--operations", options.operations,
     "--session-db-max-conns", String(matrixCase.sessionDbMaxConns),
+    "--session-db-min-conns", options.sessionDbMinConns,
     "--session-db-write-concurrency", options.sessionDbWriteConcurrency,
     "--session-db-session-table-persistence", options.sessionDbSessionTablePersistence,
     "--gateway-count", String(matrixCase.gatewayCount),
@@ -205,6 +210,8 @@ function summarizeCase(matrixCase, report) {
       gatewayCount: matrixCase.gatewayCount,
       sessionDbMaxConnsPerWorker: matrixCase.sessionDbMaxConns,
       sessionDbMaxConnsTotal: matrixCase.gatewayCount * matrixCase.sessionDbMaxConns,
+      sessionDbMinConnsPerWorker: matrixCase.sessionDbMinConns,
+      sessionDbMinConnsTotal: matrixCase.gatewayCount * matrixCase.sessionDbMinConns,
       ingressCount: matrixCase.ingressCount,
       clientMaxConnsPerHost: matrixCase.clientMaxConnsPerHost,
       clientWarmConnectionsPerHost: matrixCase.clientWarmConnectionsPerHost,
@@ -321,6 +328,12 @@ function parseCaseSpec(value) {
 function validateOptions(options, cases) {
   positiveInteger(options.concurrency, "options", "concurrency");
   positiveInteger(options.operations, "options", "operations");
+  const sessionDbMinConns = nonNegativeInteger(options.sessionDbMinConns, "options", "sessionDbMinConns");
+  for (const matrixCase of cases) {
+    if (sessionDbMinConns > matrixCase.sessionDbMaxConns) {
+      throw new Error(`sessionDbMinConns must be <= sessionDbMaxConns for case ${matrixCase.name}`);
+    }
+  }
   if (!["down", "reset"].includes(options.dockerCleanup)) {
     throw new Error("docker-cleanup must be down or reset");
   }

@@ -67,13 +67,17 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 	}
 
 	maxConns := getenvInt("SESSION_DB_MAX_CONNS", 8)
+	minConns, err := parseSessionDBMinConns(os.Getenv("SESSION_DB_MIN_CONNS"), maxConns)
+	if err != nil {
+		log.Fatal(err)
+	}
 	writeConcurrency := getenvNonNegativeInt("SESSION_DB_WRITE_CONCURRENCY", 0)
 	sessionTablePersistence, err := parseSessionTablePersistence(os.Getenv("SESSION_DB_SESSION_TABLE_PERSISTENCE"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	config.MaxConns = int32(maxConns)
-	config.MinConns = 0
+	config.MinConns = int32(minConns)
 	config.MaxConnIdleTime = 10 * time.Minute
 	config.MaxConnLifetime = 30 * time.Minute
 
@@ -98,8 +102,9 @@ func mustBuildIdentityStores(ctx context.Context) (usecase.SessionStore, usecase
 	})
 	statsProvider := identitypostgres.NewSessionDBStatsProvider(db, store)
 	log.Printf(
-		"identity session store ready: postgres maxConns=%d writeConcurrency=%d sessionTablePersistence=%s with durable remote replay guard",
+		"identity session store ready: postgres maxConns=%d minConns=%d writeConcurrency=%d sessionTablePersistence=%s with durable remote replay guard",
 		maxConns,
+		minConns,
 		writeConcurrency,
 		sessionTablePersistence,
 	)
@@ -150,6 +155,23 @@ func getenvNonNegativeInt(key string, fallback int) int {
 		panic(fmt.Sprintf("%s must be non-negative: %d", key, parsed))
 	}
 	return parsed
+}
+
+func parseSessionDBMinConns(value string, maxConns int) (int, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("SESSION_DB_MIN_CONNS must be an integer: %q", value)
+	}
+	if parsed < 0 {
+		return 0, fmt.Errorf("SESSION_DB_MIN_CONNS must be non-negative: %d", parsed)
+	}
+	if parsed > maxConns {
+		return 0, fmt.Errorf("SESSION_DB_MIN_CONNS must be <= SESSION_DB_MAX_CONNS: %d > %d", parsed, maxConns)
+	}
+	return parsed, nil
 }
 
 func parseSessionTablePersistence(value string) (identitypostgres.SessionTablePersistence, error) {

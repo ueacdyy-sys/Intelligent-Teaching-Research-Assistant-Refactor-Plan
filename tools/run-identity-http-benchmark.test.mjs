@@ -23,6 +23,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       parseArgs,
       runIdentityHttpBenchmark,
       tailText,
+      validateSessionDbPoolProfile,
       validateRuntimePortPlan,
     } = await import("./run-identity-http-benchmark.mjs");
 
@@ -33,6 +34,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "1024",
       "--session-db-max-conns",
       "16",
+      "--session-db-min-conns",
+      "4",
       "--session-db-write-concurrency",
       "8",
       "--session-db-session-table-persistence",
@@ -116,12 +119,15 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.concurrency, 512);
     assert.equal(report.operationsPerPhase, 1024);
     assert.equal(report.sessionDbMaxConns, 16);
+    assert.equal(report.sessionDbMinConns, 4);
     assert.equal(report.sessionDbWriteConcurrency, 8);
     assert.equal(report.gatewayCount, 2);
     assert.deepEqual(report.gatewayDatabaseProfile, {
       workerCount: 2,
       sessionDbMaxConnsPerWorker: 16,
       sessionDbMaxConnsTotal: 32,
+      sessionDbMinConnsPerWorker: 4,
+      sessionDbMinConnsTotal: 8,
       sessionDbWriteConcurrencyPerWorker: 8,
       sessionDbWriteConcurrencyTotal: 16,
       sessionTablePersistence: "unlogged",
@@ -489,5 +495,71 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       dockerHostAlias: "host.docker.internal",
       targetBaseUrls: ["http://host.docker.internal:18080"],
     });
+    assert.doesNotThrow(() => validateSessionDbPoolProfile(options));
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-max-conns",
+        "8",
+        "--session-db-min-conns",
+        "9",
+      ])),
+      /session-db-min-conns must be <= session-db-max-conns/u,
+    );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-min-conns",
+        "-1",
+      ])),
+      /session-db-min-conns must be non-negative/u,
+    );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-min-conns",
+        "warm",
+      ])),
+      /session-db-min-conns must be an integer/u,
+    );
+  });
+
+  it("passes session DB min connections to gateway processes", async () => {
+    const {
+      runIdentityHttpBenchmark,
+    } = await import("./run-identity-http-benchmark.mjs");
+
+    const spawned = [];
+    const handle = () => ({
+      exitCode: 1,
+      stdout: { on() {} },
+      stderr: { on() {} },
+    });
+    const exitCode = await runIdentityHttpBenchmark([
+      "--base-url",
+      "http://127.0.0.1:18100",
+      "--out",
+      "tmp/identity-min-conns-report.json",
+      "--session-db-max-conns",
+      "8",
+      "--session-db-min-conns",
+      "4",
+      "--session-db-write-concurrency",
+      "0",
+      "--startup-timeout-ms",
+      "100",
+    ], {
+      spawn: (command, args, options) => {
+        spawned.push({ command, args, env: options.env });
+        return handle();
+      },
+      spawnSync: () => ({ status: 0, stdout: "", stderr: "" }),
+      fetch: async () => ({ ok: true, status: 200, async json() { return { status: "ok", stats: {} }; } }),
+      sleep: async () => {},
+    });
+
+    assert.equal(exitCode, 1);
+    assert.equal(spawned[0].command, "go");
+    assert.deepEqual(spawned[0].args, ["run", "./services/identity-access-gateway/cmd/gateway"]);
+    assert.equal(spawned[0].env.SESSION_DB_MAX_CONNS, "8");
+    assert.equal(spawned[0].env.SESSION_DB_MIN_CONNS, "4");
+    fs.rmSync("tmp/identity-min-conns-report.json", { force: true });
   });
 });

@@ -19,6 +19,7 @@ describe("identity phase-aware matrix runner", () => {
       "--case-prefix", "reports/custom-identity-phase",
       "--concurrency", "4400",
       "--operations", "8800",
+      "--session-db-min-conns", "4",
       "--cases", "g8-p10-i16-c150:8:10:16:150:150:40:16,g10-p12-i22-c200:10:12:22:200:200:50:22",
       "--stop-on-failure", "true",
     ]);
@@ -34,6 +35,7 @@ describe("identity phase-aware matrix runner", () => {
       "--concurrency", "4400",
       "--operations", "8800",
       "--session-db-max-conns", "10",
+      "--session-db-min-conns", "4",
       "--session-db-write-concurrency", "0",
       "--session-db-session-table-persistence", "unlogged",
       "--gateway-count", "8",
@@ -48,6 +50,17 @@ describe("identity phase-aware matrix runner", () => {
       "--startup-timeout-ms", "120000",
       "--out", "reports/custom-identity-phase.1-g8-p10-i16-c150.json",
     ]);
+
+    const report = buildIdentityPhaseMatrixReport({
+      options,
+      cases,
+      caseReports: [{ case: cases[0], report: identityReport() }],
+      startedAt: "2026-06-02T00:00:00.000Z",
+      endedAt: "2026-06-02T00:00:01.000Z",
+    });
+    assert.equal(report.targetProfile.sessionDbMinConnsPerWorker, 4);
+    assert.equal(report.cases[0].config.sessionDbMinConnsPerWorker, 4);
+    assert.equal(report.cases[0].config.sessionDbMinConnsTotal, 32);
   });
 
   it("recommends the passing case with the lowest slowest phase P99 and keeps phase diagnostics", () => {

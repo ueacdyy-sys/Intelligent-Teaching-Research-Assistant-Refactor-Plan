@@ -35,6 +35,7 @@ export const defaults = {
   concurrency: "64",
   operations: "300",
   sessionDbMaxConns: "16",
+  sessionDbMinConns: "0",
   sessionDbWriteConcurrency: "0",
   sessionDbSessionTablePersistence: defaultSessionTablePersistence,
   gatewayCount: "1",
@@ -83,6 +84,7 @@ export function parseArgs(argv) {
     if (key === "--concurrency") parsed.concurrency = value;
     if (key === "--operations") parsed.operations = value;
     if (key === "--session-db-max-conns") parsed.sessionDbMaxConns = value;
+    if (key === "--session-db-min-conns") parsed.sessionDbMinConns = value;
     if (key === "--session-db-write-concurrency") parsed.sessionDbWriteConcurrency = value;
     if (key === "--gateway-count") parsed.gatewayCount = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
@@ -136,6 +138,7 @@ export function buildFailureReport({
     concurrency: parseIntegerOption(options.concurrency),
     operationsPerPhase: parseIntegerOption(options.operations),
     sessionDbMaxConns: parseIntegerOption(options.sessionDbMaxConns),
+    sessionDbMinConns: parseIntegerOption(options.sessionDbMinConns),
     sessionDbWriteConcurrency: parseIntegerOption(options.sessionDbWriteConcurrency),
     gatewayCount: gatewayCount(options),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
@@ -201,6 +204,20 @@ export function validateRuntimePortPlan(options) {
   );
 }
 
+export function validateSessionDbPoolProfile(options) {
+  const maxConns = parseStrictIntegerOption(options.sessionDbMaxConns, "session-db-max-conns");
+  const minConns = parseStrictIntegerOption(options.sessionDbMinConns, "session-db-min-conns");
+  if (maxConns < 1) {
+    throw new Error("session-db-max-conns must be positive");
+  }
+  if (minConns < 0) {
+    throw new Error("session-db-min-conns must be non-negative");
+  }
+  if (minConns > maxConns) {
+    throw new Error("session-db-min-conns must be <= session-db-max-conns");
+  }
+}
+
 export function writeJsonReport(outPath, report) {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -210,6 +227,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
   const options = parseArgs(argv);
   try {
     validateRuntimePortPlan(options);
+    validateSessionDbPoolProfile(options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const consoleError = dependencies.consoleError ?? console.error;
@@ -409,6 +427,7 @@ function spawnGateway(baseUrl, options, spawnProcess) {
         PORT: gatewayPort(baseUrl, options.port),
         SESSION_DATABASE_URL: options.dsn,
         SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
+        SESSION_DB_MIN_CONNS: options.sessionDbMinConns,
         SESSION_DB_WRITE_CONCURRENCY: options.sessionDbWriteConcurrency,
         ...gatewaySessionPersistenceEnv(options),
         BOOTSTRAP_PASSWORD: "ueacd",
@@ -609,11 +628,14 @@ export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagno
 export function gatewayDatabaseProfile(options) {
   const workerCount = gatewayCount(options);
   const sessionDbMaxConnsPerWorker = parseIntegerOption(options.sessionDbMaxConns);
+  const sessionDbMinConnsPerWorker = parseIntegerOption(options.sessionDbMinConns);
   const sessionDbWriteConcurrencyPerWorker = parseIntegerOption(options.sessionDbWriteConcurrency);
   return addSessionPersistenceToDatabaseProfile({
     workerCount,
     sessionDbMaxConnsPerWorker,
     sessionDbMaxConnsTotal: workerCount * sessionDbMaxConnsPerWorker,
+    sessionDbMinConnsPerWorker,
+    sessionDbMinConnsTotal: workerCount * sessionDbMinConnsPerWorker,
     sessionDbWriteConcurrencyPerWorker,
     sessionDbWriteConcurrencyTotal: workerCount * sessionDbWriteConcurrencyPerWorker,
   }, options);
@@ -758,6 +780,14 @@ function ingressPortAt(options, index) {
 function parseIntegerOption(value) {
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function parseStrictIntegerOption(value, name) {
+  const text = String(value ?? "").trim();
+  if (!/^-?\d+$/u.test(text)) {
+    throw new Error(`${name} must be an integer`);
+  }
+  return Number.parseInt(text, 10);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
