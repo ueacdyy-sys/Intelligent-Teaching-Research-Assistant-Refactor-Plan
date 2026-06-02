@@ -76,7 +76,7 @@ baseline dependencies.
 
 - The HTML board explains the Skills-Agent two-layer architecture in the Agent
   subsystem and Harness tab.
-- The board maps teaching, research, diagnostic/analysis, workflow/plugin, and
+- The board maps teaching, research, analysis, workflow/plugin, and
   tool-control work to specialized Worker Agents.
 - The board adds SharedContext, memory, skill invocation, swarm coordination,
   and guardrail objects to the data/API/permission/acceptance sections.
