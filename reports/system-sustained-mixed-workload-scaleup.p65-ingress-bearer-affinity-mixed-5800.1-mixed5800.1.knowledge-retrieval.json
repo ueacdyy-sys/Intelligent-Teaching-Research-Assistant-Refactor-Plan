@@ -1,0 +1,163 @@
+{
+  "generatedAt": "2026-06-02T03:50:16.759Z",
+  "readiness": "READY",
+  "benchmark": {
+    "schemaVersion": "2026-05-30.knowledge.retrieval-benchmark.report.v1",
+    "generatedAt": "2026-06-02T03:50:16.755Z",
+    "sourcePolicyVersion": "2026-05-30.knowledge.access-policy.v1",
+    "benchmarkProfileVersion": "2026-05-30.knowledge.retrieval-benchmark.v1",
+    "benchmarkId": "knowledge_hybrid_retrieval_policy_smoke",
+    "iterations": 64,
+    "metrics": {
+      "totalPlans": 256,
+      "p95QueryPlanMs": 2.55,
+      "maxQueryPlanMs": 2.55,
+      "maxDirectoryCandidates": 1,
+      "maxChunkCandidates": 2
+    },
+    "workloadResults": [
+      {
+        "workloadId": "cloud_public_lesson_design",
+        "nodeType": "CLOUD",
+        "strategy": "HYBRID",
+        "expectedClassifications": [
+          "PUBLIC"
+        ],
+        "allowedClassifications": [
+          "PUBLIC"
+        ],
+        "returnedClassifications": [
+          "PUBLIC"
+        ],
+        "policyAllowed": true,
+        "returnedWithinPolicy": true,
+        "directoryCandidatesExamined": 1,
+        "chunkCandidatesExamined": 2,
+        "returnedCandidateCount": 3,
+        "estimatedQueryPlanMs": 2.55
+      },
+      {
+        "workloadId": "local_private_rag_notes",
+        "nodeType": "LOCAL",
+        "strategy": "HYBRID",
+        "expectedClassifications": [
+          "PRIVATE"
+        ],
+        "allowedClassifications": [
+          "PUBLIC",
+          "PRIVATE",
+          "STUDENT_ARCHIVE"
+        ],
+        "returnedClassifications": [
+          "PRIVATE"
+        ],
+        "policyAllowed": true,
+        "returnedWithinPolicy": true,
+        "directoryCandidatesExamined": 1,
+        "chunkCandidatesExamined": 2,
+        "returnedCandidateCount": 3,
+        "estimatedQueryPlanMs": 2.55
+      },
+      {
+        "workloadId": "local_student_archive_tutoring",
+        "nodeType": "LOCAL",
+        "strategy": "HYBRID",
+        "expectedClassifications": [
+          "STUDENT_ARCHIVE"
+        ],
+        "allowedClassifications": [
+          "PUBLIC",
+          "PRIVATE",
+          "STUDENT_ARCHIVE"
+        ],
+        "returnedClassifications": [
+          "STUDENT_ARCHIVE"
+        ],
+        "policyAllowed": true,
+        "returnedWithinPolicy": true,
+        "directoryCandidatesExamined": 1,
+        "chunkCandidatesExamined": 2,
+        "returnedCandidateCount": 3,
+        "estimatedQueryPlanMs": 2.55
+      },
+      {
+        "workloadId": "remote_owned_research_notes",
+        "nodeType": "REMOTE_DEVICE",
+        "strategy": "HYBRID",
+        "expectedClassifications": [
+          "REMOTE_DEVICE_OWNED"
+        ],
+        "allowedClassifications": [
+          "REMOTE_DEVICE_OWNED"
+        ],
+        "returnedClassifications": [
+          "REMOTE_DEVICE_OWNED"
+        ],
+        "policyAllowed": true,
+        "returnedWithinPolicy": true,
+        "directoryCandidatesExamined": 1,
+        "chunkCandidatesExamined": 2,
+        "returnedCandidateCount": 3,
+        "estimatedQueryPlanMs": 2.55
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "profile.non_empty_corpus",
+      "passed": true,
+      "severity": "info",
+      "actual": "documents=4 chunks=8 workloads=4",
+      "expected": "documents>0 chunks>0 workloads>0",
+      "remediation": "Retrieval benchmarks must use a real non-empty corpus and workload set."
+    },
+    {
+      "id": "profile.workload_coverage",
+      "passed": true,
+      "severity": "info",
+      "actual": "nodes=CLOUD,LOCAL,REMOTE_DEVICE classifications=PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED",
+      "expected": "nodes=CLOUD,LOCAL,REMOTE_DEVICE classifications=PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED",
+      "remediation": "Benchmark workloads must cover cloud, local, remote-device, and all knowledge classifications."
+    },
+    {
+      "id": "policy.hybrid_enabled",
+      "passed": true,
+      "severity": "info",
+      "actual": "default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true",
+      "expected": "default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true",
+      "remediation": "Retrieval benchmark evidence must be tied to the hybrid retrieval policy."
+    },
+    {
+      "id": "benchmark.non_empty_hybrid_plans",
+      "passed": true,
+      "severity": "info",
+      "actual": "cloud_public_lesson_design:HYBRID:dir=1:chunk=2:returned=3;local_private_rag_notes:HYBRID:dir=1:chunk=2:returned=3;local_student_archive_tutoring:HYBRID:dir=1:chunk=2:returned=3;remote_owned_research_notes:HYBRID:dir=1:chunk=2:returned=3",
+      "expected": "every workload HYBRID with directoryCandidates>0 chunkCandidates>0 returnedCandidates>0",
+      "remediation": "Benchmarks must exercise both directory-intent and chunk candidate paths."
+    },
+    {
+      "id": "benchmark.candidate_budget",
+      "passed": true,
+      "severity": "info",
+      "actual": "directory=1 chunk=2",
+      "expected": "directory<=24 chunk<=80",
+      "remediation": "Retrieval planning must respect the current query-plan candidate budgets."
+    },
+    {
+      "id": "benchmark.p95_budget",
+      "passed": true,
+      "severity": "info",
+      "actual": "2.55ms",
+      "expected": "<=120ms",
+      "remediation": "Hybrid retrieval planning must stay within the current P95 query-plan budget."
+    },
+    {
+      "id": "benchmark.no_cross_classification_leakage",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
+      "expected": "all expected and returned classifications are allowed by node policy",
+      "remediation": "Benchmark workloads and returned candidates must not cross node knowledge-access policy."
+    }
+  ]
+}
