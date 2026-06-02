@@ -669,7 +669,7 @@
       <div>
         <h1>智能教研助手重构架构板</h1>
         <p class="subtitle">
-          目标架构：平台化模块单体优先，核心能力由 Agent Harness 统一管控；智能体采用教育场景 Skills-Agent 两层架构，LeadAgent 负责任务分解，Worker Agents 承接教学、学生辅导、科研、学习分析、工作流和工具操控，并通过原子 Skills、Agent Loop、SharedContext、路由决策、失败降级和证据链闭环。多语言用于边界治理和学习扩展，不用于一次性重写。当前实测读路径约 4.3k RPS，高档持续混合读写约 2.1k RPS，纯写约 1.0k RPS；优先治理写路径、契约、队列和权限，再按边界引入 Go/Rust。
+          目标架构：平台化模块单体优先，核心能力由 Agent Harness 统一管控；智能体借鉴成熟 Agent 项目的 Skills-Agent、Agent Loop、Swarm、记忆和 Harness Engineering 模式，但转译为教育场景：LeadAgent 负责任务分解和风险分诊，Worker Agents 承接教学、学生辅导、科研、学习分析、工作流和工具操控，并通过原子 Skills、SharedContext、路由决策、失败降级和证据链闭环。医疗诊断、多模态训练、Milvus、Mem0、vLLM、SFT/RL 等只作为未来可选插件或实验 Worker，不进入基线依赖。多语言用于边界治理和学习扩展，不用于一次性重写。当前实测读路径约 4.3k RPS，高档持续混合读写约 2.1k RPS，纯写约 1.0k RPS；优先治理写路径、契约、队列和权限，再按边界引入 Go/Rust。
         </p>
       </div>
       <div class="top-meta" aria-label="Architecture summary">
@@ -729,7 +729,7 @@
           <div class="lane-title"><span>Domain Subsystems</span><span>Go + Rust + Python</span></div>
           <div class="node"><h3>Teaching Subsystem</h3><p>测验、批改、点名、资源、辅导、学生档案、教学资料。</p></div>
           <div class="node"><h3>Research Subsystem</h3><p>多模型对话、节点、知识库、收藏、训练、设备协同。</p></div>
-          <div class="node"><h3>Agent Subsystem</h3><p>LeadAgent、领域 Worker Agents、原子 Skills、教育版 ReAct/Agent Loop、SharedContext、单 Agent/Swarm 路由、失败降级、工作流、插件、外部应用操控。</p></div>
+          <div class="node"><h3>Agent Subsystem</h3><p>LeadAgent 风险分诊、领域 Worker Agents、原子 Skills、教育版 ReAct/Agent Loop、SharedContext、Memory Port、单 Agent/Swarm 路由、失败降级、工作流、插件、外部应用操控。</p></div>
           <div class="node"><h3>Student Subsystem</h3><p>学生认证、学习资源、个性化题库、扫码答题、AI 辅导。</p></div>
         </div>
         <div class="arrow">></div>
@@ -1016,8 +1016,6 @@
         </div>
       </div>
 
-      <div style="height: 12px"></div>
-
       <table class="matrix">
         <thead>
           <tr>
@@ -1080,10 +1078,10 @@
           </tr>
           <tr>
             <td>Agent Orchestration</td>
-            <td>LeadAgent、Worker Agent、SwarmCoordinator、SharedContext、任务预算、结果汇总。</td>
+            <td>LeadAgent 分诊、Worker Agent 注册表、SwarmCoordinator、SharedContext、任务预算、冲突合并、结果汇总。</td>
             <td>不直接执行 shell、浏览器、文件写入或外部应用操控。</td>
             <td>Go Coordinator + Python LLM Adapter</td>
-            <td>Agent Task Contract、Skill Invocation Event、SharedContext DTO</td>
+            <td>Agent Task Contract、Worker Role Manifest、Skill Invocation Event、SharedContext DTO</td>
             <td>不得绕过 Harness 调用 Tool Adapter。</td>
           </tr>
           <tr>
@@ -1153,8 +1151,6 @@
           <p>Command、AgentTask、Plan、SkillInvocation、Approval、ToolRun、Evidence、Workflow、Plugin 都必须可审计、可暂停、可回放。</p>
         </div>
       </div>
-
-      <div style="height: 12px"></div>
 
       <table class="matrix">
         <thead>
@@ -1880,6 +1876,10 @@
             <h3>Skills-Agent 两层</h3>
             <p>底层是可测试、可复用、可限权的原子 Skills；上层是 LeadAgent 和 Worker Agents。Agent 只负责计划、选择和汇总，真正影响文件、网络、系统和业务数据的动作必须交给 Harness 执行。</p>
           </div>
+          <div class="card amber">
+            <h3>LeadAgent 分诊</h3>
+            <p>先判断任务属于简单答疑、教学写入、学情风险、科研检索、工具控制、性能诊断还是模型实验；再记录风险、数据范围、是否写入、是否需要 Swarm 和人工确认点。</p>
+          </div>
           <div class="card green">
             <h3>教育版 ReAct / Agent Loop</h3>
             <p>每个 AgentRun 都走“观察意图、制定计划、选择 Skill、执行/检索、校验证据、反思降级、输出结论”的闭环；循环次数、token、耗时、风险和证据不足都会触发停止或转人工。</p>
@@ -1925,7 +1925,7 @@
           </div>
           <div class="card red">
             <h3>可借鉴，不照搬</h3>
-            <p>借鉴的是原子 Skill、专业 Worker、Lead/Swarm、记忆、Harness 和证据化指标；医疗诊断、VLM 训练、Milvus、Mem0、vLLM、SFT/RL 只允许作为未来插件或实验 Worker，不进入基线依赖。</p>
+            <p>借鉴的是复杂问题拆解、强安全边界、可迁移 Agent 工程；医疗诊断、VLM 训练、Milvus、Mem0、vLLM、SFT/RL 只允许作为未来插件或实验 Worker，不进入基线依赖。</p>
           </div>
         </div>
 
@@ -2021,6 +2021,57 @@
       <table class="matrix">
         <thead>
           <tr>
+            <th>外部 Agent 项目启发</th>
+            <th>教研系统转译</th>
+            <th>必须落地的工程件</th>
+            <th>基线约束</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>复杂问题不能只靠一次 RAG</td>
+            <td>课堂资料、学生档案、错题、科研资料和工具状态分开检索、分析、汇总。</td>
+            <td>LeadAgentTriage、SharedContext 裁剪、SkillTrace、Evidence 引用。</td>
+            <td>无证据时返回缺口，不用大模型猜结论。</td>
+          </tr>
+          <tr>
+            <td>专业 Worker 分工</td>
+            <td>Teaching、StudentTutor、Research、Analysis、Workflow、ToolControl、ModelExperiment 分别验收。</td>
+            <td>Worker Role Manifest、可调用 Skill 白名单、跨域访问策略。</td>
+            <td>Worker 不能越权读库、写库或扩大工具权限。</td>
+          </tr>
+          <tr>
+            <td>SwarmCoordinator</td>
+            <td>只有跨教学、科研、学生隐私、工具写入或性能诊断时启动多 Agent。</td>
+            <td>RouteDecision、ConflictResolution、FinalMergePolicy。</td>
+            <td>默认单 Agent 快速通道，避免成本和延迟失控。</td>
+          </tr>
+          <tr>
+            <td>Harness Engineering</td>
+            <td>把“AI 会操作电脑”变成权限、审批、沙箱、证据、回滚和审计。</td>
+            <td>Permission Manifest、Approval Queue、ToolRun、Rollback Review。</td>
+            <td>无 manifest、无审批、无证据的高风险动作默认拒绝。</td>
+          </tr>
+          <tr>
+            <td>记忆系统</td>
+            <td>短期记忆服务当前 AgentRun，长期记忆按用户、班级、课程、科研库分域。</td>
+            <td>Memory Port、Retention Policy、Redaction State、Source Evidence。</td>
+            <td>学生隐私和私密科研资料默认不可进入外部记忆适配器。</td>
+          </tr>
+          <tr>
+            <td>多模态、训练、推理优化</td>
+            <td>可做 OCR 批改、多模态资料解析、模型实验和推理评估，但只走可选 Worker。</td>
+            <td>AIWorkerAdmission、资源预算、数据脱敏、评估报告、回滚计划。</td>
+            <td>不安装训练/OCR/RAG/vector/embedding/Mem0/Milvus/vLLM 重依赖到基线。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height: 12px"></div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
             <th>可借鉴模式</th>
             <th>当前系统落点</th>
             <th>工程收益</th>
@@ -2036,19 +2087,19 @@
           </tr>
           <tr>
             <td>Skills-Agent 两层</td>
-            <td>原子 Skills 承接检索、出题、批改、辅导、科研、配置检查、工具调用。</td>
+            <td>原子 Skills 承接检索、出题、批改、辅导、科研、配置检查、工具调用和模型实验评估。</td>
             <td>能力可测试、可复用、可限权，后续换模型或换语言不改业务逻辑。</td>
             <td>Agent 不直接写库、不直接执行命令、不绕过 SkillManifest。</td>
           </tr>
           <tr>
             <td>专业 Worker Agent</td>
-            <td>Teaching、StudentTutor、Research、Analysis、Workflow、ToolControl 分工。</td>
+            <td>Teaching、StudentTutor、Research、Analysis、Workflow、ToolControl、ModelExperiment 分工。</td>
             <td>把“会聊天”拆成可落地岗位：教学、科研、学情、工具、工作流各自验收。</td>
             <td>Worker 不能越权拿其他域数据，跨域必须由 LeadAgent 和 SharedContext 协调。</td>
           </tr>
           <tr>
             <td>Agent Swarm</td>
-            <td>跨教学、科研、学生档案、工具写入或性能诊断时启动多 Agent 协作。</td>
+            <td>跨教学、科研、学生档案、工具写入、性能诊断或模型实验评估时启动多 Agent 协作。</td>
             <td>复杂问题不靠一个大提示词硬扛，能分工、并行、冲突校验和人工确认。</td>
             <td>简单只读问题走单 Agent 快速通道，避免 Swarm 变成性能和成本黑洞。</td>
           </tr>
@@ -2303,8 +2354,8 @@
           <tr>
             <td>多模态或模型实验</td>
             <td>需要 OCR、多模态批改、训练、量化、推理部署或外部模型评估。</td>
-            <td>ModelExperimentAgent 生成实验计划，AI Worker Admission 决定是否执行。</td>
-            <td>默认关闭；无脱敏、无资源预算、无评估报告时不接入主系统。</td>
+            <td>ModelExperimentAgent 只生成实验计划，AI Worker Admission 决定是否允许执行。</td>
+            <td>默认关闭；无脱敏、无资源预算、无评估报告时不接入主系统或默认安装包。</td>
             <td>实验指标、资源成本、数据范围、适配器风险、回滚方案。</td>
           </tr>
         </tbody>
@@ -2596,7 +2647,7 @@
         </div>
         <div class="phase">
           <strong>P6<br />Agent 产品化</strong>
-          <div>先产品化 Skills-Agent 两层架构：LeadAgent、Worker Agents、SwarmCoordinator、SharedContext、Skill Manifest 和 Memory Port。工作流生成、插件生成、外部应用操控进入 Beta；默认关闭高风险能力，逐项通过权限、审批、测试、回滚和性能证据验收。</div>
+          <div>先产品化可审计的单 Agent 快速通道：LeadAgent 分诊、Worker Role Manifest、Skill Manifest、SharedContext、Memory Port、Evidence 和 Fallback。再开放受限 Swarm，最后让工作流生成、插件生成、外部应用操控进入 Beta；默认关闭高风险能力，逐项通过权限、审批、测试、回滚和性能证据验收。</div>
         </div>
         <div class="phase">
           <strong>P7<br />开源版本</strong>
@@ -2716,10 +2767,10 @@
           </tr>
           <tr>
             <td>Agent Orchestration / Swarm</td>
-            <td>LeadAgent 能生成计划，SwarmCoordinator 能区分单 Agent 与多 Agent，Worker Agent 只能通过 SkillManifest 调用能力。</td>
-            <td>单 Agent 快速通道、Swarm 路由、SharedContext 裁剪、预算限制、循环次数限制、失败降级。</td>
+            <td>LeadAgent 能先做风险分诊，SwarmCoordinator 能区分单 Agent 与多 Agent，Worker Agent 只能通过 SkillManifest 调用能力。</td>
+            <td>单 Agent 快速通道、Swarm 路由、SharedContext 裁剪、Worker Role Manifest、预算限制、循环次数限制、失败降级。</td>
             <td>Agent 自行执行 shell、绕过 Harness、无 schema 调用 Skill、无限循环。</td>
-            <td>Agent Task Contract、Skill Manifest、SharedContext DTO、Swarm Policy Test。</td>
+            <td>Agent Task Contract、Worker Role Manifest、Skill Manifest、SharedContext DTO、Swarm Policy Test。</td>
             <td><span class="badge green">P0</span></td>
           </tr>
           <tr>
