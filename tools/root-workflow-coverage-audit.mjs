@@ -23,6 +23,7 @@ export const sourceReports = {
   agentHarness: "reports/agent-harness-flow.current.json",
   workflowPluginFlow: "reports/workflow-plugin-flow.current.json",
   workflowPluginRegistry: "reports/workflow-plugin-registry-admission.current.json",
+  workflowPluginRuntimeSlo: "reports/workflow-plugin-runtime-slo.current.json",
   conversationRuntime: "reports/conversation-loadgen-runtime-decision.current.json",
   sustainedScaleUp: "reports/system-sustained-mixed-workload-scaleup.current.json",
   quality: "reports/quality-gate.current.json",
@@ -111,9 +112,17 @@ export const rootWorkflows = [
     reportChecks: [
       ["workflowPluginFlow", "READY"],
       ["workflowPluginRegistry", "READY"],
+      ["workflowPluginRuntimeSlo", "READY"],
     ],
     mixedWorkloads: [],
-    coverageClass: "CONTRACT_ONLY_REQUIRES_LATER_RUNTIME_BENCHMARK",
+    runtimeEvidence: [
+      {
+        name: "workflow_plugin_runtime_slo",
+        reportKey: "workflowPluginRuntimeSlo",
+        targetP99Ms: 300,
+      },
+    ],
+    coverageClass: "RUNTIME_SLO_AND_REVIEW_ONLY_EXECUTION",
   },
 ];
 
@@ -229,9 +238,13 @@ function summarizeWorkflow(workflow, rootText, reports) {
     name,
     passed: mixedWorkloadNames.includes(name),
   }));
+  const runtimeEvidenceResults = (workflow.runtimeEvidence ?? []).map((evidence) =>
+    summarizeRuntimeEvidence(evidence, reports),
+  );
   const coverageStatus = matchedRootAnchors.length > 0 &&
     reportResults.every((result) => result.passed) &&
-    mixedWorkloadResults.every((result) => result.passed)
+    mixedWorkloadResults.every((result) => result.passed) &&
+    runtimeEvidenceResults.every((result) => result.passed)
     ? "COVERED"
     : "NEEDS_EVIDENCE";
   return {
@@ -244,6 +257,7 @@ function summarizeWorkflow(workflow, rootText, reports) {
     missingRootAnchors: workflow.anchors.filter((anchor) => !matchedRootAnchors.includes(anchor)),
     reportResults,
     mixedWorkloadResults,
+    runtimeEvidenceResults,
   };
 }
 
@@ -252,13 +266,40 @@ function summarizeCoverage(workflows, mixedWorkloadNames) {
   const mixedCoveredWorkflows = workflows.filter((workflow) =>
     workflow.mixedWorkloadResults.length > 0 && workflow.mixedWorkloadResults.every((result) => result.passed),
   );
-  const contractOnlyWorkflows = workflows.filter((workflow) => workflow.mixedWorkloadResults.length === 0);
+  const runtimeCoveredWorkflows = workflows.filter((workflow) =>
+    workflow.runtimeEvidenceResults.length > 0 && workflow.runtimeEvidenceResults.every((result) => result.passed),
+  );
+  const contractOnlyWorkflows = workflows.filter((workflow) =>
+    workflow.mixedWorkloadResults.length === 0 && workflow.runtimeEvidenceResults.length === 0,
+  );
   return {
     totalWorkflows: workflows.length,
     coveredWorkflows: coveredWorkflows.length,
     mixedCoveredWorkflows: mixedCoveredWorkflows.length,
+    runtimeCoveredWorkflows: runtimeCoveredWorkflows.length,
     contractOnlyWorkflows: contractOnlyWorkflows.length,
     mixedWorkloadNames,
+  };
+}
+
+function summarizeRuntimeEvidence(evidence, reports) {
+  const report = reports[evidence.reportKey]?.value;
+  const p99Ms = numberOrNull(report?.runtimeSlo?.p99Ms);
+  const totalErrors = numberOrNull(report?.runtimeSlo?.totalErrors);
+  const targetP99Ms = numberOrNull(evidence.targetP99Ms);
+  return {
+    name: evidence.name,
+    reportKey: evidence.reportKey,
+    reportPath: sourceReports[evidence.reportKey],
+    targetP99Ms,
+    p99Ms,
+    totalErrors,
+    passed: reports[evidence.reportKey]?.parseable === true &&
+      sourceStatus(report) === "READY" &&
+      Number.isFinite(p99Ms) &&
+      Number.isFinite(targetP99Ms) &&
+      p99Ms <= targetP99Ms &&
+      totalErrors === 0,
   };
 }
 
@@ -322,6 +363,10 @@ function stringifyScalar(value) {
   if (value === undefined) return "undefined";
   if (value === null) return "null";
   return String(value);
+}
+
+function numberOrNull(value) {
+  return Number.isFinite(value) ? value : null;
 }
 
 function loadCurrentInputs(root, rootRequirementsPath) {

@@ -113,6 +113,7 @@ export function buildQualityCommandPlan() {
     { name: "workflow plugin flow audit", command: npmCommand(), args: ["run", "audit:workflow-plugin-flow"] },
     { name: "workflow plugin registry admission", command: npmCommand(), args: ["run", "audit:workflow-plugin-registry"] },
     { name: "workflow plugin revision feedback", command: npmCommand(), args: ["run", "audit:workflow-plugin-revision"] },
+    { name: "workflow plugin runtime SLO audit", command: npmCommand(), args: ["run", "audit:workflow-plugin-runtime-slo"] },
     { name: "AI worker job contract audit", command: npmCommand(), args: ["run", "audit:ai-worker-job"] },
     { name: "knowledge access policy audit", command: npmCommand(), args: ["run", "audit:knowledge-policy"] },
     { name: "AI worker job admission audit", command: npmCommand(), args: ["run", "audit:ai-worker-job-admission"] },

@@ -74,6 +74,7 @@ import (
       "workflow plugin flow audit",
       "workflow plugin registry admission",
       "workflow plugin revision feedback",
+      "workflow plugin runtime SLO audit",
       "AI worker job contract audit",
       "knowledge access policy audit",
       "AI worker job admission audit",

@@ -15,7 +15,13 @@ describe("root workflow coverage audit", () => {
     assert.equal(report.readiness, "READY");
     assert.equal(report.summary.totalWorkflows, rootWorkflows.length);
     assert.equal(report.summary.coveredWorkflows, rootWorkflows.length);
-    assert.equal(report.summary.contractOnlyWorkflows, 1);
+    assert.equal(report.summary.contractOnlyWorkflows, 0);
+    assert.equal(report.summary.runtimeCoveredWorkflows, 1);
+    assert.equal(
+      report.workflows.find((workflow) => workflow.id === "workflow_plugin_self_evolution")
+        .runtimeEvidenceResults[0].name,
+      "workflow_plugin_runtime_slo",
+    );
     assert.match(formatRootWorkflowCoverageAudit(report), /Root workflow coverage: READY/u);
     assert.deepEqual(report.summary.mixedWorkloadNames, [
       "ai_worker_admission",
@@ -46,6 +52,31 @@ describe("root workflow coverage audit", () => {
     assert.equal(report.readiness, "NEEDS_REMEDIATION");
     assert.equal(report.findings.find((finding) => finding.id === "sources.required_reports_parseable").passed, false);
     assert.equal(report.workflows.find((workflow) => workflow.id === "student_app_personalized_learning").coverageStatus, "NEEDS_EVIDENCE");
+  });
+
+  it("fails when workflow/plugin runtime SLO evidence is missing", () => {
+    const inputs = currentInputs();
+    delete inputs.reports[sourceReports.workflowPluginRuntimeSlo];
+
+    const report = auditRootWorkflowCoverage(inputs);
+    const workflow = report.workflows.find((candidate) => candidate.id === "workflow_plugin_self_evolution");
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(workflow.coverageStatus, "NEEDS_EVIDENCE");
+    assert.equal(workflow.runtimeEvidenceResults[0].passed, false);
+  });
+
+  it("fails when workflow/plugin runtime SLO exceeds the target", () => {
+    const inputs = currentInputs();
+    const runtimeSlo = JSON.parse(inputs.reports[sourceReports.workflowPluginRuntimeSlo]);
+    runtimeSlo.runtimeSlo.p99Ms = 350;
+    inputs.reports[sourceReports.workflowPluginRuntimeSlo] = JSON.stringify(runtimeSlo);
+
+    const report = auditRootWorkflowCoverage(inputs);
+    const workflow = report.workflows.find((candidate) => candidate.id === "workflow_plugin_self_evolution");
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(workflow.runtimeEvidenceResults[0].passed, false);
   });
 
   it("fails when sustained scale-up drops a root mixed workload", () => {
@@ -115,9 +146,20 @@ function currentInputs() {
       [sourceReports.agentHarness]: JSON.stringify(readyReport()),
       [sourceReports.workflowPluginFlow]: JSON.stringify(readyReport()),
       [sourceReports.workflowPluginRegistry]: JSON.stringify({ decision: "ALLOW_SAVE" }),
+      [sourceReports.workflowPluginRuntimeSlo]: JSON.stringify(workflowPluginRuntimeSloReport()),
       [sourceReports.conversationRuntime]: JSON.stringify(readyReport()),
       [sourceReports.sustainedScaleUp]: JSON.stringify(sustainedScaleupReport()),
       [sourceReports.quality]: JSON.stringify({ allPassed: true }),
+    },
+  };
+}
+
+function workflowPluginRuntimeSloReport() {
+  return {
+    readiness: "READY",
+    runtimeSlo: {
+      p99Ms: 40,
+      totalErrors: 0,
     },
   };
 }

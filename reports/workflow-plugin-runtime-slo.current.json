@@ -1,0 +1,130 @@
+{
+  "generatedAt": "2026-06-02T17:03:11.820Z",
+  "readiness": "READY",
+  "workloadType": "WORKFLOW_PLUGIN_RUNTIME_SLO",
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "p95Ms": 1.54,
+    "p99Ms": 1.54,
+    "totalErrors": 0,
+    "steps": [
+      {
+        "name": "contract_flow",
+        "status": "PASS",
+        "durationMs": 1.54,
+        "error": null
+      },
+      {
+        "name": "registry_admission",
+        "status": "PASS",
+        "durationMs": 0.28,
+        "error": null
+      },
+      {
+        "name": "approved_revision_feedback",
+        "status": "PASS",
+        "durationMs": 0.1,
+        "error": null
+      },
+      {
+        "name": "failed_sandbox_revision_feedback",
+        "status": "PASS",
+        "durationMs": 0.18,
+        "error": null
+      }
+    ]
+  },
+  "safetyInvariants": {
+    "dryRunOnly": true,
+    "localExecutionEnabled": false,
+    "localGeneratedCodeExecuted": false,
+    "sandboxExecuted": true,
+    "sandboxNoHostWrite": true,
+    "networkPolicy": "DEFAULT_DENY",
+    "approvedPathRevisionRequired": false,
+    "failedSandboxRevisionRequired": true
+  },
+  "findings": [
+    {
+      "id": "runtime.steps_passed",
+      "passed": true,
+      "severity": "info",
+      "actual": 0,
+      "expected": 0,
+      "remediation": "Every workflow/plugin runtime SLO dry-run audit step must pass."
+    },
+    {
+      "id": "runtime.p99_within_target",
+      "passed": true,
+      "severity": "info",
+      "actual": 1.54,
+      "expected": "<=300",
+      "remediation": "Keep the workflow/plugin dry-run runtime chain within the target P99 before using it as root workflow SLO evidence."
+    },
+    {
+      "id": "contract.flow_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "READY",
+      "expected": "READY",
+      "remediation": "Workflow/plugin contract flow must remain ready."
+    },
+    {
+      "id": "registry.admission_allowed",
+      "passed": true,
+      "severity": "info",
+      "actual": "ALLOW_SAVE",
+      "expected": "ALLOW_SAVE",
+      "remediation": "Registry admission must pass only after sandbox and human approval evidence."
+    },
+    {
+      "id": "safety.dry_run_only",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Workflow/plugin registry entries must remain dry-run-only in this slice."
+    },
+    {
+      "id": "safety.local_execution_disabled",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "Runtime SLO evidence must not enable local generated-code execution."
+    },
+    {
+      "id": "safety.no_generated_code_execution",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "The audit may inspect contracts and examples only; it must not execute generated code."
+    },
+    {
+      "id": "safety.sandbox_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "sandbox=true;noHostWrite=true;network=DEFAULT_DENY",
+      "expected": "sandbox=true;noHostWrite=true;network=DEFAULT_DENY",
+      "remediation": "Sandbox evidence must keep no-host-write and default-deny networking."
+    },
+    {
+      "id": "revision.approved_path_clean",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "Approved sandbox evidence should not request revision."
+    },
+    {
+      "id": "revision.failed_sandbox_blocks_save",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Failed sandbox evidence must produce a blocking revision request."
+    }
+  ],
+  "nextAction": "Use this as workflow/plugin self-evolution runtime SLO evidence while keeping generated-code execution disabled."
+}

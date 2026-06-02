@@ -202,7 +202,11 @@ function buildPromotionEvidence(reports) {
     .map((module) => `${module.id}:${module.classification}`);
   const contractOnlyWorkflows = Array.isArray(rootCoverage.workflows)
     ? rootCoverage.workflows
-      .filter((workflow) => workflow.mixedWorkloadResults?.length === 0 || /CONTRACT_ONLY/i.test(workflow.coverageClass ?? ""))
+      .filter((workflow) => {
+        const hasMixedEvidence = workflow.mixedWorkloadResults?.length > 0;
+        const hasRuntimeEvidence = workflow.runtimeEvidenceResults?.length > 0;
+        return (!hasMixedEvidence && !hasRuntimeEvidence) || /CONTRACT_ONLY/i.test(workflow.coverageClass ?? "");
+      })
       .map((workflow) => workflow.id)
     : [];
   const highestStep = diagnostics.mixedWorkloadDiagnostics?.highestPassedStep ?? sustainedScaleUp.summary?.highestPassedStep ?? null;

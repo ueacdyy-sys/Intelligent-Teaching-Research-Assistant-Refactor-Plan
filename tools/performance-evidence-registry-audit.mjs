@@ -59,6 +59,7 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/conversation-write-http-benchmark.ingress18-concurrency3600-multi6-upstream120.json",
   "reports/knowledge-retrieval-benchmark.current.json",
   "reports/ai-worker-runtime-dependency-profile.current.json",
+  "reports/workflow-plugin-runtime-slo.current.json",
   "reports/conversation-fanout-decision.current.json",
   "reports/conversation-client-trace-attribution.current.json",
   "reports/conversation-transport-profile-decision.current.json",

@@ -29,7 +29,7 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.promotionPolicy.interactiveP99TargetMs, 300);
     assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
     assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
-    assert.equal(report.promotion.blockerCount, 4);
+    assert.equal(report.promotion.blockerCount, 3);
     assert.match(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.interactive_tail_latency_within_target").actual,
       /identityRevokeSlowestStep=login:1498\.29/,
@@ -44,6 +44,7 @@ describe("root SLO promotion review audit", () => {
     );
     assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
+    assert(!report.promotion.requiredNextEvidence.includes("ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE"));
     assert(!report.promotion.requiredNextEvidence.includes("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE"));
     assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.sustained_scale_depth_sufficient").passed, true);
@@ -103,12 +104,37 @@ describe("root SLO promotion review audit", () => {
     const failedGateIds = report.promotionFindings.filter((finding) => !finding.passed).map((finding) => finding.id);
 
     assert.equal(report.readiness, "READY");
-    assert(failedGateIds.includes("promotion.root_workflows_runtime_slo_covered"));
+    assert(!failedGateIds.includes("promotion.root_workflows_runtime_slo_covered"));
     assert(failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
     assert(failedGateIds.includes("promotion.interactive_tail_latency_within_target"));
     assert(!failedGateIds.includes("promotion.database_headroom_sufficient"));
     assert(!failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
     assert(failedGateIds.includes("promotion.production_read_write_rps_target_met"));
+  });
+
+  it("blocks promotion when workflow/plugin runtime SLO evidence is removed", () => {
+    const inputs = loadCurrentInputs();
+    const coverage = parseReport(inputs, sourceReports.rootWorkflowCoverage);
+    coverage.workflows = coverage.workflows.map((workflow) =>
+      workflow.id === "workflow_plugin_self_evolution"
+        ? {
+            ...workflow,
+            coverageClass: "CONTRACT_ONLY_REQUIRES_LATER_RUNTIME_BENCHMARK",
+            mixedWorkloadResults: [],
+            runtimeEvidenceResults: [],
+          }
+        : workflow,
+    );
+    inputs.reports[sourceReports.rootWorkflowCoverage] = JSON.stringify(coverage);
+
+    const report = auditRootSloPromotionReview(inputs);
+    const rootWorkflowFinding = report.promotionFindings.find((finding) =>
+      finding.id === "promotion.root_workflows_runtime_slo_covered"
+    );
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(rootWorkflowFinding.passed, false);
+    assert(report.promotion.requiredNextEvidence.includes("ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE"));
   });
 
   it("blocks promotion when sustained scale-up depth drops below high", () => {
