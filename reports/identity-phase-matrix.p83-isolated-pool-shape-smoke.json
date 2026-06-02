@@ -1,0 +1,720 @@
+{
+  "generatedAt": "2026-06-02T10:55:37.261Z",
+  "startedAt": "2026-06-02T10:52:55.808Z",
+  "endedAt": "2026-06-02T10:55:37.261Z",
+  "benchmarkKind": "identity_phase_matrix",
+  "workloadType": "IDENTITY_PHASE_MATRIX",
+  "profile": "IDENTITY_PHASE_MATRIX_P83_ISOLATED_POOL_SHAPE_SMOKE",
+  "status": "PASSED",
+  "stopOnFailure": false,
+  "targetProfile": {
+    "concurrency": 128,
+    "operationsPerPhase": 256,
+    "sessionDbMinConnsPerWorker": 0,
+    "caseScopedSessionDbMinConns": true,
+    "sessionDbMinConnsPerWorkerValues": [
+      0,
+      8
+    ],
+    "sessionTablePersistence": "unlogged",
+    "benchmarkRuntime": "docker",
+    "caseIsolation": "docker-reset"
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_IDENTITY_PHASE_MATRIX",
+    "managedDocker": true,
+    "dockerCleanup": "reset",
+    "caseIsolation": "docker-reset"
+  },
+  "cases": [
+    {
+      "name": "g2-p8-min0-i2-c64",
+      "executed": true,
+      "status": "PASSED",
+      "reportPath": "reports/identity-phase-matrix.p83-isolated-pool-shape-smoke.1-g2-p8-min0-i2-c64.json",
+      "config": {
+        "gatewayCount": 2,
+        "sessionDbMaxConnsPerWorker": 8,
+        "sessionDbMaxConnsTotal": 16,
+        "sessionDbMinConnsPerWorker": 0,
+        "sessionDbMinConnsTotal": 0,
+        "ingressCount": 2,
+        "clientMaxConnsPerHost": 64,
+        "clientWarmConnectionsPerHost": 32,
+        "ingressMaxConnsPerHost": 32,
+        "ingressWarmConnectionsPerHost": 16
+      },
+      "totalErrors": 0,
+      "maxPhaseP99Ms": 113.9,
+      "slowestPhase": "passwordLogin",
+      "dominantPoolWaitPhase": "revokeCycle",
+      "dominantPoolWaitOperation": "revokeOwnSession",
+      "dominantPoolAcquireShare": 0.87,
+      "totalPoolAcquireDurationMs": 34009.44,
+      "totalEmptyAcquireWaitTimeMs": 34009.44,
+      "phases": [
+        {
+          "name": "passwordLogin",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1751.58,
+          "p95Ms": 98.65,
+          "p99Ms": 113.9,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 8432.41,
+          "emptyAcquireWaitTimeMs": 8432.41,
+          "sessionOperations": [
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 10485.92,
+              "averageElapsedMs": 40.96,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 8439.34,
+              "averagePoolAcquireElapsedMs": 32.97,
+              "poolAcquireShare": 0.8,
+              "dbExecuteElapsedMs": 2046.59,
+              "averageDbExecuteElapsedMs": 7.99,
+              "dbExecuteShare": 0.2
+            }
+          ],
+          "slowestSessionOperation": "saveSession",
+          "slowestSessionOperationAverageElapsedMs": 40.96,
+          "highestPoolAcquireShareOperation": "saveSession",
+          "highestPoolAcquireShare": 0.8
+        },
+        {
+          "name": "principalLookup",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 2180.7,
+          "p95Ms": 61.51,
+          "p99Ms": 65.64,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 7582.15,
+          "emptyAcquireWaitTimeMs": 7582.16,
+          "sessionOperations": [
+            {
+              "name": "getPrincipalByAccessToken",
+              "count": 256,
+              "totalElapsedMs": 9318.15,
+              "averageElapsedMs": 36.4
+            }
+          ],
+          "slowestSessionOperation": "getPrincipalByAccessToken",
+          "slowestSessionOperationAverageElapsedMs": 36.4
+        },
+        {
+          "name": "refreshRotation",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 3651.52,
+          "p95Ms": 40.22,
+          "p99Ms": 43.25,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 4819.94,
+          "emptyAcquireWaitTimeMs": 4819.94,
+          "sessionOperations": [
+            {
+              "name": "rotateRefreshSession",
+              "count": 256,
+              "totalElapsedMs": 5851.71,
+              "averageElapsedMs": 22.86
+            }
+          ],
+          "slowestSessionOperation": "rotateRefreshSession",
+          "slowestSessionOperationAverageElapsedMs": 22.86
+        },
+        {
+          "name": "revokeCycle",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1504.26,
+          "p95Ms": 111.39,
+          "p99Ms": 113.7,
+          "poolAcquireCount": 512,
+          "poolAcquireDurationMs": 13174.94,
+          "emptyAcquireWaitTimeMs": 13174.93,
+          "sessionOperations": [
+            {
+              "name": "revokeOwnSession",
+              "count": 256,
+              "totalElapsedMs": 8149.39,
+              "averageElapsedMs": 31.83,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 7123.66,
+              "averagePoolAcquireElapsedMs": 27.83,
+              "poolAcquireShare": 0.87,
+              "dbExecuteElapsedMs": 1020.64,
+              "averageDbExecuteElapsedMs": 3.99,
+              "dbExecuteShare": 0.13
+            },
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 7541.76,
+              "averageElapsedMs": 29.46,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 6054.67,
+              "averagePoolAcquireElapsedMs": 23.65,
+              "poolAcquireShare": 0.8,
+              "dbExecuteElapsedMs": 1480.53,
+              "averageDbExecuteElapsedMs": 5.78,
+              "dbExecuteShare": 0.2
+            }
+          ],
+          "slowestSessionOperation": "revokeOwnSession",
+          "slowestSessionOperationAverageElapsedMs": 31.83,
+          "highestPoolAcquireShareOperation": "revokeOwnSession",
+          "highestPoolAcquireShare": 0.87
+        }
+      ]
+    },
+    {
+      "name": "g2-p8-min8-i2-c64",
+      "executed": true,
+      "status": "PASSED",
+      "reportPath": "reports/identity-phase-matrix.p83-isolated-pool-shape-smoke.2-g2-p8-min8-i2-c64.json",
+      "config": {
+        "gatewayCount": 2,
+        "sessionDbMaxConnsPerWorker": 8,
+        "sessionDbMaxConnsTotal": 16,
+        "sessionDbMinConnsPerWorker": 8,
+        "sessionDbMinConnsTotal": 16,
+        "ingressCount": 2,
+        "clientMaxConnsPerHost": 64,
+        "clientWarmConnectionsPerHost": 32,
+        "ingressMaxConnsPerHost": 32,
+        "ingressWarmConnectionsPerHost": 16
+      },
+      "totalErrors": 0,
+      "maxPhaseP99Ms": 103.17,
+      "slowestPhase": "passwordLogin",
+      "dominantPoolWaitPhase": "passwordLogin",
+      "dominantPoolWaitOperation": "saveSession",
+      "dominantPoolAcquireShare": 0.83,
+      "totalPoolAcquireDurationMs": 33897.01,
+      "totalEmptyAcquireWaitTimeMs": 33897.01,
+      "phases": [
+        {
+          "name": "passwordLogin",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1636.49,
+          "p95Ms": 100.58,
+          "p99Ms": 103.17,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 11111.93,
+          "emptyAcquireWaitTimeMs": 11111.93,
+          "sessionOperations": [
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 13457.21,
+              "averageElapsedMs": 52.57,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 11164.78,
+              "averagePoolAcquireElapsedMs": 43.61,
+              "poolAcquireShare": 0.83,
+              "dbExecuteElapsedMs": 2289.58,
+              "averageDbExecuteElapsedMs": 8.94,
+              "dbExecuteShare": 0.17
+            }
+          ],
+          "slowestSessionOperation": "saveSession",
+          "slowestSessionOperationAverageElapsedMs": 52.57,
+          "highestPoolAcquireShareOperation": "saveSession",
+          "highestPoolAcquireShare": 0.83
+        },
+        {
+          "name": "principalLookup",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 2378.7,
+          "p95Ms": 67.43,
+          "p99Ms": 77.43,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 8060.37,
+          "emptyAcquireWaitTimeMs": 8060.37,
+          "sessionOperations": [
+            {
+              "name": "getPrincipalByAccessToken",
+              "count": 256,
+              "totalElapsedMs": 9669.98,
+              "averageElapsedMs": 37.77
+            }
+          ],
+          "slowestSessionOperation": "getPrincipalByAccessToken",
+          "slowestSessionOperationAverageElapsedMs": 37.77
+        },
+        {
+          "name": "refreshRotation",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 3619.05,
+          "p95Ms": 43.72,
+          "p99Ms": 47.2,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 4525.61,
+          "emptyAcquireWaitTimeMs": 4525.61,
+          "sessionOperations": [
+            {
+              "name": "rotateRefreshSession",
+              "count": 256,
+              "totalElapsedMs": 5548.88,
+              "averageElapsedMs": 21.68
+            }
+          ],
+          "slowestSessionOperation": "rotateRefreshSession",
+          "slowestSessionOperationAverageElapsedMs": 21.68
+        },
+        {
+          "name": "revokeCycle",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1598.49,
+          "p95Ms": 85.68,
+          "p99Ms": 90.62,
+          "poolAcquireCount": 512,
+          "poolAcquireDurationMs": 10199.1,
+          "emptyAcquireWaitTimeMs": 10199.1,
+          "sessionOperations": [
+            {
+              "name": "revokeOwnSession",
+              "count": 256,
+              "totalElapsedMs": 6796.99,
+              "averageElapsedMs": 26.55,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 5658.34,
+              "averagePoolAcquireElapsedMs": 22.1,
+              "poolAcquireShare": 0.83,
+              "dbExecuteElapsedMs": 1136.15,
+              "averageDbExecuteElapsedMs": 4.44,
+              "dbExecuteShare": 0.17
+            },
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 5769.63,
+              "averageElapsedMs": 22.54,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 4543.03,
+              "averagePoolAcquireElapsedMs": 17.75,
+              "poolAcquireShare": 0.79,
+              "dbExecuteElapsedMs": 1223.79,
+              "averageDbExecuteElapsedMs": 4.78,
+              "dbExecuteShare": 0.21
+            }
+          ],
+          "slowestSessionOperation": "revokeOwnSession",
+          "slowestSessionOperationAverageElapsedMs": 26.55,
+          "highestPoolAcquireShareOperation": "revokeOwnSession",
+          "highestPoolAcquireShare": 0.83
+        }
+      ]
+    },
+    {
+      "name": "g2-p12-min0-i2-c64",
+      "executed": true,
+      "status": "PASSED",
+      "reportPath": "reports/identity-phase-matrix.p83-isolated-pool-shape-smoke.3-g2-p12-min0-i2-c64.json",
+      "config": {
+        "gatewayCount": 2,
+        "sessionDbMaxConnsPerWorker": 12,
+        "sessionDbMaxConnsTotal": 24,
+        "sessionDbMinConnsPerWorker": 0,
+        "sessionDbMinConnsTotal": 0,
+        "ingressCount": 2,
+        "clientMaxConnsPerHost": 64,
+        "clientWarmConnectionsPerHost": 32,
+        "ingressMaxConnsPerHost": 32,
+        "ingressWarmConnectionsPerHost": 16
+      },
+      "totalErrors": 0,
+      "maxPhaseP99Ms": 109.76,
+      "slowestPhase": "passwordLogin",
+      "dominantPoolWaitPhase": "revokeCycle",
+      "dominantPoolWaitOperation": "revokeOwnSession",
+      "dominantPoolAcquireShare": 0.75,
+      "totalPoolAcquireDurationMs": 30747.35,
+      "totalEmptyAcquireWaitTimeMs": 30747.35,
+      "phases": [
+        {
+          "name": "passwordLogin",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1615.72,
+          "p95Ms": 102.71,
+          "p99Ms": 109.76,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 8721.54,
+          "emptyAcquireWaitTimeMs": 8721.54,
+          "sessionOperations": [
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 11965.11,
+              "averageElapsedMs": 46.74,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 8727.76,
+              "averagePoolAcquireElapsedMs": 34.09,
+              "poolAcquireShare": 0.73,
+              "dbExecuteElapsedMs": 3235.11,
+              "averageDbExecuteElapsedMs": 12.64,
+              "dbExecuteShare": 0.27
+            }
+          ],
+          "slowestSessionOperation": "saveSession",
+          "slowestSessionOperationAverageElapsedMs": 46.74,
+          "highestPoolAcquireShareOperation": "saveSession",
+          "highestPoolAcquireShare": 0.73
+        },
+        {
+          "name": "principalLookup",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 2597.78,
+          "p95Ms": 58.76,
+          "p99Ms": 61.23,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 6600.29,
+          "emptyAcquireWaitTimeMs": 6600.29,
+          "sessionOperations": [
+            {
+              "name": "getPrincipalByAccessToken",
+              "count": 256,
+              "totalElapsedMs": 8796,
+              "averageElapsedMs": 34.36
+            }
+          ],
+          "slowestSessionOperation": "getPrincipalByAccessToken",
+          "slowestSessionOperationAverageElapsedMs": 34.36
+        },
+        {
+          "name": "refreshRotation",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 2266.5,
+          "p95Ms": 64.18,
+          "p99Ms": 67.73,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 7049.79,
+          "emptyAcquireWaitTimeMs": 7049.79,
+          "sessionOperations": [
+            {
+              "name": "rotateRefreshSession",
+              "count": 256,
+              "totalElapsedMs": 9544.06,
+              "averageElapsedMs": 37.28
+            }
+          ],
+          "slowestSessionOperation": "rotateRefreshSession",
+          "slowestSessionOperationAverageElapsedMs": 37.28
+        },
+        {
+          "name": "revokeCycle",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1628.51,
+          "p95Ms": 85.76,
+          "p99Ms": 93.88,
+          "poolAcquireCount": 512,
+          "poolAcquireDurationMs": 8375.73,
+          "emptyAcquireWaitTimeMs": 8375.73,
+          "sessionOperations": [
+            {
+              "name": "revokeOwnSession",
+              "count": 256,
+              "totalElapsedMs": 6245.45,
+              "averageElapsedMs": 24.4,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 4709.24,
+              "averagePoolAcquireElapsedMs": 18.4,
+              "poolAcquireShare": 0.75,
+              "dbExecuteElapsedMs": 1531.47,
+              "averageDbExecuteElapsedMs": 5.98,
+              "dbExecuteShare": 0.25
+            },
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 5390.73,
+              "averageElapsedMs": 21.06,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 3672.61,
+              "averagePoolAcquireElapsedMs": 14.35,
+              "poolAcquireShare": 0.68,
+              "dbExecuteElapsedMs": 1708.5,
+              "averageDbExecuteElapsedMs": 6.67,
+              "dbExecuteShare": 0.32
+            }
+          ],
+          "slowestSessionOperation": "revokeOwnSession",
+          "slowestSessionOperationAverageElapsedMs": 24.4,
+          "highestPoolAcquireShareOperation": "revokeOwnSession",
+          "highestPoolAcquireShare": 0.75
+        }
+      ]
+    },
+    {
+      "name": "g2-p12-min8-i2-c64",
+      "executed": true,
+      "status": "PASSED",
+      "reportPath": "reports/identity-phase-matrix.p83-isolated-pool-shape-smoke.4-g2-p12-min8-i2-c64.json",
+      "config": {
+        "gatewayCount": 2,
+        "sessionDbMaxConnsPerWorker": 12,
+        "sessionDbMaxConnsTotal": 24,
+        "sessionDbMinConnsPerWorker": 8,
+        "sessionDbMinConnsTotal": 16,
+        "ingressCount": 2,
+        "clientMaxConnsPerHost": 64,
+        "clientWarmConnectionsPerHost": 32,
+        "ingressMaxConnsPerHost": 32,
+        "ingressWarmConnectionsPerHost": 16
+      },
+      "totalErrors": 0,
+      "maxPhaseP99Ms": 95.89,
+      "slowestPhase": "passwordLogin",
+      "dominantPoolWaitPhase": "revokeCycle",
+      "dominantPoolWaitOperation": "revokeOwnSession",
+      "dominantPoolAcquireShare": 0.76,
+      "totalPoolAcquireDurationMs": 29092.35,
+      "totalEmptyAcquireWaitTimeMs": 29091.3,
+      "phases": [
+        {
+          "name": "passwordLogin",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1673.32,
+          "p95Ms": 93.56,
+          "p99Ms": 95.89,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 8608.2,
+          "emptyAcquireWaitTimeMs": 8608.2,
+          "sessionOperations": [
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 11951.8,
+              "averageElapsedMs": 46.69,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 8688.76,
+              "averagePoolAcquireElapsedMs": 33.94,
+              "poolAcquireShare": 0.73,
+              "dbExecuteElapsedMs": 3259.51,
+              "averageDbExecuteElapsedMs": 12.73,
+              "dbExecuteShare": 0.27
+            }
+          ],
+          "slowestSessionOperation": "saveSession",
+          "slowestSessionOperationAverageElapsedMs": 46.69,
+          "highestPoolAcquireShareOperation": "saveSession",
+          "highestPoolAcquireShare": 0.73
+        },
+        {
+          "name": "principalLookup",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 3143.73,
+          "p95Ms": 53.03,
+          "p99Ms": 54.12,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 5146.49,
+          "emptyAcquireWaitTimeMs": 5145.43,
+          "sessionOperations": [
+            {
+              "name": "getPrincipalByAccessToken",
+              "count": 256,
+              "totalElapsedMs": 6935.45,
+              "averageElapsedMs": 27.09
+            }
+          ],
+          "slowestSessionOperation": "getPrincipalByAccessToken",
+          "slowestSessionOperationAverageElapsedMs": 27.09
+        },
+        {
+          "name": "refreshRotation",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 2451.68,
+          "p95Ms": 60.5,
+          "p99Ms": 63.76,
+          "poolAcquireCount": 256,
+          "poolAcquireDurationMs": 6667.72,
+          "emptyAcquireWaitTimeMs": 6667.73,
+          "sessionOperations": [
+            {
+              "name": "rotateRefreshSession",
+              "count": 256,
+              "totalElapsedMs": 8835.14,
+              "averageElapsedMs": 34.51
+            }
+          ],
+          "slowestSessionOperation": "rotateRefreshSession",
+          "slowestSessionOperationAverageElapsedMs": 34.51
+        },
+        {
+          "name": "revokeCycle",
+          "status": "PASSED",
+          "errors": 0,
+          "rps": 1681.41,
+          "p95Ms": 92.22,
+          "p99Ms": 95.41,
+          "poolAcquireCount": 512,
+          "poolAcquireDurationMs": 8669.94,
+          "emptyAcquireWaitTimeMs": 8669.94,
+          "sessionOperations": [
+            {
+              "name": "revokeOwnSession",
+              "count": 256,
+              "totalElapsedMs": 6793.45,
+              "averageElapsedMs": 26.54,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 5159.88,
+              "averagePoolAcquireElapsedMs": 20.16,
+              "poolAcquireShare": 0.76,
+              "dbExecuteElapsedMs": 1631.37,
+              "averageDbExecuteElapsedMs": 6.37,
+              "dbExecuteShare": 0.24
+            },
+            {
+              "name": "saveSession",
+              "count": 256,
+              "totalElapsedMs": 5215.84,
+              "averageElapsedMs": 20.37,
+              "poolAcquireCount": 256,
+              "poolAcquireElapsedMs": 3512.58,
+              "averagePoolAcquireElapsedMs": 13.72,
+              "poolAcquireShare": 0.67,
+              "dbExecuteElapsedMs": 1695.63,
+              "averageDbExecuteElapsedMs": 6.62,
+              "dbExecuteShare": 0.33
+            }
+          ],
+          "slowestSessionOperation": "revokeOwnSession",
+          "slowestSessionOperationAverageElapsedMs": 26.54,
+          "highestPoolAcquireShareOperation": "revokeOwnSession",
+          "highestPoolAcquireShare": 0.76
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredCases": 4,
+    "executedCases": 4,
+    "passedCases": 4,
+    "failedCases": 0,
+    "orchestrationErrors": 0,
+    "totalErrors": 0,
+    "maxPhaseP99Ms": 113.9,
+    "recommendedCaseName": "g2-p12-min8-i2-c64",
+    "recommendedCaseReportPath": "reports/identity-phase-matrix.p83-isolated-pool-shape-smoke.4-g2-p12-min8-i2-c64.json",
+    "firstFailedCaseName": null
+  },
+  "setup": [
+    {
+      "phase": "case-g2-p8-min0-i2-c64-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 1198,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v"
+    },
+    {
+      "phase": "case-g2-p8-min0-i2-c64-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8265,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    },
+    {
+      "phase": "case-g2-p8-min8-i2-c64-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2712,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    },
+    {
+      "phase": "case-g2-p8-min8-i2-c64-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8101,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    },
+    {
+      "phase": "case-g2-p12-min0-i2-c64-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2668,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    },
+    {
+      "phase": "case-g2-p12-min0-i2-c64-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8118,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    },
+    {
+      "phase": "case-g2-p12-min8-i2-c64-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2847,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    },
+    {
+      "phase": "case-g2-p12-min8-i2-c64-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8128,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    }
+  ],
+  "cleanup": [
+    {
+      "phase": "cleanup",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2484,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    }
+  ],
+  "runnerErrors": [],
+  "nextAction": "Use the recommended passing case as the next Identity tuning baseline, then rerun a larger phase-aware matrix before any capacity promotion."
+}
