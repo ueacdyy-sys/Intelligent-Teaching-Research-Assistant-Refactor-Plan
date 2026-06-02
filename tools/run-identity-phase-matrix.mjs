@@ -214,11 +214,15 @@ function summarizeCase(matrixCase, report) {
   };
   if (!report) return { ...base, totalErrors: 0, maxPhaseP99Ms: null, totalPoolAcquireDurationMs: null, phases: [] };
   const phases = phaseNames.map((phaseName) => summarizePhase(phaseName, report));
+  const dominantPoolWait = dominantPoolWaitOperation(phases);
   return {
     ...base,
     totalErrors: phases.reduce((sum, phase) => sum + phase.errors, 0),
     maxPhaseP99Ms: maxNumber(phases.map((phase) => phase.p99Ms)),
     slowestPhase: slowestPhase(phases),
+    dominantPoolWaitPhase: dominantPoolWait?.phase ?? null,
+    dominantPoolWaitOperation: dominantPoolWait?.operation ?? null,
+    dominantPoolAcquireShare: dominantPoolWait?.poolAcquireShare ?? null,
     totalPoolAcquireDurationMs: roundFloat(phases.reduce((sum, phase) => sum + numberOrZero(phase.poolAcquireDurationMs), 0)),
     totalEmptyAcquireWaitTimeMs: roundFloat(phases.reduce((sum, phase) => sum + numberOrZero(phase.emptyAcquireWaitTimeMs), 0)),
     phases,
@@ -228,7 +232,10 @@ function summarizeCase(matrixCase, report) {
 function summarizePhase(phaseName, report) {
   const phase = report.phases?.[phaseName] ?? {};
   const delta = report.gatewayDatabasePhaseDiagnostics?.[phaseName]?.delta ?? {};
-  return {
+  const sessionOperations = summarizeSessionOperations(delta.sessionOperations);
+  const slowestOperation = slowestSessionOperation(sessionOperations);
+  const highestPoolAcquireShare = highestPoolAcquireShareOperation(sessionOperations);
+  return omitNullish({
     name: phaseName,
     status: numberOrZero(phase.errors) === 0 ? "PASSED" : "FAILED",
     errors: numberOrZero(phase.errors),
@@ -238,8 +245,12 @@ function summarizePhase(phaseName, report) {
     poolAcquireCount: numberOrZero(delta.pool?.acquireCount),
     poolAcquireDurationMs: numberOrNull(delta.pool?.acquireDurationMs),
     emptyAcquireWaitTimeMs: numberOrNull(delta.pool?.emptyAcquireWaitTimeMs),
-    sessionOperations: summarizeSessionOperations(delta.sessionOperations),
-  };
+    sessionOperations,
+    slowestSessionOperation: slowestOperation?.name ?? null,
+    slowestSessionOperationAverageElapsedMs: slowestOperation?.averageElapsedMs ?? null,
+    highestPoolAcquireShareOperation: highestPoolAcquireShare?.name ?? null,
+    highestPoolAcquireShare: highestPoolAcquireShare?.poolAcquireShare ?? null,
+  });
 }
 
 function summarizeMatrix(cases, orchestrationErrors) {
@@ -352,18 +363,67 @@ function toRunnableCommand(command, args) {
 function summarizeSessionOperations(operations) {
   if (!operations || typeof operations !== "object") return [];
   return Object.entries(operations)
-    .map(([name, stats]) => omitNullish({
-      name,
-      count: numberOrZero(stats?.count),
-      totalElapsedMs: numberOrNull(stats?.totalElapsedMs),
-      averageElapsedMs: numberOrNull(stats?.averageElapsedMs),
-      poolAcquireCount: numberOrNull(stats?.poolAcquireCount),
-      poolAcquireElapsedMs: numberOrNull(stats?.poolAcquireElapsedMs),
-      averagePoolAcquireElapsedMs: numberOrNull(stats?.averagePoolAcquireElapsedMs),
-      dbExecuteElapsedMs: numberOrNull(stats?.dbExecuteElapsedMs),
-      averageDbExecuteElapsedMs: numberOrNull(stats?.averageDbExecuteElapsedMs),
-    }))
+    .map(([name, stats]) => summarizeSessionOperation(name, stats))
     .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function summarizeSessionOperation(name, stats) {
+  const totalElapsedMs = numberOrNull(stats?.totalElapsedMs);
+  const poolAcquireElapsedMs = numberOrNull(stats?.poolAcquireElapsedMs);
+  const dbExecuteElapsedMs = numberOrNull(stats?.dbExecuteElapsedMs);
+  return omitNullish({
+    name,
+    count: numberOrZero(stats?.count),
+    totalElapsedMs,
+    averageElapsedMs: numberOrNull(stats?.averageElapsedMs),
+    poolAcquireCount: numberOrNull(stats?.poolAcquireCount),
+    poolAcquireElapsedMs,
+    averagePoolAcquireElapsedMs: numberOrNull(stats?.averagePoolAcquireElapsedMs),
+    poolAcquireShare: elapsedShare(poolAcquireElapsedMs, totalElapsedMs),
+    dbExecuteElapsedMs,
+    averageDbExecuteElapsedMs: numberOrNull(stats?.averageDbExecuteElapsedMs),
+    dbExecuteShare: elapsedShare(dbExecuteElapsedMs, totalElapsedMs),
+  });
+}
+
+function slowestSessionOperation(sessionOperations) {
+  return sessionOperations
+    .filter((operation) => typeof operation.averageElapsedMs === "number" && Number.isFinite(operation.averageElapsedMs))
+    .sort((left, right) =>
+      numberOrInfinity(right.averageElapsedMs) - numberOrInfinity(left.averageElapsedMs) ||
+      left.name.localeCompare(right.name),
+    )[0] ?? null;
+}
+
+function highestPoolAcquireShareOperation(sessionOperations) {
+  return sessionOperations
+    .filter((operation) => typeof operation.poolAcquireShare === "number" && Number.isFinite(operation.poolAcquireShare))
+    .sort((left, right) =>
+      numberOrInfinity(right.poolAcquireShare) - numberOrInfinity(left.poolAcquireShare) ||
+      numberOrNegativeInfinity(right.averageElapsedMs) - numberOrNegativeInfinity(left.averageElapsedMs) ||
+      left.name.localeCompare(right.name),
+    )[0] ?? null;
+}
+
+function dominantPoolWaitOperation(phases) {
+  const candidates = phases
+    .filter((phase) => typeof phase.highestPoolAcquireShare === "number" && Number.isFinite(phase.highestPoolAcquireShare))
+    .map((phase) => ({
+      phase: phase.name,
+      operation: phase.highestPoolAcquireShareOperation,
+      poolAcquireShare: phase.highestPoolAcquireShare,
+      p99Ms: phase.p99Ms,
+    }));
+  return candidates.sort((left, right) =>
+    numberOrInfinity(right.poolAcquireShare) - numberOrInfinity(left.poolAcquireShare) ||
+    numberOrInfinity(right.p99Ms) - numberOrInfinity(left.p99Ms) ||
+    left.phase.localeCompare(right.phase),
+  )[0] ?? null;
+}
+
+function elapsedShare(partMs, totalMs) {
+  if (!Number.isFinite(partMs) || !Number.isFinite(totalMs) || totalMs <= 0) return null;
+  return roundFloat(partMs / totalMs);
 }
 
 function omitNullish(value) {
@@ -420,6 +480,10 @@ function numberOrNull(value) {
 
 function numberOrInfinity(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+}
+
+function numberOrNegativeInfinity(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY;
 }
 
 function roundFloat(value) {

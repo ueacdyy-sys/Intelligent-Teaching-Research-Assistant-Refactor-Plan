@@ -78,6 +78,86 @@ describe("identity phase-aware matrix runner", () => {
     assert.match(formatIdentityPhaseMatrix(report), /Recommended case: fast/u);
   });
 
+  it("summarizes operation-level pool pressure for tuning decisions", () => {
+    const cases = buildMatrixCases({
+      ...defaults,
+      cases: "measured:2:8:2:32:16:32:16",
+    });
+    const report = buildIdentityPhaseMatrixReport({
+      options: defaults,
+      cases,
+      caseReports: [
+        {
+          case: cases[0],
+          report: identityReport({
+            revokeSessionOperations: {
+              revokeOwnSession: {
+                count: 256,
+                totalElapsedMs: 6206.89,
+                averageElapsedMs: 24.25,
+                poolAcquireCount: 256,
+                poolAcquireElapsedMs: 5366.55,
+                averagePoolAcquireElapsedMs: 20.96,
+                dbExecuteElapsedMs: 836.08,
+                averageDbExecuteElapsedMs: 3.27,
+              },
+              saveSession: {
+                count: 256,
+                totalElapsedMs: 4978.72,
+                averageElapsedMs: 19.45,
+                poolAcquireCount: 256,
+                poolAcquireElapsedMs: 4115.19,
+                averagePoolAcquireElapsedMs: 16.07,
+                dbExecuteElapsedMs: 860.66,
+                averageDbExecuteElapsedMs: 3.36,
+              },
+            },
+          }),
+        },
+      ],
+      startedAt: "2026-06-02T00:00:00.000Z",
+      endedAt: "2026-06-02T00:00:01.000Z",
+    });
+
+    const measured = report.cases[0];
+    const revokeCycle = measured.phases.find((phase) => phase.name === "revokeCycle");
+    const revokeOwnSession = revokeCycle.sessionOperations.find((operation) => operation.name === "revokeOwnSession");
+
+    assert.equal(revokeOwnSession.poolAcquireShare, 0.86);
+    assert.equal(revokeOwnSession.dbExecuteShare, 0.13);
+    assert.equal(revokeCycle.slowestSessionOperation, "revokeOwnSession");
+    assert.equal(revokeCycle.slowestSessionOperationAverageElapsedMs, 24.25);
+    assert.equal(revokeCycle.highestPoolAcquireShareOperation, "revokeOwnSession");
+    assert.equal(revokeCycle.highestPoolAcquireShare, 0.86);
+    assert.equal(measured.dominantPoolWaitPhase, "revokeCycle");
+    assert.equal(measured.dominantPoolWaitOperation, "revokeOwnSession");
+    assert.equal(measured.dominantPoolAcquireShare, 0.86);
+  });
+
+  it("keeps older operation diagnostics parseable when pool attribution is absent", () => {
+    const cases = buildMatrixCases({
+      ...defaults,
+      cases: "legacy:2:8:2:32:16:32:16",
+    });
+    const report = buildIdentityPhaseMatrixReport({
+      options: defaults,
+      cases,
+      caseReports: [{ case: cases[0], report: identityReport() }],
+      startedAt: "2026-06-02T00:00:00.000Z",
+      endedAt: "2026-06-02T00:00:01.000Z",
+    });
+
+    const legacy = report.cases[0];
+    const revokeCycle = legacy.phases.find((phase) => phase.name === "revokeCycle");
+    assert.equal(legacy.dominantPoolWaitPhase, null);
+    assert.equal(legacy.dominantPoolWaitOperation, null);
+    assert.equal(legacy.dominantPoolAcquireShare, null);
+    assert.equal(revokeCycle.highestPoolAcquireShareOperation, undefined);
+    assert.equal(revokeCycle.highestPoolAcquireShare, undefined);
+    assert.equal(revokeCycle.slowestSessionOperation, "revokeOwnSession");
+    assert.equal(revokeCycle.slowestSessionOperationAverageElapsedMs, 2.5);
+  });
+
   it("runs all cases by default, writes a rollup report, and masks Docker command output", async () => {
     const root = makeTempRoot();
     const executed = [];
@@ -149,6 +229,9 @@ function identityReport(overrides = {}) {
   const passwordLoginP99 = overrides.passwordLoginP99 ?? 80;
   const revokeCycleP99 = overrides.revokeCycleP99 ?? 120;
   const acquireMs = overrides.acquireMs ?? 300;
+  const revokeSessionOperations = overrides.revokeSessionOperations ?? {
+    revokeOwnSession: { count: 64, totalElapsedMs: 160, averageElapsedMs: 2.5 },
+  };
   return {
     status,
     phases: {
@@ -161,7 +244,7 @@ function identityReport(overrides = {}) {
       passwordLogin: diagnostics(acquireMs, { saveSession: { count: 64, totalElapsedMs: 128, averageElapsedMs: 2 } }),
       principalLookup: diagnostics(100, { getPrincipalByAccessToken: { count: 64, totalElapsedMs: 64, averageElapsedMs: 1 } }),
       refreshRotation: diagnostics(200, { rotateRefreshSession: { count: 64, totalElapsedMs: 96, averageElapsedMs: 1.5 } }),
-      revokeCycle: diagnostics(600, { revokeOwnSession: { count: 64, totalElapsedMs: 160, averageElapsedMs: 2.5 } }),
+      revokeCycle: diagnostics(600, revokeSessionOperations),
     },
   };
 }
