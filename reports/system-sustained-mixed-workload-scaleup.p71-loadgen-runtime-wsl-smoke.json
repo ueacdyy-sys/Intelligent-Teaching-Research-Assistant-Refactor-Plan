@@ -1,0 +1,272 @@
+{
+  "generatedAt": "2026-06-02T05:47:33.251Z",
+  "startedAt": "2026-06-02T05:46:43.576Z",
+  "endedAt": "2026-06-02T05:47:33.251Z",
+  "benchmarkKind": "system_sustained_mixed_workload_scale_up",
+  "workloadType": "SUSTAINED_MIXED_WORKLOAD_SCALE_UP",
+  "profile": "SUSTAINED_SCALEUP_P71_LOADGEN_RUNTIME_WSL_SMOKE",
+  "status": "PASSED",
+  "stopOnFailure": true,
+  "scaleGuardrails": {
+    "maxP99Ms": 3000,
+    "maxP99DriftMs": 500,
+    "maxTotalErrors": 0
+  },
+  "concurrencyProfile": {
+    "identityGatewayCount": 2,
+    "conversationGatewayCount": 1,
+    "configuredSteps": 1,
+    "samplesPerStep": 1
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 8,
+    "sharedWarmConnectionsPerHost": 2,
+    "identityMaxConnsPerHost": 8,
+    "identityWarmConnectionsPerHost": 2
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 19080,
+    "workerCount": 2,
+    "upstreamGatewayCount": 2,
+    "maxConnsPerHost": 4,
+    "warmConnectionsPerHost": 2
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 4,
+    "identitySessionDbWriteConcurrency": 0,
+    "identitySessionTablePersistence": "unlogged",
+    "conversationDbMaxConns": 1,
+    "teachingDbMaxConns": 1,
+    "conversationWriteBatchSize": 8
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_SUSTAINED_SCALEUP_ORCHESTRATOR",
+    "managedDocker": true,
+    "dockerCleanup": "reset"
+  },
+  "conversationBenchmarkRuntimeProfile": {
+    "runtime": "wsl",
+    "executor": "WSL_GO",
+    "dockerImage": null,
+    "dockerHostAlias": null,
+    "wslDistro": "Ubuntu",
+    "wslHostAlias": "172.28.160.1",
+    "wslWorkspace": "/mnt/c/Users/Administrator/Desktop/Intelligent-Teaching-Research-Assistant-Refactor-Plan"
+  },
+  "steps": [
+    {
+      "name": "smoke",
+      "executed": true,
+      "status": "PASSED",
+      "guardrailStatus": "PASSED",
+      "reportPath": "reports/system-sustained-mixed-workload-scaleup.p71-loadgen-runtime-wsl-smoke.1-smoke.json",
+      "identityConcurrency": 2,
+      "identityOperations": 4,
+      "conversationConcurrency": 4,
+      "conversationOperations": 8,
+      "teachingConcurrency": 2,
+      "teachingOperations": 4,
+      "samples": 1,
+      "totalErrors": 0,
+      "maxP95Ms": 31,
+      "maxP99Ms": 31,
+      "p99DriftMs": 0,
+      "workloads": [
+        {
+          "name": "identity_http",
+          "errors": 0,
+          "maxP99Ms": 13.08,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 13.08,
+            "p99Ms": 13.08,
+            "rps": 193.16,
+            "concurrency": 2
+          }
+        },
+        {
+          "name": "conversation_write",
+          "errors": 0,
+          "maxP99Ms": 26.6,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 26.6,
+            "p99Ms": 26.6,
+            "rps": 220.01,
+            "concurrency": 4,
+            "serverTimingP99Ms": 24.99,
+            "clientServerGapP99Ms": 3.15,
+            "dbAcquireP99Ms": 3.55,
+            "dbBatchWaitP99Ms": 16.08,
+            "dbInsertP99Ms": 11.37,
+            "benchmarkRuntimeProfile": {
+              "executor": "WSL_GO",
+              "wslDistro": "Ubuntu",
+              "wslHostAlias": "172.28.160.1",
+              "wslWorkspace": "/mnt/c/Users/Administrator/Desktop/Intelligent-Teaching-Research-Assistant-Refactor-Plan",
+              "targetBaseUrls": [
+                "http://172.28.160.1:18400"
+              ]
+            },
+            "gatewayExitCode": [
+              null
+            ],
+            "gatewaySignal": [
+              null
+            ],
+            "runtimeDiagnostics": {
+              "before": {
+                "gatewayCount": 1,
+                "okGateways": 1,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 2,
+                "totalAcceptedConns": 2,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              },
+              "after": {
+                "gatewayCount": 1,
+                "okGateways": 1,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 4,
+                "totalAcceptedConns": 8,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              }
+            },
+            "databaseDiagnostics": {
+              "before": {
+                "gatewayCount": 1,
+                "okGateways": 1,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 1,
+                "totalAcquireWaitTimeMs": 6.88
+              },
+              "after": {
+                "gatewayCount": 1,
+                "okGateways": 1,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 1,
+                "totalAcquireWaitTimeMs": 6.88
+              }
+            }
+          }
+        },
+        {
+          "name": "teaching_archive",
+          "errors": 0,
+          "maxP99Ms": 31,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 31,
+            "p99Ms": 31,
+            "rps": 95.24,
+            "concurrency": 2
+          }
+        },
+        {
+          "name": "knowledge_retrieval",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0,
+            "p95Ms": 2.55
+          }
+        },
+        {
+          "name": "ai_worker_admission",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0
+          }
+        }
+      ],
+      "guardrailFindings": [
+        {
+          "id": "step.status_passed",
+          "passed": true,
+          "actual": "PASSED",
+          "expected": "PASSED"
+        },
+        {
+          "id": "step.total_errors_zero",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        },
+        {
+          "id": "step.max_p99_within_guardrail",
+          "passed": true,
+          "actual": 31,
+          "expected": "<=3000"
+        },
+        {
+          "id": "step.p99_drift_within_guardrail",
+          "passed": true,
+          "actual": 0,
+          "expected": "abs<=500"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredSteps": 1,
+    "executedSteps": 1,
+    "passedSteps": 1,
+    "blockedSteps": 0,
+    "totalErrors": 0,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 31,
+    "maxP99Ms": 31,
+    "maxP99DriftMs": 0,
+    "highestPassedStep": "smoke",
+    "firstBlockedStep": null
+  },
+  "setup": [
+    {
+      "phase": "setup-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 1155,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v"
+    },
+    {
+      "phase": "setup-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8106,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    }
+  ],
+  "cleanup": [
+    {
+      "phase": "cleanup",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2604,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    }
+  ],
+  "runnerErrors": [],
+  "nextAction": "Treat this as sustained mixed workload scale-up evidence only; add root workflow coverage and cross-module diagnostics before any full-system capacity promotion."
+}
