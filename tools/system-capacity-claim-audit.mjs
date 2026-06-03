@@ -211,7 +211,7 @@ export function formatSystemCapacityClaimAudit(report) {
     `Full-system production 10k RPS claim: ${report.claim.fullSystemUltraConcurrency.status}`,
     `Reviewed claim: ${reviewedClaim}`,
     `Production RPS target: ${rootSloSummary.productionReadWriteRpsTarget ?? "unknown"}`,
-    `Interactive P99 target: ${rootSloSummary.interactiveP99TargetMs ?? "unknown"}ms`,
+    `Interactive P99 target: ${rootSloSummary.interactiveP99TargetMs ?? "unknown"}ms${Number.isFinite(rootSloSummary.interactiveP99ExcellentMs) ? ` (excellent: ${rootSloSummary.interactiveP99ExcellentMs}ms)` : ""}`,
     `Mixed workload evidence: ${report.mixedWorkloadEvidence.count}`,
     `Sustained mixed workload evidence: ${report.sustainedMixedWorkloadEvidence?.count ?? 0}`,
     `Sustained scale-up evidence: ${report.sustainedMixedWorkloadScaleUpEvidence?.count ?? 0}`,
@@ -363,6 +363,7 @@ function summarizeRootSloPromotionReview(reportState) {
       reviewedClaim: report.promotion?.reviewedClaim ?? report.promotionPolicy?.reviewedClaim ?? null,
       productionReadWriteRpsTarget: numberOrNull(report.promotionPolicy?.productionReadWriteRpsTarget),
       interactiveP99TargetMs: numberOrNull(report.promotionPolicy?.interactiveP99TargetMs),
+      interactiveP99ExcellentMs: numberOrNull(report.promotionPolicy?.interactiveP99ExcellentMs),
       measuredReadWriteRps: numberOrNull(report.evidence?.productionThroughput?.measuredReadWriteRps),
       blockerCount: numberOrNull(report.promotion?.blockerCount),
       blockerIds: Array.isArray(report.promotion?.blockers)

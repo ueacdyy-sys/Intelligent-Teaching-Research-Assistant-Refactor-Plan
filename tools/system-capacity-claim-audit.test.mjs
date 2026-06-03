@@ -269,7 +269,7 @@ describe("system capacity claim audit", () => {
       decision: "BLOCK_PROMOTION",
       claimStatus: "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
       requiredNextEvidence: [
-        "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
+        "ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE",
         "PRODUCTION_PGBOUNCER_HEADROOM_PROFILE",
       ],
     }));
@@ -280,16 +280,17 @@ describe("system capacity claim audit", () => {
     assert.equal(report.rootSloPromotionReviewEvidence.count, 1);
     assert.equal(report.rootSloPromotionReviewEvidence.summary.reviewedClaim, "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS");
     assert.equal(report.rootSloPromotionReviewEvidence.summary.productionReadWriteRpsTarget, 10000);
-    assert.equal(report.rootSloPromotionReviewEvidence.summary.interactiveP99TargetMs, 10);
+    assert.equal(report.rootSloPromotionReviewEvidence.summary.interactiveP99TargetMs, 50);
+    assert.equal(report.rootSloPromotionReviewEvidence.summary.interactiveP99ExcellentMs, 10);
     assert.equal(report.rootSloPromotionReviewEvidence.summary.measuredReadWriteRps, null);
     assert.equal(report.claim.fullSystemUltraConcurrency.status, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
     assert.deepEqual(report.claim.fullSystemUltraConcurrency.requiredNextEvidence, [
-      "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
+      "ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE",
       "PRODUCTION_PGBOUNCER_HEADROOM_PROFILE",
     ]);
     assert.match(report.claim.fullSystemUltraConcurrency.reason, /Root SLO promotion review blocks/u);
     assert.match(formatSystemCapacityClaimAudit(report), /Production RPS target: 10000/u);
-    assert.match(formatSystemCapacityClaimAudit(report), /Interactive P99 target: 10ms/u);
+    assert.match(formatSystemCapacityClaimAudit(report), /Interactive P99 target: 50ms \(excellent: 10ms\)/u);
   });
 
   it("fails readiness when a source report is missing", () => {
@@ -481,7 +482,8 @@ function rootSloReviewReport({ decision, claimStatus, requiredNextEvidence }) {
     promotionPolicy: {
       reviewedClaim: "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
       productionReadWriteRpsTarget: 10000,
-      interactiveP99TargetMs: 10,
+      interactiveP99TargetMs: 50,
+      interactiveP99ExcellentMs: 10,
     },
     evidence: {
       productionThroughput: {

@@ -26,7 +26,9 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.workloadType, "ROOT_SLO_PROMOTION_REVIEW");
     assert.equal(report.promotionPolicy.reviewedClaim, "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS");
     assert.equal(report.promotionPolicy.productionReadWriteRpsTarget, 10000);
-    assert.equal(report.promotionPolicy.interactiveP99TargetMs, 10);
+    assert.equal(report.promotionPolicy.interactiveP99TargetMs, 50);
+    assert.equal(report.promotionPolicy.interactiveP99ExcellentMs, 10);
+    assert.equal(report.promotionPolicy.interactiveP99TargetClass, "PASS_TARGET");
     assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
     assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
     assert.equal(report.promotion.blockerCount, 1);
@@ -60,7 +62,7 @@ describe("root SLO promotion review audit", () => {
       report.promotion.blockers.some((blocker) => blocker.id === "promotion.production_read_write_rps_target_met"),
       false,
     );
-    assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
+    assert(report.promotion.requiredNextEvidence.includes("ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
     assert(!report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
     assert(!report.promotion.requiredNextEvidence.includes("ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE"));

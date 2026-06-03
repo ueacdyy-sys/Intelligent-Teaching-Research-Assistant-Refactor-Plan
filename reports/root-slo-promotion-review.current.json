@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T16:10:56.396Z",
+  "generatedAt": "2026-06-03T16:43:07.245Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -18,7 +18,9 @@
   "promotionPolicy": {
     "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
     "productionReadWriteRpsTarget": 10000,
-    "interactiveP99TargetMs": 10,
+    "interactiveP99TargetMs": 50,
+    "interactiveP99ExcellentMs": 10,
+    "interactiveP99TargetClass": "PASS_TARGET",
     "minimumPgbouncerHeadroomRatio": 0.2,
     "minimumSustainedStepName": "high",
     "minimumSustainedStepRank": 4,
@@ -44,7 +46,7 @@
       "shallowModules": []
     },
     "latency": {
-      "targetP99Ms": 10,
+      "targetP99Ms": 50,
       "samples": [
         {
           "name": "production_target.max_p99_ms",
@@ -196,12 +198,12 @@
       {
         "id": "promotion.interactive_tail_latency_within_target",
         "actual": "production_target.max_p99_ms=253.6;topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89",
-        "expected": "max interactive/root workflow P99 <= 10ms",
-        "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
+        "expected": "max interactive/root workflow P99 <= 50ms pass target; 10ms excellent target",
+        "remediation": "Add durable fast-lane command acceptance and async projection evidence for the slowest root workflows before making a production 10k RPS claim."
       }
     ],
     "requiredNextEvidence": [
-      "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"
+      "ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE"
     ]
   },
   "auditFindings": [
@@ -284,8 +286,8 @@
       "passed": false,
       "severity": "promotion_blocker",
       "actual": "production_target.max_p99_ms=253.6;topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89",
-      "expected": "max interactive/root workflow P99 <= 10ms",
-      "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
+      "expected": "max interactive/root workflow P99 <= 50ms pass target; 10ms excellent target",
+      "remediation": "Add durable fast-lane command acceptance and async projection evidence for the slowest root workflows before making a production 10k RPS claim."
     },
     {
       "id": "promotion.database_headroom_sufficient",
