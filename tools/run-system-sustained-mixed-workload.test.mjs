@@ -30,6 +30,12 @@ describe("system sustained mixed workload runner", () => {
       "172.28.160.1",
       "--conversation-benchmark-wsl-workspace",
       "/mnt/c/workspace",
+      "--identity-benchmark-runtime",
+      "docker",
+      "--identity-benchmark-docker-image",
+      "golang:1.26-alpine",
+      "--identity-benchmark-docker-host",
+      "host.docker.internal",
       "--identity-ingress-proxy",
       "true",
       "--identity-ingress-count",
@@ -51,6 +57,9 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
+    assert.equal(parsed.identityBenchmarkRuntime, "docker");
+    assert.equal(parsed.identityBenchmarkDockerImage, "golang:1.26-alpine");
+    assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
@@ -81,6 +90,9 @@ describe("system sustained mixed workload runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      identityBenchmarkRuntime: "docker",
+      identityBenchmarkDockerImage: "golang:1.26-alpine",
+      identityBenchmarkDockerHost: "host.docker.internal",
     });
 
     assert.deepEqual(samples.map((sample) => sample.name), ["sample-1", "sample-2"]);
@@ -102,6 +114,9 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(samples[0].options.conversationBenchmarkRuntime, "wsl");
     assert.equal(samples[0].options.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(samples[0].options.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
+    assert.equal(samples[0].options.identityBenchmarkRuntime, "docker");
+    assert.equal(samples[0].options.identityBenchmarkDockerImage, "golang:1.26-alpine");
+    assert.equal(samples[0].options.identityBenchmarkDockerHost, "host.docker.internal");
   });
 
   it("runs every sample and writes a passed sustained report", async () => {
@@ -236,6 +251,9 @@ describe("system sustained mixed workload runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      identityBenchmarkRuntime: "docker",
+      identityBenchmarkDockerImage: "golang:1.26-alpine",
+      identityBenchmarkDockerHost: "host.docker.internal",
     };
     const samples = buildSampleRuns({
       ...options,
@@ -284,6 +302,9 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
+    assert.equal(report.identityBenchmarkRuntimeProfile.executor, "DOCKER_GO");
+    assert.equal(report.identityBenchmarkRuntimeProfile.dockerImage, "golang:1.26-alpine");
+    assert.equal(report.identityBenchmarkRuntimeProfile.dockerHostAlias, "host.docker.internal");
     const identity = report.samples[0].workloads.find((workload) => workload.name === "identity_http");
     assert.equal(identity.summary.dominantPhase, "revokeCycle");
     assert.equal(identity.summary.dominantPhaseP99Ms, 66);

@@ -28,6 +28,12 @@ describe("system mixed workload benchmark runner", () => {
       "172.28.160.1",
       "--conversation-benchmark-wsl-workspace",
       "/mnt/c/workspace",
+      "--identity-benchmark-runtime",
+      "docker",
+      "--identity-benchmark-docker-image",
+      "golang:1.26-alpine",
+      "--identity-benchmark-docker-host",
+      "host.docker.internal",
       "--teaching-concurrency",
       "6",
       "--identity-ingress-proxy",
@@ -50,6 +56,9 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
+    assert.equal(parsed.identityBenchmarkRuntime, "docker");
+    assert.equal(parsed.identityBenchmarkDockerImage, "golang:1.26-alpine");
+    assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
     assert.equal(parsed.teachingConcurrency, "6");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
@@ -85,6 +94,9 @@ describe("system mixed workload benchmark runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      identityBenchmarkRuntime: "docker",
+      identityBenchmarkDockerImage: "golang:1.26-alpine",
+      identityBenchmarkDockerHost: "host.docker.internal",
     });
 
     assert.deepEqual(commands.map((command) => command.name), [
@@ -104,6 +116,9 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[0].args, "--ingress-warm-connections-per-host"), "16");
     assert.equal(argumentAfter(commands[0].args, "--session-db-session-table-persistence"), "unlogged");
     assert.equal(argumentAfter(commands[0].args, "--session-db-write-concurrency"), "10");
+    assert.equal(argumentAfter(commands[0].args, "--benchmark-runtime"), "docker");
+    assert.equal(argumentAfter(commands[0].args, "--benchmark-docker-image"), "golang:1.26-alpine");
+    assert.equal(argumentAfter(commands[0].args, "--benchmark-docker-host"), "host.docker.internal");
     assert.equal(argumentAfter(commands[1].args, "--base-url"), "http://127.0.0.1:19100");
     assert.equal(argumentAfter(commands[1].args, "--agent-api-key"), "ueacd");
     assert.equal(argumentAfter(commands[1].args, "--benchmark-runtime"), "wsl");
@@ -302,6 +317,9 @@ describe("system mixed workload benchmark runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      identityBenchmarkRuntime: "docker",
+      identityBenchmarkDockerImage: "golang:1.26-alpine",
+      identityBenchmarkDockerHost: "host.docker.internal",
     };
     const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
@@ -344,6 +362,9 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
+    assert.equal(report.identityBenchmarkRuntimeProfile.executor, "DOCKER_GO");
+    assert.equal(report.identityBenchmarkRuntimeProfile.dockerImage, "golang:1.26-alpine");
+    assert.equal(report.identityBenchmarkRuntimeProfile.dockerHostAlias, "host.docker.internal");
     const identity = report.workloads.find((workload) => workload.name === "identity_http");
     assert.equal(identity.summary.dominantPhase, "revokeCycle");
     assert.equal(identity.summary.dominantPhaseP99Ms, 66);
@@ -440,6 +461,21 @@ describe("system mixed workload benchmark runner", () => {
         { root, runCommand: successfulChildCommand },
       ),
       /conversation-benchmark-runtime must be local, docker, or wsl/u,
+    );
+  });
+
+  it("rejects unsupported identity benchmark runtimes", async () => {
+    const root = makeTempRoot();
+
+    await assert.rejects(
+      () => runSystemMixedWorkloadBenchmark(
+        {
+          ...defaults,
+          identityBenchmarkRuntime: "wsl",
+        },
+        { root, runCommand: successfulChildCommand },
+      ),
+      /identity-benchmark-runtime must be local or docker/u,
     );
   });
 });

@@ -318,10 +318,11 @@ function buildPromotionFindings(evidence) {
   });
   addPromotionFinding(findings, {
     id: "promotion.production_read_write_rps_target_met",
-    passed: Number.isFinite(evidence.productionThroughput.measuredReadWriteRps) &&
+    passed: evidence.productionThroughput.targetAttemptStatus === "MET" &&
+      Number.isFinite(evidence.productionThroughput.measuredReadWriteRps) &&
       evidence.productionThroughput.measuredReadWriteRps >= rootSloPromotionPolicy.productionReadWriteRpsTarget,
     actual: formatProductionThroughputActual(evidence.productionThroughput),
-    expected: `measured sustained read/write RPS >= ${rootSloPromotionPolicy.productionReadWriteRpsTarget}`,
+    expected: `measured sustained read/write RPS >= ${rootSloPromotionPolicy.productionReadWriteRpsTarget} with production target status MET`,
     remediation: "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim.",
   });
   return findings;

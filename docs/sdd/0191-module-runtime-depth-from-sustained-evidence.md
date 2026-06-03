@@ -17,9 +17,10 @@ correctly blocking the 10k RPS claim on latency and throughput.
   proofs of concept.
 - Current full-system promotion target remains
   `FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS`.
-- Current sustained mixed workload high step records zero errors, max P99 94ms,
-  and 2107.3 read/write RPS across identity, conversation, teaching archive,
-  knowledge retrieval, and AI worker admission.
+- Current sustained mixed workload high-step metrics are sourced from
+  `reports/system-sustained-mixed-workload-scaleup.current.json`; the exact
+  read/write RPS can move between refreshes and must not be hard-coded into
+  promotion logic.
 - Workflow/plugin runtime SLO evidence remains dry-run only and must not enable
   local generated-code execution.
 

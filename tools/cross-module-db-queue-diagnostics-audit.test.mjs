@@ -15,7 +15,9 @@ const currentIdentitySourceReport =
 
 describe("cross-module DB and queue diagnostics audit", () => {
   it("passes the current cross-module database and queue evidence", () => {
-    const report = auditCrossModuleDbQueueDiagnostics(loadCurrentInputs());
+    const inputs = loadCurrentInputs();
+    const report = auditCrossModuleDbQueueDiagnostics(inputs);
+    const sustainedScaleUp = parseSource(inputs, sourceFiles.sustainedScaleUp);
 
     assert.equal(sourceFiles.identity, currentIdentitySourceReport);
     assert.equal(report.readiness, "READY");
@@ -48,7 +50,7 @@ describe("cross-module DB and queue diagnostics audit", () => {
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").metrics.sustainedRuntimeEvidence.stepReadWriteRps,
-      2107.3,
+      sustainedScaleUp.summary.highestPassedReadWriteRps,
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin").metrics.workflowRuntimeEvidence.p99Ms <= 300,

@@ -10,6 +10,7 @@ import {
 const currentIdentityEvidenceId = "identity_http_gateway_pgbouncer120_preconnect_retry_4400";
 const currentIdentitySourceReport =
   "reports/identity-http-benchmark.concurrency4400-multi6-ingress22-pool12-client200-unlogged-session-table-pgbouncer120-preconnect-retry-ingress19080-clean-table-docker-bench.json";
+const sustainedFixtureReadWriteRps = 2107.3;
 
 describe("system capacity claim audit", () => {
   it("passes the current module evidence while blocking full-system ultra-concurrency promotion", () => {
@@ -534,7 +535,7 @@ function crossModuleDiagnosticsReport() {
             present: true,
             passed: true,
             stepName: "high",
-            stepReadWriteRps: 2107.3,
+            stepReadWriteRps: sustainedFixtureReadWriteRps,
             p99Ms: 94,
           },
         },
@@ -549,7 +550,7 @@ function crossModuleDiagnosticsReport() {
             present: true,
             passed: true,
             stepName: "high",
-            stepReadWriteRps: 2107.3,
+            stepReadWriteRps: sustainedFixtureReadWriteRps,
           },
         },
       },
@@ -564,7 +565,7 @@ function crossModuleDiagnosticsReport() {
             present: true,
             passed: true,
             stepName: "high",
-            stepReadWriteRps: 2107.3,
+            stepReadWriteRps: sustainedFixtureReadWriteRps,
           },
         },
       },

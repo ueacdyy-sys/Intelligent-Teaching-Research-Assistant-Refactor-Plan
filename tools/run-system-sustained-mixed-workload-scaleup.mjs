@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import {
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile,
+  buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile,
   buildSustainedMixedWorkloadIdentityIngressProfile,
   buildSustainedMixedWorkloadTransportProfile,
   defaults as sustainedDefaults,
@@ -15,6 +16,15 @@ import {
   normalizeSessionTablePersistence,
 } from "./identity-http-benchmark-session-profile.mjs";
 import { mergeSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
+import {
+  assertProductionTargetPressure as assertProductionTargetPressureProfile,
+} from "./system-production-target-pressure-profile.mjs";
+import {
+  buildThroughputTargetNextAction,
+  resolveTargetReadWriteRps,
+  summarizeThroughputTarget,
+  targetBearingSteps,
+} from "./system-throughput-target-profile.mjs";
 
 const standardScaleSteps = "smoke:2:4:8:16:2:4,low:4:8:16:32:4:8,medium:8:16:32:64:8:16,high:16:32:64:128:16:32";
 const production10kScaleSteps = [
@@ -55,6 +65,9 @@ export const defaults = {
   conversationBenchmarkWslDistro: sustainedDefaults.conversationBenchmarkWslDistro,
   conversationBenchmarkWslHost: sustainedDefaults.conversationBenchmarkWslHost,
   conversationBenchmarkWslWorkspace: sustainedDefaults.conversationBenchmarkWslWorkspace,
+  identityBenchmarkRuntime: sustainedDefaults.identityBenchmarkRuntime,
+  identityBenchmarkDockerImage: sustainedDefaults.identityBenchmarkDockerImage,
+  identityBenchmarkDockerHost: sustainedDefaults.identityBenchmarkDockerHost,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   identityMaxConnsPerHost: sustainedDefaults.identityMaxConnsPerHost,
@@ -91,6 +104,7 @@ export const scaleProfileDefaults = {
     identityIngressCount: "16",
     identityIngressMaxConnsPerHost: "200",
     identityIngressWarmConnectionsPerHost: "16",
+    identityBenchmarkRuntime: "docker",
   },
 };
 
@@ -160,6 +174,9 @@ export function buildScaleUpSteps(options) {
         conversationBenchmarkWslDistro: options.conversationBenchmarkWslDistro,
         conversationBenchmarkWslHost: options.conversationBenchmarkWslHost,
         conversationBenchmarkWslWorkspace: options.conversationBenchmarkWslWorkspace,
+        identityBenchmarkRuntime: options.identityBenchmarkRuntime,
+        identityBenchmarkDockerImage: options.identityBenchmarkDockerImage,
+        identityBenchmarkDockerHost: options.identityBenchmarkDockerHost,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
@@ -256,7 +273,7 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
   const allStepsPassed = executedSteps.length === steps.length &&
     executedSteps.every((step) => step.status === "PASSED" && step.guardrailStatus === "PASSED");
   const summary = summarizeScaleUp(stepSummaries, orchestrationErrors);
-  const throughputTarget = summarizeThroughputTarget(stepSummaries, summary, options);
+  const throughputTarget = summarizeThroughputTarget({ steps: stepSummaries, summary, options });
   const targetBlocks = throughputTarget.required && throughputTarget.status !== "MET";
   const status = orchestrationErrors === 0 && allStepsPassed && !targetBlocks ? "PASSED" : "FAILED";
 
@@ -297,13 +314,14 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
       dockerCleanup: options.dockerCleanup,
     },
     conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
+    identityBenchmarkRuntimeProfile: buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options),
     steps: stepSummaries,
     summary,
     throughputTarget,
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
     cleanup: cleanup.map((entry) => sanitizeCommandResult(entry)),
     runnerErrors,
-    nextAction: buildNextAction(status, throughputTarget),
+    nextAction: buildThroughputTargetNextAction(status, throughputTarget),
   };
 }
 
@@ -343,8 +361,11 @@ function summarizeStep(step, report, options) {
       guardrailStatus: "NOT_RUN",
       reportPath: step.reportPath,
       identityConcurrency: step.identityConcurrency,
+      identityOperations: step.identityOperations,
       conversationConcurrency: step.conversationConcurrency,
+      conversationOperations: step.conversationOperations,
       teachingConcurrency: step.teachingConcurrency,
+      teachingOperations: step.teachingOperations,
       totalErrors: 0,
       maxP95Ms: null,
       maxP99Ms: null,
@@ -502,59 +523,6 @@ function summarizeScaleUp(steps, orchestrationErrors) {
   };
 }
 
-function summarizeThroughputTarget(steps, summary, options) {
-  const configuredTargetSteps = steps.filter((step) => Number.isFinite(step.targetReadWriteRps));
-  const stepTargetReadWriteRps = maxFinite(configuredTargetSteps.map((step) => step.targetReadWriteRps));
-  const optionTargetReadWriteRps = parseInteger(options.targetReadWriteRps);
-  const targetReadWriteRps = optionTargetReadWriteRps > 0 ? optionTargetReadWriteRps : stepTargetReadWriteRps;
-  const configured = Number.isFinite(targetReadWriteRps) && configuredTargetSteps.length > 0;
-  const candidateSteps = configured
-    ? configuredTargetSteps.filter((step) => step.targetReadWriteRps >= targetReadWriteRps)
-    : [];
-  const attemptedStepNames = candidateSteps.filter((step) => step.executed).map((step) => step.name);
-  const highestPassedReadWriteRps = numberOrNull(summary.maxPassedReadWriteRps);
-  const met = configured && Number.isFinite(highestPassedReadWriteRps) &&
-    highestPassedReadWriteRps >= targetReadWriteRps;
-  const attempted = attemptedStepNames.length > 0 || met;
-  const status = targetStatus({ configured, attempted, met });
-  return {
-    targetReadWriteRps: numberOrNull(targetReadWriteRps),
-    required: parseBoolean(options.requireTargetReadWriteRps),
-    configured,
-    attempted,
-    met,
-    status,
-    targetStepNames: candidateSteps.map((step) => step.name),
-    attemptedStepNames,
-    highestPassedStep: summary.highestPassedStep,
-    highestPassedReadWriteRps,
-    shortfallRps: configured && Number.isFinite(highestPassedReadWriteRps)
-      ? roundRps(Math.max(targetReadWriteRps - highestPassedReadWriteRps, 0))
-      : null,
-  };
-}
-
-function targetStatus({ configured, attempted, met }) {
-  if (!configured) return "NOT_CONFIGURED";
-  if (met) return "MET";
-  return attempted ? "ATTEMPTED_NOT_MET" : "NOT_ATTEMPTED";
-}
-
-function buildNextAction(status, throughputTarget) {
-  if (throughputTarget.required && throughputTarget.status === "NOT_CONFIGURED") {
-    return "Configure a target-bearing production 10k sustained scale-up step before making a production RPS claim.";
-  }
-  if (throughputTarget.required && throughputTarget.status === "NOT_ATTEMPTED") {
-    return "Rerun the production 10k scale profile until the target step executes, then review the first blocking step.";
-  }
-  if (throughputTarget.required && throughputTarget.status === "ATTEMPTED_NOT_MET") {
-    return "Optimize the bottlenecked root workflow and rerun the production 10k target step before promotion.";
-  }
-  return status === "PASSED"
-    ? "Treat this as sustained mixed workload scale-up evidence only; add root workflow coverage and cross-module diagnostics before any full-system capacity promotion."
-    : "Fix the first failed or guardrail-blocked sustained scale-up step before increasing full-system concurrency.";
-}
-
 function summarizeStepThroughput(report) {
   const readWriteRps = firstFinite(
     report.summary?.readWriteRps,
@@ -625,9 +593,21 @@ function validateOptions(options, steps) {
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
+  buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
+  buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
   assertPositiveInteger(options.maxP99Ms, "max-p99-ms");
   assertPositiveInteger(options.maxP99DriftMs, "max-p99-drift-ms");
+  const targetReadWriteRps = resolveTargetReadWriteRps(steps, options);
+  const candidateSteps = Number.isFinite(targetReadWriteRps)
+    ? targetBearingSteps(steps).filter((step) => step.targetReadWriteRps >= targetReadWriteRps)
+    : [];
+  assertProductionTargetPressureProfile({
+    candidateSteps,
+    required: parseBoolean(options.requireTargetReadWriteRps),
+    scaleProfile: options.scaleProfile,
+    targetReadWriteRps,
+  });
 }
 
 function cleanupDocker(options, root, runSyncFn) {

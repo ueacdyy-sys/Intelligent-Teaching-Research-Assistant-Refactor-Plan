@@ -4,9 +4,9 @@
 
 The current sustained mixed workload scale-up runner proves a conservative
 `high` step, but it does not explicitly configure or report a production 10k
-candidate step. That makes the current `2107.3 RPS` evidence easy to misread as
-an absolute system limit, even though the runner never attempted a 10k target
-ladder.
+candidate step. That makes the current standard-ladder RPS evidence easy to
+misread as an absolute system limit, even though the runner never attempted a
+10k target ladder.
 
 The full-system production claim needs a stricter distinction:
 

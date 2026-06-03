@@ -12,6 +12,11 @@ import {
   buildSystemConversationBenchmarkRuntimeProfile,
   systemConversationBenchmarkRuntime,
 } from "./system-conversation-benchmark-runtime-profile.mjs";
+import {
+  buildSystemIdentityBenchmarkRuntimeProfile,
+  systemIdentityBenchmarkRuntimeArgs,
+  systemIdentityBenchmarkRuntime,
+} from "./system-identity-benchmark-runtime-profile.mjs";
 import { buildSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 
 export const defaults = {
@@ -47,6 +52,7 @@ export const defaults = {
   conversationBenchmarkWslDistro: benchmarkRuntimeDefaults.benchmarkWslDistro,
   conversationBenchmarkWslHost: benchmarkRuntimeDefaults.benchmarkWslHost,
   conversationBenchmarkWslWorkspace: benchmarkRuntimeDefaults.benchmarkWslWorkspace,
+  identityBenchmarkRuntime: "local", identityBenchmarkDockerImage: "golang:1.26-alpine", identityBenchmarkDockerHost: "host.docker.internal",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   identityMaxConnsPerHost: "",
@@ -118,6 +124,7 @@ export function buildWorkloadCommands(options) {
         options.identityIngressMaxConnsPerHost,
         "--ingress-warm-connections-per-host",
         options.identityIngressWarmConnectionsPerHost,
+        ...systemIdentityBenchmarkRuntimeArgs(options),
         "--out",
         options.identityOut,
         "--timeout",
@@ -317,6 +324,7 @@ export function buildSystemMixedWorkloadReport({
       dockerCleanup: options.dockerCleanup,
     },
     conversationBenchmarkRuntimeProfile: buildMixedWorkloadConversationBenchmarkRuntimeProfile(options),
+    identityBenchmarkRuntimeProfile: buildSystemIdentityBenchmarkRuntimeProfile(options),
     workloads,
     summary: summarizeMixedWorkload(workloads, orchestrationErrors),
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
@@ -542,6 +550,7 @@ function validateOptions(options) {
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   systemConversationBenchmarkRuntime(options);
+  systemIdentityBenchmarkRuntime(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
   if (parseBoolean(options.identityIngressProxy)) {
     assertPositiveInteger(options.identityIngressCount, "identity-ingress-count");

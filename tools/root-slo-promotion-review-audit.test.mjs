@@ -35,16 +35,17 @@ describe("root SLO promotion review audit", () => {
       /identityRevokeSlowestStep=login:1498\.29/,
     );
     const expectedReadWriteRps = parseReport(inputs, sourceReports.sustainedScaleUp).summary.highestPassedReadWriteRps;
+    const expectedShortfallRps = Math.round((10000 - expectedReadWriteRps) * 100) / 100;
     assert.equal(report.evidence.productionThroughput.targetReadWriteRps, 10000);
     assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, expectedReadWriteRps);
     assert.equal(report.evidence.productionThroughput.source, "sustained_scaleup.summary.highestPassedReadWriteRps");
     assert.equal(report.evidence.productionThroughput.targetAttemptStatus, "NOT_CONFIGURED");
     assert.equal(report.evidence.productionThroughput.targetAttempted, false);
     assert.equal(report.evidence.productionThroughput.targetConfigured, false);
-    assert.equal(report.evidence.productionThroughput.targetShortfallRps, 7892.7);
+    assert.equal(report.evidence.productionThroughput.targetShortfallRps, expectedShortfallRps);
     assert.equal(
       report.promotion.blockers.find((blocker) => blocker.id === "promotion.production_read_write_rps_target_met").actual,
-      `${expectedReadWriteRps} rps from sustained_scaleup.summary.highestPassedReadWriteRps;targetStatus=NOT_CONFIGURED;targetAttempted=false;shortfall=7892.7`,
+      `${expectedReadWriteRps} rps from sustained_scaleup.summary.highestPassedReadWriteRps;targetStatus=NOT_CONFIGURED;targetAttempted=false;shortfall=${expectedShortfallRps}`,
     );
     assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
@@ -124,6 +125,9 @@ describe("root SLO promotion review audit", () => {
     const inputs = loadCurrentInputs();
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(loadCurrentCrossModuleDiagnostics());
     const scaleUp = parseReport(inputs, sourceReports.sustainedScaleUp);
+    const expectedShortfallRps = Math.round(
+      (10000 - scaleUp.summary.highestPassedReadWriteRps) * 100,
+    ) / 100;
     scaleUp.throughputTarget = {
       targetReadWriteRps: 10000,
       required: true,
@@ -131,7 +135,7 @@ describe("root SLO promotion review audit", () => {
       attempted: false,
       met: false,
       status: "NOT_ATTEMPTED",
-      shortfallRps: 7892.7,
+      shortfallRps: expectedShortfallRps,
       targetStepNames: ["target-10k"],
       attemptedStepNames: [],
     };
@@ -146,7 +150,7 @@ describe("root SLO promotion review audit", () => {
     assert.equal(throughput.targetAttemptStatus, "NOT_ATTEMPTED");
     assert.equal(throughput.targetAttempted, false);
     assert.equal(throughput.targetConfigured, true);
-    assert.equal(throughput.targetShortfallRps, 7892.7);
+    assert.equal(throughput.targetShortfallRps, expectedShortfallRps);
     assert.match(blocker.actual, /targetStatus=NOT_ATTEMPTED/u);
     assert.match(blocker.actual, /targetAttempted=false/u);
   });
@@ -247,6 +251,17 @@ describe("root SLO promotion review audit", () => {
     scaleUp.summary.highestPassedStep = "high";
     scaleUp.summary.maxP99Ms = 240;
     scaleUp.summary.highestPassedReadWriteRps = 12000;
+    scaleUp.throughputTarget = {
+      targetReadWriteRps: 10000,
+      required: true,
+      configured: true,
+      attempted: true,
+      met: true,
+      status: "MET",
+      shortfallRps: 0,
+      targetStepNames: ["target-10k"],
+      attemptedStepNames: ["target-10k"],
+    };
     inputs.reports[sourceReports.sustainedScaleUp] = JSON.stringify(scaleUp);
 
     const report = auditRootSloPromotionReview(inputs);
@@ -255,6 +270,62 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.promotion.decision, "APPROVE_PROMOTION");
     assert.equal(report.promotion.blockerCount, 0);
     assert.deepEqual(report.promotion.requiredNextEvidence, []);
+  });
+
+  it("blocks promotion when 10k throughput is present but target pressure is invalid", () => {
+    const inputs = loadCurrentInputs();
+    const coverage = parseReport(inputs, sourceReports.rootWorkflowCoverage);
+    coverage.summary.contractOnlyWorkflows = 0;
+    coverage.workflows = coverage.workflows.map((workflow) => ({
+      ...workflow,
+      coverageClass: "RUNTIME_SLO_AND_MIXED_WORKLOAD",
+      mixedWorkloadResults: [{ name: "runtime_slo", passed: true }],
+    }));
+    inputs.reports[sourceReports.rootWorkflowCoverage] = JSON.stringify(coverage);
+
+    const diagnostics = parseReport(inputs, sourceReports.crossModuleDiagnostics);
+    diagnostics.databaseTopology.hotPathPool.pgbouncerHeadroom = 30;
+    diagnostics.moduleDiagnostics = diagnostics.moduleDiagnostics.map((module) => ({
+      ...module,
+      classification: "RUNTIME_SLO_EVIDENCE",
+      metrics: {
+        ...module.metrics,
+        slowestP99Ms: module.id === "identity_and_access" ? 180 : module.metrics?.slowestP99Ms,
+        lowTailP99Ms: module.id === "research_conversation_write" ? 160 : module.metrics?.lowTailP99Ms,
+        burstP99Ms: module.id === "research_conversation_write" ? 240 : module.metrics?.burstP99Ms,
+      },
+    }));
+    diagnostics.mixedWorkloadDiagnostics.highestPassedStep = "high";
+    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 240;
+    inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(diagnostics);
+
+    const scaleUp = parseReport(inputs, sourceReports.sustainedScaleUp);
+    scaleUp.summary.highestPassedStep = "high";
+    scaleUp.summary.maxP99Ms = 240;
+    scaleUp.summary.highestPassedReadWriteRps = 12000;
+    scaleUp.throughputTarget = {
+      targetReadWriteRps: 10000,
+      required: true,
+      configured: true,
+      attempted: false,
+      met: false,
+      status: "INVALID_PRESSURE",
+      shortfallRps: null,
+      targetStepNames: ["target-10k"],
+      attemptedStepNames: [],
+    };
+    inputs.reports[sourceReports.sustainedScaleUp] = JSON.stringify(scaleUp);
+
+    const report = auditRootSloPromotionReview(inputs);
+    const throughputFinding = report.promotionFindings.find((finding) =>
+      finding.id === "promotion.production_read_write_rps_target_met"
+    );
+
+    assert.equal(report.readiness, "READY");
+    assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
+    assert.equal(throughputFinding.passed, false);
+    assert.match(throughputFinding.actual, /targetStatus=INVALID_PRESSURE/u);
+    assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
   });
 
   it("fails readiness when strict quality is not passing", () => {

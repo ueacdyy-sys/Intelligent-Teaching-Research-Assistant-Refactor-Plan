@@ -11,6 +11,7 @@ import {
   defaults as mixedDefaults,
   runSystemMixedWorkloadBenchmark,
 } from "./run-system-mixed-workload-benchmark.mjs";
+import { buildSystemIdentityBenchmarkRuntimeProfile } from "./system-identity-benchmark-runtime-profile.mjs";
 import {
   defaultSessionTablePersistence,
   normalizeSessionTablePersistence,
@@ -50,6 +51,9 @@ export const defaults = {
   conversationBenchmarkWslDistro: mixedDefaults.conversationBenchmarkWslDistro,
   conversationBenchmarkWslHost: mixedDefaults.conversationBenchmarkWslHost,
   conversationBenchmarkWslWorkspace: mixedDefaults.conversationBenchmarkWslWorkspace,
+  identityBenchmarkRuntime: mixedDefaults.identityBenchmarkRuntime,
+  identityBenchmarkDockerImage: mixedDefaults.identityBenchmarkDockerImage,
+  identityBenchmarkDockerHost: mixedDefaults.identityBenchmarkDockerHost,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   identityMaxConnsPerHost: mixedDefaults.identityMaxConnsPerHost,
@@ -127,6 +131,9 @@ export function buildSampleRuns(options) {
         conversationBenchmarkWslDistro: options.conversationBenchmarkWslDistro,
         conversationBenchmarkWslHost: options.conversationBenchmarkWslHost,
         conversationBenchmarkWslWorkspace: options.conversationBenchmarkWslWorkspace,
+        identityBenchmarkRuntime: options.identityBenchmarkRuntime,
+        identityBenchmarkDockerImage: options.identityBenchmarkDockerImage,
+        identityBenchmarkDockerHost: options.identityBenchmarkDockerHost,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
@@ -252,6 +259,7 @@ export function buildSystemSustainedMixedWorkloadReport({
       dockerCleanup: options.dockerCleanup,
     },
     conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
+    identityBenchmarkRuntimeProfile: buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options),
     samples,
     summary: summarizeSustainedSamples(samples, orchestrationErrors),
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
@@ -273,6 +281,10 @@ export function buildSustainedMixedWorkloadIdentityIngressProfile(options) {
 
 export function buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options) {
   return buildMixedWorkloadConversationBenchmarkRuntimeProfile(options);
+}
+
+export function buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options) {
+  return buildSystemIdentityBenchmarkRuntimeProfile(options);
 }
 
 export function formatSystemSustainedMixedWorkload(report) {
@@ -414,6 +426,8 @@ function validateOptions(options, sampleRuns) {
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
+  buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
+  buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
 }
 

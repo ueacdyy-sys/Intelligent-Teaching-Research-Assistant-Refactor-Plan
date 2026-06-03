@@ -41,6 +41,12 @@ describe("system sustained mixed workload scale-up runner", () => {
       "target-10k",
     ]);
     assert.equal(targetStep.targetReadWriteRps, 10000);
+    assert.equal(targetStep.options.identityConcurrency, "80");
+    assert.equal(targetStep.options.identityOperations, "160");
+    assert.equal(targetStep.options.conversationConcurrency, "320");
+    assert.equal(targetStep.options.conversationOperations, "640");
+    assert.equal(targetStep.options.teachingConcurrency, "80");
+    assert.equal(targetStep.options.teachingOperations, "160");
     assert.equal(targetStep.options.identityGatewayCount, "4");
     assert.equal(targetStep.options.conversationGatewayCount, "4");
     assert.equal(targetStep.options.identitySessionDbMaxConns, "16");
@@ -50,6 +56,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(targetStep.options.conversationWriteBatchSize, "64");
     assert.equal(targetStep.options.identityIngressProxy, "true");
     assert.equal(targetStep.options.identityIngressCount, "16");
+    assert.equal(targetStep.options.identityBenchmarkRuntime, "docker");
     assert.equal(targetStep.options.requireTargetReadWriteRps, "true");
     assert.deepEqual(buildScaleUpSteps(defaults).map((step) => step.name), ["smoke", "low", "medium", "high"]);
   });
@@ -76,6 +83,12 @@ describe("system sustained mixed workload scale-up runner", () => {
       "172.28.160.1",
       "--conversation-benchmark-wsl-workspace",
       "/mnt/c/workspace",
+      "--identity-benchmark-runtime",
+      "docker",
+      "--identity-benchmark-docker-image",
+      "golang:1.26-alpine",
+      "--identity-benchmark-docker-host",
+      "host.docker.internal",
       "--identity-ingress-proxy",
       "true",
       "--identity-ingress-count",
@@ -99,6 +112,9 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
+    assert.equal(parsed.identityBenchmarkRuntime, "docker");
+    assert.equal(parsed.identityBenchmarkDockerImage, "golang:1.26-alpine");
+    assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
@@ -130,6 +146,9 @@ describe("system sustained mixed workload scale-up runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      identityBenchmarkRuntime: "docker",
+      identityBenchmarkDockerImage: "golang:1.26-alpine",
+      identityBenchmarkDockerHost: "host.docker.internal",
     });
 
     assert.deepEqual(steps.map((step) => step.name), ["smoke", "low"]);
@@ -156,6 +175,9 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.conversationBenchmarkRuntime, "wsl");
     assert.equal(steps[0].options.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(steps[0].options.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
+    assert.equal(steps[0].options.identityBenchmarkRuntime, "docker");
+    assert.equal(steps[0].options.identityBenchmarkDockerImage, "golang:1.26-alpine");
+    assert.equal(steps[0].options.identityBenchmarkDockerHost, "host.docker.internal");
   });
 
   it("runs every scale-up step and writes a passed report", async () => {
@@ -295,6 +317,38 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.doesNotMatch(JSON.stringify(report), /ueacd/u);
   });
 
+  it("rejects an under-pressured required production target before executing benchmarks", async () => {
+    const root = makeTempRoot();
+    let executed = 0;
+    const report = await runSystemSustainedMixedWorkloadScaleUp(
+      {
+        ...defaults,
+        out: "reports/scaleup.json",
+        manageDocker: "false",
+        scaleProfile: "production10k",
+        steps: "target-10k:2:4:4:8:2:4:10000",
+        requireTargetReadWriteRps: "true",
+        targetReadWriteRps: "10000",
+      },
+      {
+        root,
+        runStep: async (options) => {
+          executed += 1;
+          return sustainedReport(options);
+        },
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(executed, 0);
+    assert.equal(report.status, "FAILED");
+    assert.equal(report.throughputTarget.status, "INVALID_PRESSURE");
+    assert.equal(report.throughputTarget.attempted, false);
+    assert.equal(report.throughputTarget.pressure.invalidStepNames[0], "target-10k");
+    assert.match(report.runnerErrors.join("\n"), /target-10k/u);
+    assert.match(report.runnerErrors.join("\n"), /effective pressure/u);
+  });
+
   it("builds a rollup with scale-up guardrail findings", () => {
     const options = {
       ...defaults,
@@ -314,6 +368,9 @@ describe("system sustained mixed workload scale-up runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      identityBenchmarkRuntime: "docker",
+      identityBenchmarkDockerImage: "golang:1.26-alpine",
+      identityBenchmarkDockerHost: "host.docker.internal",
     };
     const steps = buildScaleUpSteps({
       ...options,
@@ -360,6 +417,9 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
+    assert.equal(report.identityBenchmarkRuntimeProfile.executor, "DOCKER_GO");
+    assert.equal(report.identityBenchmarkRuntimeProfile.dockerImage, "golang:1.26-alpine");
+    assert.equal(report.identityBenchmarkRuntimeProfile.dockerHostAlias, "host.docker.internal");
     const identity = report.steps[0].workloads.find((workload) => workload.name === "identity_http");
     assert.equal(identity.summary.dominantPhase, "revokeCycle");
     assert.equal(identity.summary.dominantPhaseP99Ms, 88);
@@ -395,7 +455,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     const options = {
       ...defaults,
       scaleProfile: "production10k",
-      steps: "target-10k:2:4:8:16:2:4:10000",
+      steps: "target-10k:80:160:320:640:80:160:10000",
       requireTargetReadWriteRps: "true",
     };
     const steps = buildScaleUpSteps(options);
@@ -414,6 +474,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.throughputTarget.required, true);
     assert.equal(report.throughputTarget.attempted, true);
     assert.equal(report.throughputTarget.met, false);
+    assert.equal(report.throughputTarget.pressure.status, "PASSED");
     assert.equal(report.throughputTarget.shortfallRps, 800);
     assert.match(formatSystemSustainedMixedWorkloadScaleUp(report), /Target read\/write RPS: 10000 ATTEMPTED_NOT_MET/u);
   });
@@ -422,7 +483,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     const options = {
       ...defaults,
       scaleProfile: "production10k",
-      steps: "target-10k:2:4:8:16:2:4:10000",
+      steps: "target-10k:80:160:320:640:80:160:10000",
       requireTargetReadWriteRps: "true",
     };
     const steps = buildScaleUpSteps(options);
@@ -439,7 +500,41 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.status, "PASSED");
     assert.equal(report.throughputTarget.status, "MET");
     assert.equal(report.throughputTarget.met, true);
+    assert.equal(report.throughputTarget.pressure.status, "PASSED");
     assert.equal(report.throughputTarget.shortfallRps, 0);
+  });
+
+  it("does not count under-pressured target evidence as a valid 10k attempt", () => {
+    const options = {
+      ...defaults,
+      scaleProfile: "production10k",
+      steps: "target-10k:2:4:4:8:2:4:10000",
+      requireTargetReadWriteRps: "true",
+    };
+    const steps = buildScaleUpSteps(options);
+    const report = buildSystemSustainedMixedWorkloadScaleUpReport({
+      options,
+      steps,
+      stepReports: [
+        { step: steps[0], report: sustainedReport(steps[0].options, { readWriteRps: 12000 }) },
+      ],
+      startedAt: "2026-06-01T00:00:00.000Z",
+      endedAt: "2026-06-01T00:00:01.000Z",
+    });
+
+    assert.equal(report.status, "FAILED");
+    assert.equal(report.throughputTarget.status, "INVALID_PRESSURE");
+    assert.equal(report.throughputTarget.attempted, false);
+    assert.equal(report.throughputTarget.met, false);
+    assert.equal(report.throughputTarget.highestPassedReadWriteRps, null);
+    assert.equal(report.throughputTarget.pressure.invalidStepNames[0], "target-10k");
+    assert.equal(
+      report.throughputTarget.pressure.findings.find((finding) =>
+        finding.id === "target_pressure.identity_concurrency_floor"
+      ).passed,
+      false,
+    );
+    assert.match(formatSystemSustainedMixedWorkloadScaleUp(report), /Target read\/write RPS: 10000 INVALID_PRESSURE/u);
   });
 
   it("does not convert missing P99 drift into a scale-up drift metric", () => {
