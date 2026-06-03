@@ -26,14 +26,11 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.workloadType, "ROOT_SLO_PROMOTION_REVIEW");
     assert.equal(report.promotionPolicy.reviewedClaim, "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS");
     assert.equal(report.promotionPolicy.productionReadWriteRpsTarget, 10000);
-    assert.equal(report.promotionPolicy.interactiveP99TargetMs, 300);
+    assert.equal(report.promotionPolicy.interactiveP99TargetMs, 10);
     assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
     assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
     assert.equal(report.promotion.blockerCount, 1);
-    assert.match(
-      report.promotion.blockers.find((blocker) => blocker.id === "promotion.module_evidence_depth_sufficient").actual,
-      /teaching_archive_and_quiz:MODULE_SMOKE_ONLY/u,
-    );
+    assert.equal(report.promotion.blockers[0].id, "promotion.interactive_tail_latency_within_target");
     const expectedTargetReport = parseReport(inputs, sourceReports.productionTargetScaleUp);
     const expectedReadWriteRps = expectedTargetReport.summary.highestPassedReadWriteRps;
     assert.equal(report.evidence.productionThroughput.targetReadWriteRps, 10000);
@@ -50,14 +47,14 @@ describe("root SLO promotion review audit", () => {
       report.promotion.blockers.some((blocker) => blocker.id === "promotion.production_read_write_rps_target_met"),
       false,
     );
-    assert(!report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
+    assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
-    assert(report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
+    assert(!report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
     assert(!report.promotion.requiredNextEvidence.includes("ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE"));
     assert(!report.promotion.requiredNextEvidence.includes("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE"));
-    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.module_evidence_depth_sufficient").passed, false);
-    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.interactive_tail_latency_within_target").passed, true);
+    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.module_evidence_depth_sufficient").passed, true);
+    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.interactive_tail_latency_within_target").passed, false);
     assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.sustained_scale_depth_sufficient").passed, true);
     assert.equal(report.evidence.databaseHeadroom.satisfiedBy, "production_headroom_profile");
     assert.match(formatRootSloPromotionReview(report), /Decision: BLOCK_PROMOTION/);
@@ -110,15 +107,18 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.auditFindings.find((finding) => finding.id === "pgbouncer.production_headroom_ready").passed, false);
   });
 
-  it("keeps the review ready but blocks promotion when module evidence remains shallow", () => {
+  it("keeps module-depth promotion satisfied when sustained runtime evidence is present", () => {
     const inputs = loadCurrentInputs();
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(loadCurrentCrossModuleDiagnostics());
+    const productionTarget = parseReport(inputs, sourceReports.productionTargetScaleUp);
+    productionTarget.summary.maxP99Ms = 8;
+    inputs.reports[sourceReports.productionTargetScaleUp] = JSON.stringify(productionTarget);
     const report = auditRootSloPromotionReview(inputs);
     const failedGateIds = report.promotionFindings.filter((finding) => !finding.passed).map((finding) => finding.id);
 
     assert.equal(report.readiness, "READY");
     assert(!failedGateIds.includes("promotion.root_workflows_runtime_slo_covered"));
-    assert(failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
+    assert(!failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
     assert(!failedGateIds.includes("promotion.interactive_tail_latency_within_target"));
     assert(!failedGateIds.includes("promotion.database_headroom_sufficient"));
     assert(!failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
@@ -261,18 +261,18 @@ describe("root SLO promotion review audit", () => {
         classification: "RUNTIME_SLO_EVIDENCE",
         metrics: {
           ...module.metrics,
-          slowestP99Ms: module.id === "identity_and_access" ? 180 : module.metrics?.slowestP99Ms,
-          lowTailP99Ms: module.id === "research_conversation_write" ? 160 : module.metrics?.lowTailP99Ms,
-          burstP99Ms: module.id === "research_conversation_write" ? 240 : module.metrics?.burstP99Ms,
+          slowestP99Ms: module.id === "identity_and_access" ? 8 : module.metrics?.slowestP99Ms,
+          lowTailP99Ms: module.id === "research_conversation_write" ? 8 : module.metrics?.lowTailP99Ms,
+          burstP99Ms: module.id === "research_conversation_write" ? 8 : module.metrics?.burstP99Ms,
         },
       }));
     diagnostics.mixedWorkloadDiagnostics.highestPassedStep = "high";
-    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 240;
+    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 8;
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(diagnostics);
 
     const scaleUp = parseReport(inputs, sourceReports.sustainedScaleUp);
     scaleUp.summary.highestPassedStep = "high";
-    scaleUp.summary.maxP99Ms = 240;
+    scaleUp.summary.maxP99Ms = 8;
     scaleUp.summary.highestPassedReadWriteRps = 12000;
     scaleUp.throughputTarget = {
       targetReadWriteRps: 10000,
@@ -289,7 +289,7 @@ describe("root SLO promotion review audit", () => {
 
     const productionTarget = parseReport(inputs, sourceReports.productionTargetScaleUp);
     productionTarget.summary.highestPassedStep = "target-10k";
-    productionTarget.summary.maxP99Ms = 240;
+    productionTarget.summary.maxP99Ms = 8;
     productionTarget.summary.highestPassedReadWriteRps = 12000;
     productionTarget.throughputTarget = scaleUp.throughputTarget;
     inputs.reports[sourceReports.productionTargetScaleUp] = JSON.stringify(productionTarget);
@@ -320,18 +320,18 @@ describe("root SLO promotion review audit", () => {
       classification: "RUNTIME_SLO_EVIDENCE",
       metrics: {
         ...module.metrics,
-        slowestP99Ms: module.id === "identity_and_access" ? 180 : module.metrics?.slowestP99Ms,
-        lowTailP99Ms: module.id === "research_conversation_write" ? 160 : module.metrics?.lowTailP99Ms,
-        burstP99Ms: module.id === "research_conversation_write" ? 240 : module.metrics?.burstP99Ms,
+        slowestP99Ms: module.id === "identity_and_access" ? 8 : module.metrics?.slowestP99Ms,
+        lowTailP99Ms: module.id === "research_conversation_write" ? 8 : module.metrics?.lowTailP99Ms,
+        burstP99Ms: module.id === "research_conversation_write" ? 8 : module.metrics?.burstP99Ms,
       },
     }));
     diagnostics.mixedWorkloadDiagnostics.highestPassedStep = "high";
-    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 240;
+    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 8;
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(diagnostics);
 
     const productionTarget = parseReport(inputs, sourceReports.productionTargetScaleUp);
     productionTarget.summary.highestPassedStep = "target-10k";
-    productionTarget.summary.maxP99Ms = 240;
+    productionTarget.summary.maxP99Ms = 8;
     productionTarget.summary.highestPassedReadWriteRps = 12000;
     productionTarget.throughputTarget = {
       targetReadWriteRps: 10000,
@@ -376,18 +376,18 @@ describe("root SLO promotion review audit", () => {
       classification: "RUNTIME_SLO_EVIDENCE",
       metrics: {
         ...module.metrics,
-        slowestP99Ms: module.id === "identity_and_access" ? 180 : module.metrics?.slowestP99Ms,
-        lowTailP99Ms: module.id === "research_conversation_write" ? 160 : module.metrics?.lowTailP99Ms,
-        burstP99Ms: module.id === "research_conversation_write" ? 240 : module.metrics?.burstP99Ms,
+        slowestP99Ms: module.id === "identity_and_access" ? 8 : module.metrics?.slowestP99Ms,
+        lowTailP99Ms: module.id === "research_conversation_write" ? 8 : module.metrics?.lowTailP99Ms,
+        burstP99Ms: module.id === "research_conversation_write" ? 8 : module.metrics?.burstP99Ms,
       },
     }));
     diagnostics.mixedWorkloadDiagnostics.highestPassedStep = "high";
-    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 240;
+    diagnostics.mixedWorkloadDiagnostics.maxP99Ms = 8;
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(diagnostics);
 
     const productionTarget = parseReport(inputs, sourceReports.productionTargetScaleUp);
     productionTarget.summary.highestPassedStep = "target-10k";
-    productionTarget.summary.maxP99Ms = 240;
+    productionTarget.summary.maxP99Ms = 8;
     productionTarget.summary.highestPassedReadWriteRps = 12000;
     productionTarget.throughputTarget = {
       targetReadWriteRps: 5000,

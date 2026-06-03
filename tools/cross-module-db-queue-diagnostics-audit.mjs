@@ -458,24 +458,23 @@ function buildMixedWorkloadDiagnostics(reports) {
 
 function sustainedWorkloadRuntimeEvidence(reports, mixedWorkload, workloadName) {
   const report = reports.sustainedScaleUp;
-  const highStep = (report?.steps ?? []).find((step) => step.name === "high");
-  const workload = (highStep?.workloads ?? []).find((candidate) => candidate.name === workloadName);
+  const { step, workload } = selectSustainedRuntimeEvidenceStep(report, workloadName);
   const passed = report?.status === "PASSED" &&
-    mixedWorkload?.highestPassedStep === "high" &&
     mixedWorkload?.totalErrors === 0 &&
     mixedWorkload?.orchestrationErrors === 0 &&
-    highStep?.status === "PASSED" &&
+    stepRank(step?.name) >= stepRank("high") &&
+    step?.status === "PASSED" &&
     workload?.errors === 0;
   return {
     sourceReportPath: sourceFiles.sustainedScaleUp,
     workloadName,
-    stepName: highStep?.name ?? null,
+    stepName: step?.name ?? null,
     present: Boolean(workload),
     passed,
     errors: numberOrNull(workload?.errors),
     p95Ms: numberOrNull(workload?.summary?.p95Ms),
     p99Ms: numberOrNull(workload?.summary?.p99Ms ?? workload?.maxP99Ms),
-    stepReadWriteRps: numberOrNull(highStep?.readWriteRps),
+    stepReadWriteRps: numberOrNull(step?.readWriteRps),
   };
 }
 
@@ -508,6 +507,38 @@ function workflowPluginRuntimeEvidence(reports) {
 
 function runtimeBackedClassification({ fallback, promoted, ready, evidence }) {
   return ready === true && evidence?.passed === true ? promoted : fallback;
+}
+
+function selectSustainedRuntimeEvidenceStep(report, workloadName) {
+  return (report?.steps ?? [])
+    .map((step, index) => ({
+      step,
+      index,
+      rank: stepRank(step?.name),
+      workload: (step?.workloads ?? []).find((candidate) => candidate.name === workloadName),
+    }))
+    .filter((candidate) =>
+      candidate.step?.status === "PASSED" &&
+      candidate.rank >= stepRank("high") &&
+      candidate.workload
+    )
+    .sort((left, right) => right.rank - left.rank || right.index - left.index)
+    .at(0) ?? { step: null, workload: null };
+}
+
+function stepRank(stepName) {
+  const ranks = {
+    smoke: 1,
+    low: 2,
+    medium: 3,
+    high: 4,
+    production_candidate: 5,
+    "target-3k": 5,
+    "target-5k": 6,
+    "target-8k": 7,
+    "target-10k": 8,
+  };
+  return ranks[String(stepName ?? "").toLowerCase()] ?? 0;
 }
 
 function safeEvaluateBudget(config) {

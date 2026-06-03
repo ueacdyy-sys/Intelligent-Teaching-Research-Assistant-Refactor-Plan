@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T15:47:37.797Z",
+  "generatedAt": "2026-06-03T16:01:59.327Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -18,7 +18,7 @@
   "promotionPolicy": {
     "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
     "productionReadWriteRpsTarget": 10000,
-    "interactiveP99TargetMs": 300,
+    "interactiveP99TargetMs": 10,
     "minimumPgbouncerHeadroomRatio": 0.2,
     "minimumSustainedStepName": "high",
     "minimumSustainedStepRank": 4,
@@ -41,14 +41,10 @@
       "contractOnlyWorkflows": []
     },
     "moduleEvidenceDepth": {
-      "shallowModules": [
-        "teaching_archive_and_quiz:MODULE_SMOKE_ONLY",
-        "knowledge_retrieval:POLICY_SMOKE_ONLY",
-        "ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY"
-      ]
+      "shallowModules": []
     },
     "latency": {
-      "targetP99Ms": 300,
+      "targetP99Ms": 10,
       "samples": [
         {
           "name": "production_target.max_p99_ms",
@@ -142,14 +138,14 @@
     "blockerCount": 1,
     "blockers": [
       {
-        "id": "promotion.module_evidence_depth_sufficient",
-        "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY",
-        "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
-        "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
+        "id": "promotion.interactive_tail_latency_within_target",
+        "actual": "production_target.max_p99_ms=253.6",
+        "expected": "max interactive/root workflow P99 <= 10ms",
+        "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
       }
     ],
     "requiredNextEvidence": [
-      "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"
+      "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"
     ]
   },
   "auditFindings": [
@@ -221,18 +217,18 @@
     },
     {
       "id": "promotion.module_evidence_depth_sufficient",
-      "passed": false,
-      "severity": "promotion_blocker",
-      "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY",
+      "passed": true,
+      "severity": "info",
+      "actual": "none",
       "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
       "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
     },
     {
       "id": "promotion.interactive_tail_latency_within_target",
-      "passed": true,
-      "severity": "info",
+      "passed": false,
+      "severity": "promotion_blocker",
       "actual": "production_target.max_p99_ms=253.6",
-      "expected": "max interactive/root workflow P99 <= 300ms",
+      "expected": "max interactive/root workflow P99 <= 10ms",
       "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
     },
     {

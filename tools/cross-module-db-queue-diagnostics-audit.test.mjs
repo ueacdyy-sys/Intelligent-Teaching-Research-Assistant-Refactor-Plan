@@ -34,15 +34,15 @@ describe("cross-module DB and queue diagnostics audit", () => {
     assert.equal(identity.metrics.revokeCycleSlowestStepP99Ms, 1498.29);
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").classification,
-      "MODULE_SMOKE_ONLY",
+      "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "knowledge_retrieval").classification,
-      "POLICY_SMOKE_ONLY",
+      "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "ai_worker_optional_runtime").classification,
-      "WORKER_BOUNDARY_ONLY",
+      "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin").classification,
@@ -50,7 +50,11 @@ describe("cross-module DB and queue diagnostics audit", () => {
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").metrics.sustainedRuntimeEvidence.present,
-      false,
+      true,
+    );
+    assert.equal(
+      report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").metrics.sustainedRuntimeEvidence.stepName,
+      sustainedScaleUp.summary.highestPassedStep,
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin").metrics.workflowRuntimeEvidence.p99Ms <= 300,
@@ -134,14 +138,11 @@ describe("cross-module DB and queue diagnostics audit", () => {
     assert.equal(report.findings.find((finding) => finding.id === "performance.mixed_scaleup_clean").passed, false);
   });
 
-  it("falls back to smoke classification when high-step teaching runtime evidence is missing", () => {
+  it("falls back to smoke classification when teaching runtime evidence is below high", () => {
     const inputs = loadCurrentInputs();
     const scaleUp = parseSource(inputs, sourceFiles.sustainedScaleUp);
-    scaleUp.steps = scaleUp.steps.map((step) =>
-      step.name === "high"
-        ? { ...step, workloads: step.workloads.filter((workload) => workload.name !== "teaching_archive") }
-        : step,
-    );
+    scaleUp.summary.highestPassedStep = "medium";
+    scaleUp.steps = scaleUp.steps.map((step) => ({ ...step, name: "medium" }));
     inputs.sources[sourceFiles.sustainedScaleUp] = JSON.stringify(scaleUp);
 
     const report = auditCrossModuleDbQueueDiagnostics(inputs);

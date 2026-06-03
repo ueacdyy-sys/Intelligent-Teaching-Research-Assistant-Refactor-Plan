@@ -25,7 +25,7 @@ const optionalSourceReportKeys = new Set(["productionTargetScaleUp"]);
 export const rootSloPromotionPolicy = {
   reviewedClaim: "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
   productionReadWriteRpsTarget: 10000,
-  interactiveP99TargetMs: 300,
+  interactiveP99TargetMs: 10,
   minimumPgbouncerHeadroomRatio: 0.2,
   minimumSustainedStepName: "high",
   minimumSustainedStepRank: 4,
