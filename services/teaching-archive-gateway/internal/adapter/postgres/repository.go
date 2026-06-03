@@ -11,6 +11,16 @@ type DB interface {
 	Query(ctx context.Context, sql string, args ...any) (Rows, error)
 }
 
+type Tx interface {
+	DB
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
+}
+
+type Transactor interface {
+	Begin(ctx context.Context) (Tx, error)
+}
+
 type Rows interface {
 	Close()
 	Next() bool

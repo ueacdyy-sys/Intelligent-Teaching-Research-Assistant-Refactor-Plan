@@ -3,6 +3,13 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import {
+  applyBenchmarkRuntimeArg,
+  benchmarkRuntimeDefaults,
+  benchmarkRuntimeProfile as buildGoBenchmarkRuntimeProfile,
+  benchmarkTargetBaseUrls,
+  buildBenchmarkRuntimeCommand,
+} from "./conversation-benchmark-runtime.mjs";
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -15,7 +22,18 @@ export const defaults = {
   dbMaxConns: "4",
   agentApiKey: "ueacd",
   timeoutMs: "10000",
+  timeout: "60s",
   startupTimeoutMs: "120000",
+  benchmarkRuntime: "js",
+  benchmarkDockerImage: benchmarkRuntimeDefaults.benchmarkDockerImage,
+  benchmarkDockerHost: benchmarkRuntimeDefaults.benchmarkDockerHost,
+  benchmarkWslDistro: benchmarkRuntimeDefaults.benchmarkWslDistro,
+  benchmarkWslHost: benchmarkRuntimeDefaults.benchmarkWslHost,
+  benchmarkWslWorkspace: benchmarkRuntimeDefaults.benchmarkWslWorkspace,
+  maxConnsPerHost: "0",
+  warmConnectionsPerHost: "0",
+  warmConnectionRetries: "3",
+  clientTrace: "false",
 };
 
 export function parseArgs(argv) {
@@ -24,6 +42,10 @@ export function parseArgs(argv) {
     const key = argv[index];
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
+    if (applyBenchmarkRuntimeArg(parsed, key, value)) {
+      index += 1;
+      continue;
+    }
     const property = kebabToCamel(key.slice(2));
     if (Object.hasOwn(parsed, property)) {
       parsed[property] = value;
@@ -48,7 +70,8 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
   try {
     validateOptions(options);
     removeExistingReport(root, options.out);
-    gateways = spawnGateways(options, root, spawnProcess);
+    const gatewayBinary = buildGatewayBinary(root, spawnCommandSync);
+    gateways = spawnGateways(options, root, spawnProcess, gatewayBinary);
     gateways.forEach((gateway, index) => {
       gateway.stdout?.on("data", (chunk) => { gatewayOutput += `[gateway ${index + 1}]\n${chunk.toString()}`; });
       gateway.stderr?.on("data", (chunk) => { gatewayOutput += `[gateway ${index + 1}]\n${chunk.toString()}`; });
@@ -57,6 +80,12 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
       fetch: fetchFn,
       sleep: sleepFn,
     });
+
+    if (teachingBenchmarkRuntime(options) !== "js") {
+      const report = runGoBenchmark(options, root, spawnCommandSync, gatewayOutput, Date.now() - startedAt);
+      writeJsonReport(path.join(root, options.out), report);
+      return report;
+    }
 
     const createArchiveItem = await runCreateArchiveItemPhase(options, fetchFn);
     const createQuizSubmission = await runCreateQuizSubmissionPhase(options, fetchFn, createArchiveItem.items);
@@ -100,6 +129,7 @@ export function buildBenchmarkReport({ options, generatedAt, status, phases, tot
     concurrency: parseInteger(options.concurrency),
     operationsPerPhase: parseInteger(options.operations),
     gatewayCount: parseInteger(options.gatewayCount),
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(options),
     gatewayDatabaseProfile: {
       dbMaxConns: parseInteger(options.dbMaxConns),
       databaseUrl: "[database-url]",
@@ -123,6 +153,7 @@ export function buildFailureReport({ options, generatedAt, errorMessage, gateway
     concurrency: parseInteger(options.concurrency),
     operationsPerPhase: parseInteger(options.operations),
     gatewayCount: parseInteger(options.gatewayCount),
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(options),
     gatewayDatabaseProfile: {
       dbMaxConns: parseInteger(options.dbMaxConns),
       databaseUrl: "[database-url]",
@@ -154,6 +185,78 @@ export function formatTeachingArchiveBenchmark(report) {
     lines.push(`- ${name} p95=${phase.latencyMs?.p95 ?? "n/a"}ms p99=${phase.latencyMs?.p99 ?? "n/a"}ms errors=${phase.errors}`);
   }
   return lines.join("\n");
+}
+
+export function buildBenchmarkCommand(options, baseUrls = gatewayBaseUrls(options), root = process.cwd()) {
+  if (teachingBenchmarkRuntime(options) === "js") {
+    throw new Error("buildBenchmarkCommand requires benchmark-runtime local, docker, or wsl");
+  }
+  const args = [
+    "run",
+    "./services/teaching-archive-gateway/cmd/httpbench",
+    "--base-url",
+    benchmarkTargetBaseUrls(options, baseUrls).join(","),
+    "--agent-api-key",
+    options.agentApiKey,
+    "--concurrency",
+    String(parseInteger(options.concurrency)),
+    "--operations",
+    String(parseInteger(options.operations)),
+    "--max-conns-per-host",
+    String(parseInteger(options.maxConnsPerHost)),
+    "--warm-connections-per-host",
+    String(parseInteger(options.warmConnectionsPerHost)),
+    "--warm-connection-retries",
+    String(parseInteger(options.warmConnectionRetries)),
+    "--out",
+    options.out,
+    "--timeout",
+    options.timeout,
+  ];
+  if (parseBoolean(options.clientTrace)) {
+    args.push("--client-trace");
+  }
+  return buildBenchmarkRuntimeCommand(options, args, root);
+}
+
+export function benchmarkRuntimeProfile(options, baseUrls = gatewayBaseUrls(options)) {
+  if (teachingBenchmarkRuntime(options) === "js") {
+    return {
+      executor: "LOCAL_NODE_FETCH",
+      targetBaseUrls: baseUrls.map(maskURL),
+    };
+  }
+  return buildGoBenchmarkRuntimeProfile(options, baseUrls, maskURL);
+}
+
+function runGoBenchmark(options, root, spawnCommandSync, gatewayOutput, elapsedBeforeBenchmarkMs) {
+  const command = buildBenchmarkCommand(options, gatewayBaseUrls(options), root);
+  const result = spawnCommandSync(command[0], command.slice(1), {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const benchmarkOutput = [result.stdout, result.stderr].filter(Boolean).join("\n");
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(`teaching archive Go benchmark failed with exit code ${result.status}: ${benchmarkOutput}`);
+  }
+  const reportPath = path.join(root, options.out);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  return {
+    ...report,
+    summary: report.summary ?? summarizeBenchmark(report.phases ?? {}),
+    gatewayDatabaseProfile: {
+      dbMaxConns: parseInteger(options.dbMaxConns),
+      databaseUrl: "[database-url]",
+    },
+    benchmarkRuntimeProfile: benchmarkRuntimeProfile(options),
+    totalDurationMs: numberOrZero(report.totalDurationMs) + elapsedBeforeBenchmarkMs,
+    gatewayOutputTail: tailText(maskSensitive(`${gatewayOutput}\n${benchmarkOutput}`), 80),
+    dockerRequiredForEvidence: true,
+  };
 }
 
 export function principalHeader(principal) {
@@ -394,12 +497,31 @@ function phaseErrors(phases) {
   return Object.values(phases).reduce((total, phase) => total + phase.errors, 0);
 }
 
-function spawnGateways(options, root, spawnProcess) {
-  return gatewayBaseUrls(options).map((baseUrl) => spawnGateway(options, root, spawnProcess, baseUrl));
+function buildGatewayBinary(root, spawnCommandSync) {
+  const binaryPath = path.join(root, "tmp", "bin", executableName("teaching-archive-gateway-runner"));
+  fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
+  const result = spawnCommandSync("go", [
+    "build",
+    "-o",
+    binaryPath,
+    "./services/teaching-archive-gateway/cmd/gateway",
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0 || result.error) {
+    throw new Error(`build teaching archive gateway failed: ${result.error?.message ?? result.stderr}`);
+  }
+  return binaryPath;
 }
 
-function spawnGateway(options, root, spawnProcess, baseUrl) {
-  return spawnProcess("go", ["run", "./services/teaching-archive-gateway/cmd/gateway"], {
+function spawnGateways(options, root, spawnProcess, gatewayBinary) {
+  return gatewayBaseUrls(options).map((baseUrl) => spawnGateway(options, root, spawnProcess, baseUrl, gatewayBinary));
+}
+
+function spawnGateway(options, root, spawnProcess, baseUrl, gatewayBinary) {
+  return spawnProcess(gatewayBinary, [], {
     cwd: root,
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
@@ -411,6 +533,10 @@ function spawnGateway(options, root, spawnProcess, baseUrl) {
       AGENT_API_KEY: options.agentApiKey,
     },
   });
+}
+
+function executableName(value) {
+  return process.platform === "win32" ? `${value}.exe` : value;
 }
 
 async function waitForGateways(baseUrls, startupTimeoutMs, gateways, dependencies) {
@@ -447,6 +573,10 @@ function validateOptions(options) {
   assertPositiveInteger(options.dbMaxConns, "db-max-conns");
   assertPositiveInteger(options.startupTimeoutMs, "startup-timeout-ms");
   assertPositiveInteger(options.timeoutMs, "timeout-ms");
+  assertNonNegativeInteger(options.maxConnsPerHost, "max-conns-per-host");
+  assertNonNegativeInteger(options.warmConnectionsPerHost, "warm-connections-per-host");
+  assertNonNegativeInteger(options.warmConnectionRetries, "warm-connection-retries");
+  teachingBenchmarkRuntime(options);
   if (options.agentApiKey !== "ueacd") throw new Error("agent-api-key must be ueacd for local performance evidence");
   const url = new URL(options.dsn);
   if (url.password !== "ueacd") throw new Error("dsn password must be ueacd for local performance evidence");
@@ -517,10 +647,25 @@ function assertPositiveInteger(value, name) {
   if (parsed <= 0) throw new Error(`${name} must be a positive integer`);
 }
 
+function assertNonNegativeInteger(value, name) {
+  const parsed = parseInteger(value);
+  if (parsed < 0) throw new Error(`${name} must be a non-negative integer`);
+}
+
 function parseInteger(value) {
   if (!/^-?\d+$/u.test(String(value))) return 0;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseBoolean(value) {
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+function teachingBenchmarkRuntime(options) {
+  const runtime = String(options.benchmarkRuntime ?? "js").toLowerCase();
+  if (["js", "local", "docker", "wsl"].includes(runtime)) return runtime;
+  throw new Error(`benchmark-runtime must be js, local, docker, or wsl: ${runtime}`);
 }
 
 function numberOrNull(value) {

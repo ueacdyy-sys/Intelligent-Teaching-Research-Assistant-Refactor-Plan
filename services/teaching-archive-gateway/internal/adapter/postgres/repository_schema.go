@@ -1,15 +1,115 @@
 package postgres
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+const schemaAdvisoryLockID int64 = 7432026060301
+const schemaComponent = "teaching_archive_gateway"
+const schemaVersion = "2026-06-03.schema.1"
 
 func EnsureSchema(ctx context.Context, db DB) error {
+	if transactor, ok := db.(Transactor); ok {
+		return ensureSchemaTransaction(ctx, transactor)
+	}
+	return ensureSchemaSessionLock(ctx, db)
+}
+
+func ensureSchemaTransaction(ctx context.Context, transactor Transactor) error {
+	tx, err := transactor.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, schemaAdvisoryLockID); err != nil {
+		return err
+	}
+	if err := ensureSchemaLocked(ctx, tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
+func ensureSchemaSessionLock(ctx context.Context, db DB) error {
+	if _, err := db.Exec(ctx, `SELECT pg_advisory_lock($1)`, schemaAdvisoryLockID); err != nil {
+		return err
+	}
+	if err := ensureSchemaLocked(ctx, db); err != nil {
+		if unlockErr := unlockSchema(ctx, db); unlockErr != nil {
+			return errors.Join(err, unlockErr)
+		}
+		return err
+	}
+	return unlockSchema(ctx, db)
+}
+
+func ensureSchemaLocked(ctx context.Context, db DB) error {
+	if _, err := db.Exec(ctx, schemaVersionTableStatement); err != nil {
+		return err
+	}
+	applied, err := schemaVersionApplied(ctx, db)
+	if err != nil {
+		return err
+	}
+	if applied {
+		return nil
+	}
 	for _, statement := range schemaStatements {
 		if _, err := db.Exec(ctx, statement); err != nil {
 			return err
 		}
 	}
-	return nil
+	_, err = db.Exec(ctx, schemaVersionUpsertStatement, schemaComponent, schemaVersion)
+	return err
 }
+
+func schemaVersionApplied(ctx context.Context, db DB) (bool, error) {
+	rows, err := db.Query(ctx, schemaVersionSelectStatement, schemaComponent)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return false, rows.Err()
+	}
+	var version string
+	if err := rows.Scan(&version); err != nil {
+		return false, err
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return version == schemaVersion, nil
+}
+
+func unlockSchema(ctx context.Context, db DB) error {
+	_, err := db.Exec(ctx, `SELECT pg_advisory_unlock($1)`, schemaAdvisoryLockID)
+	return err
+}
+
+const schemaVersionTableStatement = `CREATE TABLE IF NOT EXISTS teaching_schema_versions (
+	component TEXT PRIMARY KEY,
+	version TEXT NOT NULL,
+	applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`
+
+const schemaVersionSelectStatement = `SELECT version FROM teaching_schema_versions WHERE component = $1`
+
+const schemaVersionUpsertStatement = `INSERT INTO teaching_schema_versions (component, version, applied_at)
+	VALUES ($1, $2, now())
+	ON CONFLICT (component) DO UPDATE
+	SET version = EXCLUDED.version,
+		applied_at = EXCLUDED.applied_at`
 
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS teaching_archive_items (

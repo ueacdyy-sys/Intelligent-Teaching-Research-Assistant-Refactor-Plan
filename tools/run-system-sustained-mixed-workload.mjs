@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import {
   buildMixedWorkloadIdentityIngressProfile,
   buildMixedWorkloadConversationBenchmarkRuntimeProfile,
+  buildMixedWorkloadTeachingBenchmarkRuntimeProfile,
   buildMixedWorkloadTransportProfile,
   defaults as mixedDefaults,
   runSystemMixedWorkloadBenchmark,
@@ -55,8 +56,17 @@ export const defaults = {
   identityBenchmarkRuntime: mixedDefaults.identityBenchmarkRuntime,
   identityBenchmarkDockerImage: mixedDefaults.identityBenchmarkDockerImage,
   identityBenchmarkDockerHost: mixedDefaults.identityBenchmarkDockerHost,
+  teachingBenchmarkRuntime: mixedDefaults.teachingBenchmarkRuntime,
+  teachingBenchmarkDockerImage: mixedDefaults.teachingBenchmarkDockerImage,
+  teachingBenchmarkDockerHost: mixedDefaults.teachingBenchmarkDockerHost,
+  teachingBenchmarkWslDistro: mixedDefaults.teachingBenchmarkWslDistro,
+  teachingBenchmarkWslHost: mixedDefaults.teachingBenchmarkWslHost,
+  teachingBenchmarkWslWorkspace: mixedDefaults.teachingBenchmarkWslWorkspace,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  teachingMaxConnsPerHost: mixedDefaults.teachingMaxConnsPerHost,
+  teachingWarmConnectionsPerHost: mixedDefaults.teachingWarmConnectionsPerHost,
+  teachingClientTrace: mixedDefaults.teachingClientTrace,
   identityMaxConnsPerHost: mixedDefaults.identityMaxConnsPerHost,
   identityWarmConnectionsPerHost: mixedDefaults.identityWarmConnectionsPerHost,
   identityIngressProxy: mixedDefaults.identityIngressProxy,
@@ -136,8 +146,17 @@ export function buildSampleRuns(options) {
         identityBenchmarkRuntime: options.identityBenchmarkRuntime,
         identityBenchmarkDockerImage: options.identityBenchmarkDockerImage,
         identityBenchmarkDockerHost: options.identityBenchmarkDockerHost,
+        teachingBenchmarkRuntime: options.teachingBenchmarkRuntime,
+        teachingBenchmarkDockerImage: options.teachingBenchmarkDockerImage,
+        teachingBenchmarkDockerHost: options.teachingBenchmarkDockerHost,
+        teachingBenchmarkWslDistro: options.teachingBenchmarkWslDistro,
+        teachingBenchmarkWslHost: options.teachingBenchmarkWslHost,
+        teachingBenchmarkWslWorkspace: options.teachingBenchmarkWslWorkspace,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
+        teachingMaxConnsPerHost: options.teachingMaxConnsPerHost,
+        teachingWarmConnectionsPerHost: options.teachingWarmConnectionsPerHost,
+        teachingClientTrace: options.teachingClientTrace,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
         identityWarmConnectionsPerHost: options.identityWarmConnectionsPerHost,
         identityIngressProxy: options.identityIngressProxy,
@@ -263,6 +282,7 @@ export function buildSystemSustainedMixedWorkloadReport({
     },
     conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     identityBenchmarkRuntimeProfile: buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options),
+    teachingBenchmarkRuntimeProfile: buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options),
     samples,
     summary: summarizeSustainedSamples(samples, orchestrationErrors),
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
@@ -288,6 +308,10 @@ export function buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(o
 
 export function buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options) {
   return buildSystemIdentityBenchmarkRuntimeProfile(options);
+}
+
+export function buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options) {
+  return buildMixedWorkloadTeachingBenchmarkRuntimeProfile(options);
 }
 
 export function formatSystemSustainedMixedWorkload(report) {
@@ -431,6 +455,7 @@ function validateOptions(options, sampleRuns) {
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
+  buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
 }
 

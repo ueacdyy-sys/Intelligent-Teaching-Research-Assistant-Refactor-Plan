@@ -6,6 +6,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  buildBenchmarkCommand,
   buildBenchmarkReport,
   buildFailureReport,
   defaults,
@@ -28,6 +29,10 @@ describe("teaching archive benchmark runner", () => {
       "3",
       "--startup-timeout-ms",
       "30000",
+      "--benchmark-runtime",
+      "docker",
+      "--benchmark-docker-host",
+      "host.docker.internal",
       "--unknown-option",
       "ignored",
     ]);
@@ -36,8 +41,41 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(parsed.dbMaxConns, "2");
     assert.equal(parsed.gatewayCount, "3");
     assert.equal(parsed.startupTimeoutMs, "30000");
+    assert.equal(parsed.benchmarkRuntime, "docker");
+    assert.equal(parsed.benchmarkDockerHost, "host.docker.internal");
     assert.equal(parsed.concurrency, defaults.concurrency);
     assert.equal(Object.hasOwn(parsed, "unknownOption"), false);
+  });
+
+  it("builds a Docker Go benchmark command for Teaching", () => {
+    const command = buildBenchmarkCommand(
+      {
+        ...defaults,
+        benchmarkRuntime: "docker",
+        benchmarkDockerImage: "golang:1.26-alpine",
+        benchmarkDockerHost: "host.docker.internal",
+        concurrency: "384",
+        operations: "1536",
+        maxConnsPerHost: "256",
+        warmConnectionsPerHost: "64",
+        clientTrace: "true",
+      },
+      ["http://127.0.0.1:18500", "http://127.0.0.1:18501"],
+      "C:\\workspace\\ita",
+    );
+
+    assert.deepEqual(command.slice(0, 7), [
+      "docker",
+      "run",
+      "--rm",
+      "-v",
+      "C:\\workspace\\ita:/workspace",
+      "-w",
+      "/workspace",
+    ]);
+    assert(command.includes("./services/teaching-archive-gateway/cmd/httpbench"));
+    assert(command.includes("http://host.docker.internal:18500,http://host.docker.internal:18501"));
+    assert(command.includes("--client-trace"));
   });
 
   it("builds valid teacher and student principal headers", () => {
@@ -69,6 +107,7 @@ describe("teaching archive benchmark runner", () => {
 
     assert.equal(report.status, "PASSED");
     assert.equal(report.gatewayCount, 1);
+    assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_NODE_FETCH");
     assert.equal(report.summary.totalErrors, 0);
     assert.equal(report.summary.maxP99Ms, 10);
     assert.equal(report.phases.createQuizSubmission.latencyMs.p95, 10);
@@ -87,6 +126,7 @@ describe("teaching archive benchmark runner", () => {
     const text = JSON.stringify(report);
 
     assert.equal(report.status, "FAILED");
+    assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_NODE_FETCH");
     assert.doesNotMatch(text, /ueacd/u);
     assert.doesNotMatch(text, /postgres:\/\/app_user/u);
     assert.match(text, /\[database-url\]/u);
@@ -127,10 +167,56 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching.json"), "utf8")).status, "PASSED");
   });
 
+  it("runs the Go benchmark runtime and augments the report", async () => {
+    const root = makeTempRoot();
+    const goCommands = [];
+    const report = await runTeachingArchiveBenchmark(
+      {
+        ...defaults,
+        benchmarkRuntime: "local",
+        out: "reports/teaching-go.json",
+        concurrency: "2",
+        operations: "4",
+      },
+      {
+        root,
+        fetch: async (url) => {
+          if (url.endsWith("/health")) return jsonResponse(200, { status: "ok" });
+          return jsonResponse(404, { error: "unexpected JS fetch" });
+        },
+        sleep: async () => {},
+        spawnProcess: fakeSpawnProcess,
+        spawnCommandSync: (command, args) => {
+          goCommands.push([command, args]);
+          if (command === "go") {
+            if (args.includes("build")) {
+              assert(args.includes("./services/teaching-archive-gateway/cmd/gateway"));
+              return { status: 0, stdout: "gateway build complete", stderr: "" };
+            }
+            fs.mkdirSync(path.join(root, "reports"), { recursive: true });
+            fs.writeFileSync(path.join(root, "reports/teaching-go.json"), `${JSON.stringify(goBenchmarkReport())}\n`);
+            assert(args.includes("./services/teaching-archive-gateway/cmd/httpbench"));
+          }
+          return { status: 0, stdout: "go benchmark complete", stderr: "" };
+        },
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "PASSED");
+    assert.equal(goCommands.filter(([command]) => command === "go").length, 2);
+    assert.equal(report.summary.totalErrors, 0);
+    assert.equal(report.summary.maxP99Ms, 11);
+    assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_GO");
+    assert.equal(report.gatewayDatabaseProfile.dbMaxConns, 4);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching-go.json"), "utf8")).summary.totalErrors, 0);
+  });
+
   it("fans teaching requests across multiple gateway ports", async () => {
     const root = makeTempRoot();
     const calls = [];
     const spawnedPorts = [];
+    const spawnedCommands = [];
     const report = await runTeachingArchiveBenchmark(
       {
         ...defaults,
@@ -144,7 +230,8 @@ describe("teaching archive benchmark runner", () => {
         root,
         fetch: fakeTeachingFetch(calls),
         sleep: async () => {},
-        spawnProcess: (_command, _args, options) => {
+        spawnProcess: (command, _args, options) => {
+          spawnedCommands.push(command);
           spawnedPorts.push(options.env.PORT);
           return fakeSpawnProcess();
         },
@@ -155,6 +242,7 @@ describe("teaching archive benchmark runner", () => {
 
     assert.equal(report.status, "PASSED");
     assert.equal(report.gatewayCount, 3);
+    assert(spawnedCommands.every((command) => command.includes(path.join("tmp", "bin", "teaching-archive-gateway-runner"))));
     assert.deepEqual(spawnedPorts, ["19500", "19501", "19502"]);
     assert.deepEqual(report.gatewayBaseUrls, [
       "http://127.0.0.1:19500",
@@ -257,6 +345,43 @@ function jsonResponse(status, body, serverTiming = "") {
       },
     },
     text: async () => JSON.stringify(body),
+  };
+}
+
+function goBenchmarkReport() {
+  return {
+    generatedAt: "2026-06-01T00:00:00Z",
+    benchmarkKind: "teaching_archive_gateway",
+    workloadType: "HTTP_BENCHMARK",
+    status: "PASSED",
+    concurrency: 2,
+    operationsPerPhase: 4,
+    phases: {
+      createArchiveItem: {
+        name: "createArchiveItem",
+        operations: 4,
+        errors: 0,
+        rps: 400,
+        latencyMs: { p95: 10, p99: 11 },
+        serverTimingMs: { p99: 4 },
+        serverTimingBreakdownMs: { handler: { p99: 5 }, "db.insert": { p99: 4 } },
+      },
+      createQuizSubmission: {
+        name: "createQuizSubmission",
+        operations: 4,
+        errors: 0,
+        rps: 500,
+        latencyMs: { p95: 8, p99: 9 },
+      },
+      listArchiveItems: {
+        name: "listArchiveItems",
+        operations: 4,
+        errors: 0,
+        rps: 600,
+        latencyMs: { p95: 6, p99: 7 },
+      },
+    },
+    totalDurationMs: 42,
   };
 }
 

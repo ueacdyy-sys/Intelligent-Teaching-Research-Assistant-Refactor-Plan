@@ -7,6 +7,7 @@ import {
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile,
   buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile,
   buildSustainedMixedWorkloadIdentityIngressProfile,
+  buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile,
   buildSustainedMixedWorkloadTransportProfile,
   defaults as sustainedDefaults,
   runSystemSustainedMixedWorkload,
@@ -69,8 +70,17 @@ export const defaults = {
   identityBenchmarkRuntime: sustainedDefaults.identityBenchmarkRuntime,
   identityBenchmarkDockerImage: sustainedDefaults.identityBenchmarkDockerImage,
   identityBenchmarkDockerHost: sustainedDefaults.identityBenchmarkDockerHost,
+  teachingBenchmarkRuntime: sustainedDefaults.teachingBenchmarkRuntime,
+  teachingBenchmarkDockerImage: sustainedDefaults.teachingBenchmarkDockerImage,
+  teachingBenchmarkDockerHost: sustainedDefaults.teachingBenchmarkDockerHost,
+  teachingBenchmarkWslDistro: sustainedDefaults.teachingBenchmarkWslDistro,
+  teachingBenchmarkWslHost: sustainedDefaults.teachingBenchmarkWslHost,
+  teachingBenchmarkWslWorkspace: sustainedDefaults.teachingBenchmarkWslWorkspace,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
+  teachingMaxConnsPerHost: sustainedDefaults.teachingMaxConnsPerHost,
+  teachingWarmConnectionsPerHost: sustainedDefaults.teachingWarmConnectionsPerHost,
+  teachingClientTrace: sustainedDefaults.teachingClientTrace,
   identityMaxConnsPerHost: sustainedDefaults.identityMaxConnsPerHost,
   identityWarmConnectionsPerHost: sustainedDefaults.identityWarmConnectionsPerHost,
   identityIngressProxy: sustainedDefaults.identityIngressProxy,
@@ -98,15 +108,22 @@ export const scaleProfileDefaults = {
     identitySessionDbWriteConcurrency: "32",
     identitySessionDbSessionTablePersistence: "unlogged",
     conversationDbMaxConns: "32",
-    teachingDbMaxConns: "32",
+    teachingDbMaxConns: "12",
     conversationWriteBatchSize: "128",
-    conversationBenchmarkRuntime: "docker",
-    identityMaxConnsPerHost: "400",
-    identityWarmConnectionsPerHost: "400",
+    conversationBenchmarkRuntime: "wsl",
+    conversationBenchmarkWslHost: "172.28.160.1",
+    maxConnsPerHost: "256",
+    warmConnectionsPerHost: "144",
+    teachingBenchmarkRuntime: "docker",
+    teachingMaxConnsPerHost: "128",
+    teachingWarmConnectionsPerHost: "96",
+    teachingClientTrace: "true",
+    identityMaxConnsPerHost: "64",
+    identityWarmConnectionsPerHost: "16",
     identityIngressProxy: "true",
-    identityIngressCount: "32",
-    identityIngressMaxConnsPerHost: "400",
-    identityIngressWarmConnectionsPerHost: "32",
+    identityIngressCount: "8",
+    identityIngressMaxConnsPerHost: "64",
+    identityIngressWarmConnectionsPerHost: "8",
     identityBenchmarkRuntime: "docker",
   },
 };
@@ -181,8 +198,17 @@ export function buildScaleUpSteps(options) {
         identityBenchmarkRuntime: options.identityBenchmarkRuntime,
         identityBenchmarkDockerImage: options.identityBenchmarkDockerImage,
         identityBenchmarkDockerHost: options.identityBenchmarkDockerHost,
+        teachingBenchmarkRuntime: options.teachingBenchmarkRuntime,
+        teachingBenchmarkDockerImage: options.teachingBenchmarkDockerImage,
+        teachingBenchmarkDockerHost: options.teachingBenchmarkDockerHost,
+        teachingBenchmarkWslDistro: options.teachingBenchmarkWslDistro,
+        teachingBenchmarkWslHost: options.teachingBenchmarkWslHost,
+        teachingBenchmarkWslWorkspace: options.teachingBenchmarkWslWorkspace,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
+        teachingMaxConnsPerHost: options.teachingMaxConnsPerHost,
+        teachingWarmConnectionsPerHost: options.teachingWarmConnectionsPerHost,
+        teachingClientTrace: options.teachingClientTrace,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
         identityWarmConnectionsPerHost: options.identityWarmConnectionsPerHost,
         identityIngressProxy: options.identityIngressProxy,
@@ -320,6 +346,7 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
     },
     conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     identityBenchmarkRuntimeProfile: buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options),
+    teachingBenchmarkRuntimeProfile: buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options),
     steps: stepSummaries,
     summary,
     throughputTarget,
@@ -600,6 +627,7 @@ function validateOptions(options, steps) {
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
+  buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
   assertPositiveInteger(options.maxP99Ms, "max-p99-ms");
   assertPositiveInteger(options.maxP99DriftMs, "max-p99-drift-ms");
@@ -731,13 +759,9 @@ function identitySessionTablePersistence(options) {
   return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence);
 }
 
-function numberOrNull(value) {
-  return Number.isFinite(value) ? value : null;
-}
+function numberOrNull(value) { return Number.isFinite(value) ? value : null; }
 
-function numberOrZero(value) {
-  return Number.isFinite(value) ? value : 0;
-}
+function numberOrZero(value) { return Number.isFinite(value) ? value : 0; }
 
 function maxFinite(values) {
   const finite = values.filter(Number.isFinite);
@@ -758,17 +782,11 @@ function firstFinite(...values) {
   return values.find(Number.isFinite) ?? null;
 }
 
-function roundRps(value) {
-  return Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
-}
+function roundRps(value) { return Number.isFinite(value) ? Math.round(value * 100) / 100 : null; }
 
-function countCommandErrors(results) {
-  return results.filter((result) => result.exitCode !== 0).length;
-}
+function countCommandErrors(results) { return results.filter((result) => result.exitCode !== 0).length; }
 
-function kebabToCamel(value) {
-  return value.replace(/-([a-z])/gu, (_match, letter) => letter.toUpperCase());
-}
+function kebabToCamel(value) { return value.replace(/-([a-z])/gu, (_match, letter) => letter.toUpperCase()); }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const report = await runSystemSustainedMixedWorkloadScaleUp();

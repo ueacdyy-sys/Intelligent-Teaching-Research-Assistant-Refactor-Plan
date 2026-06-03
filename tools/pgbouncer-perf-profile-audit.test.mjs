@@ -105,6 +105,7 @@ describe("PgBouncer perf profile audit", () => {
     );
 
     assert.equal(report.readiness, "READY");
+    assert.doesNotMatch(JSON.stringify(report), /ueacd/u);
     assert.equal(report.observed.backend.environment.POSTGRES_HOST, "pgbouncer-perf");
     assert.equal(report.observed.backend.environment.POSTGRES_PORT, "6432");
     assert.equal(report.observed.backend.environment.DB_POOL_SIZE, "2");

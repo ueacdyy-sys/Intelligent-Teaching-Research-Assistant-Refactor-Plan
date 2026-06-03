@@ -45,6 +45,66 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 	}
 }
 
+func TestEnsureSchemaUsesTransactionAdvisoryLockAroundStatements(t *testing.T) {
+	db := &recordingDB{}
+
+	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
+		t.Fatalf("EnsureSchema returned error: %v", err)
+	}
+
+	if len(db.execStatements) < 3 {
+		t.Fatalf("execStatements = %d, want lock and schema", len(db.execStatements))
+	}
+	if db.beginCount != 1 {
+		t.Fatalf("beginCount = %d, want 1", db.beginCount)
+	}
+	if !strings.Contains(db.execStatements[0], "pg_advisory_xact_lock") {
+		t.Fatalf("first schema statement = %q, want transaction advisory lock", db.execStatements[0])
+	}
+	if db.commitCount != 1 {
+		t.Fatalf("commitCount = %d, want 1", db.commitCount)
+	}
+	if db.rollbackCount != 0 {
+		t.Fatalf("rollbackCount = %d, want 0", db.rollbackCount)
+	}
+}
+
+func TestEnsureSchemaSkipsMigrationWhenCurrentVersionExists(t *testing.T) {
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-03.schema.1"}}
+
+	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
+		t.Fatalf("EnsureSchema returned error: %v", err)
+	}
+
+	statements := strings.Join(db.execStatements, "\n")
+	if strings.Contains(statements, "CREATE TABLE IF NOT EXISTS teaching_archive_items") {
+		t.Fatalf("schema should skip archive table migration when current version exists")
+	}
+	if db.commitCount != 1 {
+		t.Fatalf("commitCount = %d, want 1", db.commitCount)
+	}
+}
+
+func TestEnsureSchemaRollsBackAfterStatementFailure(t *testing.T) {
+	schemaErr := errors.New("schema statement failed")
+	db := &recordingDB{
+		execErrors: map[string]error{
+			"CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_created_page": schemaErr,
+		},
+	}
+
+	err := postgres.EnsureSchema(context.Background(), db)
+	if !errors.Is(err, schemaErr) {
+		t.Fatalf("EnsureSchema error = %v, want schema error", err)
+	}
+	if db.commitCount != 0 {
+		t.Fatalf("commitCount = %d, want 0", db.commitCount)
+	}
+	if db.rollbackCount != 1 {
+		t.Fatalf("rollbackCount = %d, want 1", db.rollbackCount)
+	}
+}
+
 func TestCreateArchiveItemRecordsDatabaseInsertTiming(t *testing.T) {
 	db := &recordingDB{}
 	repository := postgres.NewArchiveRepository(db)
@@ -354,14 +414,38 @@ type recordingDB struct {
 	args           []any
 	execArgs       []any
 	execStatements []string
+	execErrors     map[string]error
 	rows           postgres.Rows
 	tag            postgres.CommandTag
+	beginCount     int
+	commitCount    int
+	rollbackCount  int
+}
+
+func (db *recordingDB) Begin(_ context.Context) (postgres.Tx, error) {
+	db.beginCount += 1
+	return db, nil
+}
+
+func (db *recordingDB) Commit(_ context.Context) error {
+	db.commitCount += 1
+	return nil
+}
+
+func (db *recordingDB) Rollback(_ context.Context) error {
+	db.rollbackCount += 1
+	return nil
 }
 
 func (db *recordingDB) Exec(_ context.Context, statement string, args ...any) (postgres.CommandTag, error) {
 	db.lastExecSQL = statement
 	db.execStatements = append(db.execStatements, statement)
 	db.execArgs = append([]any(nil), args...)
+	for fragment, err := range db.execErrors {
+		if strings.Contains(statement, fragment) {
+			return nil, err
+		}
+	}
 	if db.tag == nil {
 		return commandTag{rowsAffected: 1}, nil
 	}
@@ -371,7 +455,34 @@ func (db *recordingDB) Exec(_ context.Context, statement string, args ...any) (p
 func (db *recordingDB) Query(_ context.Context, query string, args ...any) (postgres.Rows, error) {
 	db.lastSQL = query
 	db.args = append([]any(nil), args...)
+	if db.rows == nil {
+		return &emptyRows{}, nil
+	}
 	return db.rows, nil
+}
+
+type singleStringRow struct {
+	value    string
+	advanced bool
+}
+
+func (r *singleStringRow) Close() {}
+
+func (r *singleStringRow) Next() bool {
+	if r.advanced {
+		return false
+	}
+	r.advanced = true
+	return true
+}
+
+func (r *singleStringRow) Scan(dest ...any) error {
+	*(dest[0].(*string)) = r.value
+	return nil
+}
+
+func (r *singleStringRow) Err() error {
+	return nil
 }
 
 type singleTutoringAnalysisRequestRow struct {

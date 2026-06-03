@@ -132,7 +132,7 @@ export function auditPgbouncerPerfProfile(profile, sourceTexts) {
       message: `Secret ${key} uses the required local test value.`,
       actual: maskSecret(actual),
       expected: maskSecret(profile.expected.secrets.requiredValue),
-      remediation: `Set ${key} to ${profile.expected.secrets.requiredValue} in the performance profile.`,
+      remediation: `Set ${key} to the required local test value in the performance profile.`,
     });
   }
 
@@ -149,7 +149,10 @@ export function auditPgbouncerPerfProfile(profile, sourceTexts) {
         listenPort: toInteger(pgbouncerSection.listen_port),
         maxDbConnections: toInteger(pgbouncerSection.max_db_connections),
       },
-      backend: composeObservation.backend,
+      backend: redactBackendObservation(
+        composeObservation.backend,
+        profile.expected.secrets.keys,
+      ),
     },
     findings,
   };
@@ -394,6 +397,29 @@ function escapeRegExp(value) {
 function maskSecret(value) {
   if (value === undefined || value === null) return null;
   return value === "" ? "" : "***";
+}
+
+function redactBackendObservation(backend, expectedSecretKeys) {
+  return {
+    ...backend,
+    environment: redactSecretMapping(backend.environment, expectedSecretKeys),
+  };
+}
+
+function redactSecretMapping(mapping, expectedSecretKeys) {
+  const expectedNames = new Set(
+    expectedSecretKeys.map((key) => key.replace(/^pgbouncer\./u, "")),
+  );
+  return Object.fromEntries(
+    Object.entries(mapping ?? {}).map(([key, value]) => [
+      key,
+      expectedNames.has(key) || isSecretKey(key) ? maskSecret(value) : value,
+    ]),
+  );
+}
+
+function isSecretKey(key) {
+  return /(?:PASSWORD|SECRET|TOKEN|API_KEY|ENCRYPTION_KEY)$/u.test(key);
 }
 
 function stringifyScalar(value) {

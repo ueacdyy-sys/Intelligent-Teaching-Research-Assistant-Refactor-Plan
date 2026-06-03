@@ -1,0 +1,670 @@
+{
+  "generatedAt": "2026-06-03T08:10:17.746Z",
+  "startedAt": "2026-06-03T08:09:21.320Z",
+  "endedAt": "2026-06-03T08:10:17.746Z",
+  "benchmarkKind": "system_sustained_mixed_workload_scale_up",
+  "workloadType": "SUSTAINED_MIXED_WORKLOAD_SCALE_UP",
+  "profile": "SUSTAINED_SCALEUP",
+  "scaleProfile": "production10k",
+  "status": "PASSED",
+  "stopOnFailure": false,
+  "scaleGuardrails": {
+    "maxP99Ms": 1000,
+    "maxP99DriftMs": 250,
+    "maxTotalErrors": 0
+  },
+  "concurrencyProfile": {
+    "identityGatewayCount": 8,
+    "conversationGatewayCount": 16,
+    "teachingGatewayCount": 4,
+    "configuredSteps": 1,
+    "samplesPerStep": 1
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 0,
+    "sharedWarmConnectionsPerHost": 0,
+    "teachingMaxConnsPerHost": 128,
+    "teachingWarmConnectionsPerHost": 96,
+    "teachingClientTrace": true,
+    "identityMaxConnsPerHost": 64,
+    "identityWarmConnectionsPerHost": 16
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 18080,
+    "workerCount": 8,
+    "upstreamGatewayCount": 8,
+    "maxConnsPerHost": 64,
+    "warmConnectionsPerHost": 8
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 32,
+    "identitySessionDbWriteConcurrency": 32,
+    "identitySessionTablePersistence": "unlogged",
+    "conversationDbMaxConns": 32,
+    "teachingDbMaxConns": 8,
+    "conversationWriteBatchSize": 128
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_SUSTAINED_SCALEUP_ORCHESTRATOR",
+    "managedDocker": true,
+    "dockerCleanup": "reset"
+  },
+  "conversationBenchmarkRuntimeProfile": {
+    "runtime": "docker",
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal",
+    "wslDistro": null,
+    "wslHostAlias": null,
+    "wslWorkspace": null
+  },
+  "identityBenchmarkRuntimeProfile": {
+    "runtime": "docker",
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal"
+  },
+  "teachingBenchmarkRuntimeProfile": {
+    "runtime": "docker",
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal",
+    "wslDistro": null,
+    "wslHostAlias": null,
+    "wslWorkspace": null
+  },
+  "steps": [
+    {
+      "name": "target-10k",
+      "executed": true,
+      "status": "PASSED",
+      "guardrailStatus": "PASSED",
+      "reportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-teaching-go-db8-ingress8.1-target-10k.json",
+      "identityConcurrency": 192,
+      "identityOperations": 768,
+      "conversationConcurrency": 2304,
+      "conversationOperations": 9216,
+      "teachingConcurrency": 384,
+      "teachingOperations": 1536,
+      "samples": 1,
+      "totalErrors": 0,
+      "maxP95Ms": 767.57,
+      "maxP99Ms": 863.65,
+      "p99DriftMs": 0,
+      "readWriteRps": 10660.57,
+      "aggregateRps": 10660.57,
+      "targetReadWriteRps": 10000,
+      "targetCandidate": true,
+      "workloads": [
+        {
+          "name": "identity_http",
+          "errors": 0,
+          "maxP99Ms": 191.92,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 175.33,
+            "p99Ms": 191.92,
+            "rps": 1721.93,
+            "concurrency": 192,
+            "phases": {
+              "passwordLogin": {
+                "errors": 0,
+                "p95Ms": 175.33,
+                "p99Ms": 191.92,
+                "rps": 2600.73,
+                "writeLimiter": {
+                  "enabledGateways": 8,
+                  "configuredLimitTotal": 256,
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 68.58,
+                  "averageAcquireWaitTimeMs": 0.09,
+                  "operations": {
+                    "saveSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 68.58,
+                      "averageAcquireWaitTimeMs": 0.09
+                    }
+                  }
+                },
+                "highestWriteLimiterWaitOperation": "saveSession",
+                "highestWriteLimiterWaitTimeMs": 68.58,
+                "sessionOperations": {
+                  "saveSession": {
+                    "count": 768,
+                    "totalElapsedMs": 43131.4,
+                    "averageElapsedMs": 56.16,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 12086.25,
+                    "averagePoolAcquireElapsedMs": 15.74,
+                    "dbExecuteElapsedMs": 31038.4,
+                    "averageDbExecuteElapsedMs": 40.41,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  }
+                },
+                "slowestSessionOperation": "saveSession",
+                "slowestSessionOperationAverageElapsedMs": 56.16
+              },
+              "principalLookup": {
+                "errors": 0,
+                "p95Ms": 153.27,
+                "p99Ms": 163.67,
+                "rps": 2630.43,
+                "sessionOperations": {
+                  "getPrincipalByAccessToken": {
+                    "count": 768,
+                    "totalElapsedMs": 48043.64,
+                    "averageElapsedMs": 62.56,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 5667.41,
+                    "averagePoolAcquireElapsedMs": 7.38,
+                    "dbExecuteElapsedMs": 42368.8,
+                    "averageDbExecuteElapsedMs": 55.17
+                  }
+                },
+                "slowestSessionOperation": "getPrincipalByAccessToken",
+                "slowestSessionOperationAverageElapsedMs": 62.56
+              },
+              "refreshRotation": {
+                "errors": 0,
+                "p95Ms": 126.74,
+                "p99Ms": 135.28,
+                "rps": 3013.17,
+                "writeLimiter": {
+                  "enabledGateways": 8,
+                  "configuredLimitTotal": 256,
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 1.08,
+                  "averageAcquireWaitTimeMs": 0,
+                  "operations": {
+                    "rotateRefreshSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 1.08,
+                      "averageAcquireWaitTimeMs": 0
+                    }
+                  }
+                },
+                "highestWriteLimiterWaitOperation": "rotateRefreshSession",
+                "highestWriteLimiterWaitTimeMs": 1.08,
+                "sessionOperations": {
+                  "rotateRefreshSession": {
+                    "count": 768,
+                    "totalElapsedMs": 40499.19,
+                    "averageElapsedMs": 52.73,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 4013.87,
+                    "averagePoolAcquireElapsedMs": 5.23,
+                    "dbExecuteElapsedMs": 36479.64,
+                    "averageDbExecuteElapsedMs": 47.5
+                  }
+                },
+                "slowestSessionOperation": "rotateRefreshSession",
+                "slowestSessionOperationAverageElapsedMs": 52.73
+              },
+              "revokeCycle": {
+                "errors": 0,
+                "p95Ms": 173.71,
+                "p99Ms": 184.89,
+                "rps": 1721.93,
+                "slowestStep": "revoke",
+                "slowestStepP99Ms": 127.66,
+                "stepOperationAttribution": {
+                  "login": {
+                    "stepP99Ms": 93.37,
+                    "stepAvgMs": 47.79,
+                    "expectedSessionOperations": [
+                      "saveSession"
+                    ],
+                    "sessionOperations": {
+                      "saveSession": {
+                        "count": 768,
+                        "totalElapsedMs": 33193.62,
+                        "averageElapsedMs": 43.22,
+                        "poolAcquireCount": 768,
+                        "poolAcquireElapsedMs": 2267.55,
+                        "averagePoolAcquireElapsedMs": 2.95,
+                        "dbExecuteElapsedMs": 30921.11,
+                        "averageDbExecuteElapsedMs": 40.26,
+                        "rowsAffectedCount": 768,
+                        "rowsAffected": 768,
+                        "averageRowsAffected": 1
+                      }
+                    },
+                    "writeLimiterOperations": {
+                      "saveSession": {
+                        "acquireCount": 768,
+                        "acquireWaitTimeMs": 28.1,
+                        "averageAcquireWaitTimeMs": 0.04
+                      }
+                    }
+                  },
+                  "revoke": {
+                    "stepP99Ms": 127.66,
+                    "stepAvgMs": 53.04,
+                    "expectedSessionOperations": [
+                      "revokeOwnSession"
+                    ],
+                    "sessionOperations": {
+                      "revokeOwnSession": {
+                        "count": 768,
+                        "totalElapsedMs": 38483.93,
+                        "averageElapsedMs": 50.11,
+                        "poolAcquireCount": 768,
+                        "poolAcquireElapsedMs": 1637.52,
+                        "averagePoolAcquireElapsedMs": 2.13,
+                        "dbExecuteElapsedMs": 36840.01,
+                        "averageDbExecuteElapsedMs": 47.97,
+                        "rowsAffectedCount": 768,
+                        "rowsAffected": 768,
+                        "averageRowsAffected": 1
+                      }
+                    },
+                    "writeLimiterOperations": {
+                      "revokeOwnSession": {
+                        "acquireCount": 768,
+                        "acquireWaitTimeMs": 1.88,
+                        "averageAcquireWaitTimeMs": 0
+                      }
+                    }
+                  },
+                  "revokedPrincipalLookup": {
+                    "stepP99Ms": 8.79,
+                    "stepAvgMs": 3.13,
+                    "expectedSessionOperations": [
+                      "getPrincipalByAccessToken"
+                    ],
+                    "missingSessionOperations": [
+                      "getPrincipalByAccessToken"
+                    ]
+                  }
+                },
+                "writeLimiter": {
+                  "enabledGateways": 8,
+                  "configuredLimitTotal": 256,
+                  "acquireCount": 1536,
+                  "acquireWaitTimeMs": 29.99,
+                  "averageAcquireWaitTimeMs": 0.02,
+                  "operations": {
+                    "revokeOwnSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 1.88,
+                      "averageAcquireWaitTimeMs": 0
+                    },
+                    "saveSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 28.1,
+                      "averageAcquireWaitTimeMs": 0.04
+                    }
+                  }
+                },
+                "highestWriteLimiterWaitOperation": "saveSession",
+                "highestWriteLimiterWaitTimeMs": 28.1,
+                "sessionOperations": {
+                  "revokeOwnSession": {
+                    "count": 768,
+                    "totalElapsedMs": 38483.93,
+                    "averageElapsedMs": 50.11,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 1637.52,
+                    "averagePoolAcquireElapsedMs": 2.13,
+                    "dbExecuteElapsedMs": 36840.01,
+                    "averageDbExecuteElapsedMs": 47.97,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  },
+                  "saveSession": {
+                    "count": 768,
+                    "totalElapsedMs": 33193.62,
+                    "averageElapsedMs": 43.22,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 2267.55,
+                    "averagePoolAcquireElapsedMs": 2.95,
+                    "dbExecuteElapsedMs": 30921.11,
+                    "averageDbExecuteElapsedMs": 40.26,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  }
+                },
+                "slowestSessionOperation": "revokeOwnSession",
+                "slowestSessionOperationAverageElapsedMs": 50.11
+              }
+            },
+            "dominantPhase": "passwordLogin",
+            "dominantPhaseP99Ms": 191.92
+          }
+        },
+        {
+          "name": "conversation_write",
+          "errors": 0,
+          "maxP99Ms": 863.65,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 767.57,
+            "p99Ms": 863.65,
+            "rps": 6507.76,
+            "concurrency": 2304,
+            "serverTimingP99Ms": 105.1,
+            "clientServerGapP99Ms": 804.33,
+            "dbAcquireP99Ms": 0,
+            "dbBatchWaitP99Ms": 57.6,
+            "dbInsertP99Ms": 69.23,
+            "benchmarkRuntimeProfile": {
+              "executor": "DOCKER_GO",
+              "dockerImage": "golang:1.26-alpine",
+              "dockerHostAlias": "host.docker.internal",
+              "targetBaseUrls": [
+                "http://host.docker.internal:18400",
+                "http://host.docker.internal:18401",
+                "http://host.docker.internal:18402",
+                "http://host.docker.internal:18403",
+                "http://host.docker.internal:18404",
+                "http://host.docker.internal:18405",
+                "http://host.docker.internal:18406",
+                "http://host.docker.internal:18407",
+                "http://host.docker.internal:18408",
+                "http://host.docker.internal:18409",
+                "http://host.docker.internal:18410",
+                "http://host.docker.internal:18411",
+                "http://host.docker.internal:18412",
+                "http://host.docker.internal:18413",
+                "http://host.docker.internal:18414",
+                "http://host.docker.internal:18415"
+              ]
+            },
+            "gatewayExitCode": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "gatewaySignal": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "runtimeDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 1,
+                "totalAcceptedConns": 16,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 211,
+                "totalAcceptedConns": 3061,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              }
+            },
+            "databaseDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 220.96
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 220.96
+              }
+            }
+          }
+        },
+        {
+          "name": "teaching_archive",
+          "errors": 0,
+          "maxP99Ms": 237.93,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 235.68,
+            "p99Ms": 237.93,
+            "rps": 2430.88,
+            "concurrency": 384,
+            "serverTimingP99Ms": 234.93,
+            "handlerP99Ms": 235,
+            "preUsecaseP99Ms": 1.03,
+            "appP99Ms": 234.93,
+            "dbInsertP99Ms": 234.93,
+            "clientHandlerGapP99Ms": 2.93,
+            "benchmarkRuntimeProfile": {
+              "executor": "DOCKER_GO",
+              "dockerImage": "golang:1.26-alpine",
+              "dockerHostAlias": "host.docker.internal",
+              "targetBaseUrls": [
+                "http://host.docker.internal:18500",
+                "http://host.docker.internal:18501",
+                "http://host.docker.internal:18502",
+                "http://host.docker.internal:18503"
+              ]
+            }
+          }
+        },
+        {
+          "name": "knowledge_retrieval",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0,
+            "p95Ms": 2.55
+          }
+        },
+        {
+          "name": "ai_worker_admission",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0
+          }
+        }
+      ],
+      "guardrailFindings": [
+        {
+          "id": "step.status_passed",
+          "passed": true,
+          "actual": "PASSED",
+          "expected": "PASSED"
+        },
+        {
+          "id": "step.total_errors_zero",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        },
+        {
+          "id": "step.max_p99_within_guardrail",
+          "passed": true,
+          "actual": 863.65,
+          "expected": "<=1000"
+        },
+        {
+          "id": "step.p99_drift_within_guardrail",
+          "passed": true,
+          "actual": 0,
+          "expected": "abs<=250"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredSteps": 1,
+    "executedSteps": 1,
+    "passedSteps": 1,
+    "blockedSteps": 0,
+    "totalErrors": 0,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 767.57,
+    "maxP99Ms": 863.65,
+    "maxP99DriftMs": 0,
+    "highestPassedReadWriteRps": 10660.57,
+    "highestPassedAggregateRps": 10660.57,
+    "maxPassedReadWriteRps": 10660.57,
+    "aggregateReadWriteRps": 10660.57,
+    "highestPassedStep": "target-10k",
+    "firstBlockedStep": null
+  },
+  "throughputTarget": {
+    "targetReadWriteRps": 10000,
+    "required": true,
+    "configured": true,
+    "attempted": true,
+    "met": true,
+    "status": "MET",
+    "targetStepNames": [
+      "target-10k"
+    ],
+    "attemptedStepNames": [
+      "target-10k"
+    ],
+    "highestPassedStep": "target-10k",
+    "highestPassedReadWriteRps": 10660.57,
+    "pressure": {
+      "required": true,
+      "status": "PASSED",
+      "targetReadWriteRps": 10000,
+      "floor": {
+        "identityConcurrency": 80,
+        "identityOperations": 160,
+        "conversationConcurrency": 320,
+        "conversationOperations": 640,
+        "teachingConcurrency": 80,
+        "teachingOperations": 160
+      },
+      "targetStepNames": [
+        "target-10k"
+      ],
+      "validStepNames": [
+        "target-10k"
+      ],
+      "invalidStepNames": [],
+      "findings": [
+        {
+          "id": "target_pressure.identity_concurrency_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 192,
+          "expected": ">=80"
+        },
+        {
+          "id": "target_pressure.identity_operations_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 768,
+          "expected": ">=160"
+        },
+        {
+          "id": "target_pressure.conversation_concurrency_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 2304,
+          "expected": ">=320"
+        },
+        {
+          "id": "target_pressure.conversation_operations_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 9216,
+          "expected": ">=640"
+        },
+        {
+          "id": "target_pressure.teaching_concurrency_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 384,
+          "expected": ">=80"
+        },
+        {
+          "id": "target_pressure.teaching_operations_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 1536,
+          "expected": ">=160"
+        }
+      ]
+    },
+    "shortfallRps": 0
+  },
+  "setup": [
+    {
+      "phase": "setup-reset",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 1143,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v"
+    },
+    {
+      "phase": "setup-up",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:up"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 8335,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:up\n> docker compose -f infra/perf/docker-compose.identity-session.yml up -d\n\n Network ita-identity-session-runtime_default Creating \n Network ita-identity-session-runtime_default Created \n Volume ita-identity-session-runtime_identity_session_postgres_data Creating \n Volume ita-identity-session-runtime_identity_session_postgres_data Created \n Container ita-identity-session-postgres Creating \n Container ita-identity-session-postgres Created \n Container ita-identity-session-pgbouncer Creating \n Container ita-identity-session-pgbouncer Created \n Container ita-identity-session-postgres Starting \n Container ita-identity-session-postgres Started \n Container ita-identity-session-postgres Waiting \n Container ita-identity-session-postgres Healthy \n Container ita-identity-session-pgbouncer Starting \n Container ita-identity-session-pgbouncer Started"
+    }
+  ],
+  "cleanup": [
+    {
+      "phase": "cleanup",
+      "command": "npm",
+      "args": [
+        "run",
+        "perf:identity-session:reset"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 3075,
+      "outputTail": "\n> intelligent-teaching-research-assistant-refactor-plan@0.1.0 perf:identity-session:reset\n> docker compose -f infra/perf/docker-compose.identity-session.yml down -v\n\n Container ita-identity-session-pgbouncer Stopping \n Container ita-identity-session-pgbouncer Stopped \n Container ita-identity-session-pgbouncer Removing \n Container ita-identity-session-pgbouncer Removed \n Container ita-identity-session-postgres Stopping \n Container ita-identity-session-postgres Stopped \n Container ita-identity-session-postgres Removing \n Container ita-identity-session-postgres Removed \n Network ita-identity-session-runtime_default Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removing \n Volume ita-identity-session-runtime_identity_session_postgres_data Removed \n Network ita-identity-session-runtime_default Removed"
+    }
+  ],
+  "runnerErrors": [],
+  "nextAction": "Treat this as sustained mixed workload scale-up evidence only; add root workflow coverage and cross-module diagnostics before any full-system capacity promotion."
+}

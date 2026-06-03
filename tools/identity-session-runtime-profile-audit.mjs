@@ -51,7 +51,7 @@ export function auditIdentitySessionRuntimeProfile(sourceTexts) {
     passed: compose.postgres.environment.POSTGRES_PASSWORD === expected.secretValue,
     actual: maskSecret(compose.postgres.environment.POSTGRES_PASSWORD),
     expected: maskSecret(expected.secretValue),
-    remediation: "Set POSTGRES_PASSWORD to ueacd in the identity runtime profile.",
+    remediation: "Set POSTGRES_PASSWORD to the required local test value in the identity runtime profile.",
   });
   addFinding(findings, {
     id: "postgres.database",
@@ -136,15 +136,15 @@ export function auditIdentitySessionRuntimeProfile(sourceTexts) {
     passed: userlist[expected.databaseUser] === expected.secretValue,
     actual: maskSecret(userlist[expected.databaseUser]),
     expected: maskSecret(expected.secretValue),
-    remediation: "Set app_user in identity-session-userlist.txt to ueacd.",
+    remediation: "Set app_user in identity-session-userlist.txt to the required local test value.",
   });
 
   const failed = findings.filter((finding) => !finding.passed);
   return {
     generatedAt: new Date().toISOString(),
     readiness: failed.length === 0 ? "READY" : "NEEDS_REMEDIATION",
-    expected,
-    observed: compose,
+    expected: redactIdentityExpected(expected),
+    observed: redactIdentityObservation(compose),
     findings,
   };
 }
@@ -374,6 +374,36 @@ function escapeRegExp(value) {
 function maskSecret(value) {
   if (value === undefined || value === null) return null;
   return value === "" ? "" : "***";
+}
+
+function redactIdentityExpected(value) {
+  return {
+    ...value,
+    secretValue: maskSecret(value.secretValue),
+  };
+}
+
+function redactIdentityObservation(observation) {
+  return {
+    ...observation,
+    postgres: {
+      ...observation.postgres,
+      environment: redactSecretMapping(observation.postgres.environment),
+    },
+  };
+}
+
+function redactSecretMapping(mapping) {
+  return Object.fromEntries(
+    Object.entries(mapping ?? {}).map(([key, value]) => [
+      key,
+      isSecretKey(key) ? maskSecret(value) : value,
+    ]),
+  );
+}
+
+function isSecretKey(key) {
+  return /(?:PASSWORD|SECRET|TOKEN|API_KEY|ENCRYPTION_KEY)$/u.test(key);
 }
 
 function stringifyScalar(value) {

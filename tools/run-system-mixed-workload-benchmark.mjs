@@ -17,6 +17,14 @@ import {
   systemIdentityBenchmarkRuntimeArgs,
   systemIdentityBenchmarkRuntime,
 } from "./system-identity-benchmark-runtime-profile.mjs";
+import {
+  assertSystemTeachingBenchmarkOptions,
+  buildSystemTeachingBenchmarkRuntimeProfile,
+  buildSystemTeachingTransportProfile,
+  summarizeTeachingArchiveReport,
+  systemTeachingBenchmarkDefaults,
+  systemTeachingBenchmarkRuntimeArgs,
+} from "./system-teaching-benchmark-runtime-profile.mjs";
 import { buildSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 import { portRange, portSequence } from "./system-port-profile.mjs";
 
@@ -55,6 +63,7 @@ export const defaults = {
   conversationBenchmarkWslHost: benchmarkRuntimeDefaults.benchmarkWslHost,
   conversationBenchmarkWslWorkspace: benchmarkRuntimeDefaults.benchmarkWslWorkspace,
   identityBenchmarkRuntime: "local", identityBenchmarkDockerImage: "golang:1.26-alpine", identityBenchmarkDockerHost: "host.docker.internal",
+  ...systemTeachingBenchmarkDefaults,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   identityMaxConnsPerHost: "",
@@ -201,8 +210,11 @@ export function buildWorkloadCommands(options) {
         options.teachingConcurrency,
         "--operations",
         options.teachingOperations,
+        ...systemTeachingBenchmarkRuntimeArgs(options),
         "--out",
         options.teachingOut,
+        "--timeout",
+        options.timeout,
         "--timeout-ms",
         options.teachingTimeoutMs,
         "--startup-timeout-ms",
@@ -330,6 +342,7 @@ export function buildSystemMixedWorkloadReport({
     },
     conversationBenchmarkRuntimeProfile: buildMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     identityBenchmarkRuntimeProfile: buildSystemIdentityBenchmarkRuntimeProfile(options),
+    teachingBenchmarkRuntimeProfile: buildMixedWorkloadTeachingBenchmarkRuntimeProfile(options),
     workloads,
     summary: summarizeMixedWorkload(workloads, orchestrationErrors),
     setup: setup.map((entry) => sanitizeCommandResult(entry)),
@@ -352,6 +365,7 @@ export function buildMixedWorkloadTransportProfile(options) {
   return {
     sharedMaxConnsPerHost: parseInteger(options.maxConnsPerHost),
     sharedWarmConnectionsPerHost: parseInteger(options.warmConnectionsPerHost),
+    ...buildSystemTeachingTransportProfile(options),
     identityMaxConnsPerHost: parseInteger(identityMaxConnsPerHost(options)),
     identityWarmConnectionsPerHost: parseInteger(identityWarmConnectionsPerHost(options)),
   };
@@ -370,6 +384,10 @@ export function buildMixedWorkloadIdentityIngressProfile(options) {
 
 export function buildMixedWorkloadConversationBenchmarkRuntimeProfile(options) {
   return buildSystemConversationBenchmarkRuntimeProfile(options);
+}
+
+export function buildMixedWorkloadTeachingBenchmarkRuntimeProfile(options) {
+  return buildSystemTeachingBenchmarkRuntimeProfile(options);
 }
 
 export function formatSystemMixedWorkloadBenchmark(report) {
@@ -426,7 +444,7 @@ function summarizeSourceReport(name, report) {
   if (!report || typeof report !== "object") return {};
   if (name === "identity_http") return summarizeIdentity(report);
   if (name === "conversation_write") return summarizeConversation(report);
-  if (name === "teaching_archive") return summarizeTeachingArchive(report);
+  if (name === "teaching_archive") return summarizeTeachingArchiveReport(report);
   if (name === "knowledge_retrieval") {
     return {
       readiness: report.readiness ?? null,
@@ -503,31 +521,6 @@ function summarizeGatewaySnapshot(snapshot) {
   };
 }
 
-function summarizeTeachingArchive(report) {
-  const phases = Object.values(report.phases ?? {});
-  const p95Values = phases.map((phase) => numberOrNull(phase.latencyMs?.p95)).filter(Number.isFinite);
-  const p99Values = phases.map((phase) => numberOrNull(phase.latencyMs?.p99)).filter(Number.isFinite);
-  const errors = phases.reduce((total, phase) => total + numberOrZero(phase.errors), 0);
-  const handlerP99Ms = maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.handler?.p99)));
-  const preUsecaseP99Ms = maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["pre.usecase"]?.p99)));
-  const appP99Ms = maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingMs?.p99)));
-  return {
-    errors,
-    p95Ms: p95Values.length ? Math.max(...p95Values) : null,
-    p99Ms: p99Values.length ? Math.max(...p99Values) : null,
-    rps: minFinite(phases.map((phase) => numberOrNull(phase.rps))),
-    concurrency: numberOrNull(report.concurrency),
-    serverTimingP99Ms: appP99Ms,
-    handlerP99Ms,
-    preUsecaseP99Ms,
-    appP99Ms,
-    dbInsertP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99))),
-    clientHandlerGapP99Ms: maxFinite(phases.map((phase) =>
-      nullableDelta(numberOrNull(phase.latencyMs?.p99), numberOrNull(phase.serverTimingBreakdownMs?.handler?.p99))
-    )),
-  };
-}
-
 function summarizeMixedWorkload(workloads, orchestrationErrors = 0) {
   const workloadErrors = workloads.reduce((total, workload) => total + workload.errors, 0);
   return {
@@ -568,6 +561,7 @@ function validateOptions(options) {
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   systemConversationBenchmarkRuntime(options);
   systemIdentityBenchmarkRuntime(options);
+  assertSystemTeachingBenchmarkOptions(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
   if (parseBoolean(options.identityIngressProxy)) {
     assertPositiveInteger(options.identityIngressCount, "identity-ingress-count");

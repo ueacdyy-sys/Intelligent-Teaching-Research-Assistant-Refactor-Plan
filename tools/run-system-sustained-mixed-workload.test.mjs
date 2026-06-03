@@ -38,6 +38,16 @@ describe("system sustained mixed workload runner", () => {
       "golang:1.26-alpine",
       "--identity-benchmark-docker-host",
       "host.docker.internal",
+      "--teaching-benchmark-runtime",
+      "docker",
+      "--teaching-benchmark-docker-host",
+      "host.docker.internal",
+      "--teaching-max-conns-per-host",
+      "128",
+      "--teaching-warm-connections-per-host",
+      "96",
+      "--teaching-client-trace",
+      "true",
       "--identity-ingress-proxy",
       "true",
       "--identity-ingress-count",
@@ -63,6 +73,11 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(parsed.identityBenchmarkRuntime, "docker");
     assert.equal(parsed.identityBenchmarkDockerImage, "golang:1.26-alpine");
     assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(parsed.teachingBenchmarkRuntime, "docker");
+    assert.equal(parsed.teachingBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(parsed.teachingMaxConnsPerHost, "128");
+    assert.equal(parsed.teachingWarmConnectionsPerHost, "96");
+    assert.equal(parsed.teachingClientTrace, "true");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
@@ -97,6 +112,12 @@ describe("system sustained mixed workload runner", () => {
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
+      teachingBenchmarkRuntime: "docker",
+      teachingBenchmarkDockerImage: "golang:1.26-alpine",
+      teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingMaxConnsPerHost: "128",
+      teachingWarmConnectionsPerHost: "96",
+      teachingClientTrace: "true",
     });
 
     assert.deepEqual(samples.map((sample) => sample.name), ["sample-1", "sample-2"]);
@@ -122,6 +143,11 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(samples[0].options.identityBenchmarkRuntime, "docker");
     assert.equal(samples[0].options.identityBenchmarkDockerImage, "golang:1.26-alpine");
     assert.equal(samples[0].options.identityBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(samples[0].options.teachingBenchmarkRuntime, "docker");
+    assert.equal(samples[0].options.teachingBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(samples[0].options.teachingMaxConnsPerHost, "128");
+    assert.equal(samples[0].options.teachingWarmConnectionsPerHost, "96");
+    assert.equal(samples[0].options.teachingClientTrace, "true");
   });
 
   it("runs every sample and writes a passed sustained report", async () => {
@@ -260,6 +286,12 @@ describe("system sustained mixed workload runner", () => {
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
+      teachingBenchmarkRuntime: "docker",
+      teachingBenchmarkDockerImage: "golang:1.26-alpine",
+      teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingMaxConnsPerHost: "128",
+      teachingWarmConnectionsPerHost: "96",
+      teachingClientTrace: "true",
     };
     const samples = buildSampleRuns({
       ...options,
@@ -292,6 +324,9 @@ describe("system sustained mixed workload runner", () => {
     assert.deepEqual(report.transportProfile, {
       sharedMaxConnsPerHost: 70,
       sharedWarmConnectionsPerHost: 9,
+      teachingMaxConnsPerHost: 128,
+      teachingWarmConnectionsPerHost: 96,
+      teachingClientTrace: true,
       identityMaxConnsPerHost: 150,
       identityWarmConnectionsPerHost: 150,
     });
@@ -312,6 +347,8 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(report.identityBenchmarkRuntimeProfile.executor, "DOCKER_GO");
     assert.equal(report.identityBenchmarkRuntimeProfile.dockerImage, "golang:1.26-alpine");
     assert.equal(report.identityBenchmarkRuntimeProfile.dockerHostAlias, "host.docker.internal");
+    assert.equal(report.teachingBenchmarkRuntimeProfile.executor, "DOCKER_GO");
+    assert.equal(report.teachingBenchmarkRuntimeProfile.dockerHostAlias, "host.docker.internal");
     const identity = report.samples[0].workloads.find((workload) => workload.name === "identity_http");
     assert.equal(identity.summary.dominantPhase, "revokeCycle");
     assert.equal(identity.summary.dominantPhaseP99Ms, 66);

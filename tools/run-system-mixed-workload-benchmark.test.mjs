@@ -36,6 +36,16 @@ describe("system mixed workload benchmark runner", () => {
       "golang:1.26-alpine",
       "--identity-benchmark-docker-host",
       "host.docker.internal",
+      "--teaching-benchmark-runtime",
+      "docker",
+      "--teaching-benchmark-docker-host",
+      "host.docker.internal",
+      "--teaching-max-conns-per-host",
+      "128",
+      "--teaching-warm-connections-per-host",
+      "96",
+      "--teaching-client-trace",
+      "true",
       "--teaching-concurrency",
       "6",
       "--identity-ingress-proxy",
@@ -62,6 +72,11 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.identityBenchmarkRuntime, "docker");
     assert.equal(parsed.identityBenchmarkDockerImage, "golang:1.26-alpine");
     assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(parsed.teachingBenchmarkRuntime, "docker");
+    assert.equal(parsed.teachingBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(parsed.teachingMaxConnsPerHost, "128");
+    assert.equal(parsed.teachingWarmConnectionsPerHost, "96");
+    assert.equal(parsed.teachingClientTrace, "true");
     assert.equal(parsed.teachingConcurrency, "6");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
@@ -101,6 +116,12 @@ describe("system mixed workload benchmark runner", () => {
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
+      teachingBenchmarkRuntime: "docker",
+      teachingBenchmarkDockerImage: "golang:1.26-alpine",
+      teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingMaxConnsPerHost: "128",
+      teachingWarmConnectionsPerHost: "96",
+      teachingClientTrace: "true",
     });
 
     assert.deepEqual(commands.map((command) => command.name), [
@@ -133,6 +154,12 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[2].args, "--base-url"), "http://127.0.0.1:19200");
     assert.equal(argumentAfter(commands[2].args, "--gateway-count"), "3");
     assert.equal(argumentAfter(commands[2].args, "--agent-api-key"), "ueacd");
+    assert.equal(argumentAfter(commands[2].args, "--benchmark-runtime"), "docker");
+    assert.equal(argumentAfter(commands[2].args, "--benchmark-docker-image"), "golang:1.26-alpine");
+    assert.equal(argumentAfter(commands[2].args, "--benchmark-docker-host"), "host.docker.internal");
+    assert.equal(argumentAfter(commands[2].args, "--max-conns-per-host"), "128");
+    assert.equal(argumentAfter(commands[2].args, "--warm-connections-per-host"), "96");
+    assert.equal(argumentAfter(commands[2].args, "--client-trace"), "true");
     assert.equal(commands[3].sourceReportPath, "reports/knowledge.json");
     assert.equal(commands[4].sourceReportPath, "reports/ai.json");
   });
@@ -326,6 +353,12 @@ describe("system mixed workload benchmark runner", () => {
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
+      teachingBenchmarkRuntime: "docker",
+      teachingBenchmarkDockerImage: "golang:1.26-alpine",
+      teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingMaxConnsPerHost: "128",
+      teachingWarmConnectionsPerHost: "96",
+      teachingClientTrace: "true",
     };
     const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
@@ -352,6 +385,9 @@ describe("system mixed workload benchmark runner", () => {
     assert.deepEqual(report.transportProfile, {
       sharedMaxConnsPerHost: 70,
       sharedWarmConnectionsPerHost: 9,
+      teachingMaxConnsPerHost: 128,
+      teachingWarmConnectionsPerHost: 96,
+      teachingClientTrace: true,
       identityMaxConnsPerHost: 150,
       identityWarmConnectionsPerHost: 150,
     });
@@ -372,6 +408,8 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(report.identityBenchmarkRuntimeProfile.executor, "DOCKER_GO");
     assert.equal(report.identityBenchmarkRuntimeProfile.dockerImage, "golang:1.26-alpine");
     assert.equal(report.identityBenchmarkRuntimeProfile.dockerHostAlias, "host.docker.internal");
+    assert.equal(report.teachingBenchmarkRuntimeProfile.executor, "DOCKER_GO");
+    assert.equal(report.teachingBenchmarkRuntimeProfile.dockerHostAlias, "host.docker.internal");
     const identity = report.workloads.find((workload) => workload.name === "identity_http");
     assert.equal(identity.summary.dominantPhase, "revokeCycle");
     assert.equal(identity.summary.dominantPhaseP99Ms, 66);
@@ -446,6 +484,38 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(teaching.summary.appP99Ms, 31);
     assert.equal(teaching.summary.dbInsertP99Ms, 24);
     assert.equal(teaching.summary.clientHandlerGapP99Ms, 14);
+    assert.equal(teaching.summary.benchmarkRuntimeProfile.executor, "DOCKER_GO");
+  });
+
+  it("counts failed teaching reports without phase metrics as errors", () => {
+    const options = { ...defaults };
+    const commands = buildWorkloadCommands(options);
+    const results = commands.map((command) => ({
+      name: command.name,
+      exitCode: 0,
+      elapsedMs: 5,
+      outputTail: "ok",
+    }));
+    const childReports = childReportsFor(commands);
+    childReports.teaching_archive.value = {
+      status: "FAILED",
+      summary: { totalErrors: 1 },
+      phases: {},
+    };
+
+    const report = buildSystemMixedWorkloadReport({
+      options,
+      commands,
+      results,
+      childReports,
+      startedAt: "2026-06-01T00:00:00.000Z",
+      endedAt: "2026-06-01T00:00:01.000Z",
+    });
+    const teaching = report.workloads.find((workload) => workload.name === "teaching_archive");
+
+    assert.equal(report.status, "FAILED");
+    assert.equal(report.summary.totalErrors, 1);
+    assert.equal(teaching.errors, 1);
   });
 
   it("rejects negative identity write concurrency", async () => {
@@ -490,6 +560,21 @@ describe("system mixed workload benchmark runner", () => {
         { root, runCommand: successfulChildCommand },
       ),
       /identity-benchmark-runtime must be local or docker/u,
+    );
+  });
+
+  it("rejects unsupported teaching benchmark runtimes", async () => {
+    const root = makeTempRoot();
+
+    await assert.rejects(
+      () => runSystemMixedWorkloadBenchmark(
+        {
+          ...defaults,
+          teachingBenchmarkRuntime: "bad",
+        },
+        { root, runCommand: successfulChildCommand },
+      ),
+      /teaching-benchmark-runtime must be js, local, docker, or wsl/u,
     );
   });
 });
@@ -631,6 +716,12 @@ function teachingReport() {
   return {
     status: "PASSED",
     concurrency: 8,
+    benchmarkRuntimeProfile: {
+      executor: "DOCKER_GO",
+      dockerImage: "golang:1.26-alpine",
+      dockerHostAlias: "host.docker.internal",
+      targetBaseUrls: ["http://host.docker.internal:18500"],
+    },
     phases: {
       createArchiveItem: phase("createArchiveItem", 12, 50, 180, 31, 24, 36, 5),
       createQuizSubmission: phase("createQuizSubmission", 14, 19, 160),

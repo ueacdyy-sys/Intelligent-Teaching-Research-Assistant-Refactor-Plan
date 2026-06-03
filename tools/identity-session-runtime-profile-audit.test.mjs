@@ -55,6 +55,7 @@ describe("identity session runtime profile audit", () => {
     });
 
     assert.equal(report.readiness, "READY");
+    assert.doesNotMatch(JSON.stringify(report), /ueacd/u);
     assert.match(formatIdentitySessionRuntimeProfileAudit(report), /READY/);
   });
 
