@@ -12,15 +12,11 @@ CREATE TABLE IF NOT EXISTS teaching_archive_items (
     created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_student_created
-    ON teaching_archive_items (student_id, created_at DESC)
-    WHERE student_id IS NOT NULL;
+DROP INDEX IF EXISTS idx_teaching_archive_items_student_created;
 
-CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_created
-    ON teaching_archive_items (owner_type, created_at DESC);
+DROP INDEX IF EXISTS idx_teaching_archive_items_owner_created;
 
-CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_created
-    ON teaching_archive_items (material_type, created_at DESC);
+DROP INDEX IF EXISTS idx_teaching_archive_items_material_created;
 
 CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_created_page
     ON teaching_archive_items (created_at DESC, id DESC);
