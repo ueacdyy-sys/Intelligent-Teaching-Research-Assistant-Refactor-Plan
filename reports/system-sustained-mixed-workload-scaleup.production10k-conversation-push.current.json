@@ -1,0 +1,606 @@
+{
+  "generatedAt": "2026-06-03T05:14:21.988Z",
+  "startedAt": "2026-06-03T05:13:11.839Z",
+  "endedAt": "2026-06-03T05:14:21.988Z",
+  "benchmarkKind": "system_sustained_mixed_workload_scale_up",
+  "workloadType": "SUSTAINED_MIXED_WORKLOAD_SCALE_UP",
+  "profile": "SUSTAINED_SCALEUP",
+  "scaleProfile": "production10k",
+  "status": "PASSED",
+  "stopOnFailure": true,
+  "scaleGuardrails": {
+    "maxP99Ms": 1000,
+    "maxP99DriftMs": 250,
+    "maxTotalErrors": 0
+  },
+  "concurrencyProfile": {
+    "identityGatewayCount": 8,
+    "conversationGatewayCount": 16,
+    "teachingGatewayCount": 4,
+    "configuredSteps": 1,
+    "samplesPerStep": 1
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 0,
+    "sharedWarmConnectionsPerHost": 0,
+    "identityMaxConnsPerHost": 400,
+    "identityWarmConnectionsPerHost": 400
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 18080,
+    "workerCount": 32,
+    "upstreamGatewayCount": 8,
+    "maxConnsPerHost": 400,
+    "warmConnectionsPerHost": 32
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 32,
+    "identitySessionDbWriteConcurrency": 32,
+    "identitySessionTablePersistence": "unlogged",
+    "conversationDbMaxConns": 32,
+    "teachingDbMaxConns": 32,
+    "conversationWriteBatchSize": 128
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_SUSTAINED_SCALEUP_ORCHESTRATOR",
+    "managedDocker": false,
+    "dockerCleanup": "none"
+  },
+  "conversationBenchmarkRuntimeProfile": {
+    "runtime": "docker",
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal",
+    "wslDistro": null,
+    "wslHostAlias": null,
+    "wslWorkspace": null
+  },
+  "identityBenchmarkRuntimeProfile": {
+    "runtime": "docker",
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal"
+  },
+  "steps": [
+    {
+      "name": "target-10k",
+      "executed": true,
+      "status": "PASSED",
+      "guardrailStatus": "PASSED",
+      "reportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-push.1-target-10k.json",
+      "identityConcurrency": 192,
+      "identityOperations": 768,
+      "conversationConcurrency": 2304,
+      "conversationOperations": 9216,
+      "teachingConcurrency": 384,
+      "teachingOperations": 1536,
+      "samples": 1,
+      "totalErrors": 0,
+      "maxP95Ms": 853,
+      "maxP99Ms": 885,
+      "p99DriftMs": 0,
+      "readWriteRps": 10203.96,
+      "aggregateRps": 10203.96,
+      "targetReadWriteRps": 10000,
+      "targetCandidate": true,
+      "workloads": [
+        {
+          "name": "identity_http",
+          "errors": 0,
+          "maxP99Ms": 178.25,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 159.14,
+            "p99Ms": 178.25,
+            "rps": 1805.74,
+            "concurrency": 192,
+            "phases": {
+              "passwordLogin": {
+                "errors": 0,
+                "p95Ms": 146.51,
+                "p99Ms": 161.29,
+                "rps": 3049.12,
+                "writeLimiter": {
+                  "enabledGateways": 8,
+                  "configuredLimitTotal": 256,
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 2647.25,
+                  "averageAcquireWaitTimeMs": 3.45,
+                  "operations": {
+                    "saveSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 2647.25,
+                      "averageAcquireWaitTimeMs": 3.45
+                    }
+                  }
+                },
+                "highestWriteLimiterWaitOperation": "saveSession",
+                "highestWriteLimiterWaitTimeMs": 2647.25,
+                "sessionOperations": {
+                  "saveSession": {
+                    "count": 768,
+                    "totalElapsedMs": 39016.21,
+                    "averageElapsedMs": 50.8,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 16915.39,
+                    "averagePoolAcquireElapsedMs": 22.03,
+                    "dbExecuteElapsedMs": 22091.91,
+                    "averageDbExecuteElapsedMs": 28.77,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  }
+                },
+                "slowestSessionOperation": "saveSession",
+                "slowestSessionOperationAverageElapsedMs": 50.8
+              },
+              "principalLookup": {
+                "errors": 0,
+                "p95Ms": 112.7,
+                "p99Ms": 117.43,
+                "rps": 3112.75,
+                "sessionOperations": {
+                  "getPrincipalByAccessToken": {
+                    "count": 768,
+                    "totalElapsedMs": 40570.75,
+                    "averageElapsedMs": 52.83,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 6238.22,
+                    "averagePoolAcquireElapsedMs": 8.12,
+                    "dbExecuteElapsedMs": 34328.09,
+                    "averageDbExecuteElapsedMs": 44.7
+                  }
+                },
+                "slowestSessionOperation": "getPrincipalByAccessToken",
+                "slowestSessionOperationAverageElapsedMs": 52.83
+              },
+              "refreshRotation": {
+                "errors": 0,
+                "p95Ms": 117.08,
+                "p99Ms": 118.8,
+                "rps": 2988.04,
+                "writeLimiter": {
+                  "enabledGateways": 8,
+                  "configuredLimitTotal": 256,
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 1820.58,
+                  "averageAcquireWaitTimeMs": 2.37,
+                  "operations": {
+                    "rotateRefreshSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 1820.58,
+                      "averageAcquireWaitTimeMs": 2.37
+                    }
+                  }
+                },
+                "highestWriteLimiterWaitOperation": "rotateRefreshSession",
+                "highestWriteLimiterWaitTimeMs": 1820.58,
+                "sessionOperations": {
+                  "rotateRefreshSession": {
+                    "count": 768,
+                    "totalElapsedMs": 40262.59,
+                    "averageElapsedMs": 52.43,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 5367.7,
+                    "averagePoolAcquireElapsedMs": 6.99,
+                    "dbExecuteElapsedMs": 34889.37,
+                    "averageDbExecuteElapsedMs": 45.43
+                  }
+                },
+                "slowestSessionOperation": "rotateRefreshSession",
+                "slowestSessionOperationAverageElapsedMs": 52.43
+              },
+              "revokeCycle": {
+                "errors": 0,
+                "p95Ms": 159.14,
+                "p99Ms": 178.25,
+                "rps": 1805.74,
+                "slowestStep": "revoke",
+                "slowestStepP99Ms": 117.15,
+                "stepOperationAttribution": {
+                  "login": {
+                    "stepP99Ms": 80.76,
+                    "stepAvgMs": 43.98,
+                    "expectedSessionOperations": [
+                      "saveSession"
+                    ],
+                    "sessionOperations": {
+                      "saveSession": {
+                        "count": 768,
+                        "totalElapsedMs": 29090.37,
+                        "averageElapsedMs": 37.88,
+                        "poolAcquireCount": 768,
+                        "poolAcquireElapsedMs": 3405.6,
+                        "averagePoolAcquireElapsedMs": 4.43,
+                        "dbExecuteElapsedMs": 25676.93,
+                        "averageDbExecuteElapsedMs": 33.43,
+                        "rowsAffectedCount": 768,
+                        "rowsAffected": 768,
+                        "averageRowsAffected": 1
+                      }
+                    },
+                    "writeLimiterOperations": {
+                      "saveSession": {
+                        "acquireCount": 768,
+                        "acquireWaitTimeMs": 163.35,
+                        "averageAcquireWaitTimeMs": 0.21
+                      }
+                    }
+                  },
+                  "revoke": {
+                    "stepP99Ms": 117.15,
+                    "stepAvgMs": 52.02,
+                    "expectedSessionOperations": [
+                      "revokeOwnSession"
+                    ],
+                    "sessionOperations": {
+                      "revokeOwnSession": {
+                        "count": 768,
+                        "totalElapsedMs": 36922.77,
+                        "averageElapsedMs": 48.08,
+                        "poolAcquireCount": 768,
+                        "poolAcquireElapsedMs": 1896.98,
+                        "averagePoolAcquireElapsedMs": 2.47,
+                        "dbExecuteElapsedMs": 35020.69,
+                        "averageDbExecuteElapsedMs": 45.6,
+                        "rowsAffectedCount": 768,
+                        "rowsAffected": 768,
+                        "averageRowsAffected": 1
+                      }
+                    },
+                    "writeLimiterOperations": {
+                      "revokeOwnSession": {
+                        "acquireCount": 768,
+                        "acquireWaitTimeMs": 109.09,
+                        "averageAcquireWaitTimeMs": 0.14
+                      }
+                    }
+                  },
+                  "revokedPrincipalLookup": {
+                    "stepP99Ms": 8.09,
+                    "stepAvgMs": 3.85,
+                    "expectedSessionOperations": [
+                      "getPrincipalByAccessToken"
+                    ],
+                    "missingSessionOperations": [
+                      "getPrincipalByAccessToken"
+                    ]
+                  }
+                },
+                "writeLimiter": {
+                  "enabledGateways": 8,
+                  "configuredLimitTotal": 256,
+                  "acquireCount": 1536,
+                  "acquireWaitTimeMs": 272.45,
+                  "averageAcquireWaitTimeMs": 0.18,
+                  "operations": {
+                    "revokeOwnSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 109.09,
+                      "averageAcquireWaitTimeMs": 0.14
+                    },
+                    "saveSession": {
+                      "acquireCount": 768,
+                      "acquireWaitTimeMs": 163.35,
+                      "averageAcquireWaitTimeMs": 0.21
+                    }
+                  }
+                },
+                "highestWriteLimiterWaitOperation": "saveSession",
+                "highestWriteLimiterWaitTimeMs": 163.35,
+                "sessionOperations": {
+                  "revokeOwnSession": {
+                    "count": 768,
+                    "totalElapsedMs": 36922.77,
+                    "averageElapsedMs": 48.08,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 1896.98,
+                    "averagePoolAcquireElapsedMs": 2.47,
+                    "dbExecuteElapsedMs": 35020.69,
+                    "averageDbExecuteElapsedMs": 45.6,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  },
+                  "saveSession": {
+                    "count": 768,
+                    "totalElapsedMs": 29090.37,
+                    "averageElapsedMs": 37.88,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 3405.6,
+                    "averagePoolAcquireElapsedMs": 4.43,
+                    "dbExecuteElapsedMs": 25676.93,
+                    "averageDbExecuteElapsedMs": 33.43,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  }
+                },
+                "slowestSessionOperation": "revokeOwnSession",
+                "slowestSessionOperationAverageElapsedMs": 48.08
+              }
+            },
+            "dominantPhase": "revokeCycle",
+            "dominantPhaseP99Ms": 178.25
+          }
+        },
+        {
+          "name": "conversation_write",
+          "errors": 0,
+          "maxP99Ms": 592.91,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 489.15,
+            "p99Ms": 592.91,
+            "rps": 7577.71,
+            "concurrency": 2304,
+            "serverTimingP99Ms": 37.04,
+            "clientServerGapP99Ms": 582.89,
+            "dbAcquireP99Ms": 0,
+            "dbBatchWaitP99Ms": 17.51,
+            "dbInsertP99Ms": 27.37,
+            "benchmarkRuntimeProfile": {
+              "executor": "DOCKER_GO",
+              "dockerImage": "golang:1.26-alpine",
+              "dockerHostAlias": "host.docker.internal",
+              "targetBaseUrls": [
+                "http://host.docker.internal:18400",
+                "http://host.docker.internal:18401",
+                "http://host.docker.internal:18402",
+                "http://host.docker.internal:18403",
+                "http://host.docker.internal:18404",
+                "http://host.docker.internal:18405",
+                "http://host.docker.internal:18406",
+                "http://host.docker.internal:18407",
+                "http://host.docker.internal:18408",
+                "http://host.docker.internal:18409",
+                "http://host.docker.internal:18410",
+                "http://host.docker.internal:18411",
+                "http://host.docker.internal:18412",
+                "http://host.docker.internal:18413",
+                "http://host.docker.internal:18414",
+                "http://host.docker.internal:18415"
+              ]
+            },
+            "gatewayExitCode": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "gatewaySignal": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "runtimeDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 1,
+                "totalAcceptedConns": 16,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": 198,
+                "totalAcceptedConns": 2837,
+                "totalEmptyAcquireCount": 0,
+                "totalAcquireWaitTimeMs": 0
+              }
+            },
+            "databaseDiagnostics": {
+              "before": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 259.5
+              },
+              "after": {
+                "gatewayCount": 16,
+                "okGateways": 16,
+                "unavailableGateways": 0,
+                "maxCurrentConns": null,
+                "totalAcceptedConns": 0,
+                "totalEmptyAcquireCount": 16,
+                "totalAcquireWaitTimeMs": 259.5
+              }
+            }
+          }
+        },
+        {
+          "name": "teaching_archive",
+          "errors": 0,
+          "maxP99Ms": 885,
+          "summary": {
+            "errors": 0,
+            "p95Ms": 853,
+            "p99Ms": 885,
+            "rps": 820.51,
+            "concurrency": 384
+          }
+        },
+        {
+          "name": "knowledge_retrieval",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0,
+            "p95Ms": 2.55
+          }
+        },
+        {
+          "name": "ai_worker_admission",
+          "errors": 0,
+          "maxP99Ms": null,
+          "summary": {
+            "readiness": "READY",
+            "errors": 0
+          }
+        }
+      ],
+      "guardrailFindings": [
+        {
+          "id": "step.status_passed",
+          "passed": true,
+          "actual": "PASSED",
+          "expected": "PASSED"
+        },
+        {
+          "id": "step.total_errors_zero",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        },
+        {
+          "id": "step.max_p99_within_guardrail",
+          "passed": true,
+          "actual": 885,
+          "expected": "<=1000"
+        },
+        {
+          "id": "step.p99_drift_within_guardrail",
+          "passed": true,
+          "actual": 0,
+          "expected": "abs<=250"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "configuredSteps": 1,
+    "executedSteps": 1,
+    "passedSteps": 1,
+    "blockedSteps": 0,
+    "totalErrors": 0,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 853,
+    "maxP99Ms": 885,
+    "maxP99DriftMs": 0,
+    "highestPassedReadWriteRps": 10203.96,
+    "highestPassedAggregateRps": 10203.96,
+    "maxPassedReadWriteRps": 10203.96,
+    "aggregateReadWriteRps": 10203.96,
+    "highestPassedStep": "target-10k",
+    "firstBlockedStep": null
+  },
+  "throughputTarget": {
+    "targetReadWriteRps": 10000,
+    "required": true,
+    "configured": true,
+    "attempted": true,
+    "met": true,
+    "status": "MET",
+    "targetStepNames": [
+      "target-10k"
+    ],
+    "attemptedStepNames": [
+      "target-10k"
+    ],
+    "highestPassedStep": "target-10k",
+    "highestPassedReadWriteRps": 10203.96,
+    "pressure": {
+      "required": true,
+      "status": "PASSED",
+      "targetReadWriteRps": 10000,
+      "floor": {
+        "identityConcurrency": 80,
+        "identityOperations": 160,
+        "conversationConcurrency": 320,
+        "conversationOperations": 640,
+        "teachingConcurrency": 80,
+        "teachingOperations": 160
+      },
+      "targetStepNames": [
+        "target-10k"
+      ],
+      "validStepNames": [
+        "target-10k"
+      ],
+      "invalidStepNames": [],
+      "findings": [
+        {
+          "id": "target_pressure.identity_concurrency_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 192,
+          "expected": ">=80"
+        },
+        {
+          "id": "target_pressure.identity_operations_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 768,
+          "expected": ">=160"
+        },
+        {
+          "id": "target_pressure.conversation_concurrency_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 2304,
+          "expected": ">=320"
+        },
+        {
+          "id": "target_pressure.conversation_operations_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 9216,
+          "expected": ">=640"
+        },
+        {
+          "id": "target_pressure.teaching_concurrency_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 384,
+          "expected": ">=80"
+        },
+        {
+          "id": "target_pressure.teaching_operations_floor",
+          "step": "target-10k",
+          "passed": true,
+          "actual": 1536,
+          "expected": ">=160"
+        }
+      ]
+    },
+    "shortfallRps": 0
+  },
+  "setup": [],
+  "cleanup": [],
+  "runnerErrors": [],
+  "nextAction": "Treat this as sustained mixed workload scale-up evidence only; add root workflow coverage and cross-module diagnostics before any full-system capacity promotion."
+}

@@ -18,6 +18,7 @@ import {
   systemIdentityBenchmarkRuntime,
 } from "./system-identity-benchmark-runtime-profile.mjs";
 import { buildSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
+import { portRange, portSequence } from "./system-port-profile.mjs";
 
 export const defaults = {
   out: "reports/system-mixed-workload-benchmark.current.json",
@@ -40,6 +41,7 @@ export const defaults = {
   teachingOperations: "24",
   identityGatewayCount: "1",
   conversationGatewayCount: "1",
+  teachingGatewayCount: "1",
   identitySessionDbMaxConns: "8",
   identitySessionDbWriteConcurrency: "0",
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
@@ -189,6 +191,8 @@ export function buildWorkloadCommands(options) {
         "tools/run-teaching-archive-benchmark.mjs",
         "--base-url",
         options.teachingBaseUrl,
+        "--gateway-count",
+        options.teachingGatewayCount,
         "--db-max-conns",
         options.teachingDbMaxConns,
         "--agent-api-key",
@@ -307,6 +311,7 @@ export function buildSystemMixedWorkloadReport({
       teachingConcurrency: parseInteger(options.teachingConcurrency),
       identityGatewayCount: parseInteger(options.identityGatewayCount),
       conversationGatewayCount: parseInteger(options.conversationGatewayCount),
+      teachingGatewayCount: parseInteger(options.teachingGatewayCount),
     },
     transportProfile: buildMixedWorkloadTransportProfile(options),
     identityIngressProfile: buildMixedWorkloadIdentityIngressProfile(options),
@@ -543,6 +548,7 @@ function validateOptions(options) {
   assertPositiveInteger(options.teachingOperations, "teaching-operations");
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
   assertPositiveInteger(options.conversationGatewayCount, "conversation-gateway-count");
+  assertPositiveInteger(options.teachingGatewayCount, "teaching-gateway-count");
   assertPositiveInteger(options.identitySessionDbMaxConns, "identity-session-db-max-conns");
   assertNonNegativeInteger(options.identitySessionDbWriteConcurrency, "identity-session-db-write-concurrency");
   identitySessionTablePersistence(options);
@@ -568,7 +574,11 @@ function assertNoPortOverlap(options) {
     parseInteger(options.conversationGatewayCount),
     "conversation-base-url",
   );
-  const teachingPorts = portRange(options.teachingBaseUrl, 1, "teaching-base-url");
+  const teachingPorts = portRange(
+    options.teachingBaseUrl,
+    parseInteger(options.teachingGatewayCount),
+    "teaching-base-url",
+  );
   const overlap = identityPorts
     .filter((port) =>
       identityIngressPorts.includes(port) || conversationPorts.includes(port) || teachingPorts.includes(port))
@@ -692,35 +702,6 @@ function tailText(value, maxLines = 80) {
   const text = String(value ?? "").replace(/\s+$/u, "");
   if (!text) return "";
   return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
-}
-
-function portRange(urlText, count, name) {
-  const start = portFromUrl(urlText, name);
-  return portSequence(start, count, name);
-}
-
-function portSequence(startPort, count, name) {
-  const start = portFromValue(startPort, name);
-  return Array.from({ length: count }, (_, index) => start + index);
-}
-
-function portFromValue(value, name) {
-  const port = Number.parseInt(value, 10);
-  if (!Number.isInteger(port) || port <= 0) {
-    throw new Error(`${name} must include an explicit positive port`);
-  }
-  return port;
-}
-
-function portFromUrl(urlText, name) {
-  try {
-    const url = new URL(urlText);
-    const port = Number.parseInt(url.port, 10);
-    if (!Number.isInteger(port) || port <= 0) throw new Error("missing explicit positive port");
-    return port;
-  } catch (error) {
-    throw new Error(`${name} must include an explicit positive port: ${error.message}`);
-  }
 }
 
 function assertPositiveInteger(value, name) {

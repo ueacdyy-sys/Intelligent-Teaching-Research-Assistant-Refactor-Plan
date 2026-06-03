@@ -12,6 +12,38 @@ import (
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 )
 
+func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
+	db := &recordingDB{}
+
+	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
+		t.Fatalf("EnsureSchema returned error: %v", err)
+	}
+
+	statements := strings.Join(db.execStatements, "\n")
+	for _, indexName := range []string{
+		"idx_teaching_archive_items_student_created",
+		"idx_teaching_archive_items_owner_created",
+		"idx_teaching_archive_items_material_created",
+	} {
+		if !strings.Contains(statements, "DROP INDEX IF EXISTS "+indexName) {
+			t.Fatalf("schema does not drop redundant index %s", indexName)
+		}
+		if strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
+			t.Fatalf("schema recreates redundant write-amplifying index %s", indexName)
+		}
+	}
+	for _, indexName := range []string{
+		"idx_teaching_archive_items_created_page",
+		"idx_teaching_archive_items_student_page",
+		"idx_teaching_archive_items_owner_page",
+		"idx_teaching_archive_items_material_page",
+	} {
+		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
+			t.Fatalf("schema missing covered page index %s", indexName)
+		}
+	}
+}
+
 func TestListTutoringAnalysisRequestsBuildsScopedIndexedQuery(t *testing.T) {
 	db := &recordingDB{rows: &singleTutoringAnalysisRequestRow{}}
 	repository := postgres.NewArchiveRepository(db)
@@ -287,16 +319,18 @@ func TestRecordAIGradingResultRejectsAtomicFinalOverwrite(t *testing.T) {
 }
 
 type recordingDB struct {
-	lastSQL     string
-	lastExecSQL string
-	args        []any
-	execArgs    []any
-	rows        postgres.Rows
-	tag         postgres.CommandTag
+	lastSQL        string
+	lastExecSQL    string
+	args           []any
+	execArgs       []any
+	execStatements []string
+	rows           postgres.Rows
+	tag            postgres.CommandTag
 }
 
 func (db *recordingDB) Exec(_ context.Context, statement string, args ...any) (postgres.CommandTag, error) {
 	db.lastExecSQL = statement
+	db.execStatements = append(db.execStatements, statement)
 	db.execArgs = append([]any(nil), args...)
 	if db.tag == nil {
 		return commandTag{rowsAffected: 1}, nil

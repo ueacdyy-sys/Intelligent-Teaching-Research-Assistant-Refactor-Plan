@@ -24,6 +24,8 @@ describe("system sustained mixed workload runner", () => {
       "25",
       "--teaching-concurrency",
       "6",
+      "--teaching-gateway-count",
+      "3",
       "--conversation-benchmark-runtime",
       "wsl",
       "--conversation-benchmark-wsl-host",
@@ -54,6 +56,7 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(parsed.samples, "3");
     assert.equal(parsed.sampleIntervalMs, "25");
     assert.equal(parsed.teachingConcurrency, "6");
+    assert.equal(parsed.teachingGatewayCount, "3");
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
@@ -76,6 +79,7 @@ describe("system sustained mixed workload runner", () => {
       identityBaseUrl: "http://127.0.0.1:19000",
       conversationBaseUrl: "http://127.0.0.1:19100",
       teachingBaseUrl: "http://127.0.0.1:19200",
+      teachingGatewayCount: "3",
       maxConnsPerHost: "70",
       warmConnectionsPerHost: "9",
       identityMaxConnsPerHost: "150",
@@ -103,6 +107,7 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(samples[0].options.identityBaseUrl, "http://127.0.0.1:19000");
     assert.equal(samples[0].options.conversationBaseUrl, "http://127.0.0.1:19100");
     assert.equal(samples[0].options.teachingBaseUrl, "http://127.0.0.1:19200");
+    assert.equal(samples[0].options.teachingGatewayCount, "3");
     assert.equal(samples[0].options.maxConnsPerHost, "70");
     assert.equal(samples[0].options.identityMaxConnsPerHost, "150");
     assert.equal(samples[0].options.identityIngressProxy, "true");
@@ -251,6 +256,7 @@ describe("system sustained mixed workload runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      teachingGatewayCount: "3",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
@@ -297,6 +303,7 @@ describe("system sustained mixed workload runner", () => {
       maxConnsPerHost: 40,
       warmConnectionsPerHost: 16,
     });
+    assert.equal(report.concurrencyProfile.teachingGatewayCount, 3);
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");

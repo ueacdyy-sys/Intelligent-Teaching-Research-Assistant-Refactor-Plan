@@ -11,6 +11,7 @@ export const defaults = {
   out: "reports/teaching-archive-benchmark.current.json",
   concurrency: "4",
   operations: "16",
+  gatewayCount: "1",
   dbMaxConns: "4",
   agentApiKey: "ueacd",
   timeoutMs: "10000",
@@ -41,16 +42,21 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
   const now = dependencies.now ?? (() => new Date().toISOString());
   const startedAt = Date.now();
   const generatedAt = now();
-  let gateway;
+  let gateways = [];
   let gatewayOutput = "";
 
   try {
     validateOptions(options);
     removeExistingReport(root, options.out);
-    gateway = spawnGateway(options, root, spawnProcess);
-    gateway.stdout?.on("data", (chunk) => { gatewayOutput += chunk.toString(); });
-    gateway.stderr?.on("data", (chunk) => { gatewayOutput += chunk.toString(); });
-    await waitForGateway(options.baseUrl, parseInteger(options.startupTimeoutMs), gateway, { fetch: fetchFn, sleep: sleepFn });
+    gateways = spawnGateways(options, root, spawnProcess);
+    gateways.forEach((gateway, index) => {
+      gateway.stdout?.on("data", (chunk) => { gatewayOutput += `[gateway ${index + 1}]\n${chunk.toString()}`; });
+      gateway.stderr?.on("data", (chunk) => { gatewayOutput += `[gateway ${index + 1}]\n${chunk.toString()}`; });
+    });
+    await waitForGateways(gatewayBaseUrls(options), parseInteger(options.startupTimeoutMs), gateways, {
+      fetch: fetchFn,
+      sleep: sleepFn,
+    });
 
     const createArchiveItem = await runCreateArchiveItemPhase(options, fetchFn);
     const createQuizSubmission = await runCreateQuizSubmissionPhase(options, fetchFn, createArchiveItem.items);
@@ -77,7 +83,7 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
     writeJsonReport(path.join(root, options.out), report);
     return report;
   } finally {
-    if (gateway) stopProcess(gateway, spawnCommandSync);
+    for (const gateway of gateways) stopProcess(gateway, spawnCommandSync);
     await sleepFn(200);
   }
 }
@@ -90,9 +96,10 @@ export function buildBenchmarkReport({ options, generatedAt, status, phases, tot
     workloadType: "HTTP_BENCHMARK",
     status,
     baseUrl: maskURL(options.baseUrl),
+    gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
     concurrency: parseInteger(options.concurrency),
     operationsPerPhase: parseInteger(options.operations),
-    gatewayCount: 1,
+    gatewayCount: parseInteger(options.gatewayCount),
     gatewayDatabaseProfile: {
       dbMaxConns: parseInteger(options.dbMaxConns),
       databaseUrl: "[database-url]",
@@ -112,8 +119,10 @@ export function buildFailureReport({ options, generatedAt, errorMessage, gateway
     workloadType: "HTTP_BENCHMARK",
     status: "FAILED",
     baseUrl: maskURL(options.baseUrl),
+    gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
     concurrency: parseInteger(options.concurrency),
     operationsPerPhase: parseInteger(options.operations),
+    gatewayCount: parseInteger(options.gatewayCount),
     gatewayDatabaseProfile: {
       dbMaxConns: parseInteger(options.dbMaxConns),
       databaseUrl: "[database-url]",
@@ -186,7 +195,7 @@ export function studentPrincipal(now = new Date()) {
 async function runCreateArchiveItemPhase(options, fetchFn) {
   const items = [];
   const phase = await runPhase(options, "createArchiveItem", async (index) => {
-    const response = await requestJson(fetchFn, `${options.baseUrl}/v1/teaching/archive-items`, {
+    const response = await requestJson(fetchFn, `${gatewayBaseUrl(options, index)}/v1/teaching/archive-items`, {
       method: "POST",
       headers: requestHeaders(options.agentApiKey, teacherPrincipal()),
       body: JSON.stringify({
@@ -216,7 +225,7 @@ async function runCreateQuizSubmissionPhase(options, fetchFn, archiveItemIds) {
   }
   return runPhase(options, "createQuizSubmission", async (index) => {
     const archiveItemId = archiveItemIds[index % archiveItemIds.length];
-    await requestJson(fetchFn, `${options.baseUrl}/v1/teaching/archive-items/${archiveItemId}/quiz-submissions`, {
+    await requestJson(fetchFn, `${gatewayBaseUrl(options, index)}/v1/teaching/archive-items/${archiveItemId}/quiz-submissions`, {
       method: "POST",
       headers: requestHeaders(options.agentApiKey, studentPrincipal()),
       body: JSON.stringify({
@@ -227,10 +236,10 @@ async function runCreateQuizSubmissionPhase(options, fetchFn, archiveItemIds) {
 }
 
 async function runListArchiveItemsPhase(options, fetchFn) {
-  return runPhase(options, "listArchiveItems", async () => {
+  return runPhase(options, "listArchiveItems", async (index) => {
     await requestJson(
       fetchFn,
-      `${options.baseUrl}/v1/teaching/archive-items?ownerType=TEACHING&materialType=QUIZ&pageSize=10`,
+      `${gatewayBaseUrl(options, index)}/v1/teaching/archive-items?ownerType=TEACHING&materialType=QUIZ&pageSize=10`,
       {
         method: "GET",
         headers: requestHeaders(options.agentApiKey, teacherPrincipal()),
@@ -336,19 +345,29 @@ function phaseErrors(phases) {
   return Object.values(phases).reduce((total, phase) => total + phase.errors, 0);
 }
 
-function spawnGateway(options, root, spawnProcess) {
+function spawnGateways(options, root, spawnProcess) {
+  return gatewayBaseUrls(options).map((baseUrl) => spawnGateway(options, root, spawnProcess, baseUrl));
+}
+
+function spawnGateway(options, root, spawnProcess, baseUrl) {
   return spawnProcess("go", ["run", "./services/teaching-archive-gateway/cmd/gateway"], {
     cwd: root,
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
-      PORT: portFromUrl(options.baseUrl, options.port),
+      PORT: portFromUrl(baseUrl, options.port),
       DATABASE_URL: options.dsn,
       DB_MAX_CONNS: String(parseInteger(options.dbMaxConns)),
       AGENT_API_KEY: options.agentApiKey,
     },
   });
+}
+
+async function waitForGateways(baseUrls, startupTimeoutMs, gateways, dependencies) {
+  await Promise.all(baseUrls.map((baseUrl, index) =>
+    waitForGateway(baseUrl, startupTimeoutMs, gateways[index], dependencies)
+  ));
 }
 
 async function waitForGateway(baseUrl, startupTimeoutMs, processHandle, dependencies) {
@@ -375,6 +394,7 @@ async function waitForGateway(baseUrl, startupTimeoutMs, processHandle, dependen
 function validateOptions(options) {
   assertPositiveInteger(options.concurrency, "concurrency");
   assertPositiveInteger(options.operations, "operations");
+  assertPositiveInteger(options.gatewayCount, "gateway-count");
   assertPositiveInteger(options.dbMaxConns, "db-max-conns");
   assertPositiveInteger(options.startupTimeoutMs, "startup-timeout-ms");
   assertPositiveInteger(options.timeoutMs, "timeout-ms");
@@ -408,6 +428,22 @@ function portFromUrl(urlText, fallback) {
   const port = parsed.port || fallback;
   assertPositiveInteger(port, "base-url port");
   return String(port);
+}
+
+function gatewayBaseUrls(options) {
+  const count = parseInteger(options.gatewayCount);
+  const base = new URL(options.baseUrl);
+  const startPort = Number.parseInt(base.port || options.port, 10);
+  return Array.from({ length: count }, (_entry, index) => {
+    const url = new URL(options.baseUrl);
+    url.port = String(startPort + index);
+    return `${url.protocol}//${url.hostname}:${url.port}`;
+  });
+}
+
+function gatewayBaseUrl(options, operationIndex) {
+  const urls = gatewayBaseUrls(options);
+  return urls[operationIndex % urls.length];
 }
 
 function maskURL(value) {

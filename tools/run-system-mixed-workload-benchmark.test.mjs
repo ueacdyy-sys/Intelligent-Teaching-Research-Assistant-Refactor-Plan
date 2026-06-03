@@ -20,6 +20,8 @@ describe("system mixed workload benchmark runner", () => {
       "http://127.0.0.1:19000",
       "--conversation-gateway-count",
       "16",
+      "--teaching-gateway-count",
+      "4",
       "--conversation-write-batch-size",
       "64",
       "--conversation-benchmark-runtime",
@@ -52,6 +54,7 @@ describe("system mixed workload benchmark runner", () => {
 
     assert.equal(parsed.identityBaseUrl, "http://127.0.0.1:19000");
     assert.equal(parsed.conversationGatewayCount, "16");
+    assert.equal(parsed.teachingGatewayCount, "4");
     assert.equal(parsed.conversationWriteBatchSize, "64");
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
@@ -78,6 +81,7 @@ describe("system mixed workload benchmark runner", () => {
       identityOut: "reports/identity.json",
       conversationOut: "reports/conversation.json",
       teachingOut: "reports/teaching.json",
+      teachingGatewayCount: "3",
       knowledgeOut: "reports/knowledge.json",
       aiAdmissionOut: "reports/ai.json",
       maxConnsPerHost: "70",
@@ -127,6 +131,7 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[1].args, "--max-conns-per-host"), "70");
     assert.equal(argumentAfter(commands[1].args, "--warm-connections-per-host"), "9");
     assert.equal(argumentAfter(commands[2].args, "--base-url"), "http://127.0.0.1:19200");
+    assert.equal(argumentAfter(commands[2].args, "--gateway-count"), "3");
     assert.equal(argumentAfter(commands[2].args, "--agent-api-key"), "ueacd");
     assert.equal(commands[3].sourceReportPath, "reports/knowledge.json");
     assert.equal(commands[4].sourceReportPath, "reports/ai.json");
@@ -317,6 +322,7 @@ describe("system mixed workload benchmark runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      teachingGatewayCount: "3",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
@@ -357,6 +363,7 @@ describe("system mixed workload benchmark runner", () => {
       maxConnsPerHost: 40,
       warmConnectionsPerHost: 16,
     });
+    assert.equal(report.concurrencyProfile.teachingGatewayCount, 3);
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");

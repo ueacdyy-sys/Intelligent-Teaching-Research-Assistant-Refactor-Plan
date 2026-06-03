@@ -24,6 +24,8 @@ describe("teaching archive benchmark runner", () => {
       "http://127.0.0.1:19500",
       "--db-max-conns",
       "2",
+      "--gateway-count",
+      "3",
       "--startup-timeout-ms",
       "30000",
       "--unknown-option",
@@ -32,6 +34,7 @@ describe("teaching archive benchmark runner", () => {
 
     assert.equal(parsed.baseUrl, "http://127.0.0.1:19500");
     assert.equal(parsed.dbMaxConns, "2");
+    assert.equal(parsed.gatewayCount, "3");
     assert.equal(parsed.startupTimeoutMs, "30000");
     assert.equal(parsed.concurrency, defaults.concurrency);
     assert.equal(Object.hasOwn(parsed, "unknownOption"), false);
@@ -65,6 +68,7 @@ describe("teaching archive benchmark runner", () => {
     });
 
     assert.equal(report.status, "PASSED");
+    assert.equal(report.gatewayCount, 1);
     assert.equal(report.summary.totalErrors, 0);
     assert.equal(report.summary.maxP99Ms, 10);
     assert.equal(report.phases.createQuizSubmission.latencyMs.p95, 10);
@@ -115,6 +119,45 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.phases.listArchiveItems.operations, 4);
     assert.equal(calls.filter((call) => call.includes("/quiz-submissions")).length, 4);
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching.json"), "utf8")).status, "PASSED");
+  });
+
+  it("fans teaching requests across multiple gateway ports", async () => {
+    const root = makeTempRoot();
+    const calls = [];
+    const spawnedPorts = [];
+    const report = await runTeachingArchiveBenchmark(
+      {
+        ...defaults,
+        baseUrl: "http://127.0.0.1:19500",
+        out: "reports/teaching.json",
+        concurrency: "2",
+        operations: "6",
+        gatewayCount: "3",
+      },
+      {
+        root,
+        fetch: fakeTeachingFetch(calls),
+        sleep: async () => {},
+        spawnProcess: (_command, _args, options) => {
+          spawnedPorts.push(options.env.PORT);
+          return fakeSpawnProcess();
+        },
+        spawnCommandSync: fakeSpawnSync,
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "PASSED");
+    assert.equal(report.gatewayCount, 3);
+    assert.deepEqual(spawnedPorts, ["19500", "19501", "19502"]);
+    assert.deepEqual(report.gatewayBaseUrls, [
+      "http://127.0.0.1:19500",
+      "http://127.0.0.1:19501",
+      "http://127.0.0.1:19502",
+    ]);
+    assert(calls.some((call) => call.includes("127.0.0.1:19500/v1/teaching/archive-items")));
+    assert(calls.some((call) => call.includes("127.0.0.1:19501/v1/teaching/archive-items")));
+    assert(calls.some((call) => call.includes("127.0.0.1:19502/v1/teaching/archive-items")));
   });
 
   it("returns a failed report when a phase cannot produce archive item ids", async () => {

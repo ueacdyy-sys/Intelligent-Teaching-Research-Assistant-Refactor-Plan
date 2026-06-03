@@ -41,21 +41,23 @@ describe("system sustained mixed workload scale-up runner", () => {
       "target-10k",
     ]);
     assert.equal(targetStep.targetReadWriteRps, 10000);
-    assert.equal(targetStep.options.identityConcurrency, "80");
-    assert.equal(targetStep.options.identityOperations, "160");
-    assert.equal(targetStep.options.conversationConcurrency, "320");
-    assert.equal(targetStep.options.conversationOperations, "640");
-    assert.equal(targetStep.options.teachingConcurrency, "80");
-    assert.equal(targetStep.options.teachingOperations, "160");
-    assert.equal(targetStep.options.identityGatewayCount, "4");
-    assert.equal(targetStep.options.conversationGatewayCount, "4");
-    assert.equal(targetStep.options.identitySessionDbMaxConns, "16");
+    assert.equal(targetStep.options.identityConcurrency, "192");
+    assert.equal(targetStep.options.identityOperations, "768");
+    assert.equal(targetStep.options.conversationConcurrency, "2304");
+    assert.equal(targetStep.options.conversationOperations, "9216");
+    assert.equal(targetStep.options.teachingConcurrency, "384");
+    assert.equal(targetStep.options.teachingOperations, "1536");
+    assert.equal(targetStep.options.identityGatewayCount, "8");
+    assert.equal(targetStep.options.conversationGatewayCount, "16");
+    assert.equal(targetStep.options.teachingGatewayCount, "4");
+    assert.equal(targetStep.options.identitySessionDbMaxConns, "32");
     assert.equal(targetStep.options.identitySessionDbSessionTablePersistence, "unlogged");
-    assert.equal(targetStep.options.conversationDbMaxConns, "16");
-    assert.equal(targetStep.options.teachingDbMaxConns, "16");
-    assert.equal(targetStep.options.conversationWriteBatchSize, "64");
+    assert.equal(targetStep.options.conversationDbMaxConns, "32");
+    assert.equal(targetStep.options.teachingDbMaxConns, "32");
+    assert.equal(targetStep.options.conversationWriteBatchSize, "128");
+    assert.equal(targetStep.options.conversationBenchmarkRuntime, "docker");
     assert.equal(targetStep.options.identityIngressProxy, "true");
-    assert.equal(targetStep.options.identityIngressCount, "16");
+    assert.equal(targetStep.options.identityIngressCount, "32");
     assert.equal(targetStep.options.identityBenchmarkRuntime, "docker");
     assert.equal(targetStep.options.requireTargetReadWriteRps, "true");
     assert.deepEqual(buildScaleUpSteps(defaults).map((step) => step.name), ["smoke", "low", "medium", "high"]);
@@ -85,6 +87,8 @@ describe("system sustained mixed workload scale-up runner", () => {
       "/mnt/c/workspace",
       "--identity-benchmark-runtime",
       "docker",
+      "--teaching-gateway-count",
+      "4",
       "--identity-benchmark-docker-image",
       "golang:1.26-alpine",
       "--identity-benchmark-docker-host",
@@ -113,6 +117,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
     assert.equal(parsed.identityBenchmarkRuntime, "docker");
+    assert.equal(parsed.teachingGatewayCount, "4");
     assert.equal(parsed.identityBenchmarkDockerImage, "golang:1.26-alpine");
     assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
     assert.equal(parsed.identityIngressProxy, "true");
@@ -146,6 +151,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      teachingGatewayCount: "3",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
@@ -164,6 +170,7 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.identityBaseUrl, "http://127.0.0.1:19000");
     assert.equal(steps[0].options.conversationBaseUrl, "http://127.0.0.1:19100");
     assert.equal(steps[0].options.teachingBaseUrl, "http://127.0.0.1:19200");
+    assert.equal(steps[0].options.teachingGatewayCount, "3");
     assert.equal(steps[0].options.maxConnsPerHost, "70");
     assert.equal(steps[0].options.identityMaxConnsPerHost, "150");
     assert.equal(steps[0].options.identityIngressProxy, "true");
