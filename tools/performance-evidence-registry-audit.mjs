@@ -70,6 +70,7 @@ const REQUIRED_SOURCE_REPORTS = [
   "reports/system-mixed-workload-ladder.current.json",
   "reports/system-sustained-mixed-workload.current.json",
   "reports/system-sustained-mixed-workload-scaleup.current.json",
+  "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.current.json",
   "reports/root-workflow-coverage.current.json",
   "reports/cross-module-db-queue-diagnostics.current.json",
   "reports/pgbouncer-production-headroom.current.json",

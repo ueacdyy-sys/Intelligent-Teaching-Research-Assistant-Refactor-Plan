@@ -16,8 +16,11 @@ export const sourceReports = {
   crossModuleDiagnostics: "reports/cross-module-db-queue-diagnostics.current.json",
   pgbouncerProductionHeadroom: "reports/pgbouncer-production-headroom.current.json",
   sustainedScaleUp: "reports/system-sustained-mixed-workload-scaleup.current.json",
+  productionTargetScaleUp: "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.current.json",
   quality: "reports/quality-gate.current.json",
 };
+
+const optionalSourceReportKeys = new Set(["productionTargetScaleUp"]);
 
 export const rootSloPromotionPolicy = {
   reviewedClaim: "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
@@ -133,8 +136,8 @@ function buildAuditFindings(rootRequirementsText, reports) {
   });
   addFinding(findings, {
     id: "sources.required_reports_parseable",
-    passed: Object.entries(sourceReports).every(([key]) => reports[key]?.parseable === true),
-    actual: Object.entries(sourceReports).map(([key, reportPath]) => `${key}:${reports[key]?.parseable === true ? "json" : "missing_or_invalid"}:${reportPath}`).join(";"),
+    passed: requiredSourceReportEntries().every(([key]) => reports[key]?.parseable === true),
+    actual: requiredSourceReportEntries().map(([key, reportPath]) => `${key}:${reports[key]?.parseable === true ? "json" : "missing_or_invalid"}:${reportPath}`).join(";"),
     expected: "root workflow, cross-module diagnostics, PgBouncer headroom, sustained scale-up, and quality reports are readable JSON",
     remediation: "Regenerate the missing prerequisite report before reviewing promotion.",
   });
@@ -176,17 +179,19 @@ function buildPromotionEvidence(reports) {
   const diagnostics = reports.crossModuleDiagnostics?.value ?? {};
   const productionHeadroom = reports.pgbouncerProductionHeadroom?.value ?? {};
   const sustainedScaleUp = reports.sustainedScaleUp?.value ?? {};
+  const productionTargetScaleUp = reports.productionTargetScaleUp?.value ?? {};
+  const productionTargetPresent = hasProductionTargetEvidence(productionTargetScaleUp);
   const modules = Array.isArray(diagnostics.moduleDiagnostics) ? diagnostics.moduleDiagnostics : [];
   const identity = moduleById(modules, "identity_and_access");
   const conversation = moduleById(modules, "research_conversation_write");
   const teaching = moduleById(modules, "teaching_archive_and_quiz");
-  const latencySamples = [
-    latencySample("identity.slowest_p99_ms", identity?.metrics?.slowestP99Ms),
-    latencySample("conversation.low_tail_p99_ms", conversation?.metrics?.lowTailP99Ms),
-    latencySample("conversation.burst_p99_ms", conversation?.metrics?.burstP99Ms),
-    latencySample("teaching_archive.slowest_p99_ms", teaching?.metrics?.slowestP99Ms),
-    latencySample("sustained_scaleup.max_p99_ms", diagnostics.mixedWorkloadDiagnostics?.maxP99Ms),
+  const fallbackLatencySamples = buildFallbackLatencySamples(identity, conversation, teaching, diagnostics);
+  const productionTargetLatencySamples = [
+    latencySample("production_target.max_p99_ms", productionTargetScaleUp.summary?.maxP99Ms),
   ].filter((sample) => Number.isFinite(sample.value));
+  const latencySamples = productionTargetPresent && productionTargetLatencySamples.length > 0
+    ? productionTargetLatencySamples
+    : fallbackLatencySamples;
   const maxLatency = latencySamples.sort((left, right) => right.value - left.value).at(0) ?? null;
   const pgbouncerMax = numberOrNull(diagnostics.databaseTopology?.pgbouncer?.maxDbConnections);
   const headroom = numberOrNull(diagnostics.databaseTopology?.hotPathPool?.pgbouncerHeadroom);
@@ -196,7 +201,9 @@ function buildPromotionEvidence(reports) {
   const productionHeadroomReady = productionHeadroom.readiness === "READY";
   const productionCandidateHeadroom = numberOrNull(productionHeadroom.candidate?.sourceHotPathHeadroom);
   const productionCandidateMinimumHeadroom = numberOrNull(productionHeadroom.candidate?.minimumHeadroom);
-  const productionThroughput = productionThroughputEvidence(sustainedScaleUp, diagnostics);
+  const productionThroughput = productionThroughputEvidence(productionTargetScaleUp, sustainedScaleUp, diagnostics);
+  const sustainedScaleSource = productionTargetPresent ? productionTargetScaleUp : sustainedScaleUp;
+  const mixedDiagnosticsSource = productionTargetPresent ? {} : diagnostics.mixedWorkloadDiagnostics ?? {};
   const shallowModules = modules
     .filter((module) => isShallowEvidenceClass(module.classification))
     .map((module) => `${module.id}:${module.classification}`);
@@ -209,7 +216,10 @@ function buildPromotionEvidence(reports) {
       })
       .map((workflow) => workflow.id)
     : [];
-  const highestStep = diagnostics.mixedWorkloadDiagnostics?.highestPassedStep ?? sustainedScaleUp.summary?.highestPassedStep ?? null;
+  const fallbackHighestStep = diagnostics.mixedWorkloadDiagnostics?.highestPassedStep ?? sustainedScaleUp.summary?.highestPassedStep ?? null;
+  const selectedHighestStep = productionTargetPresent
+    ? sustainedScaleSource.summary?.highestPassedStep ?? fallbackHighestStep
+    : fallbackHighestStep;
   return {
     rootWorkflowCoverage: {
       readiness: rootCoverage.readiness ?? null,
@@ -225,12 +235,23 @@ function buildPromotionEvidence(reports) {
       samples: latencySamples,
       maxP99Ms: maxLatency?.value ?? null,
       maxP99Source: maxLatency?.name ?? null,
+      diagnosticContextSamples: fallbackLatencySamples,
       identityRevokeCycleAttribution: {
         slowestStep: identity?.metrics?.revokeCycleSlowestStep ?? null,
         slowestStepP99Ms: numberOrNull(identity?.metrics?.revokeCycleSlowestStepP99Ms),
         stepP99SumMs: numberOrNull(identity?.metrics?.revokeCycleStepP99SumMs),
         p99ResidualMs: numberOrNull(identity?.metrics?.revokeCycleP99ResidualMs),
       },
+    },
+    productionTarget: {
+      present: productionTargetPresent,
+      sourceReportPath: sourceReports.productionTargetScaleUp,
+      status: productionTargetScaleUp.status ?? null,
+      targetStatus: productionTargetScaleUp.throughputTarget?.status ?? null,
+      targetConfigured: productionTargetScaleUp.throughputTarget?.configured === true,
+      targetAttempted: productionTargetScaleUp.throughputTarget?.attempted === true,
+      measuredReadWriteRps: numberOrNull(productionTargetScaleUp.summary?.highestPassedReadWriteRps),
+      maxP99Ms: numberOrNull(productionTargetScaleUp.summary?.maxP99Ms),
     },
     databaseHeadroom: {
       pgbouncerMaxDbConnections: pgbouncerMax,
@@ -249,17 +270,18 @@ function buildPromotionEvidence(reports) {
       satisfiedBy: productionHeadroomReady ? "production_headroom_profile" : "current_cross_module_diagnostics",
     },
     sustainedScale: {
-      highestPassedStep: highestStep,
-      highestPassedStepRank: stepRank(highestStep),
+      highestPassedStep: selectedHighestStep,
+      highestPassedStepRank: stepRank(selectedHighestStep),
       minimumStepName: rootSloPromotionPolicy.minimumSustainedStepName,
       minimumStepRank: rootSloPromotionPolicy.minimumSustainedStepRank,
-      totalErrors: numberOrNull(diagnostics.mixedWorkloadDiagnostics?.totalErrors ?? sustainedScaleUp.summary?.totalErrors),
-      orchestrationErrors: numberOrNull(diagnostics.mixedWorkloadDiagnostics?.orchestrationErrors ?? sustainedScaleUp.summary?.orchestrationErrors),
+      totalErrors: numberOrNull(mixedDiagnosticsSource.totalErrors ?? sustainedScaleSource.summary?.totalErrors),
+      orchestrationErrors: numberOrNull(mixedDiagnosticsSource.orchestrationErrors ?? sustainedScaleSource.summary?.orchestrationErrors),
     },
     productionThroughput: {
       targetReadWriteRps: rootSloPromotionPolicy.productionReadWriteRpsTarget,
       measuredReadWriteRps: productionThroughput.measuredReadWriteRps,
       source: productionThroughput.source,
+      targetConfiguredReadWriteRps: productionThroughput.targetConfiguredReadWriteRps,
       targetAttemptStatus: productionThroughput.targetAttemptStatus,
       targetAttempted: productionThroughput.targetAttempted,
       targetConfigured: productionThroughput.targetConfigured,
@@ -272,6 +294,26 @@ function buildPromotionEvidence(reports) {
       commandCount: Array.isArray(reports.quality?.value?.commandResults) ? reports.quality.value.commandResults.length : null,
     },
   };
+}
+
+function requiredSourceReportEntries() {
+  return Object.entries(sourceReports).filter(([key]) => !optionalSourceReportKeys.has(key));
+}
+
+function hasProductionTargetEvidence(report) {
+  return report?.throughputTarget?.configured === true &&
+    Number.isFinite(numberOrNull(report?.throughputTarget?.targetReadWriteRps)) &&
+    Number.isFinite(numberOrNull(report?.summary?.maxP99Ms));
+}
+
+function buildFallbackLatencySamples(identity, conversation, teaching, diagnostics) {
+  return [
+    latencySample("identity.slowest_p99_ms", identity?.metrics?.slowestP99Ms),
+    latencySample("conversation.low_tail_p99_ms", conversation?.metrics?.lowTailP99Ms),
+    latencySample("conversation.burst_p99_ms", conversation?.metrics?.burstP99Ms),
+    latencySample("teaching_archive.slowest_p99_ms", teaching?.metrics?.slowestP99Ms),
+    latencySample("sustained_scaleup.max_p99_ms", diagnostics.mixedWorkloadDiagnostics?.maxP99Ms),
+  ].filter((sample) => Number.isFinite(sample.value));
 }
 
 function buildPromotionFindings(evidence) {
@@ -320,7 +362,9 @@ function buildPromotionFindings(evidence) {
     id: "promotion.production_read_write_rps_target_met",
     passed: evidence.productionThroughput.targetAttemptStatus === "MET" &&
       Number.isFinite(evidence.productionThroughput.measuredReadWriteRps) &&
-      evidence.productionThroughput.measuredReadWriteRps >= rootSloPromotionPolicy.productionReadWriteRpsTarget,
+      evidence.productionThroughput.measuredReadWriteRps >= rootSloPromotionPolicy.productionReadWriteRpsTarget &&
+      Number.isFinite(evidence.productionThroughput.targetConfiguredReadWriteRps) &&
+      evidence.productionThroughput.targetConfiguredReadWriteRps >= rootSloPromotionPolicy.productionReadWriteRpsTarget,
     actual: formatProductionThroughputActual(evidence.productionThroughput),
     expected: `measured sustained read/write RPS >= ${rootSloPromotionPolicy.productionReadWriteRpsTarget} with production target status MET`,
     remediation: "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim.",
@@ -341,34 +385,51 @@ function requiredNextEvidence(blockers) {
   return [...ids];
 }
 
-function productionThroughputEvidence(sustainedScaleUp, diagnostics) {
-  const target = sustainedScaleUp.throughputTarget ?? {};
+function productionThroughputEvidence(productionTargetScaleUp, sustainedScaleUp, diagnostics) {
+  if (hasProductionTargetEvidence(productionTargetScaleUp)) {
+    return throughputFromScaleUpReport({
+      report: productionTargetScaleUp,
+      sourcePrefix: "production_target",
+      fallbackDiagnostics: null,
+    });
+  }
+  return throughputFromScaleUpReport({
+    report: sustainedScaleUp,
+    sourcePrefix: "sustained_scaleup",
+    fallbackDiagnostics: diagnostics,
+  });
+}
+
+function throughputFromScaleUpReport({ report, sourcePrefix, fallbackDiagnostics }) {
+  const target = report.throughputTarget ?? {};
   const candidates = [
     {
-      source: "sustained_scaleup.summary.highestPassedReadWriteRps",
-      value: sustainedScaleUp.summary?.highestPassedReadWriteRps,
+      source: `${sourcePrefix}.summary.highestPassedReadWriteRps`,
+      value: report.summary?.highestPassedReadWriteRps,
     },
     {
-      source: "sustained_scaleup.summary.highestPassedAggregateRps",
-      value: sustainedScaleUp.summary?.highestPassedAggregateRps,
+      source: `${sourcePrefix}.summary.highestPassedAggregateRps`,
+      value: report.summary?.highestPassedAggregateRps,
     },
     {
-      source: "sustained_scaleup.summary.aggregateReadWriteRps",
-      value: sustainedScaleUp.summary?.aggregateReadWriteRps,
-    },
-    {
-      source: "cross_module.mixedWorkloadDiagnostics.highestPassedReadWriteRps",
-      value: diagnostics.mixedWorkloadDiagnostics?.highestPassedReadWriteRps,
+      source: `${sourcePrefix}.summary.aggregateReadWriteRps`,
+      value: report.summary?.aggregateReadWriteRps,
     },
   ];
-  const highestStep = sustainedScaleUp.summary?.highestPassedStep;
-  const highestStepReport = Array.isArray(sustainedScaleUp.steps)
-    ? sustainedScaleUp.steps.find((step) => step.name === highestStep)
+  if (fallbackDiagnostics) {
+    candidates.push({
+      source: "cross_module.mixedWorkloadDiagnostics.highestPassedReadWriteRps",
+      value: fallbackDiagnostics.mixedWorkloadDiagnostics?.highestPassedReadWriteRps,
+    });
+  }
+  const highestStep = report.summary?.highestPassedStep;
+  const highestStepReport = Array.isArray(report.steps)
+    ? report.steps.find((step) => step.name === highestStep)
     : null;
   candidates.push(
-    { source: `sustained_scaleup.steps.${highestStep}.readWriteRps`, value: highestStepReport?.readWriteRps },
-    { source: `sustained_scaleup.steps.${highestStep}.aggregateRps`, value: highestStepReport?.aggregateRps },
-    { source: `sustained_scaleup.steps.${highestStep}.totalRps`, value: highestStepReport?.totalRps },
+    { source: `${sourcePrefix}.steps.${highestStep}.readWriteRps`, value: highestStepReport?.readWriteRps },
+    { source: `${sourcePrefix}.steps.${highestStep}.aggregateRps`, value: highestStepReport?.aggregateRps },
+    { source: `${sourcePrefix}.steps.${highestStep}.totalRps`, value: highestStepReport?.totalRps },
   );
   for (const candidate of candidates) {
     const value = numberOrNull(candidate.value);
@@ -383,6 +444,7 @@ function productionThroughputEvidence(sustainedScaleUp, diagnostics) {
 function attachThroughputTarget(target, throughput) {
   return {
     ...throughput,
+    targetConfiguredReadWriteRps: numberOrNull(target.targetReadWriteRps),
     targetAttemptStatus: target.status ?? "NOT_CONFIGURED",
     targetAttempted: typeof target.attempted === "boolean" ? target.attempted : false,
     targetConfigured: typeof target.configured === "boolean" ? target.configured : false,
@@ -399,7 +461,7 @@ function throughputShortfall(measuredReadWriteRps) {
 function formatProductionThroughputActual(throughput) {
   if (!Number.isFinite(throughput.measuredReadWriteRps)) return "missing";
   const targetSuffix = throughput.targetAttemptStatus
-    ? `;targetStatus=${throughput.targetAttemptStatus};targetAttempted=${throughput.targetAttempted};shortfall=${throughput.targetShortfallRps}`
+    ? `;targetRps=${throughput.targetConfiguredReadWriteRps};targetStatus=${throughput.targetAttemptStatus};targetAttempted=${throughput.targetAttempted};shortfall=${throughput.targetShortfallRps}`
     : "";
   return `${throughput.measuredReadWriteRps} rps from ${throughput.source}${targetSuffix}`;
 }
@@ -407,7 +469,7 @@ function formatProductionThroughputActual(throughput) {
 function formatLatencyActual(latency) {
   const base = `${latency.maxP99Source ?? "missing"}=${latency.maxP99Ms}`;
   const attribution = latency.identityRevokeCycleAttribution;
-  if (!attribution?.slowestStep) return base;
+  if (!String(latency.maxP99Source ?? "").startsWith("identity.") || !attribution?.slowestStep) return base;
   return `${base};identityRevokeSlowestStep=${attribution.slowestStep}:${attribution.slowestStepP99Ms};stepP99Sum=${attribution.stepP99SumMs};p99Residual=${attribution.p99ResidualMs}`;
 }
 
@@ -492,10 +554,11 @@ function loadCurrentInputs(root, rootRequirementsPath) {
   return {
     rootRequirementsPath,
     rootRequirementsText: fs.readFileSync(path.resolve(root, rootRequirementsPath), "utf8"),
-    reports: Object.fromEntries(Object.values(sourceReports).map((reportPath) => [
-      reportPath,
-      fs.readFileSync(path.join(root, reportPath), "utf8"),
-    ])),
+    reports: Object.fromEntries(Object.entries(sourceReports).map(([key, reportPath]) => {
+      const absolute = path.join(root, reportPath);
+      if (optionalSourceReportKeys.has(key) && !fs.existsSync(absolute)) return [reportPath, ""];
+      return [reportPath, fs.readFileSync(absolute, "utf8")];
+    })),
   };
 }
 

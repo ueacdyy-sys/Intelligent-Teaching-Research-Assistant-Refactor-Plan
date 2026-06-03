@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T09:23:24.473Z",
+  "generatedAt": "2026-06-03T09:59:22.032Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -47,34 +47,50 @@
       "targetP99Ms": 300,
       "samples": [
         {
+          "name": "production_target.max_p99_ms",
+          "value": 310.78
+        }
+      ],
+      "maxP99Ms": 310.78,
+      "maxP99Source": "production_target.max_p99_ms",
+      "diagnosticContextSamples": [
+        {
           "name": "identity.slowest_p99_ms",
           "value": 3071.17
-        },
-        {
-          "name": "conversation.burst_p99_ms",
-          "value": 1795.33
         },
         {
           "name": "conversation.low_tail_p99_ms",
           "value": 349.9
         },
         {
-          "name": "sustained_scaleup.max_p99_ms",
-          "value": 97
+          "name": "conversation.burst_p99_ms",
+          "value": 1795.33
         },
         {
           "name": "teaching_archive.slowest_p99_ms",
           "value": 35
+        },
+        {
+          "name": "sustained_scaleup.max_p99_ms",
+          "value": 97
         }
       ],
-      "maxP99Ms": 3071.17,
-      "maxP99Source": "identity.slowest_p99_ms",
       "identityRevokeCycleAttribution": {
         "slowestStep": "login",
         "slowestStepP99Ms": 1498.29,
         "stepP99SumMs": 3502.89,
         "p99ResidualMs": -431.72
       }
+    },
+    "productionTarget": {
+      "present": true,
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.current.json",
+      "status": "PASSED",
+      "targetStatus": "MET",
+      "targetConfigured": true,
+      "targetAttempted": true,
+      "measuredReadWriteRps": 22836.8,
+      "maxP99Ms": 310.78
     },
     "databaseHeadroom": {
       "pgbouncerMaxDbConnections": 90,
@@ -93,8 +109,8 @@
       "satisfiedBy": "production_headroom_profile"
     },
     "sustainedScale": {
-      "highestPassedStep": "high",
-      "highestPassedStepRank": 4,
+      "highestPassedStep": "target-10k",
+      "highestPassedStepRank": 8,
       "minimumStepName": "high",
       "minimumStepRank": 4,
       "totalErrors": 0,
@@ -102,12 +118,13 @@
     },
     "productionThroughput": {
       "targetReadWriteRps": 10000,
-      "measuredReadWriteRps": 1950.32,
-      "source": "sustained_scaleup.summary.highestPassedReadWriteRps",
-      "targetAttemptStatus": "NOT_CONFIGURED",
-      "targetAttempted": false,
-      "targetConfigured": false,
-      "targetShortfallRps": 8049.68
+      "measuredReadWriteRps": 22836.8,
+      "source": "production_target.summary.highestPassedReadWriteRps",
+      "targetConfiguredReadWriteRps": 10000,
+      "targetAttemptStatus": "MET",
+      "targetAttempted": true,
+      "targetConfigured": true,
+      "targetShortfallRps": 0
     },
     "quality": {
       "allPassed": true,
@@ -118,24 +135,17 @@
     "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
     "decision": "BLOCK_PROMOTION",
     "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-    "blockerCount": 2,
+    "blockerCount": 1,
     "blockers": [
       {
         "id": "promotion.interactive_tail_latency_within_target",
-        "actual": "identity.slowest_p99_ms=3071.17;identityRevokeSlowestStep=login:1498.29;stepP99Sum=3502.89;p99Residual=-431.72",
+        "actual": "production_target.max_p99_ms=310.78",
         "expected": "max interactive/root workflow P99 <= 300ms",
         "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
-      },
-      {
-        "id": "promotion.production_read_write_rps_target_met",
-        "actual": "1950.32 rps from sustained_scaleup.summary.highestPassedReadWriteRps;targetStatus=NOT_CONFIGURED;targetAttempted=false;shortfall=8049.68",
-        "expected": "measured sustained read/write RPS >= 10000 with production target status MET",
-        "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
       }
     ],
     "requiredNextEvidence": [
-      "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
-      "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
+      "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"
     ]
   },
   "auditFindings": [
@@ -217,7 +227,7 @@
       "id": "promotion.interactive_tail_latency_within_target",
       "passed": false,
       "severity": "promotion_blocker",
-      "actual": "identity.slowest_p99_ms=3071.17;identityRevokeSlowestStep=login:1498.29;stepP99Sum=3502.89;p99Residual=-431.72",
+      "actual": "production_target.max_p99_ms=310.78",
       "expected": "max interactive/root workflow P99 <= 300ms",
       "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
     },
@@ -233,15 +243,15 @@
       "id": "promotion.sustained_scale_depth_sufficient",
       "passed": true,
       "severity": "info",
-      "actual": "highest=high;rank=4;errors=0;orchestration=0",
+      "actual": "highest=target-10k;rank=8;errors=0;orchestration=0",
       "expected": "highest passed sustained mixed workload step >= high with zero errors",
       "remediation": "Run a higher sustained mixed workload step before promotion."
     },
     {
       "id": "promotion.production_read_write_rps_target_met",
-      "passed": false,
-      "severity": "promotion_blocker",
-      "actual": "1950.32 rps from sustained_scaleup.summary.highestPassedReadWriteRps;targetStatus=NOT_CONFIGURED;targetAttempted=false;shortfall=8049.68",
+      "passed": true,
+      "severity": "info",
+      "actual": "22836.8 rps from production_target.summary.highestPassedReadWriteRps;targetRps=10000;targetStatus=MET;targetAttempted=true;shortfall=0",
       "expected": "measured sustained read/write RPS >= 10000 with production target status MET",
       "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
     }

@@ -1,14 +1,13 @@
 {
-  "generatedAt": "2026-06-03T09:23:25.375Z",
+  "generatedAt": "2026-06-03T10:00:09.572Z",
   "readiness": "READY",
   "workloadType": "SYSTEM_CAPACITY_CLAIM_AUDIT",
   "claim": {
     "fullSystemUltraConcurrency": {
       "status": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-      "reason": "Root SLO promotion review blocks the claim with 2 blocker(s): promotion.interactive_tail_latency_within_target,promotion.production_read_write_rps_target_met.",
+      "reason": "Root SLO promotion review blocks the claim with 1 blocker(s): promotion.interactive_tail_latency_within_target.",
       "requiredNextEvidence": [
-        "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
-        "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
+        "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"
       ]
     },
     "moduleLimits": [
@@ -149,8 +148,8 @@
       {
         "module": "Quality Gate",
         "status": "QUALITY_READY",
-        "summary": "0 quality commands passed with 0 static findings",
-        "commandCount": 0
+        "summary": "29 quality commands passed with 0 static findings",
+        "commandCount": 29
       }
     ]
   },
@@ -255,14 +254,14 @@
       "reportParseable": true,
       "summary": {
         "allPassed": true,
-        "reportState": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
-        "commandCount": 0,
+        "reportState": "allPassed=true;status=PASSED;staticPassed=true",
+        "commandCount": 29,
         "staticFindings": 0
       }
     }
   },
   "mixedWorkloadEvidence": {
-    "count": 4,
+    "count": 5,
     "entries": [
       {
         "evidenceId": "system_mixed_workload_smoke_current",
@@ -283,6 +282,11 @@
         "evidenceId": "system_sustained_mixed_workload_scaleup_current",
         "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
         "status": "PASSED"
+      },
+      {
+        "evidenceId": "system_sustained_mixed_workload_scaleup_production10k_default_final",
+        "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.current.json",
+        "status": "PASSED"
       }
     ]
   },
@@ -297,11 +301,16 @@
     ]
   },
   "sustainedMixedWorkloadScaleUpEvidence": {
-    "count": 1,
+    "count": 2,
     "entries": [
       {
         "evidenceId": "system_sustained_mixed_workload_scaleup_current",
         "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.current.json",
+        "status": "PASSED"
+      },
+      {
+        "evidenceId": "system_sustained_mixed_workload_scaleup_production10k_default_final",
+        "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.current.json",
         "status": "PASSED"
       }
     ]
@@ -459,15 +468,13 @@
       "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
       "productionReadWriteRpsTarget": 10000,
       "interactiveP99TargetMs": 300,
-      "measuredReadWriteRps": 1950.32,
-      "blockerCount": 2,
+      "measuredReadWriteRps": 22836.8,
+      "blockerCount": 1,
       "blockerIds": [
-        "promotion.interactive_tail_latency_within_target",
-        "promotion.production_read_write_rps_target_met"
+        "promotion.interactive_tail_latency_within_target"
       ],
       "requiredNextEvidence": [
-        "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION",
-        "PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"
+        "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"
       ]
     },
     "entries": [
@@ -499,7 +506,7 @@
       "id": "quality.gate_passed",
       "passed": true,
       "severity": "info",
-      "actual": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
+      "actual": "allPassed=true;status=PASSED;staticPassed=true",
       "expected": "quality gate allPassed=true",
       "remediation": "Do not assess system capacity from a workspace whose strict quality gate is failing."
     },
@@ -515,7 +522,7 @@
       "id": "claim.no_full_system_promotion_without_mixed_workload",
       "passed": true,
       "severity": "info",
-      "actual": "mixedWorkloadEvidence=4;claim=NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+      "actual": "mixedWorkloadEvidence=5;claim=NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
       "expected": "no full-system ultra-concurrency claim when mixed workload evidence is absent",
       "remediation": "Add a mixed workload benchmark covering identity, conversation, teaching archive, knowledge, and worker admission before promoting a full-system claim."
     },
