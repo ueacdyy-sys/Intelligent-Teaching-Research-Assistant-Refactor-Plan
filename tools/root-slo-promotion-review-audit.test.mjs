@@ -43,6 +43,19 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.evidence.productionThroughput.targetShortfallRps, 0);
     assert.equal(report.evidence.latency.maxP99Source, "production_target.max_p99_ms");
     assert.equal(report.evidence.latency.maxP99Ms, expectedTargetReport.summary.maxP99Ms);
+    assert.deepEqual(
+      report.evidence.latency.workloadHotspots.slice(0, 3).map((entry) => ({
+        workloadName: entry.workloadName,
+        p99Ms: entry.p99Ms,
+      })),
+      [
+        { workloadName: "conversation_write", p99Ms: 253.6 },
+        { workloadName: "identity_http", p99Ms: 251.71 },
+        { workloadName: "teaching_archive", p99Ms: 207.89 },
+      ],
+    );
+    assert.equal(report.evidence.latency.workloadHotspots[0].breakdown.dbInsertP99Ms, 164.04);
+    assert.match(report.promotion.blockers[0].actual, /topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89/u);
     assert.equal(
       report.promotion.blockers.some((blocker) => blocker.id === "promotion.production_read_write_rps_target_met"),
       false,

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T16:01:59.327Z",
+  "generatedAt": "2026-06-03T16:10:56.396Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -53,6 +53,62 @@
       ],
       "maxP99Ms": 253.6,
       "maxP99Source": "production_target.max_p99_ms",
+      "workloadHotspots": [
+        {
+          "stepName": "target-10k",
+          "workloadName": "conversation_write",
+          "p95Ms": 228.59,
+          "p99Ms": 253.6,
+          "rps": 17969.1,
+          "errors": 0,
+          "breakdown": {
+            "serverTimingP99Ms": 195.84,
+            "clientServerGapP99Ms": 165.37,
+            "dbAcquireP99Ms": 0,
+            "dbBatchWaitP99Ms": 75.48,
+            "dbInsertP99Ms": 164.04,
+            "dbExecP99Ms": null,
+            "dominantPhase": null,
+            "dominantPhaseP99Ms": null
+          }
+        },
+        {
+          "stepName": "target-10k",
+          "workloadName": "identity_http",
+          "p95Ms": 235.2,
+          "p99Ms": 251.71,
+          "rps": 1351.91,
+          "errors": 0,
+          "breakdown": {
+            "serverTimingP99Ms": null,
+            "clientServerGapP99Ms": null,
+            "dbAcquireP99Ms": null,
+            "dbBatchWaitP99Ms": null,
+            "dbInsertP99Ms": null,
+            "dbExecP99Ms": null,
+            "dominantPhase": "refreshRotation",
+            "dominantPhaseP99Ms": 251.71
+          }
+        },
+        {
+          "stepName": "target-10k",
+          "workloadName": "teaching_archive",
+          "p95Ms": 187.03,
+          "p99Ms": 207.89,
+          "rps": 2688.21,
+          "errors": 0,
+          "breakdown": {
+            "serverTimingP99Ms": 181.49,
+            "clientServerGapP99Ms": null,
+            "dbAcquireP99Ms": 165.33,
+            "dbBatchWaitP99Ms": 38.1,
+            "dbInsertP99Ms": 46.66,
+            "dbExecP99Ms": 46.66,
+            "dominantPhase": null,
+            "dominantPhaseP99Ms": null
+          }
+        }
+      ],
       "diagnosticContextSamples": [
         {
           "name": "identity.slowest_p99_ms",
@@ -139,7 +195,7 @@
     "blockers": [
       {
         "id": "promotion.interactive_tail_latency_within_target",
-        "actual": "production_target.max_p99_ms=253.6",
+        "actual": "production_target.max_p99_ms=253.6;topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89",
         "expected": "max interactive/root workflow P99 <= 10ms",
         "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
       }
@@ -227,7 +283,7 @@
       "id": "promotion.interactive_tail_latency_within_target",
       "passed": false,
       "severity": "promotion_blocker",
-      "actual": "production_target.max_p99_ms=253.6",
+      "actual": "production_target.max_p99_ms=253.6;topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89",
       "expected": "max interactive/root workflow P99 <= 10ms",
       "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
     },

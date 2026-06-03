@@ -235,6 +235,7 @@ function buildPromotionEvidence(reports) {
       samples: latencySamples,
       maxP99Ms: maxLatency?.value ?? null,
       maxP99Source: maxLatency?.name ?? null,
+      workloadHotspots: buildProductionTargetWorkloadHotspots(productionTargetScaleUp),
       diagnosticContextSamples: fallbackLatencySamples,
       identityRevokeCycleAttribution: {
         slowestStep: identity?.metrics?.revokeCycleSlowestStep ?? null,
@@ -314,6 +315,33 @@ function buildFallbackLatencySamples(identity, conversation, teaching, diagnosti
     latencySample("teaching_archive.slowest_p99_ms", teaching?.metrics?.slowestP99Ms),
     latencySample("sustained_scaleup.max_p99_ms", diagnostics.mixedWorkloadDiagnostics?.maxP99Ms),
   ].filter((sample) => Number.isFinite(sample.value));
+}
+
+function buildProductionTargetWorkloadHotspots(report) {
+  return (report?.steps ?? [])
+    .flatMap((step) => (step.workloads ?? []).map((workload) => {
+      const summary = workload.summary ?? {};
+      return {
+        stepName: step.name ?? null,
+        workloadName: workload.name ?? null,
+        p95Ms: numberOrNull(summary.p95Ms),
+        p99Ms: numberOrNull(summary.p99Ms ?? workload.maxP99Ms),
+        rps: numberOrNull(summary.rps),
+        errors: numberOrNull(workload.errors ?? summary.errors),
+        breakdown: {
+          serverTimingP99Ms: numberOrNull(summary.serverTimingP99Ms),
+          clientServerGapP99Ms: numberOrNull(summary.clientServerGapP99Ms),
+          dbAcquireP99Ms: numberOrNull(summary.dbAcquireP99Ms),
+          dbBatchWaitP99Ms: numberOrNull(summary.dbBatchWaitP99Ms),
+          dbInsertP99Ms: numberOrNull(summary.dbInsertP99Ms),
+          dbExecP99Ms: numberOrNull(summary.dbExecP99Ms),
+          dominantPhase: summary.dominantPhase ?? null,
+          dominantPhaseP99Ms: numberOrNull(summary.dominantPhaseP99Ms),
+        },
+      };
+    }))
+    .filter((entry) => Number.isFinite(entry.p99Ms))
+    .sort((left, right) => right.p99Ms - left.p99Ms);
 }
 
 function buildPromotionFindings(evidence) {
@@ -468,9 +496,14 @@ function formatProductionThroughputActual(throughput) {
 
 function formatLatencyActual(latency) {
   const base = `${latency.maxP99Source ?? "missing"}=${latency.maxP99Ms}`;
+  const hotspots = (latency.workloadHotspots ?? [])
+    .slice(0, 3)
+    .map((entry) => `${entry.workloadName}:${entry.p99Ms}`)
+    .join(",");
+  const withHotspots = hotspots ? `${base};topWorkloads=${hotspots}` : base;
   const attribution = latency.identityRevokeCycleAttribution;
-  if (!String(latency.maxP99Source ?? "").startsWith("identity.") || !attribution?.slowestStep) return base;
-  return `${base};identityRevokeSlowestStep=${attribution.slowestStep}:${attribution.slowestStepP99Ms};stepP99Sum=${attribution.stepP99SumMs};p99Residual=${attribution.p99ResidualMs}`;
+  if (!String(latency.maxP99Source ?? "").startsWith("identity.") || !attribution?.slowestStep) return withHotspots;
+  return `${withHotspots};identityRevokeSlowestStep=${attribution.slowestStep}:${attribution.slowestStepP99Ms};stepP99Sum=${attribution.stepP99SumMs};p99Residual=${attribution.p99ResidualMs}`;
 }
 
 function parseReports(reports) {
