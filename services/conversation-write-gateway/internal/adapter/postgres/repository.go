@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -17,6 +18,7 @@ type DB interface {
 
 type Conn interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
 	Release()
 }
 
@@ -65,6 +67,10 @@ func (db PoolDB) ConversationDBPoolStats() platform.ConversationDBPoolStats {
 
 func (conn poolConn) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	return conn.conn.Exec(ctx, sql, args...)
+}
+
+func (conn poolConn) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	return conn.conn.CopyFrom(ctx, tableName, columnNames, rowSrc)
 }
 
 func (conn poolConn) Release() {

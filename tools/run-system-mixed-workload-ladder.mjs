@@ -25,6 +25,7 @@ export const defaults = {
   conversationDbMaxConns: "1",
   teachingDbMaxConns: "1",
   conversationWriteBatchSize: "8",
+  conversationWriteBatchWorkers: mixedDefaults.conversationWriteBatchWorkers,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   timeout: "180s",
@@ -73,6 +74,7 @@ export function buildLadderSteps(options) {
         conversationDbMaxConns: options.conversationDbMaxConns,
         teachingDbMaxConns: options.teachingDbMaxConns,
         conversationWriteBatchSize: options.conversationWriteBatchSize,
+        conversationWriteBatchWorkers: options.conversationWriteBatchWorkers,
         maxConnsPerHost: options.maxConnsPerHost,
         warmConnectionsPerHost: options.warmConnectionsPerHost,
         timeout: options.timeout,
@@ -178,6 +180,7 @@ export function buildSystemMixedWorkloadLadderReport({
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
+      conversationWriteBatchWorkers: parseInteger(options.conversationWriteBatchWorkers),
     },
     runtimeProfile: {
       executor: "LOCAL_NODE_LADDER_ORCHESTRATOR",
@@ -314,6 +317,7 @@ function validateOptions(options, steps) {
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
+  assertPositiveInteger(options.conversationWriteBatchWorkers, "conversation-write-batch-workers");
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
 }
 

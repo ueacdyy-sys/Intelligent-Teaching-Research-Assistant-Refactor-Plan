@@ -218,12 +218,19 @@ type fakeRepository struct {
 
 func (f *fakeRepository) Create(ctx context.Context, _ domain.ArchiveItem) error {
 	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
-		timing.DBInsert = time.Millisecond
+		timing.DBBatchWait = 500 * time.Microsecond
+		timing.DBAcquire = time.Millisecond
+		timing.DBExec = 2 * time.Millisecond
+		timing.DBInsert = 3 * time.Millisecond
 	}
 	return nil
 }
 
-func (f *fakeRepository) List(_ context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
+func (f *fakeRepository) List(ctx context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.DBAcquire = time.Millisecond
+		timing.DBQuery = 2 * time.Millisecond
+	}
 	items := make([]domain.ArchiveItem, 0, len(f.items))
 	for _, item := range f.items {
 		if query.OwnerType != "" && item.OwnerType != query.OwnerType {

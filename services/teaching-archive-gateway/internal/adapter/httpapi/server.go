@@ -1,6 +1,9 @@
 package httpapi
 
-import "ita-refactor/services/teaching-archive-gateway/internal/usecase"
+import (
+	"ita-refactor/services/teaching-archive-gateway/internal/platform"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
+)
 
 type Server struct {
 	createArchiveItem                *usecase.CreateArchiveItem
@@ -32,6 +35,8 @@ type Server struct {
 	getAttendanceStatistics          *usecase.GetAttendanceStatistics
 	createScannedQuizSubmission      *usecase.CreateScannedQuizSubmission
 	agentAPIKey                      string
+	diagnosticsSecret                string
+	dbPoolStatsProvider              platform.TeachingArchiveDBPoolStatsProvider
 }
 
 func NewServer(config ServerConfig) *Server {
@@ -65,5 +70,7 @@ func NewServer(config ServerConfig) *Server {
 		getAttendanceStatistics:          config.GetAttendanceStatistics,
 		createScannedQuizSubmission:      config.CreateScannedQuizSubmission,
 		agentAPIKey:                      config.AgentAPIKey,
+		diagnosticsSecret:                config.DiagnosticsSecret,
+		dbPoolStatsProvider:              config.DBPoolStatsProvider,
 	}
 }

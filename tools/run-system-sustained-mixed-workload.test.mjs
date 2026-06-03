@@ -28,6 +28,10 @@ describe("system sustained mixed workload runner", () => {
       "3",
       "--conversation-benchmark-runtime",
       "wsl",
+      "--conversation-write-batch-workers",
+      "2",
+      "--conversation-write-batch-mode",
+      "copy",
       "--conversation-benchmark-wsl-host",
       "172.28.160.1",
       "--conversation-benchmark-wsl-workspace",
@@ -42,12 +46,22 @@ describe("system sustained mixed workload runner", () => {
       "docker",
       "--teaching-benchmark-docker-host",
       "host.docker.internal",
+      "--teaching-db-min-conns",
+      "12",
+      "--teaching-db-prewarm-conns",
+      "12",
       "--teaching-max-conns-per-host",
       "128",
       "--teaching-warm-connections-per-host",
       "96",
       "--teaching-client-trace",
       "true",
+      "--teaching-archive-create-batch-size",
+      "64",
+      "--teaching-archive-create-batch-delay-ms",
+      "1",
+      "--teaching-archive-create-batch-workers",
+      "2",
       "--identity-ingress-proxy",
       "true",
       "--identity-ingress-count",
@@ -68,6 +82,8 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(parsed.teachingConcurrency, "6");
     assert.equal(parsed.teachingGatewayCount, "3");
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
+    assert.equal(parsed.conversationWriteBatchWorkers, "2");
+    assert.equal(parsed.conversationWriteBatchMode, "copy");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
     assert.equal(parsed.identityBenchmarkRuntime, "docker");
@@ -75,9 +91,14 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
     assert.equal(parsed.teachingBenchmarkRuntime, "docker");
     assert.equal(parsed.teachingBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(parsed.teachingDbMinConns, "12");
+    assert.equal(parsed.teachingDbPrewarmConns, "12");
     assert.equal(parsed.teachingMaxConnsPerHost, "128");
     assert.equal(parsed.teachingWarmConnectionsPerHost, "96");
     assert.equal(parsed.teachingClientTrace, "true");
+    assert.equal(parsed.teachingArchiveCreateBatchSize, "64");
+    assert.equal(parsed.teachingArchiveCreateBatchDelayMs, "1");
+    assert.equal(parsed.teachingArchiveCreateBatchWorkers, "2");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
@@ -109,15 +130,22 @@ describe("system sustained mixed workload runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      conversationWriteBatchWorkers: "2",
+      conversationWriteBatchMode: "copy",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
       teachingBenchmarkRuntime: "docker",
       teachingBenchmarkDockerImage: "golang:1.26-alpine",
       teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingDbMinConns: "12",
+      teachingDbPrewarmConns: "12",
       teachingMaxConnsPerHost: "128",
       teachingWarmConnectionsPerHost: "96",
       teachingClientTrace: "true",
+      teachingArchiveCreateBatchSize: "64",
+      teachingArchiveCreateBatchDelayMs: "1",
+      teachingArchiveCreateBatchWorkers: "2",
     });
 
     assert.deepEqual(samples.map((sample) => sample.name), ["sample-1", "sample-2"]);
@@ -138,6 +166,8 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(samples[0].options.identitySessionDbSessionTablePersistence, "unlogged");
     assert.equal(samples[0].options.identitySessionDbWriteConcurrency, "10");
     assert.equal(samples[0].options.conversationBenchmarkRuntime, "wsl");
+    assert.equal(samples[0].options.conversationWriteBatchWorkers, "2");
+    assert.equal(samples[0].options.conversationWriteBatchMode, "copy");
     assert.equal(samples[0].options.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(samples[0].options.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
     assert.equal(samples[0].options.identityBenchmarkRuntime, "docker");
@@ -145,9 +175,14 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(samples[0].options.identityBenchmarkDockerHost, "host.docker.internal");
     assert.equal(samples[0].options.teachingBenchmarkRuntime, "docker");
     assert.equal(samples[0].options.teachingBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(samples[0].options.teachingDbMinConns, "12");
+    assert.equal(samples[0].options.teachingDbPrewarmConns, "12");
     assert.equal(samples[0].options.teachingMaxConnsPerHost, "128");
     assert.equal(samples[0].options.teachingWarmConnectionsPerHost, "96");
     assert.equal(samples[0].options.teachingClientTrace, "true");
+    assert.equal(samples[0].options.teachingArchiveCreateBatchSize, "64");
+    assert.equal(samples[0].options.teachingArchiveCreateBatchDelayMs, "1");
+    assert.equal(samples[0].options.teachingArchiveCreateBatchWorkers, "2");
   });
 
   it("runs every sample and writes a passed sustained report", async () => {
@@ -282,6 +317,8 @@ describe("system sustained mixed workload runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      conversationWriteBatchWorkers: "2",
+      conversationWriteBatchMode: "copy",
       teachingGatewayCount: "3",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
@@ -289,9 +326,14 @@ describe("system sustained mixed workload runner", () => {
       teachingBenchmarkRuntime: "docker",
       teachingBenchmarkDockerImage: "golang:1.26-alpine",
       teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingDbMinConns: "12",
+      teachingDbPrewarmConns: "12",
       teachingMaxConnsPerHost: "128",
       teachingWarmConnectionsPerHost: "96",
       teachingClientTrace: "true",
+      teachingArchiveCreateBatchSize: "64",
+      teachingArchiveCreateBatchDelayMs: "1",
+      teachingArchiveCreateBatchWorkers: "2",
     };
     const samples = buildSampleRuns({
       ...options,
@@ -327,6 +369,9 @@ describe("system sustained mixed workload runner", () => {
       teachingMaxConnsPerHost: 128,
       teachingWarmConnectionsPerHost: 96,
       teachingClientTrace: true,
+      teachingArchiveCreateBatchSize: 64,
+      teachingArchiveCreateBatchDelayMs: 1,
+      teachingArchiveCreateBatchWorkers: 2,
       identityMaxConnsPerHost: 150,
       identityWarmConnectionsPerHost: 150,
     });
@@ -341,6 +386,13 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(report.concurrencyProfile.teachingGatewayCount, 3);
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    assert.equal(report.databaseProfile.conversationWriteBatchWorkers, 2);
+    assert.equal(report.databaseProfile.conversationWriteBatchMode, "copy");
+    assert.equal(report.databaseProfile.teachingDbMinConns, 12);
+    assert.equal(report.databaseProfile.teachingDbPrewarmConns, 12);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchSize, 64);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchDelayMs, 1);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchWorkers, 2);
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");

@@ -128,6 +128,7 @@ func (r *ArchiveRepository) List(ctx context.Context, query domain.ArchiveItemQu
 	}
 	limitArg := nextArg(&args, query.FetchLimit)
 
+	queryStart := time.Now()
 	rows, err := r.db.Query(ctx, `
 		SELECT
 			id,
@@ -148,9 +149,13 @@ func (r *ArchiveRepository) List(ctx context.Context, query domain.ArchiveItemQu
 		args...,
 	)
 	if err != nil {
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		rows.Close()
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
+	}()
 
 	items := make([]domain.ArchiveItem, 0, query.FetchLimit)
 	for rows.Next() {
@@ -164,4 +169,10 @@ func (r *ArchiveRepository) List(ctx context.Context, query domain.ArchiveItemQu
 		return nil, err
 	}
 	return items, nil
+}
+
+func recordDBQueryTiming(ctx context.Context, duration time.Duration) {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.DBQuery = duration
+	}
 }

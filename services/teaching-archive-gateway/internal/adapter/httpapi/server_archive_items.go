@@ -49,6 +49,7 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) list(w http.ResponseWriter, r *http.Request) {
+	handlerStart := time.Now()
 	if !s.authorized(r) {
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
 		return
@@ -62,7 +63,11 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	page, err := s.listArchiveItems.Execute(r.Context(), domain.ListArchiveItemsInput{
+	timing := &platform.TeachingArchiveTiming{}
+	ctx := platform.WithTeachingArchiveTiming(r.Context(), timing)
+	preUsecaseDuration := time.Since(handlerStart)
+	appStart := time.Now()
+	page, err := s.listArchiveItems.Execute(ctx, domain.ListArchiveItemsInput{
 		Principal:    principal,
 		OwnerType:    domain.OwnerType(r.URL.Query().Get("ownerType")),
 		StudentID:    r.URL.Query().Get("studentId"),
@@ -73,6 +78,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	if handleArchiveError(w, err, "failed to list archive items") {
 		return
 	}
+	writeTeachingServerTiming(w, time.Since(handlerStart), preUsecaseDuration, time.Since(appStart), timing)
 
 	writeJSON(w, http.StatusOK, toListResponse(page))
 }
@@ -150,6 +156,7 @@ func (s *Server) createQuizSubmissionAIGradingMetadata(
 }
 
 func (s *Server) createQuizSubmissionMetadata(w http.ResponseWriter, r *http.Request, archiveItemID string) {
+	handlerStart := time.Now()
 	if !s.authorized(r) {
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
 		return
@@ -168,7 +175,11 @@ func (s *Server) createQuizSubmissionMetadata(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	created, err := s.createQuizSubmission.Execute(r.Context(), domain.CreateQuizSubmissionInput{
+	timing := &platform.TeachingArchiveTiming{}
+	ctx := platform.WithTeachingArchiveTiming(r.Context(), timing)
+	preUsecaseDuration := time.Since(handlerStart)
+	appStart := time.Now()
+	created, err := s.createQuizSubmission.Execute(ctx, domain.CreateQuizSubmissionInput{
 		Principal:         principal,
 		QuizArchiveItemID: archiveItemID,
 		StudentID:         request.StudentID,
@@ -177,6 +188,7 @@ func (s *Server) createQuizSubmissionMetadata(w http.ResponseWriter, r *http.Req
 	if handleArchiveError(w, err, "failed to create quiz submission") {
 		return
 	}
+	writeTeachingServerTiming(w, time.Since(handlerStart), preUsecaseDuration, time.Since(appStart), timing)
 
 	writeJSON(w, http.StatusCreated, toQuizSubmissionResponse(created))
 }

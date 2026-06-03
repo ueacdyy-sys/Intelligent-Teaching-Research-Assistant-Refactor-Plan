@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 )
@@ -10,6 +11,7 @@ func (r *ArchiveRepository) CreateQuizSubmission(
 	ctx context.Context,
 	submission domain.QuizSubmission,
 ) error {
+	insertStart := time.Now()
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO teaching_quiz_submissions (
 			id,
@@ -29,6 +31,7 @@ func (r *ArchiveRepository) CreateQuizSubmission(
 		submission.Status,
 		submission.SubmittedAt,
 	)
+	recordDBInsertTiming(ctx, observableDuration(time.Since(insertStart)))
 	return err
 }
 
@@ -36,6 +39,7 @@ func (r *ArchiveRepository) CreateQuizSubmissionForExistingTeachingQuiz(
 	ctx context.Context,
 	submission domain.QuizSubmission,
 ) (bool, error) {
+	insertStart := time.Now()
 	tag, err := r.db.Exec(ctx, `
 		INSERT INTO teaching_quiz_submissions (
 			id,
@@ -69,6 +73,7 @@ func (r *ArchiveRepository) CreateQuizSubmissionForExistingTeachingQuiz(
 		domain.OwnerTypeTeaching,
 		domain.MaterialTypeQuiz,
 	)
+	recordDBInsertTiming(ctx, observableDuration(time.Since(insertStart)))
 	if err != nil {
 		return false, err
 	}

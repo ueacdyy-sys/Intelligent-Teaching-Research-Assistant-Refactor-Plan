@@ -31,8 +31,8 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
     assert.equal(report.promotion.blockerCount, 1);
     assert.match(
-      report.promotion.blockers.find((blocker) => blocker.id === "promotion.interactive_tail_latency_within_target").actual,
-      /production_target\.max_p99_ms=310\.78/,
+      report.promotion.blockers.find((blocker) => blocker.id === "promotion.module_evidence_depth_sufficient").actual,
+      /teaching_archive_and_quiz:MODULE_SMOKE_ONLY/u,
     );
     const expectedTargetReport = parseReport(inputs, sourceReports.productionTargetScaleUp);
     const expectedReadWriteRps = expectedTargetReport.summary.highestPassedReadWriteRps;
@@ -50,13 +50,14 @@ describe("root SLO promotion review audit", () => {
       report.promotion.blockers.some((blocker) => blocker.id === "promotion.production_read_write_rps_target_met"),
       false,
     );
-    assert(report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
+    assert(!report.promotion.requiredNextEvidence.includes("ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
-    assert(!report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
+    assert(report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
     assert(!report.promotion.requiredNextEvidence.includes("ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE"));
     assert(!report.promotion.requiredNextEvidence.includes("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE"));
-    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.module_evidence_depth_sufficient").passed, true);
+    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.module_evidence_depth_sufficient").passed, false);
+    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.interactive_tail_latency_within_target").passed, true);
     assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.sustained_scale_depth_sufficient").passed, true);
     assert.equal(report.evidence.databaseHeadroom.satisfiedBy, "production_headroom_profile");
     assert.match(formatRootSloPromotionReview(report), /Decision: BLOCK_PROMOTION/);
@@ -109,7 +110,7 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.auditFindings.find((finding) => finding.id === "pgbouncer.production_headroom_ready").passed, false);
   });
 
-  it("keeps the review ready but blocks promotion when quality prerequisites pass and SLO gates fail", () => {
+  it("keeps the review ready but blocks promotion when module evidence remains shallow", () => {
     const inputs = loadCurrentInputs();
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(loadCurrentCrossModuleDiagnostics());
     const report = auditRootSloPromotionReview(inputs);
@@ -117,8 +118,8 @@ describe("root SLO promotion review audit", () => {
 
     assert.equal(report.readiness, "READY");
     assert(!failedGateIds.includes("promotion.root_workflows_runtime_slo_covered"));
-    assert(!failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
-    assert(failedGateIds.includes("promotion.interactive_tail_latency_within_target"));
+    assert(failedGateIds.includes("promotion.module_evidence_depth_sufficient"));
+    assert(!failedGateIds.includes("promotion.interactive_tail_latency_within_target"));
     assert(!failedGateIds.includes("promotion.database_headroom_sufficient"));
     assert(!failedGateIds.includes("promotion.sustained_scale_depth_sufficient"));
     assert(!failedGateIds.includes("promotion.production_read_write_rps_target_met"));
@@ -171,9 +172,9 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.evidence.productionTarget.present, false);
     assert.equal(report.evidence.productionThroughput.measuredReadWriteRps, expectedReadWriteRps);
     assert.equal(report.evidence.productionThroughput.source, "sustained_scaleup.summary.highestPassedReadWriteRps");
-    assert.equal(report.evidence.productionThroughput.targetAttemptStatus, "NOT_CONFIGURED");
+    assert.equal(report.evidence.productionThroughput.targetAttemptStatus, scaleUp.throughputTarget?.status ?? "NOT_CONFIGURED");
     assert.equal(report.evidence.latency.maxP99Source, "identity.slowest_p99_ms");
-    assert(report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
+    assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
   });
 
   it("blocks module-depth promotion when cross-module classifications fall back to shallow evidence", () => {
@@ -428,25 +429,38 @@ describe("root SLO promotion review audit", () => {
 });
 
 function loadCurrentInputs() {
+  const reports = Object.fromEntries(Object.values(sourceReports).map((reportPath) => [
+    reportPath,
+    fs.readFileSync(path.join(root, reportPath), "utf8"),
+  ]));
+  reports[sourceReports.quality] = JSON.stringify(passingQualityReport());
   return {
     rootRequirementsPath,
     rootRequirementsText: fs.readFileSync(path.resolve(root, rootRequirementsPath), "utf8"),
-    reports: Object.fromEntries(Object.values(sourceReports).map((reportPath) => [
-      reportPath,
-      fs.readFileSync(path.join(root, reportPath), "utf8"),
-    ])),
+    reports,
   };
 }
 
 function loadCurrentCrossModuleDiagnostics() {
+  const sources = Object.fromEntries(Object.values(crossModuleSourceFiles).map((sourcePath) => [
+    sourcePath,
+    fs.readFileSync(path.join(root, sourcePath), "utf8"),
+  ]));
+  sources[crossModuleSourceFiles.quality] = JSON.stringify(passingQualityReport());
   return auditCrossModuleDbQueueDiagnostics({
-    sources: Object.fromEntries(Object.values(crossModuleSourceFiles).map((sourcePath) => [
-      sourcePath,
-      fs.readFileSync(path.join(root, sourcePath), "utf8"),
-    ])),
+    sources,
   });
 }
 
 function parseReport(inputs, reportPath) {
   return JSON.parse(inputs.reports[reportPath]);
+}
+
+function passingQualityReport() {
+  return {
+    status: "PASSED",
+    allPassed: true,
+    staticChecks: { passed: true, findings: [] },
+    commandResults: [],
+  };
 }

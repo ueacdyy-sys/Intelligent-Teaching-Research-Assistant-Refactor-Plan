@@ -4,12 +4,51 @@ import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import {
+  assertLooseNonNegativeInteger as assertNonNegativeInteger,
+  assertPositiveInteger,
+  kebabToCamel,
+  maskSensitive,
+  maxFinite,
+  minFinite,
+  numberOrNull,
+  numberOrZero,
+  parseBoolean,
+  parseInteger,
+  removeExistingReport,
+  round,
+  tailText,
+  writeJsonReport,
+} from "./benchmark-runner-utils.mjs";
+import {
   applyBenchmarkRuntimeArg,
   benchmarkRuntimeDefaults,
   benchmarkRuntimeProfile as buildGoBenchmarkRuntimeProfile,
   benchmarkTargetBaseUrls,
   buildBenchmarkRuntimeCommand,
 } from "./conversation-benchmark-runtime.mjs";
+import {
+  buildGatewayBinary,
+  gatewayBaseUrl,
+  gatewayBaseUrls,
+  gatewayWriteProfile,
+  maskURL,
+  portFromUrl,
+  spawnGateways,
+  stopProcess,
+  teachingBenchmarkRuntime,
+  waitForGateways,
+} from "./teaching-archive-benchmark-gateway-runtime.mjs";
+import { collectPgbouncerDiagnostics } from "./pgbouncer-diagnostics.mjs";
+import {
+  applyPostgresDiagnosticsArg,
+  collectPostgresDiagnostics,
+  postgresDiagnosticsDefaults,
+  startPostgresDiagnosticsTimeline,
+} from "./postgres-diagnostics.mjs";
+
+const gatewayDiagnosticsPath = "/internal/teaching/db-pool";
+const internalDiagnosticsSecretHeader = "X-Internal-Diagnostics-Secret";
+const internalDiagnosticsSecretValue = "ueacd";
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -20,6 +59,11 @@ export const defaults = {
   operations: "16",
   gatewayCount: "1",
   dbMaxConns: "4",
+  dbMinConns: "0",
+  dbPrewarmConns: "1",
+  archiveCreateBatchSize: "1",
+  archiveCreateBatchDelayMs: "0",
+  archiveCreateBatchWorkers: "1",
   agentApiKey: "ueacd",
   timeoutMs: "10000",
   timeout: "60s",
@@ -34,6 +78,14 @@ export const defaults = {
   warmConnectionsPerHost: "0",
   warmConnectionRetries: "3",
   clientTrace: "false",
+  pgbouncerDiagnostics: "false",
+  pgbouncerPostgresContainer: "ita-identity-session-postgres",
+  pgbouncerHost: "identity-session-pgbouncer",
+  pgbouncerPort: "6432",
+  pgbouncerUser: "app_user",
+  pgbouncerDatabase: "pgbouncer",
+  ...postgresDiagnosticsDefaults,
+  postgresDiagnosticsRelations: "teaching_archive_items,teaching_quiz_submissions",
 };
 
 export function parseArgs(argv) {
@@ -42,10 +94,20 @@ export function parseArgs(argv) {
     const key = argv[index];
     const value = argv[index + 1];
     if (!key.startsWith("--") || value === undefined) continue;
+    if (applyPostgresDiagnosticsArg(parsed, key, value)) {
+      index += 1;
+      continue;
+    }
     if (applyBenchmarkRuntimeArg(parsed, key, value)) {
       index += 1;
       continue;
     }
+    if (key === "--pgbouncer-diagnostics") parsed.pgbouncerDiagnostics = value;
+    if (key === "--pgbouncer-postgres-container") parsed.pgbouncerPostgresContainer = value;
+    if (key === "--pgbouncer-host") parsed.pgbouncerHost = value;
+    if (key === "--pgbouncer-port") parsed.pgbouncerPort = value;
+    if (key === "--pgbouncer-user") parsed.pgbouncerUser = value;
+    if (key === "--pgbouncer-database") parsed.pgbouncerDatabase = value;
     const property = kebabToCamel(key.slice(2));
     if (Object.hasOwn(parsed, property)) {
       parsed[property] = value;
@@ -66,6 +128,10 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
   const generatedAt = now();
   let gateways = [];
   let gatewayOutput = "";
+  let gatewayDatabaseDiagnostics;
+  let pgbouncerDiagnostics;
+  let postgresDiagnostics;
+  let postgresDiagnosticsTimeline;
 
   try {
     validateOptions(options);
@@ -80,17 +146,84 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
       fetch: fetchFn,
       sleep: sleepFn,
     });
+    gatewayDatabaseDiagnostics = addDiagnosticsSnapshot(
+      gatewayDatabaseDiagnostics,
+      "before",
+      await collectGatewayDatabaseDiagnostics(gatewayBaseUrls(options), { fetch: fetchFn, now }),
+    );
+    pgbouncerDiagnostics = addDiagnosticsSnapshot(
+      pgbouncerDiagnostics,
+      "before",
+      collectPgbouncerDiagnostics(options, { spawnSync: spawnCommandSync, now }),
+    );
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "before",
+      collectPostgresDiagnostics(options, { spawnSync: spawnCommandSync, now }),
+    );
+    postgresDiagnosticsTimeline = startPostgresDiagnosticsTimeline(options, {
+      spawnSync: spawnCommandSync,
+      sleep: sleepFn,
+      now,
+    });
 
     if (teachingBenchmarkRuntime(options) !== "js") {
       const report = runGoBenchmark(options, root, spawnCommandSync, gatewayOutput, Date.now() - startedAt);
-      writeJsonReport(path.join(root, options.out), report);
-      return report;
+      postgresDiagnostics = addDiagnosticsSnapshot(
+        postgresDiagnostics,
+        "timeline",
+        await stopDiagnosticsTimeline(postgresDiagnosticsTimeline),
+      );
+      postgresDiagnosticsTimeline = undefined;
+      gatewayDatabaseDiagnostics = addDiagnosticsSnapshot(
+        gatewayDatabaseDiagnostics,
+        "after",
+        await collectGatewayDatabaseDiagnostics(gatewayBaseUrls(options), { fetch: fetchFn, now }),
+      );
+      pgbouncerDiagnostics = addDiagnosticsSnapshot(
+        pgbouncerDiagnostics,
+        "after",
+        collectPgbouncerDiagnostics(options, { spawnSync: spawnCommandSync, now }),
+      );
+      postgresDiagnostics = addDiagnosticsSnapshot(
+        postgresDiagnostics,
+        "after",
+        collectPostgresDiagnostics(options, { spawnSync: spawnCommandSync, now }),
+      );
+      const enriched = addRuntimeDiagnosticsToReport(report, {
+        gatewayDatabaseDiagnostics,
+        pgbouncerDiagnostics,
+        postgresDiagnostics,
+      });
+      writeJsonReport(path.join(root, options.out), enriched);
+      return enriched;
     }
 
     const createArchiveItem = await runCreateArchiveItemPhase(options, fetchFn);
     const createQuizSubmission = await runCreateQuizSubmissionPhase(options, fetchFn, createArchiveItem.items);
     const listArchiveItems = await runListArchiveItemsPhase(options, fetchFn);
     const phases = { createArchiveItem, createQuizSubmission, listArchiveItems };
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "timeline",
+      await stopDiagnosticsTimeline(postgresDiagnosticsTimeline),
+    );
+    postgresDiagnosticsTimeline = undefined;
+    gatewayDatabaseDiagnostics = addDiagnosticsSnapshot(
+      gatewayDatabaseDiagnostics,
+      "after",
+      await collectGatewayDatabaseDiagnostics(gatewayBaseUrls(options), { fetch: fetchFn, now }),
+    );
+    pgbouncerDiagnostics = addDiagnosticsSnapshot(
+      pgbouncerDiagnostics,
+      "after",
+      collectPgbouncerDiagnostics(options, { spawnSync: spawnCommandSync, now }),
+    );
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "after",
+      collectPostgresDiagnostics(options, { spawnSync: spawnCommandSync, now }),
+    );
     const report = buildBenchmarkReport({
       options,
       generatedAt: now(),
@@ -98,16 +231,28 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
       phases,
       totalDurationMs: Date.now() - startedAt,
       gatewayOutput,
+      gatewayDatabaseDiagnostics,
+      pgbouncerDiagnostics,
+      postgresDiagnostics,
     });
     writeJsonReport(path.join(root, options.out), report);
     return report;
   } catch (error) {
+    postgresDiagnostics = addDiagnosticsSnapshot(
+      postgresDiagnostics,
+      "timeline",
+      await stopDiagnosticsTimeline(postgresDiagnosticsTimeline),
+    );
+    postgresDiagnosticsTimeline = undefined;
     const report = buildFailureReport({
       options,
       generatedAt,
       errorMessage: error instanceof Error ? error.message : String(error),
       gatewayOutput,
       totalDurationMs: Date.now() - startedAt,
+      gatewayDatabaseDiagnostics,
+      pgbouncerDiagnostics,
+      postgresDiagnostics,
     });
     writeJsonReport(path.join(root, options.out), report);
     return report;
@@ -117,9 +262,62 @@ export async function runTeachingArchiveBenchmark(options = parseArgs(process.ar
   }
 }
 
-export function buildBenchmarkReport({ options, generatedAt, status, phases, totalDurationMs, gatewayOutput = "" }) {
-  const phaseSummaries = Object.fromEntries(Object.entries(phases).map(([name, phase]) => [name, summarizePhase(phase)]));
+export async function collectGatewayDatabaseDiagnostics(baseUrls, dependencies = {}) {
+  const fetchFn = dependencies.fetch ?? fetch;
+  const now = dependencies.now ?? (() => new Date().toISOString());
+  const gateways = [];
+  for (const baseUrl of baseUrls) {
+    const trimmedBaseUrl = baseUrl.replace(/\/+$/u, "");
+    try {
+      const response = await fetchFn(`${trimmedBaseUrl}${gatewayDiagnosticsPath}`, {
+        headers: {
+          [internalDiagnosticsSecretHeader]: internalDiagnosticsSecretValue,
+        },
+      });
+      if (!response.ok) {
+        gateways.push({
+          baseUrl: maskURL(trimmedBaseUrl),
+          status: "UNAVAILABLE",
+          httpStatus: response.status,
+        });
+        continue;
+      }
+      const body = await response.json();
+      gateways.push({
+        baseUrl: maskURL(trimmedBaseUrl),
+        status: "OK",
+        httpStatus: response.status,
+        stats: body.stats ?? null,
+      });
+    } catch (error) {
+      gateways.push({
+        baseUrl: maskURL(trimmedBaseUrl),
+        status: "ERROR",
+        errorMessage: maskSensitive(error instanceof Error ? error.message : String(error)),
+      });
+    }
+  }
   return {
+    endpoint: gatewayDiagnosticsPath,
+    secretHeader: internalDiagnosticsSecretHeader,
+    sampledAt: now(),
+    gateways,
+  };
+}
+
+export function buildBenchmarkReport({
+  options,
+  generatedAt,
+  status,
+  phases,
+  totalDurationMs,
+  gatewayOutput = "",
+  gatewayDatabaseDiagnostics,
+  pgbouncerDiagnostics,
+  postgresDiagnostics,
+}) {
+  const phaseSummaries = Object.fromEntries(Object.entries(phases).map(([name, phase]) => [name, summarizePhase(phase)]));
+  return addRuntimeDiagnosticsToReport({
     generatedAt,
     benchmarkKind: "teaching_archive_gateway",
     workloadType: "HTTP_BENCHMARK",
@@ -132,18 +330,30 @@ export function buildBenchmarkReport({ options, generatedAt, status, phases, tot
     benchmarkRuntimeProfile: benchmarkRuntimeProfile(options),
     gatewayDatabaseProfile: {
       dbMaxConns: parseInteger(options.dbMaxConns),
+      dbMinConns: parseInteger(options.dbMinConns),
+      dbPrewarmConns: parseInteger(options.dbPrewarmConns),
       databaseUrl: "[database-url]",
     },
+    gatewayWriteProfile: gatewayWriteProfile(options),
     phases: phaseSummaries,
     summary: summarizeBenchmark(phaseSummaries),
     totalDurationMs,
     gatewayOutputTail: tailText(maskSensitive(gatewayOutput), 80),
     dockerRequiredForEvidence: true,
-  };
+  }, { gatewayDatabaseDiagnostics, pgbouncerDiagnostics, postgresDiagnostics });
 }
 
-export function buildFailureReport({ options, generatedAt, errorMessage, gatewayOutput = "", totalDurationMs = 0 }) {
-  return {
+export function buildFailureReport({
+  options,
+  generatedAt,
+  errorMessage,
+  gatewayOutput = "",
+  totalDurationMs = 0,
+  gatewayDatabaseDiagnostics,
+  pgbouncerDiagnostics,
+  postgresDiagnostics,
+}) {
+  return addRuntimeDiagnosticsToReport({
     generatedAt,
     benchmarkKind: "teaching_archive_gateway",
     workloadType: "HTTP_BENCHMARK",
@@ -156,8 +366,11 @@ export function buildFailureReport({ options, generatedAt, errorMessage, gateway
     benchmarkRuntimeProfile: benchmarkRuntimeProfile(options),
     gatewayDatabaseProfile: {
       dbMaxConns: parseInteger(options.dbMaxConns),
+      dbMinConns: parseInteger(options.dbMinConns),
+      dbPrewarmConns: parseInteger(options.dbPrewarmConns),
       databaseUrl: "[database-url]",
     },
+    gatewayWriteProfile: gatewayWriteProfile(options),
     phases: {},
     summary: {
       totalErrors: 1,
@@ -169,7 +382,7 @@ export function buildFailureReport({ options, generatedAt, errorMessage, gateway
     errorMessage: maskSensitive(errorMessage),
     gatewayOutputTail: tailText(maskSensitive(gatewayOutput), 80),
     dockerRequiredForEvidence: true,
-  };
+  }, { gatewayDatabaseDiagnostics, pgbouncerDiagnostics, postgresDiagnostics });
 }
 
 export function formatTeachingArchiveBenchmark(report) {
@@ -250,8 +463,11 @@ function runGoBenchmark(options, root, spawnCommandSync, gatewayOutput, elapsedB
     summary: report.summary ?? summarizeBenchmark(report.phases ?? {}),
     gatewayDatabaseProfile: {
       dbMaxConns: parseInteger(options.dbMaxConns),
+      dbMinConns: parseInteger(options.dbMinConns),
+      dbPrewarmConns: parseInteger(options.dbPrewarmConns),
       databaseUrl: "[database-url]",
     },
+    gatewayWriteProfile: gatewayWriteProfile(options),
     benchmarkRuntimeProfile: benchmarkRuntimeProfile(options),
     totalDurationMs: numberOrZero(report.totalDurationMs) + elapsedBeforeBenchmarkMs,
     gatewayOutputTail: tailText(maskSensitive(`${gatewayOutput}\n${benchmarkOutput}`), 80),
@@ -497,85 +713,32 @@ function phaseErrors(phases) {
   return Object.values(phases).reduce((total, phase) => total + phase.errors, 0);
 }
 
-function buildGatewayBinary(root, spawnCommandSync) {
-  const binaryPath = path.join(root, "tmp", "bin", executableName("teaching-archive-gateway-runner"));
-  fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
-  const result = spawnCommandSync("go", [
-    "build",
-    "-o",
-    binaryPath,
-    "./services/teaching-archive-gateway/cmd/gateway",
-  ], {
-    cwd: root,
-    encoding: "utf8",
-    shell: false,
-  });
-  if (result.status !== 0 || result.error) {
-    throw new Error(`build teaching archive gateway failed: ${result.error?.message ?? result.stderr}`);
-  }
-  return binaryPath;
-}
-
-function spawnGateways(options, root, spawnProcess, gatewayBinary) {
-  return gatewayBaseUrls(options).map((baseUrl) => spawnGateway(options, root, spawnProcess, baseUrl, gatewayBinary));
-}
-
-function spawnGateway(options, root, spawnProcess, baseUrl, gatewayBinary) {
-  return spawnProcess(gatewayBinary, [], {
-    cwd: root,
-    shell: false,
-    stdio: ["ignore", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      PORT: portFromUrl(baseUrl, options.port),
-      DATABASE_URL: options.dsn,
-      DB_MAX_CONNS: String(parseInteger(options.dbMaxConns)),
-      AGENT_API_KEY: options.agentApiKey,
-    },
-  });
-}
-
-function executableName(value) {
-  return process.platform === "win32" ? `${value}.exe` : value;
-}
-
-async function waitForGateways(baseUrls, startupTimeoutMs, gateways, dependencies) {
-  await Promise.all(baseUrls.map((baseUrl, index) =>
-    waitForGateway(baseUrl, startupTimeoutMs, gateways[index], dependencies)
-  ));
-}
-
-async function waitForGateway(baseUrl, startupTimeoutMs, processHandle, dependencies) {
-  const fetchFn = dependencies.fetch;
-  const sleepFn = dependencies.sleep;
-  const deadline = Date.now() + startupTimeoutMs;
-  let lastError = "";
-  while (Date.now() < deadline) {
-    if (processHandle.exitCode !== null) {
-      throw new Error(`teaching archive gateway exited early with code ${processHandle.exitCode}`);
-    }
-    try {
-      const response = await fetchFn(`${baseUrl}/health`);
-      if (response.ok) return;
-      lastError = `health status ${response.status}`;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-    }
-    await sleepFn(250);
-  }
-  throw new Error(`teaching archive gateway did not become healthy: ${lastError}`);
-}
-
 function validateOptions(options) {
   assertPositiveInteger(options.concurrency, "concurrency");
   assertPositiveInteger(options.operations, "operations");
   assertPositiveInteger(options.gatewayCount, "gateway-count");
   assertPositiveInteger(options.dbMaxConns, "db-max-conns");
+  assertNonNegativeInteger(options.dbMinConns, "db-min-conns");
+  assertNonNegativeInteger(options.dbPrewarmConns, "db-prewarm-conns");
+  assertNonNegativeInteger(options.archiveCreateBatchSize, "archive-create-batch-size");
+  assertNonNegativeInteger(options.archiveCreateBatchDelayMs, "archive-create-batch-delay-ms");
+  assertPositiveInteger(options.archiveCreateBatchWorkers, "archive-create-batch-workers");
+  if (parseInteger(options.dbMinConns) > parseInteger(options.dbMaxConns)) {
+    throw new Error("db-min-conns must be <= db-max-conns");
+  }
+  if (parseInteger(options.dbPrewarmConns) > parseInteger(options.dbMaxConns)) {
+    throw new Error("db-prewarm-conns must be <= db-max-conns");
+  }
   assertPositiveInteger(options.startupTimeoutMs, "startup-timeout-ms");
   assertPositiveInteger(options.timeoutMs, "timeout-ms");
   assertNonNegativeInteger(options.maxConnsPerHost, "max-conns-per-host");
   assertNonNegativeInteger(options.warmConnectionsPerHost, "warm-connections-per-host");
   assertNonNegativeInteger(options.warmConnectionRetries, "warm-connection-retries");
+  assertPositiveInteger(options.pgbouncerPort, "pgbouncer-port");
+  assertPositiveInteger(options.postgresDiagnosticsPort, "postgres-diagnostics-port");
+  assertPositiveInteger(options.postgresDiagnosticsIntervalMs, "postgres-diagnostics-interval-ms");
+  assertPositiveInteger(options.postgresDiagnosticsMaxSamples, "postgres-diagnostics-max-samples");
+  assertPositiveInteger(options.postgresDiagnosticsQueryTimeoutMs, "postgres-diagnostics-query-timeout-ms");
   teachingBenchmarkRuntime(options);
   if (options.agentApiKey !== "ueacd") throw new Error("agent-api-key must be ueacd for local performance evidence");
   const url = new URL(options.dsn);
@@ -583,116 +746,25 @@ function validateOptions(options) {
   portFromUrl(options.baseUrl, options.port);
 }
 
-function stopProcess(processHandle, spawnCommandSync) {
-  if (processHandle.exitCode !== null) return;
-  if (process.platform === "win32" && processHandle.pid) {
-    spawnCommandSync("taskkill", ["/pid", String(processHandle.pid), "/T", "/F"], { stdio: "ignore" });
-    return;
-  }
-  processHandle.kill?.();
+function addRuntimeDiagnosticsToReport(report, diagnostics = {}) {
+  const enriched = { ...report };
+  if (diagnostics.gatewayDatabaseDiagnostics) enriched.gatewayDatabaseDiagnostics = diagnostics.gatewayDatabaseDiagnostics;
+  if (diagnostics.pgbouncerDiagnostics) enriched.pgbouncerDiagnostics = diagnostics.pgbouncerDiagnostics;
+  if (diagnostics.postgresDiagnostics) enriched.postgresDiagnostics = diagnostics.postgresDiagnostics;
+  return enriched;
 }
 
-function removeExistingReport(root, relativePath) {
-  const absolute = path.join(root, relativePath);
-  if (fs.existsSync(absolute)) fs.rmSync(absolute);
+function addDiagnosticsSnapshot(current, name, snapshot) {
+  if (!snapshot) return current;
+  return {
+    ...(current ?? {}),
+    [name]: snapshot,
+  };
 }
 
-function writeJsonReport(absolutePath, report) {
-  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-  fs.writeFileSync(absolutePath, `${JSON.stringify(report, null, 2)}\n`);
-}
-
-function portFromUrl(urlText, fallback) {
-  const parsed = new URL(urlText);
-  const port = parsed.port || fallback;
-  assertPositiveInteger(port, "base-url port");
-  return String(port);
-}
-
-function gatewayBaseUrls(options) {
-  const count = parseInteger(options.gatewayCount);
-  const base = new URL(options.baseUrl);
-  const startPort = Number.parseInt(base.port || options.port, 10);
-  return Array.from({ length: count }, (_entry, index) => {
-    const url = new URL(options.baseUrl);
-    url.port = String(startPort + index);
-    return `${url.protocol}//${url.hostname}:${url.port}`;
-  });
-}
-
-function gatewayBaseUrl(options, operationIndex) {
-  const urls = gatewayBaseUrls(options);
-  return urls[operationIndex % urls.length];
-}
-
-function maskURL(value) {
-  const url = new URL(value);
-  return `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ""}`;
-}
-
-function maskSensitive(value) {
-  return String(value ?? "")
-    .replace(/postgres(?:ql)?:\/\/[^\s"']+/giu, "[database-url]")
-    .replaceAll("ueacd", "***");
-}
-
-function tailText(value, maxLines = 80) {
-  const text = String(value ?? "").replace(/\s+$/u, "");
-  if (!text) return "";
-  return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
-}
-
-function assertPositiveInteger(value, name) {
-  const parsed = parseInteger(value);
-  if (parsed <= 0) throw new Error(`${name} must be a positive integer`);
-}
-
-function assertNonNegativeInteger(value, name) {
-  const parsed = parseInteger(value);
-  if (parsed < 0) throw new Error(`${name} must be a non-negative integer`);
-}
-
-function parseInteger(value) {
-  if (!/^-?\d+$/u.test(String(value))) return 0;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseBoolean(value) {
-  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
-}
-
-function teachingBenchmarkRuntime(options) {
-  const runtime = String(options.benchmarkRuntime ?? "js").toLowerCase();
-  if (["js", "local", "docker", "wsl"].includes(runtime)) return runtime;
-  throw new Error(`benchmark-runtime must be js, local, docker, or wsl: ${runtime}`);
-}
-
-function numberOrNull(value) {
-  return Number.isFinite(value) ? value : null;
-}
-
-function numberOrZero(value) {
-  return Number.isFinite(value) ? value : 0;
-}
-
-function maxFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.max(...finite) : null;
-}
-
-function minFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.min(...finite) : null;
-}
-
-function round(value, digits) {
-  const multiplier = 10 ** digits;
-  return Math.round(value * multiplier) / multiplier;
-}
-
-function kebabToCamel(value) {
-  return value.replace(/-([a-z])/gu, (_match, letter) => letter.toUpperCase());
+async function stopDiagnosticsTimeline(timeline) {
+  if (!timeline) return undefined;
+  return timeline.stop();
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

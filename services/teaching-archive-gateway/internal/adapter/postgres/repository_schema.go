@@ -7,7 +7,7 @@ import (
 
 const schemaAdvisoryLockID int64 = 7432026060301
 const schemaComponent = "teaching_archive_gateway"
-const schemaVersion = "2026-06-03.schema.1"
+const schemaVersion = "2026-06-03.schema.2"
 
 func EnsureSchema(ctx context.Context, db DB) error {
 	if transactor, ok := db.(Transactor); ok {
@@ -137,6 +137,8 @@ var schemaStatements = []string{
 		ON teaching_archive_items (owner_type, created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
 		ON teaching_archive_items (material_type, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_material_page
+		ON teaching_archive_items (owner_type, material_type, created_at DESC, id DESC)`,
 	`CREATE TABLE IF NOT EXISTS teaching_quiz_submissions (
 		id TEXT PRIMARY KEY,
 		quiz_archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),

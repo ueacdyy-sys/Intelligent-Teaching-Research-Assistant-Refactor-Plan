@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"ita-refactor/services/conversation-write-gateway/internal/adapter/postgres"
@@ -222,6 +223,100 @@ func TestBatchingRepositoryReturnsInsertErrorToWholeBatch(t *testing.T) {
 	}
 }
 
+func TestBatchingRepositoryCopyModeUsesCopyFromForWholeBatch(t *testing.T) {
+	db := &fakeDB{}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  3,
+		MaxDelay: time.Second,
+		Mode:     postgres.BatchWriteModeCopy,
+	})
+	start := make(chan struct{})
+	errs := make(chan error, 3)
+	timings := make([]*platform.ConversationTiming, 3)
+
+	for index := 0; index < 3; index++ {
+		index := index
+		timings[index] = &platform.ConversationTiming{}
+		go func() {
+			<-start
+			ctx := platform.WithConversationTiming(context.Background(), timings[index])
+			errs <- repository.Create(ctx, testConversation(index))
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 3; index++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+	}
+	repository.Close()
+
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if db.copyCount != 1 {
+		t.Fatalf("CopyFrom count = %d want 1", db.copyCount)
+	}
+	if len(db.statements) != 0 {
+		t.Fatalf("Exec statements = %d want 0", len(db.statements))
+	}
+	if got := strings.Join(db.copyTable, "."); got != "research_conversations" {
+		t.Fatalf("copy table = %q want research_conversations", got)
+	}
+	if strings.Join(db.copyColumns, ",") != "id,title,created_at,updated_at,message_count,total_tokens,settings" {
+		t.Fatalf("copy columns = %#v", db.copyColumns)
+	}
+	if len(db.copyRows) != 3 {
+		t.Fatalf("copy rows = %d want 3", len(db.copyRows))
+	}
+	copiedRow := findCopyRowByID(db.copyRows, "conv_2")
+	if copiedRow == nil {
+		t.Fatalf("copy rows missing conv_2: %#v", db.copyRows)
+	}
+	if got := copiedRow[6]; got != `{"fusionMode":"balanced"}` {
+		t.Fatalf("copied settings = %#v", got)
+	}
+	for index, timing := range timings {
+		if timing.DBBatchWait <= 0 {
+			t.Fatalf("timing[%d].DBBatchWait = %s want > 0", index, timing.DBBatchWait)
+		}
+		if timing.DBAcquire <= 0 {
+			t.Fatalf("timing[%d].DBAcquire = %s want > 0", index, timing.DBAcquire)
+		}
+		if timing.DBInsert <= 0 {
+			t.Fatalf("timing[%d].DBInsert = %s want > 0", index, timing.DBInsert)
+		}
+	}
+}
+
+func TestBatchingRepositoryCopyModeReturnsCopyErrorToWholeBatch(t *testing.T) {
+	db := &fakeDB{copyErr: errors.New("copy failed")}
+	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Second,
+		Mode:     postgres.BatchWriteModeCopy,
+	})
+	defer repository.Close()
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+
+	for index := 0; index < 2; index++ {
+		index := index
+		go func() {
+			<-start
+			errs <- repository.Create(context.Background(), testConversation(index))
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 2; index++ {
+		if err := <-errs; !errors.Is(err, db.copyErr) {
+			t.Fatalf("Create() error = %v want %v", err, db.copyErr)
+		}
+	}
+}
+
 func TestBatchingRepositorySkipsCanceledRequestBeforeFlush(t *testing.T) {
 	db := &fakeDB{}
 	repository := postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
@@ -411,6 +506,11 @@ type fakeDB struct {
 	execStarted     chan struct{}
 	execBlock       chan struct{}
 	execStartedOnce sync.Once
+	copyCount       int
+	copyTable       []string
+	copyColumns     []string
+	copyRows        [][]any
+	copyErr         error
 }
 
 func (f *fakeDB) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
@@ -445,12 +545,54 @@ func (f *fakeDB) Acquire(context.Context) (postgres.Conn, error) {
 	return fakeConn{db: f}, nil
 }
 
+func (f *fakeDB) CopyFrom(_ context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	if f.execStarted != nil {
+		f.execStartedOnce.Do(func() {
+			close(f.execStarted)
+		})
+	}
+	if f.execBlock != nil {
+		<-f.execBlock
+	}
+	if f.execDelay > 0 {
+		time.Sleep(f.execDelay)
+	}
+	rows := [][]any{}
+	for rowSrc.Next() {
+		values, err := rowSrc.Values()
+		if err != nil {
+			return int64(len(rows)), err
+		}
+		copied := make([]any, len(values))
+		copy(copied, values)
+		rows = append(rows, copied)
+	}
+	if err := rowSrc.Err(); err != nil {
+		return int64(len(rows)), err
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.copyCount++
+	f.copyTable = append([]string(nil), tableName...)
+	f.copyColumns = append([]string(nil), columnNames...)
+	f.copyRows = rows
+	if f.copyErr != nil {
+		return 0, f.copyErr
+	}
+	return int64(len(rows)), nil
+}
+
 type fakeConn struct {
 	db *fakeDB
 }
 
 func (f fakeConn) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	return f.db.Exec(ctx, sql, args...)
+}
+
+func (f fakeConn) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	return f.db.CopyFrom(ctx, tableName, columnNames, rowSrc)
 }
 
 func (f fakeConn) Release() {
@@ -470,6 +612,15 @@ func testConversation(index int) domain.Conversation {
 		TotalTokens:  index * 10,
 		Settings:     domain.NewSettingsJSON([]byte(`{"fusionMode":"balanced"}`)),
 	}
+}
+
+func findCopyRowByID(rows [][]any, id string) []any {
+	for _, row := range rows {
+		if len(row) > 0 && row[0] == id {
+			return row
+		}
+	}
+	return nil
 }
 
 func waitForSignal(t *testing.T, signal <-chan struct{}, name string) {

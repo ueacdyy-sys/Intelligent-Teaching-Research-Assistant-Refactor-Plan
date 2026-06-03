@@ -1,8 +1,8 @@
-import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
+import { assertNonNegativeInteger, assertPositiveInteger, countCommandErrors, kebabToCamel, maskSensitive, maxFinite, minFinite, nullableDelta, numberOrNull, numberOrZero, parseBoolean, parseInteger, readOptionalJson, removeReports, round, sanitizeCommandLine, sanitizeCommandResult, sumFinite, tailText, toRunnableCommand, writeJsonReport } from "./benchmark-runner-utils.mjs";
 import {
   defaultSessionTablePersistence,
   normalizeSessionTablePersistence,
@@ -27,6 +27,7 @@ import {
 } from "./system-teaching-benchmark-runtime-profile.mjs";
 import { buildSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 import { portRange, portSequence } from "./system-port-profile.mjs";
+import { postgresDiagnosticsDefaults } from "./postgres-diagnostics.mjs";
 
 export const defaults = {
   out: "reports/system-mixed-workload-benchmark.current.json",
@@ -55,7 +56,12 @@ export const defaults = {
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "4",
   teachingDbMaxConns: "2",
+  teachingDbMinConns: "0",
+  teachingDbPrewarmConns: "1",
   conversationWriteBatchSize: "32",
+  conversationWriteBatchWorkers: "1",
+  conversationWriteBatchMode: "insert",
+  conversationClientTrace: "false",
   conversationBenchmarkRuntime: benchmarkRuntimeDefaults.benchmarkRuntime,
   conversationBenchmarkDockerImage: benchmarkRuntimeDefaults.benchmarkDockerImage,
   conversationBenchmarkDockerHost: benchmarkRuntimeDefaults.benchmarkDockerHost,
@@ -76,6 +82,13 @@ export const defaults = {
   timeout: "180s",
   teachingTimeoutMs: "10000",
   startupTimeoutMs: "120000",
+  pgbouncerDiagnostics: "false",
+  pgbouncerPostgresContainer: "ita-identity-session-postgres",
+  pgbouncerHost: "identity-session-pgbouncer",
+  pgbouncerPort: "6432",
+  pgbouncerUser: "app_user",
+  pgbouncerDatabase: "pgbouncer",
+  ...postgresDiagnosticsDefaults,
 };
 
 export function parseArgs(argv) {
@@ -142,6 +155,7 @@ export function buildWorkloadCommands(options) {
         options.timeout,
         "--startup-timeout-ms",
         options.startupTimeoutMs,
+        ...sharedDatabaseDiagnosticsArgs(options),
       ],
     },
     {
@@ -161,6 +175,10 @@ export function buildWorkloadCommands(options) {
         options.conversationWriteBatchSize,
         "--write-batch-delay-ms",
         "0",
+        "--write-batch-workers",
+        options.conversationWriteBatchWorkers,
+        "--write-batch-mode",
+        options.conversationWriteBatchMode,
         "--benchmark-runtime",
         systemConversationBenchmarkRuntime(options),
         "--benchmark-docker-image",
@@ -183,12 +201,15 @@ export function buildWorkloadCommands(options) {
         options.maxConnsPerHost,
         "--warm-connections-per-host",
         options.warmConnectionsPerHost,
+        "--client-trace",
+        options.conversationClientTrace,
         "--out",
         options.conversationOut,
         "--timeout",
         options.timeout,
         "--startup-timeout-ms",
         options.startupTimeoutMs,
+        ...sharedDatabaseDiagnosticsArgs(options),
       ],
     },
     {
@@ -204,6 +225,10 @@ export function buildWorkloadCommands(options) {
         options.teachingGatewayCount,
         "--db-max-conns",
         options.teachingDbMaxConns,
+        "--db-min-conns",
+        options.teachingDbMinConns,
+        "--db-prewarm-conns",
+        options.teachingDbPrewarmConns,
         "--agent-api-key",
         "ueacd",
         "--concurrency",
@@ -219,6 +244,7 @@ export function buildWorkloadCommands(options) {
         options.teachingTimeoutMs,
         "--startup-timeout-ms",
         options.startupTimeoutMs,
+        ...sharedDatabaseDiagnosticsArgs(options),
       ],
     },
     {
@@ -333,13 +359,21 @@ export function buildSystemMixedWorkloadReport({
       identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
+      teachingDbMinConns: parseInteger(options.teachingDbMinConns),
+      teachingDbPrewarmConns: parseInteger(options.teachingDbPrewarmConns),
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
+      conversationWriteBatchWorkers: parseInteger(options.conversationWriteBatchWorkers),
+      conversationWriteBatchMode: conversationWriteBatchMode(options),
+      teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
+      teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
+      teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
     },
     runtimeProfile: {
       executor: "LOCAL_NODE_ORCHESTRATOR",
       managedDocker: parseBoolean(options.manageDocker),
       dockerCleanup: options.dockerCleanup,
     },
+    diagnosticsProfile: buildDiagnosticsProfile(options),
     conversationBenchmarkRuntimeProfile: buildMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     identityBenchmarkRuntimeProfile: buildSystemIdentityBenchmarkRuntimeProfile(options),
     teachingBenchmarkRuntimeProfile: buildMixedWorkloadTeachingBenchmarkRuntimeProfile(options),
@@ -558,15 +592,102 @@ function validateOptions(options) {
   identitySessionTablePersistence(options);
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
+  assertNonNegativeInteger(options.teachingDbMinConns, "teaching-db-min-conns");
+  assertNonNegativeInteger(options.teachingDbPrewarmConns, "teaching-db-prewarm-conns");
+  if (parseInteger(options.teachingDbMinConns) > parseInteger(options.teachingDbMaxConns)) {
+    throw new Error("teaching-db-min-conns must be <= teaching-db-max-conns");
+  }
+  if (parseInteger(options.teachingDbPrewarmConns) > parseInteger(options.teachingDbMaxConns)) {
+    throw new Error("teaching-db-prewarm-conns must be <= teaching-db-max-conns");
+  }
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
+  assertPositiveInteger(options.conversationWriteBatchWorkers, "conversation-write-batch-workers");
+  conversationWriteBatchMode(options);
   systemConversationBenchmarkRuntime(options);
   systemIdentityBenchmarkRuntime(options);
   assertSystemTeachingBenchmarkOptions(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
+  validateSharedDatabaseDiagnosticsOptions(options);
   if (parseBoolean(options.identityIngressProxy)) {
     assertPositiveInteger(options.identityIngressCount, "identity-ingress-count");
   }
   assertNoPortOverlap(options);
+}
+
+function conversationWriteBatchMode(options) {
+  const normalized = String(options.conversationWriteBatchMode ?? "insert").trim().toLowerCase();
+  if (normalized !== "insert" && normalized !== "copy") {
+    throw new Error("conversation-write-batch-mode must be insert or copy");
+  }
+  return normalized;
+}
+
+function sharedDatabaseDiagnosticsArgs(options) {
+  return [
+    "--pgbouncer-diagnostics",
+    options.pgbouncerDiagnostics,
+    "--pgbouncer-postgres-container",
+    options.pgbouncerPostgresContainer,
+    "--pgbouncer-host",
+    options.pgbouncerHost,
+    "--pgbouncer-port",
+    options.pgbouncerPort,
+    "--pgbouncer-user",
+    options.pgbouncerUser,
+    "--pgbouncer-database",
+    options.pgbouncerDatabase,
+    "--postgres-diagnostics",
+    options.postgresDiagnostics,
+    "--postgres-diagnostics-container",
+    options.postgresDiagnosticsContainer,
+    "--postgres-diagnostics-host",
+    options.postgresDiagnosticsHost,
+    "--postgres-diagnostics-port",
+    options.postgresDiagnosticsPort,
+    "--postgres-diagnostics-user",
+    options.postgresDiagnosticsUser,
+    "--postgres-diagnostics-database",
+    options.postgresDiagnosticsDatabase,
+    "--postgres-diagnostics-interval-ms",
+    options.postgresDiagnosticsIntervalMs,
+    "--postgres-diagnostics-max-samples",
+    options.postgresDiagnosticsMaxSamples,
+    "--postgres-diagnostics-query-timeout-ms",
+    options.postgresDiagnosticsQueryTimeoutMs,
+    ...optionalPostgresDiagnosticsRelationsArgs(options),
+  ];
+}
+
+function optionalPostgresDiagnosticsRelationsArgs(options) {
+  const relations = String(options.postgresDiagnosticsRelations ?? "").trim();
+  return relations === "" ? [] : ["--postgres-diagnostics-relations", relations];
+}
+
+function buildDiagnosticsProfile(options) {
+  return {
+    pgbouncerDiagnostics: parseBoolean(options.pgbouncerDiagnostics),
+    postgresDiagnostics: parseBoolean(options.postgresDiagnostics),
+    pgbouncerPostgresContainer: options.pgbouncerPostgresContainer,
+    pgbouncerHost: options.pgbouncerHost,
+    pgbouncerPort: parseInteger(options.pgbouncerPort),
+    pgbouncerDatabase: options.pgbouncerDatabase,
+    postgresDiagnosticsContainer: options.postgresDiagnosticsContainer,
+    postgresDiagnosticsHost: options.postgresDiagnosticsHost,
+    postgresDiagnosticsPort: parseInteger(options.postgresDiagnosticsPort),
+    postgresDiagnosticsDatabase: options.postgresDiagnosticsDatabase,
+    postgresDiagnosticsRelations: String(options.postgresDiagnosticsRelations ?? "").trim() || null,
+    postgresDiagnosticsIntervalMs: parseInteger(options.postgresDiagnosticsIntervalMs),
+    postgresDiagnosticsMaxSamples: parseInteger(options.postgresDiagnosticsMaxSamples),
+    postgresDiagnosticsQueryTimeoutMs: parseInteger(options.postgresDiagnosticsQueryTimeoutMs),
+  };
+}
+
+function validateSharedDatabaseDiagnosticsOptions(options) {
+  assertPositiveInteger(options.pgbouncerPort, "pgbouncer-port");
+  assertPositiveInteger(options.postgresDiagnosticsPort, "postgres-diagnostics-port");
+  assertPositiveInteger(options.postgresDiagnosticsIntervalMs, "postgres-diagnostics-interval-ms");
+  assertPositiveInteger(options.postgresDiagnosticsMaxSamples, "postgres-diagnostics-max-samples");
+  assertPositiveInteger(options.postgresDiagnosticsQueryTimeoutMs, "postgres-diagnostics-query-timeout-ms");
 }
 
 function assertNoPortOverlap(options) {
@@ -649,85 +770,6 @@ function runCommand(command, args, root) {
   });
 }
 
-function toRunnableCommand(command, args) {
-  if (process.platform === "win32" && command === "npm") {
-    return {
-      command: process.env.ComSpec || "cmd.exe",
-      args: ["/d", "/s", "/c", ["npm", ...args].join(" ")],
-    };
-  }
-  return { command, args };
-}
-
-function readOptionalJson(root, relativePath) {
-  const absolute = path.join(root, relativePath);
-  if (!fs.existsSync(absolute)) return { present: false, parseable: false };
-  try {
-    return { present: true, parseable: true, value: JSON.parse(fs.readFileSync(absolute, "utf8")) };
-  } catch (error) {
-    return { present: true, parseable: false, error: error.message };
-  }
-}
-
-function writeJsonReport(absolutePath, report) {
-  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-  fs.writeFileSync(absolutePath, `${JSON.stringify(report, null, 2)}\n`);
-}
-
-function removeReports(root, relativePaths) {
-  for (const relativePath of relativePaths) {
-    const absolute = path.join(root, relativePath);
-    if (fs.existsSync(absolute)) fs.rmSync(absolute);
-  }
-}
-
-function sanitizeCommandLine(command) {
-  return maskSensitive([command.command, ...command.args].join(" "));
-}
-
-function sanitizeCommandResult(result) {
-  return {
-    phase: result.phase,
-    command: result.command,
-    args: result.args,
-    exitCode: result.exitCode ?? 1,
-    elapsedMs: result.elapsedMs ?? null,
-    outputTail: tailText(maskSensitive(result.outputTail ?? ""), 80),
-    error: result.error ? maskSensitive(result.error) : undefined,
-  };
-}
-
-function maskSensitive(value) {
-  return String(value ?? "")
-    .replace(/postgres(?:ql)?:\/\/[^\s"']+/giu, "[database-url]")
-    .replaceAll("ueacd", "***");
-}
-
-function tailText(value, maxLines = 80) {
-  const text = String(value ?? "").replace(/\s+$/u, "");
-  if (!text) return "";
-  return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
-}
-
-function assertPositiveInteger(value, name) {
-  const parsed = parseInteger(value);
-  if (parsed <= 0) throw new Error(`${name} must be a positive integer`);
-}
-
-function assertNonNegativeInteger(value, name) {
-  if (!/^\d+$/u.test(String(value))) throw new Error(`${name} must be a non-negative integer`);
-}
-
-function parseInteger(value) {
-  if (!/^-?\d+$/u.test(String(value))) return 0;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseBoolean(value) {
-  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
-}
-
 function identityMaxConnsPerHost(options) {
   return optionOrFallback(options.identityMaxConnsPerHost, options.maxConnsPerHost);
 }
@@ -742,46 +784,6 @@ function identitySessionTablePersistence(options) {
 
 function optionOrFallback(value, fallback) {
   return String(value ?? "").trim() === "" ? fallback : value;
-}
-
-function numberOrNull(value) {
-  return Number.isFinite(value) ? value : null;
-}
-
-function numberOrZero(value) {
-  return Number.isFinite(value) ? value : 0;
-}
-
-function maxFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.max(...finite) : null;
-}
-
-function minFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.min(...finite) : null;
-}
-
-function sumFinite(values) {
-  return values.filter(Number.isFinite).reduce((total, value) => total + value, 0);
-}
-
-function round(value, digits) {
-  const multiplier = 10 ** digits;
-  return Math.round(value * multiplier) / multiplier;
-}
-
-function nullableDelta(left, right) {
-  if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
-  return round(left - right, 2);
-}
-
-function countCommandErrors(results) {
-  return results.filter((result) => result.exitCode !== 0).length;
-}
-
-function kebabToCamel(value) {
-  return value.replace(/-([a-z])/gu, (_match, letter) => letter.toUpperCase());
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

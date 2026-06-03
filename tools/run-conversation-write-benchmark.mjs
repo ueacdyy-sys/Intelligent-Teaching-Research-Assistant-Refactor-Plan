@@ -5,12 +5,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { collectPgbouncerDiagnostics } from "./pgbouncer-diagnostics.mjs";
 import { applyBenchmarkRuntimeArg, benchmarkRuntimeDefaults, benchmarkRuntimeProfile as buildBenchmarkRuntimeProfile, benchmarkTargetBaseUrls, buildBenchmarkRuntimeCommand } from "./conversation-benchmark-runtime.mjs";
-import {
-  applyPostgresDiagnosticsArg,
-  collectPostgresDiagnostics,
-  postgresDiagnosticsDefaults,
-  startPostgresDiagnosticsTimeline,
-} from "./postgres-diagnostics.mjs";
+import { tailText, writeJsonReport } from "./benchmark-runner-utils.mjs";
+import { applyPostgresDiagnosticsArg, collectPostgresDiagnostics, postgresDiagnosticsDefaults, startPostgresDiagnosticsTimeline } from "./postgres-diagnostics.mjs";
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -23,6 +19,8 @@ export const defaults = {
   gatewayCount: "1",
   writeBatchSize: "1",
   writeBatchDelayMs: "0",
+  writeBatchWorkers: "1",
+  writeBatchMode: "insert",
   agentApiKey: "ueacd",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
@@ -72,6 +70,8 @@ export function parseArgs(argv) {
     if (key === "--gateway-count") parsed.gatewayCount = value;
     if (key === "--write-batch-size") parsed.writeBatchSize = value;
     if (key === "--write-batch-delay-ms") parsed.writeBatchDelayMs = value;
+    if (key === "--write-batch-workers") parsed.writeBatchWorkers = value;
+    if (key === "--write-batch-mode") parsed.writeBatchMode = value;
     if (key === "--agent-api-key") parsed.agentApiKey = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
     if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
@@ -548,6 +548,8 @@ function spawnGateway(binaryPath, options, baseUrl, root, spawnProcess) {
       DB_MAX_CONNS: String(parseIntegerOption(options.dbMaxConns)),
       CONVERSATION_WRITE_BATCH_SIZE: String(parseIntegerOption(options.writeBatchSize)),
       CONVERSATION_WRITE_BATCH_DELAY_MS: String(parseIntegerOption(options.writeBatchDelayMs)),
+      CONVERSATION_WRITE_BATCH_WORKERS: String(parsePositiveIntegerOption(options.writeBatchWorkers)),
+      CONVERSATION_WRITE_BATCH_MODE: writeBatchMode(options),
       AGENT_API_KEY: options.agentApiKey,
       INTERNAL_DIAGNOSTICS_SECRET: internalDiagnosticsSecretValue,
     },
@@ -667,11 +669,23 @@ function gatewayDatabaseProfile(options) {
 function gatewayWriteProfile(options) {
   const batchSize = parseIntegerOption(options.writeBatchSize);
   const batchDelayMs = parseIntegerOption(options.writeBatchDelayMs);
+  const batchWorkers = parsePositiveIntegerOption(options.writeBatchWorkers);
+  const batchMode = writeBatchMode(options);
   return {
     batchingEnabled: batchSize > 1,
     batchSize,
     batchDelayMs,
+    batchWorkers,
+    batchMode,
   };
+}
+
+function writeBatchMode(options) {
+  const normalized = String(options.writeBatchMode ?? "insert").trim().toLowerCase();
+  if (normalized !== "insert" && normalized !== "copy") {
+    throw new Error("write-batch-mode must be insert or copy");
+  }
+  return normalized;
 }
 
 export function benchmarkRuntimeProfile(options, baseUrls) {
@@ -719,9 +733,7 @@ function ingressEnabled(options) {
   return parseBooleanOption(options.ingressProxy);
 }
 
-function parseBooleanOption(value) {
-  return String(value).toLowerCase() === "true";
-}
+function parseBooleanOption(value) { return String(value).toLowerCase() === "true"; }
 
 function parseIntegerOption(value) {
   const parsed = Number.parseInt(String(value), 10);
@@ -731,9 +743,15 @@ function parseIntegerOption(value) {
   return parsed;
 }
 
-function portRange(start, count) {
-  return Array.from({ length: count }, (_, index) => start + index);
+function parsePositiveIntegerOption(value) {
+  const parsed = parseIntegerOption(value);
+  if (parsed < 1) {
+    throw new Error(`expected positive integer, got ${value}`);
+  }
+  return parsed;
 }
+
+function portRange(start, count) { return Array.from({ length: count }, (_, index) => start + index); }
 
 function parseURL(value) {
   try {
@@ -748,20 +766,12 @@ function portFromOptions(options, base) {
   return parseIntegerOption(options.port);
 }
 
-function trimURL(value) {
-  return String(value).replace(/\/$/u, "");
-}
+function trimURL(value) { return String(value).replace(/\/$/u, ""); }
 
 function maskURL(value) {
   const parsed = parseURL(value);
   if (parsed.password) parsed.password = "***";
   return trimURL(parsed.toString()).replaceAll(localSecretValue, "***");
-}
-
-function tailText(value, maxLines = 80) {
-  const text = String(value ?? "").replace(/\s+$/u, "");
-  if (!text) return "";
-  return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
 }
 
 function combineOutput(outputs, label) {
@@ -780,14 +790,7 @@ function extractFailureMessage(output, exitCode) {
   return maskSensitive(lastMeaningful ?? `conversation write benchmark exited with code ${exitCode}`);
 }
 
-function writeJsonReport(outPath, report) {
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
-}
-
-function executableName(name) {
-  return process.platform === "win32" ? `${name}.exe` : name;
-}
+function executableName(name) { return process.platform === "win32" ? `${name}.exe` : name; }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   runConversationWriteBenchmark().catch((error) => {

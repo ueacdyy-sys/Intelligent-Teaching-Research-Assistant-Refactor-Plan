@@ -10,6 +10,9 @@ export const systemTeachingBenchmarkDefaults = {
   teachingMaxConnsPerHost: "",
   teachingWarmConnectionsPerHost: "",
   teachingClientTrace: "false",
+  teachingArchiveCreateBatchSize: "1",
+  teachingArchiveCreateBatchDelayMs: "0",
+  teachingArchiveCreateBatchWorkers: "1",
 };
 
 export function systemTeachingBenchmarkRuntime(options) {
@@ -51,6 +54,12 @@ export function systemTeachingBenchmarkRuntimeArgs(options) {
     teachingWarmConnectionsPerHost(options),
     "--client-trace",
     options.teachingClientTrace,
+    "--archive-create-batch-size",
+    options.teachingArchiveCreateBatchSize,
+    "--archive-create-batch-delay-ms",
+    options.teachingArchiveCreateBatchDelayMs,
+    "--archive-create-batch-workers",
+    options.teachingArchiveCreateBatchWorkers,
   ];
 }
 
@@ -59,6 +68,9 @@ export function buildSystemTeachingTransportProfile(options) {
     teachingMaxConnsPerHost: parseInteger(teachingMaxConnsPerHost(options)),
     teachingWarmConnectionsPerHost: parseInteger(teachingWarmConnectionsPerHost(options)),
     teachingClientTrace: parseBoolean(options.teachingClientTrace),
+    teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
+    teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
+    teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
   };
 }
 
@@ -66,6 +78,9 @@ export function assertSystemTeachingBenchmarkOptions(options) {
   systemTeachingBenchmarkRuntime(options);
   assertNonNegativeInteger(teachingMaxConnsPerHost(options), "teaching-max-conns-per-host");
   assertNonNegativeInteger(teachingWarmConnectionsPerHost(options), "teaching-warm-connections-per-host");
+  assertNonNegativeInteger(options.teachingArchiveCreateBatchSize, "teaching-archive-create-batch-size");
+  assertNonNegativeInteger(options.teachingArchiveCreateBatchDelayMs, "teaching-archive-create-batch-delay-ms");
+  assertPositiveInteger(options.teachingArchiveCreateBatchWorkers, "teaching-archive-create-batch-workers");
 }
 
 export function summarizeTeachingArchiveReport(report) {
@@ -88,11 +103,43 @@ export function summarizeTeachingArchiveReport(report) {
     handlerP99Ms,
     preUsecaseP99Ms,
     appP99Ms,
+    dbBatchWaitP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.batch_wait"]?.p99))),
+    dbAcquireP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.acquire"]?.p99))),
+    dbExecP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.exec"]?.p99))),
+    dbQueryP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.query"]?.p99))),
     dbInsertP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99))),
+    gatewayWriteProfile: report.gatewayWriteProfile ?? null,
     clientHandlerGapP99Ms: maxFinite(phases.map((phase) =>
       nullableDelta(numberOrNull(phase.latencyMs?.p99), numberOrNull(phase.serverTimingBreakdownMs?.handler?.p99))
     )),
     benchmarkRuntimeProfile: report.benchmarkRuntimeProfile ?? null,
+    databaseDiagnostics: summarizeGatewayDatabaseDiagnostics(report.gatewayDatabaseDiagnostics),
+  };
+}
+
+function summarizeGatewayDatabaseDiagnostics(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== "object") return undefined;
+  const summarized = Object.fromEntries(
+    ["before", "after"].map((snapshotName) => [snapshotName, summarizeGatewaySnapshot(diagnostics[snapshotName])])
+      .filter(([_name, snapshot]) => snapshot !== undefined),
+  );
+  return Object.keys(summarized).length > 0 ? summarized : undefined;
+}
+
+function summarizeGatewaySnapshot(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.gateways)) return undefined;
+  const gateways = snapshot.gateways;
+  const stats = gateways.map((gateway) => gateway.stats ?? {});
+  return {
+    gatewayCount: gateways.length,
+    okGateways: gateways.filter((gateway) => gateway.status === "OK").length,
+    unavailableGateways: gateways.filter((gateway) => gateway.status !== "OK").length,
+    maxTotalConns: maxFinite(stats.map((entry) => numberOrNull(entry.totalConns))),
+    maxAcquiredConns: maxFinite(stats.map((entry) => numberOrNull(entry.acquiredConns))),
+    maxIdleConns: maxFinite(stats.map((entry) => numberOrNull(entry.idleConns))),
+    totalEmptyAcquireCount: sumFinite(stats.map((entry) => numberOrNull(entry.emptyAcquireCount))),
+    totalEmptyAcquireWaitTimeMs: round(sumFinite(stats.map((entry) => numberOrNull(entry.emptyAcquireWaitTimeMs))), 2),
+    totalNewConnsCount: sumFinite(stats.map((entry) => numberOrNull(entry.newConnsCount))),
   };
 }
 
@@ -117,6 +164,10 @@ function optionOrFallback(value, fallback) {
 
 function assertNonNegativeInteger(value, name) {
   if (!/^\d+$/u.test(String(value))) throw new Error(`${name} must be a non-negative integer`);
+}
+
+function assertPositiveInteger(value, name) {
+  if (!/^[1-9]\d*$/u.test(String(value))) throw new Error(`${name} must be a positive integer`);
 }
 
 function parseInteger(value) {
@@ -145,6 +196,10 @@ function maxFinite(values) {
 function minFinite(values) {
   const finite = values.filter(Number.isFinite);
   return finite.length ? Math.min(...finite) : null;
+}
+
+function sumFinite(values) {
+  return values.filter(Number.isFinite).reduce((total, value) => total + value, 0);
 }
 
 function round(value, digits) {

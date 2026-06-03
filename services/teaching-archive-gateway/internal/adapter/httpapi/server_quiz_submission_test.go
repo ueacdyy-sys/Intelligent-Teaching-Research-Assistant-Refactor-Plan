@@ -5,11 +5,13 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/adapter/httpapi"
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/platform"
 	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
@@ -37,6 +39,10 @@ func TestCreateQuizSubmissionReturnsCreatedResponse(t *testing.T) {
 	}
 	if !bytes.Contains(response.Body.Bytes(), []byte(`"status":"SUBMITTED"`)) {
 		t.Fatalf("body = %s", response.Body.String())
+	}
+	timing := response.Header().Get("Server-Timing")
+	if !strings.Contains(timing, "db.insert;dur=") {
+		t.Fatalf("Server-Timing = %q, want db.insert duration", timing)
 	}
 }
 
@@ -132,9 +138,14 @@ func newTestHandlerWithTeachingQuizSubmission() http.Handler {
 }
 
 func (f *fakeRepository) CreateQuizSubmission(
-	_ context.Context,
+	ctx context.Context,
 	submission domain.QuizSubmission,
 ) error {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.DBBatchWait = 500 * time.Microsecond
+		timing.DBExec = time.Millisecond
+		timing.DBInsert = time.Millisecond
+	}
 	f.quizSubmissions = append(f.quizSubmissions, submission)
 	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,8 +29,16 @@ func main() {
 	}
 
 	archiveRepository := teachingpostgres.NewArchiveRepository(db)
+	createArchiveRepository := archiveCreateRepositoryFromConfig(db)
+	if closeable, ok := createArchiveRepository.(interface{ Close() }); ok {
+		defer closeable.Close()
+	}
+	quizSubmissionRepository := quizSubmissionRepositoryFromConfig(db)
+	if closeable, ok := quizSubmissionRepository.(interface{ Close() }); ok {
+		defer closeable.Close()
+	}
 	createArchiveItem := usecase.NewCreateArchiveItem(
-		archiveRepository,
+		createArchiveRepository,
 		platform.IDGenerator{},
 		platform.Clock{},
 	)
@@ -45,12 +54,12 @@ func main() {
 	)
 	listStudentAppAITutorRequests := usecase.NewListStudentAppAITutorRequests(archiveRepository)
 	createQuizSubmission := usecase.NewCreateQuizSubmission(
-		archiveRepository,
+		quizSubmissionRepository,
 		platform.QuizSubmissionIDGenerator{},
 		platform.Clock{},
 	)
 	createScannedQuizSubmission := usecase.NewCreateScannedQuizSubmission(
-		archiveRepository,
+		quizSubmissionRepository,
 		platform.QuizSubmissionIDGenerator{},
 		platform.Clock{},
 	)
@@ -147,6 +156,8 @@ func main() {
 			ListStudentAttendanceRecords:     listStudentAttendanceRecords,
 			GetAttendanceStatistics:          getAttendanceStatistics,
 			AgentAPIKey:                      getenv("AGENT_API_KEY", "ueacd"),
+			DiagnosticsSecret:                getenv("INTERNAL_DIAGNOSTICS_SECRET", "ueacd"),
+			DBPoolStatsProvider:              db,
 		}).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -170,9 +181,11 @@ func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
 		log.Fatal(err)
 	}
 
-	maxConns := getenvInt("DB_MAX_CONNS", 8)
-	config.MaxConns = int32(maxConns)
-	config.MinConns = 0
+	settings, err := postgresPoolSettingsFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	applyPostgresPoolSettings(config, settings)
 	config.MaxConnIdleTime = 10 * time.Minute
 	config.MaxConnLifetime = 30 * time.Minute
 
@@ -180,12 +193,141 @@ func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := pool.Ping(ctx); err != nil {
+	if err := prewarmPostgresPool(ctx, pool, settings.PrewarmConns); err != nil {
 		pool.Close()
 		log.Fatal(err)
 	}
-	log.Printf("teaching archive postgres pool ready: maxConns=%d", maxConns)
+	log.Printf(
+		"teaching archive postgres pool ready: maxConns=%d minConns=%d prewarmConns=%d",
+		settings.MaxConns,
+		settings.MinConns,
+		settings.PrewarmConns,
+	)
 	return pool
+}
+
+type postgresPoolSettings struct {
+	MaxConns     int
+	MinConns     int
+	PrewarmConns int
+}
+
+func postgresPoolSettingsFromEnv() (postgresPoolSettings, error) {
+	return parsePostgresPoolSettings(os.Getenv)
+}
+
+func parsePostgresPoolSettings(getenv func(string) string) (postgresPoolSettings, error) {
+	settings := postgresPoolSettings{}
+	var err error
+	settings.MaxConns, err = getenvIntFrom(getenv, "DB_MAX_CONNS", 8, true)
+	if err != nil {
+		return postgresPoolSettings{}, err
+	}
+	settings.MinConns, err = getenvIntFrom(getenv, "DB_MIN_CONNS", 0, false)
+	if err != nil {
+		return postgresPoolSettings{}, err
+	}
+	settings.PrewarmConns, err = getenvIntFrom(getenv, "DB_PREWARM_CONNS", 1, false)
+	if err != nil {
+		return postgresPoolSettings{}, err
+	}
+	if settings.MinConns > settings.MaxConns {
+		return postgresPoolSettings{}, fmt.Errorf("DB_MIN_CONNS must be <= DB_MAX_CONNS: %d > %d", settings.MinConns, settings.MaxConns)
+	}
+	if settings.PrewarmConns > settings.MaxConns {
+		return postgresPoolSettings{}, fmt.Errorf("DB_PREWARM_CONNS must be <= DB_MAX_CONNS: %d > %d", settings.PrewarmConns, settings.MaxConns)
+	}
+	return settings, nil
+}
+
+func applyPostgresPoolSettings(config *pgxpool.Config, settings postgresPoolSettings) {
+	config.MaxConns = int32(settings.MaxConns)
+	config.MinConns = int32(settings.MinConns)
+}
+
+func prewarmPostgresPool(ctx context.Context, pool *pgxpool.Pool, count int) error {
+	if count == 0 {
+		return nil
+	}
+	connections := make([]*pgxpool.Conn, 0, count)
+	defer func() {
+		for _, connection := range connections {
+			connection.Release()
+		}
+	}()
+	for index := 0; index < count; index++ {
+		connection, err := acquirePrewarmPostgresConnection(ctx, pool)
+		if err != nil {
+			return err
+		}
+		connections = append(connections, connection)
+	}
+	return nil
+}
+
+func acquirePrewarmPostgresConnection(ctx context.Context, pool *pgxpool.Pool) (*pgxpool.Conn, error) {
+	var connection *pgxpool.Conn
+	err := retryPrewarmOperation(ctx, 8, 100*time.Millisecond, func() error {
+		acquired, err := pool.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		if err := acquired.Ping(ctx); err != nil {
+			acquired.Release()
+			return err
+		}
+		connection = acquired
+		return nil
+	})
+	return connection, err
+}
+
+func retryPrewarmOperation(ctx context.Context, attempts int, delay time.Duration, operation func() error) error {
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		lastErr = operation()
+		if lastErr == nil {
+			return nil
+		}
+		if attempt == attempts {
+			break
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return errors.Join(lastErr, ctx.Err())
+		case <-timer.C:
+		}
+	}
+	return lastErr
+}
+
+func archiveCreateRepositoryFromConfig(db teachingpostgres.AcquireDB) usecase.ArchiveRepository {
+	batchSize := getenvNonNegativeInt("TEACHING_ARCHIVE_CREATE_BATCH_SIZE", 1)
+	if batchSize <= 1 {
+		return teachingpostgres.NewArchiveRepository(db)
+	}
+	return teachingpostgres.NewBatchingArchiveItemRepository(db, teachingpostgres.ArchiveCreateBatchConfig{
+		MaxSize:  batchSize,
+		MaxDelay: time.Duration(getenvNonNegativeInt("TEACHING_ARCHIVE_CREATE_BATCH_DELAY_MS", 0)) * time.Millisecond,
+		Workers:  getenvInt("TEACHING_ARCHIVE_CREATE_BATCH_WORKERS", 1),
+	})
+}
+
+func quizSubmissionRepositoryFromConfig(db teachingpostgres.AcquireDB) usecase.QuizSubmissionRepository {
+	defaultBatchSize := getenvNonNegativeInt("TEACHING_ARCHIVE_CREATE_BATCH_SIZE", 1)
+	defaultBatchDelayMs := getenvNonNegativeInt("TEACHING_ARCHIVE_CREATE_BATCH_DELAY_MS", 0)
+	defaultBatchWorkers := getenvInt("TEACHING_ARCHIVE_CREATE_BATCH_WORKERS", 1)
+	batchSize := getenvNonNegativeInt("TEACHING_QUIZ_SUBMISSION_BATCH_SIZE", defaultBatchSize)
+	if batchSize <= 1 {
+		return teachingpostgres.NewArchiveRepository(db)
+	}
+	return teachingpostgres.NewBatchingQuizSubmissionRepository(db, teachingpostgres.QuizSubmissionBatchConfig{
+		MaxSize:  batchSize,
+		MaxDelay: time.Duration(getenvNonNegativeInt("TEACHING_QUIZ_SUBMISSION_BATCH_DELAY_MS", defaultBatchDelayMs)) * time.Millisecond,
+		Workers:  getenvInt("TEACHING_QUIZ_SUBMISSION_BATCH_WORKERS", defaultBatchWorkers),
+	})
 }
 
 func getenv(key string, fallback string) string {
@@ -197,16 +339,38 @@ func getenv(key string, fallback string) string {
 }
 
 func getenvInt(key string, fallback int) int {
-	value := os.Getenv(key)
+	parsed, err := getenvIntFrom(os.Getenv, key, fallback, true)
+	if err != nil {
+		panic(err.Error())
+	}
+	return parsed
+}
+
+func getenvNonNegativeInt(key string, fallback int) int {
+	parsed, err := getenvIntFrom(os.Getenv, key, fallback, false)
+	if err != nil {
+		panic(err.Error())
+	}
+	return parsed
+}
+
+func getenvIntFrom(getenv func(string) string, key string, fallback int, positive bool) (int, error) {
+	value := getenv(key)
 	if value == "" {
-		return fallback
+		value = strconv.Itoa(fallback)
 	}
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
-		panic(fmt.Sprintf("%s must be an integer: %q", key, value))
+		return 0, fmt.Errorf("%s must be an integer: %q", key, value)
 	}
-	if parsed < 1 {
-		panic(fmt.Sprintf("%s must be positive: %d", key, parsed))
+	if positive && parsed < 1 {
+		return 0, fmt.Errorf("%s must be positive: %d", key, parsed)
 	}
-	return parsed
+	if !positive && parsed < 0 {
+		return 0, fmt.Errorf("%s must be non-negative: %d", key, parsed)
+	}
+	if !positive && fallback < 0 {
+		return 0, errors.New("non-negative fallback must not be negative")
+	}
+	return parsed, nil
 }

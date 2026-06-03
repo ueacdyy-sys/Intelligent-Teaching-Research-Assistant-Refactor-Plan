@@ -9,6 +9,7 @@ import {
   buildBenchmarkCommand,
   buildBenchmarkReport,
   buildFailureReport,
+  collectGatewayDatabaseDiagnostics,
   defaults,
   formatTeachingArchiveBenchmark,
   parseArgs,
@@ -25,6 +26,16 @@ describe("teaching archive benchmark runner", () => {
       "http://127.0.0.1:19500",
       "--db-max-conns",
       "2",
+      "--db-min-conns",
+      "2",
+      "--db-prewarm-conns",
+      "2",
+      "--archive-create-batch-size",
+      "64",
+      "--archive-create-batch-delay-ms",
+      "1",
+      "--archive-create-batch-workers",
+      "2",
       "--gateway-count",
       "3",
       "--startup-timeout-ms",
@@ -33,16 +44,30 @@ describe("teaching archive benchmark runner", () => {
       "docker",
       "--benchmark-docker-host",
       "host.docker.internal",
+      "--pgbouncer-diagnostics",
+      "true",
+      "--postgres-diagnostics",
+      "true",
+      "--postgres-diagnostics-relations",
+      "teaching_archive_items",
       "--unknown-option",
       "ignored",
     ]);
 
     assert.equal(parsed.baseUrl, "http://127.0.0.1:19500");
     assert.equal(parsed.dbMaxConns, "2");
+    assert.equal(parsed.dbMinConns, "2");
+    assert.equal(parsed.dbPrewarmConns, "2");
+    assert.equal(parsed.archiveCreateBatchSize, "64");
+    assert.equal(parsed.archiveCreateBatchDelayMs, "1");
+    assert.equal(parsed.archiveCreateBatchWorkers, "2");
     assert.equal(parsed.gatewayCount, "3");
     assert.equal(parsed.startupTimeoutMs, "30000");
     assert.equal(parsed.benchmarkRuntime, "docker");
     assert.equal(parsed.benchmarkDockerHost, "host.docker.internal");
+    assert.equal(parsed.pgbouncerDiagnostics, "true");
+    assert.equal(parsed.postgresDiagnostics, "true");
+    assert.equal(parsed.postgresDiagnosticsRelations, "teaching_archive_items");
     assert.equal(parsed.concurrency, defaults.concurrency);
     assert.equal(Object.hasOwn(parsed, "unknownOption"), false);
   });
@@ -108,6 +133,16 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.status, "PASSED");
     assert.equal(report.gatewayCount, 1);
     assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_NODE_FETCH");
+    assert.deepEqual(report.gatewayWriteProfile, {
+      archiveCreateBatchingEnabled: false,
+      archiveCreateBatchSize: 1,
+      archiveCreateBatchDelayMs: 0,
+      archiveCreateBatchWorkers: 1,
+      quizSubmissionBatchingEnabled: false,
+      quizSubmissionBatchSize: 1,
+      quizSubmissionBatchDelayMs: 0,
+      quizSubmissionBatchWorkers: 1,
+    });
     assert.equal(report.summary.totalErrors, 0);
     assert.equal(report.summary.maxP99Ms, 10);
     assert.equal(report.phases.createQuizSubmission.latencyMs.p95, 10);
@@ -127,6 +162,16 @@ describe("teaching archive benchmark runner", () => {
 
     assert.equal(report.status, "FAILED");
     assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_NODE_FETCH");
+    assert.deepEqual(report.gatewayWriteProfile, {
+      archiveCreateBatchingEnabled: false,
+      archiveCreateBatchSize: 1,
+      archiveCreateBatchDelayMs: 0,
+      archiveCreateBatchWorkers: 1,
+      quizSubmissionBatchingEnabled: false,
+      quizSubmissionBatchSize: 1,
+      quizSubmissionBatchDelayMs: 0,
+      quizSubmissionBatchWorkers: 1,
+    });
     assert.doesNotMatch(text, /ueacd/u);
     assert.doesNotMatch(text, /postgres:\/\/app_user/u);
     assert.match(text, /\[database-url\]/u);
@@ -160,9 +205,23 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.phases.createArchiveItem.serverTimingMs.p99, 12);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs.handler.p99, 15);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs["pre.usecase"].p99, 3);
+    assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs["db.batch_wait"].p99, 2);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs["db.insert"].p99, 8);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples.handler, 4);
+    assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples["db.batch_wait"], 4);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples["db.insert"], 4);
+    assert.deepEqual(report.gatewayWriteProfile, {
+      archiveCreateBatchingEnabled: false,
+      archiveCreateBatchSize: 1,
+      archiveCreateBatchDelayMs: 0,
+      archiveCreateBatchWorkers: 1,
+      quizSubmissionBatchingEnabled: false,
+      quizSubmissionBatchSize: 1,
+      quizSubmissionBatchDelayMs: 0,
+      quizSubmissionBatchWorkers: 1,
+    });
+    assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 4);
+    assert.equal(report.gatewayDatabaseDiagnostics.after.gateways[0].stats.totalConns, 4);
     assert.equal(calls.filter((call) => call.includes("/quiz-submissions")).length, 4);
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching.json"), "utf8")).status, "PASSED");
   });
@@ -174,6 +233,8 @@ describe("teaching archive benchmark runner", () => {
       {
         ...defaults,
         benchmarkRuntime: "local",
+        pgbouncerDiagnostics: "true",
+        postgresDiagnostics: "true",
         out: "reports/teaching-go.json",
         concurrency: "2",
         operations: "4",
@@ -182,6 +243,9 @@ describe("teaching archive benchmark runner", () => {
         root,
         fetch: async (url) => {
           if (url.endsWith("/health")) return jsonResponse(200, { status: "ok" });
+          if (url.endsWith("/internal/teaching/db-pool")) {
+            return jsonResponse(200, { status: "ok", stats: gatewayPoolStats() });
+          }
           return jsonResponse(404, { error: "unexpected JS fetch" });
         },
         sleep: async () => {},
@@ -209,7 +273,20 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.summary.maxP99Ms, 11);
     assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.equal(report.gatewayDatabaseProfile.dbMaxConns, 4);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching-go.json"), "utf8")).summary.totalErrors, 0);
+    assert.equal(report.gatewayDatabaseProfile.dbMinConns, 0);
+    assert.equal(report.gatewayDatabaseProfile.dbPrewarmConns, 1);
+    assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 4);
+    assert.equal(report.gatewayDatabaseDiagnostics.after.gateways[0].stats.totalConns, 4);
+    assert.equal(report.pgbouncerDiagnostics.before.status, "OK");
+    assert.equal(report.pgbouncerDiagnostics.after.status, "OK");
+    assert.equal(report.postgresDiagnostics.before.status, "OK");
+    assert.equal(report.postgresDiagnostics.timeline.status, "OK");
+    assert(report.postgresDiagnostics.timeline.samples.length >= 1);
+    assert.deepEqual(report.postgresDiagnostics.before.postgresRelations, [
+      "teaching_archive_items",
+      "teaching_quiz_submissions",
+    ]);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching-go.json"), "utf8")).gatewayDatabaseDiagnostics.after.gateways[0].stats.totalConns, 4);
   });
 
   it("fans teaching requests across multiple gateway ports", async () => {
@@ -252,6 +329,86 @@ describe("teaching archive benchmark runner", () => {
     assert(calls.some((call) => call.includes("127.0.0.1:19500/v1/teaching/archive-items")));
     assert(calls.some((call) => call.includes("127.0.0.1:19501/v1/teaching/archive-items")));
     assert(calls.some((call) => call.includes("127.0.0.1:19502/v1/teaching/archive-items")));
+  });
+
+  it("passes DB and archive create batch settings to each teaching gateway", async () => {
+    const root = makeTempRoot();
+    const spawnedEnvs = [];
+    const report = await runTeachingArchiveBenchmark(
+      {
+        ...defaults,
+        baseUrl: "http://127.0.0.1:19500",
+        out: "reports/teaching.json",
+        dbMaxConns: "12",
+        dbMinConns: "12",
+        dbPrewarmConns: "12",
+        archiveCreateBatchSize: "64",
+        archiveCreateBatchDelayMs: "1",
+        archiveCreateBatchWorkers: "2",
+        gatewayCount: "2",
+      },
+      {
+        root,
+        fetch: fakeTeachingFetch([]),
+        sleep: async () => {},
+        spawnProcess: (_command, _args, options) => {
+          spawnedEnvs.push(options.env);
+          return fakeSpawnProcess();
+        },
+        spawnCommandSync: fakeSpawnSync,
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "PASSED");
+    assert.deepEqual(spawnedEnvs.map((env) => env.DB_MAX_CONNS), ["12", "12"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.DB_MIN_CONNS), ["12", "12"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.DB_PREWARM_CONNS), ["12", "12"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_CREATE_BATCH_SIZE), ["64", "64"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_CREATE_BATCH_DELAY_MS), ["1", "1"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_CREATE_BATCH_WORKERS), ["2", "2"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_SIZE), ["64", "64"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_DELAY_MS), ["1", "1"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_WORKERS), ["2", "2"]);
+    assert.deepEqual(report.gatewayDatabaseProfile, {
+      dbMaxConns: 12,
+      dbMinConns: 12,
+      dbPrewarmConns: 12,
+      databaseUrl: "[database-url]",
+    });
+    assert.deepEqual(report.gatewayWriteProfile, {
+      archiveCreateBatchingEnabled: true,
+      archiveCreateBatchSize: 64,
+      archiveCreateBatchDelayMs: 1,
+      archiveCreateBatchWorkers: 2,
+      quizSubmissionBatchingEnabled: true,
+      quizSubmissionBatchSize: 64,
+      quizSubmissionBatchDelayMs: 1,
+      quizSubmissionBatchWorkers: 2,
+    });
+  });
+
+  it("fails local evidence when DB prewarm exceeds the max connection budget", async () => {
+    const root = makeTempRoot();
+    const report = await runTeachingArchiveBenchmark(
+      {
+        ...defaults,
+        out: "reports/teaching.json",
+        dbMaxConns: "4",
+        dbPrewarmConns: "5",
+      },
+      {
+        root,
+        fetch: fakeTeachingFetch([]),
+        sleep: async () => {},
+        spawnProcess: fakeSpawnProcess,
+        spawnCommandSync: fakeSpawnSync,
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "FAILED");
+    assert.match(report.errorMessage, /db-prewarm-conns must be <= db-max-conns/u);
   });
 
   it("returns a failed report when a phase cannot produce archive item ids", async () => {
@@ -299,6 +456,25 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.status, "FAILED");
     assert.match(report.errorMessage, /agent-api-key must be \*\*\*/u);
   });
+
+  it("collects teaching gateway DB diagnostics with secret masking", async () => {
+    const diagnostics = await collectGatewayDatabaseDiagnostics(
+      ["http://127.0.0.1:18500"],
+      {
+        fetch: async (url, init = {}) => {
+          assert.equal(url, "http://127.0.0.1:18500/internal/teaching/db-pool");
+          assert.equal(init.headers["X-Internal-Diagnostics-Secret"], "ueacd");
+          return jsonResponse(200, { status: "ok", stats: gatewayPoolStats() });
+        },
+        now: () => "2026-06-01T00:00:00.000Z",
+      },
+    );
+
+    assert.equal(diagnostics.endpoint, "/internal/teaching/db-pool");
+    assert.equal(diagnostics.gateways[0].status, "OK");
+    assert.equal(diagnostics.gateways[0].stats.emptyAcquireWaitTimeMs, 3.5);
+    assert.doesNotMatch(JSON.stringify(diagnostics), /ueacd/u);
+  });
 });
 
 function phase(latencies, errors = 0) {
@@ -317,12 +493,15 @@ function fakeTeachingFetch(calls, options = {}) {
   return async (url, init = {}) => {
     calls.push(`${init.method ?? "GET"} ${url}`);
     if (url.endsWith("/health")) return jsonResponse(200, { status: "ok" });
+    if (url.endsWith("/internal/teaching/db-pool")) {
+      return jsonResponse(200, { status: "ok", stats: gatewayPoolStats() });
+    }
     if (options.failArchiveCreate && init.method === "POST" && url.endsWith("/v1/teaching/archive-items")) {
       return jsonResponse(500, { error: "create failed with ueacd" });
     }
     if (init.method === "POST" && url.endsWith("/v1/teaching/archive-items")) {
       archiveItemCounter += 1;
-      return jsonResponse(201, { id: `tarch_perf_${archiveItemCounter}` }, "handler;dur=15, pre.usecase;dur=3, app;dur=12, db.insert;dur=8");
+      return jsonResponse(201, { id: `tarch_perf_${archiveItemCounter}` }, "handler;dur=15, pre.usecase;dur=3, app;dur=12, db.batch_wait;dur=2, db.insert;dur=8");
     }
     if (init.method === "POST" && url.includes("/quiz-submissions")) {
       submissionCounter += 1;
@@ -345,6 +524,25 @@ function jsonResponse(status, body, serverTiming = "") {
       },
     },
     text: async () => JSON.stringify(body),
+    json: async () => body,
+  };
+}
+
+function gatewayPoolStats() {
+  return {
+    maxConns: 4,
+    totalConns: 4,
+    acquiredConns: 0,
+    idleConns: 4,
+    constructingConns: 0,
+    acquireCount: 8,
+    acquireDurationMs: 5.25,
+    canceledAcquireCount: 0,
+    emptyAcquireCount: 1,
+    emptyAcquireWaitTimeMs: 3.5,
+    newConnsCount: 4,
+    maxIdleDestroyCount: 0,
+    maxLifetimeDestroyCount: 0,
   };
 }
 

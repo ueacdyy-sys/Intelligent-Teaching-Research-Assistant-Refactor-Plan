@@ -46,7 +46,12 @@ export const defaults = {
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "1",
   teachingDbMaxConns: "1",
+  teachingDbMinConns: mixedDefaults.teachingDbMinConns,
+  teachingDbPrewarmConns: mixedDefaults.teachingDbPrewarmConns,
   conversationWriteBatchSize: "8",
+  conversationWriteBatchWorkers: mixedDefaults.conversationWriteBatchWorkers,
+  conversationWriteBatchMode: mixedDefaults.conversationWriteBatchMode,
+  conversationClientTrace: mixedDefaults.conversationClientTrace,
   conversationBenchmarkRuntime: mixedDefaults.conversationBenchmarkRuntime,
   conversationBenchmarkDockerImage: mixedDefaults.conversationBenchmarkDockerImage,
   conversationBenchmarkDockerHost: mixedDefaults.conversationBenchmarkDockerHost,
@@ -67,6 +72,9 @@ export const defaults = {
   teachingMaxConnsPerHost: mixedDefaults.teachingMaxConnsPerHost,
   teachingWarmConnectionsPerHost: mixedDefaults.teachingWarmConnectionsPerHost,
   teachingClientTrace: mixedDefaults.teachingClientTrace,
+  teachingArchiveCreateBatchSize: mixedDefaults.teachingArchiveCreateBatchSize,
+  teachingArchiveCreateBatchDelayMs: mixedDefaults.teachingArchiveCreateBatchDelayMs,
+  teachingArchiveCreateBatchWorkers: mixedDefaults.teachingArchiveCreateBatchWorkers,
   identityMaxConnsPerHost: mixedDefaults.identityMaxConnsPerHost,
   identityWarmConnectionsPerHost: mixedDefaults.identityWarmConnectionsPerHost,
   identityIngressProxy: mixedDefaults.identityIngressProxy,
@@ -77,6 +85,22 @@ export const defaults = {
   timeout: "180s",
   teachingTimeoutMs: mixedDefaults.teachingTimeoutMs,
   startupTimeoutMs: "120000",
+  pgbouncerDiagnostics: mixedDefaults.pgbouncerDiagnostics,
+  pgbouncerPostgresContainer: mixedDefaults.pgbouncerPostgresContainer,
+  pgbouncerHost: mixedDefaults.pgbouncerHost,
+  pgbouncerPort: mixedDefaults.pgbouncerPort,
+  pgbouncerUser: mixedDefaults.pgbouncerUser,
+  pgbouncerDatabase: mixedDefaults.pgbouncerDatabase,
+  postgresDiagnostics: mixedDefaults.postgresDiagnostics,
+  postgresDiagnosticsContainer: mixedDefaults.postgresDiagnosticsContainer,
+  postgresDiagnosticsHost: mixedDefaults.postgresDiagnosticsHost,
+  postgresDiagnosticsPort: mixedDefaults.postgresDiagnosticsPort,
+  postgresDiagnosticsUser: mixedDefaults.postgresDiagnosticsUser,
+  postgresDiagnosticsDatabase: mixedDefaults.postgresDiagnosticsDatabase,
+  postgresDiagnosticsRelations: mixedDefaults.postgresDiagnosticsRelations,
+  postgresDiagnosticsIntervalMs: mixedDefaults.postgresDiagnosticsIntervalMs,
+  postgresDiagnosticsMaxSamples: mixedDefaults.postgresDiagnosticsMaxSamples,
+  postgresDiagnosticsQueryTimeoutMs: mixedDefaults.postgresDiagnosticsQueryTimeoutMs,
 };
 
 export function parseArgs(argv) {
@@ -136,7 +160,12 @@ export function buildSampleRuns(options) {
         identitySessionDbSessionTablePersistence: identitySessionTablePersistence(options),
         conversationDbMaxConns: options.conversationDbMaxConns,
         teachingDbMaxConns: options.teachingDbMaxConns,
+        teachingDbMinConns: options.teachingDbMinConns,
+        teachingDbPrewarmConns: options.teachingDbPrewarmConns,
         conversationWriteBatchSize: options.conversationWriteBatchSize,
+        conversationWriteBatchWorkers: options.conversationWriteBatchWorkers,
+        conversationWriteBatchMode: options.conversationWriteBatchMode,
+        conversationClientTrace: options.conversationClientTrace,
         conversationBenchmarkRuntime: options.conversationBenchmarkRuntime,
         conversationBenchmarkDockerImage: options.conversationBenchmarkDockerImage,
         conversationBenchmarkDockerHost: options.conversationBenchmarkDockerHost,
@@ -157,6 +186,9 @@ export function buildSampleRuns(options) {
         teachingMaxConnsPerHost: options.teachingMaxConnsPerHost,
         teachingWarmConnectionsPerHost: options.teachingWarmConnectionsPerHost,
         teachingClientTrace: options.teachingClientTrace,
+        teachingArchiveCreateBatchSize: options.teachingArchiveCreateBatchSize,
+        teachingArchiveCreateBatchDelayMs: options.teachingArchiveCreateBatchDelayMs,
+        teachingArchiveCreateBatchWorkers: options.teachingArchiveCreateBatchWorkers,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
         identityWarmConnectionsPerHost: options.identityWarmConnectionsPerHost,
         identityIngressProxy: options.identityIngressProxy,
@@ -167,6 +199,22 @@ export function buildSampleRuns(options) {
         timeout: options.timeout,
         teachingTimeoutMs: options.teachingTimeoutMs,
         startupTimeoutMs: options.startupTimeoutMs,
+        pgbouncerDiagnostics: options.pgbouncerDiagnostics,
+        pgbouncerPostgresContainer: options.pgbouncerPostgresContainer,
+        pgbouncerHost: options.pgbouncerHost,
+        pgbouncerPort: options.pgbouncerPort,
+        pgbouncerUser: options.pgbouncerUser,
+        pgbouncerDatabase: options.pgbouncerDatabase,
+        postgresDiagnostics: options.postgresDiagnostics,
+        postgresDiagnosticsContainer: options.postgresDiagnosticsContainer,
+        postgresDiagnosticsHost: options.postgresDiagnosticsHost,
+        postgresDiagnosticsPort: options.postgresDiagnosticsPort,
+        postgresDiagnosticsUser: options.postgresDiagnosticsUser,
+        postgresDiagnosticsDatabase: options.postgresDiagnosticsDatabase,
+        postgresDiagnosticsRelations: options.postgresDiagnosticsRelations,
+        postgresDiagnosticsIntervalMs: options.postgresDiagnosticsIntervalMs,
+        postgresDiagnosticsMaxSamples: options.postgresDiagnosticsMaxSamples,
+        postgresDiagnosticsQueryTimeoutMs: options.postgresDiagnosticsQueryTimeoutMs,
       },
     };
   });
@@ -273,13 +321,21 @@ export function buildSystemSustainedMixedWorkloadReport({
       identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
+      teachingDbMinConns: parseInteger(options.teachingDbMinConns),
+      teachingDbPrewarmConns: parseInteger(options.teachingDbPrewarmConns),
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
+      conversationWriteBatchWorkers: parseInteger(options.conversationWriteBatchWorkers),
+      conversationWriteBatchMode: conversationWriteBatchMode(options),
+      teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
+      teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
+      teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
     },
     runtimeProfile: {
       executor: "LOCAL_NODE_SUSTAINED_ORCHESTRATOR",
       managedDocker: parseBoolean(options.manageDocker),
       dockerCleanup: options.dockerCleanup,
     },
+    diagnosticsProfile: buildSustainedMixedWorkloadDiagnosticsProfile(options),
     conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     identityBenchmarkRuntimeProfile: buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options),
     teachingBenchmarkRuntimeProfile: buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options),
@@ -312,6 +368,25 @@ export function buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(optio
 
 export function buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options) {
   return buildMixedWorkloadTeachingBenchmarkRuntimeProfile(options);
+}
+
+export function buildSustainedMixedWorkloadDiagnosticsProfile(options) {
+  return {
+    pgbouncerDiagnostics: parseBoolean(options.pgbouncerDiagnostics),
+    postgresDiagnostics: parseBoolean(options.postgresDiagnostics),
+    pgbouncerPostgresContainer: options.pgbouncerPostgresContainer,
+    pgbouncerHost: options.pgbouncerHost,
+    pgbouncerPort: parseInteger(options.pgbouncerPort),
+    pgbouncerDatabase: options.pgbouncerDatabase,
+    postgresDiagnosticsContainer: options.postgresDiagnosticsContainer,
+    postgresDiagnosticsHost: options.postgresDiagnosticsHost,
+    postgresDiagnosticsPort: parseInteger(options.postgresDiagnosticsPort),
+    postgresDiagnosticsDatabase: options.postgresDiagnosticsDatabase,
+    postgresDiagnosticsRelations: String(options.postgresDiagnosticsRelations ?? "").trim() || null,
+    postgresDiagnosticsIntervalMs: parseInteger(options.postgresDiagnosticsIntervalMs),
+    postgresDiagnosticsMaxSamples: parseInteger(options.postgresDiagnosticsMaxSamples),
+    postgresDiagnosticsQueryTimeoutMs: parseInteger(options.postgresDiagnosticsQueryTimeoutMs),
+  };
 }
 
 export function formatSystemSustainedMixedWorkload(report) {
@@ -452,11 +527,29 @@ function validateOptions(options, sampleRuns) {
   identitySessionTablePersistence(options);
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
+  assertNonNegativeInteger(options.teachingDbMinConns, "teaching-db-min-conns");
+  assertNonNegativeInteger(options.teachingDbPrewarmConns, "teaching-db-prewarm-conns");
+  if (parseInteger(options.teachingDbMinConns) > parseInteger(options.teachingDbMaxConns)) {
+    throw new Error("teaching-db-min-conns must be <= teaching-db-max-conns");
+  }
+  if (parseInteger(options.teachingDbPrewarmConns) > parseInteger(options.teachingDbMaxConns)) {
+    throw new Error("teaching-db-prewarm-conns must be <= teaching-db-max-conns");
+  }
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
+  assertPositiveInteger(options.conversationWriteBatchWorkers, "conversation-write-batch-workers");
+  conversationWriteBatchMode(options);
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options);
   assertPositiveInteger(options.teachingTimeoutMs, "teaching-timeout-ms");
+}
+
+function conversationWriteBatchMode(options) {
+  const normalized = String(options.conversationWriteBatchMode ?? "insert").trim().toLowerCase();
+  if (normalized !== "insert" && normalized !== "copy") {
+    throw new Error("conversation-write-batch-mode must be insert or copy");
+  }
+  return normalized;
 }
 
 function cleanupDocker(options, root, runSyncFn) {

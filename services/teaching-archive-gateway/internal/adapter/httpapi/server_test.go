@@ -70,8 +70,17 @@ func TestCreateArchiveItemReturnsServerTiming(t *testing.T) {
 	if !strings.Contains(timing, "app;dur=") {
 		t.Fatalf("Server-Timing = %q, want app duration", timing)
 	}
+	if !strings.Contains(timing, "db.batch_wait;dur=") {
+		t.Fatalf("Server-Timing = %q, want db.batch_wait duration", timing)
+	}
 	if !strings.Contains(timing, "db.insert;dur=") {
 		t.Fatalf("Server-Timing = %q, want db.insert duration", timing)
+	}
+	if !strings.Contains(timing, "db.acquire;dur=") {
+		t.Fatalf("Server-Timing = %q, want db.acquire duration", timing)
+	}
+	if !strings.Contains(timing, "db.exec;dur=") {
+		t.Fatalf("Server-Timing = %q, want db.exec duration", timing)
 	}
 }
 
@@ -189,6 +198,22 @@ func TestListArchiveItemsReturnsPaginatedResponse(t *testing.T) {
 	}
 	if !bytes.Contains(response.Body.Bytes(), []byte(`"nextCursor"`)) {
 		t.Fatalf("body = %s", response.Body.String())
+	}
+	timing := response.Header().Get("Server-Timing")
+	if !strings.Contains(timing, "handler;dur=") {
+		t.Fatalf("Server-Timing = %q, want handler duration", timing)
+	}
+	if !strings.Contains(timing, "pre.usecase;dur=") {
+		t.Fatalf("Server-Timing = %q, want pre.usecase duration", timing)
+	}
+	if !strings.Contains(timing, "app;dur=") {
+		t.Fatalf("Server-Timing = %q, want app duration", timing)
+	}
+	if !strings.Contains(timing, "db.acquire;dur=") {
+		t.Fatalf("Server-Timing = %q, want db.acquire duration", timing)
+	}
+	if !strings.Contains(timing, "db.query;dur=") {
+		t.Fatalf("Server-Timing = %q, want db.query duration", timing)
 	}
 }
 

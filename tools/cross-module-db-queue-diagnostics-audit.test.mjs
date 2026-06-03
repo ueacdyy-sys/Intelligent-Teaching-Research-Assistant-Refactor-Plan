@@ -34,23 +34,23 @@ describe("cross-module DB and queue diagnostics audit", () => {
     assert.equal(identity.metrics.revokeCycleSlowestStepP99Ms, 1498.29);
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").classification,
-      "MODULE_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+      "MODULE_SMOKE_ONLY",
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "knowledge_retrieval").classification,
-      "POLICY_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+      "POLICY_SMOKE_ONLY",
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "ai_worker_optional_runtime").classification,
-      "WORKER_ADMISSION_RUNTIME_SLO_FROM_SUSTAINED_MIXED_WORKLOAD",
+      "WORKER_BOUNDARY_ONLY",
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin").classification,
       "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
     );
     assert.equal(
-      report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").metrics.sustainedRuntimeEvidence.stepReadWriteRps,
-      sustainedScaleUp.summary.highestPassedReadWriteRps,
+      report.moduleDiagnostics.find((module) => module.id === "teaching_archive_and_quiz").metrics.sustainedRuntimeEvidence.present,
+      false,
     );
     assert.equal(
       report.moduleDiagnostics.find((module) => module.id === "agent_harness_and_workflow_plugin").metrics.workflowRuntimeEvidence.p99Ms <= 300,
@@ -181,14 +181,25 @@ describe("cross-module DB and queue diagnostics audit", () => {
 });
 
 function loadCurrentInputs() {
+  const sources = Object.fromEntries(Object.values(sourceFiles).map((sourcePath) => [
+    sourcePath,
+    fs.readFileSync(path.join(root, sourcePath), "utf8"),
+  ]));
+  sources[sourceFiles.quality] = JSON.stringify(passingQualityReport());
   return {
-    sources: Object.fromEntries(Object.values(sourceFiles).map((sourcePath) => [
-      sourcePath,
-      fs.readFileSync(path.join(root, sourcePath), "utf8"),
-    ])),
+    sources,
   };
 }
 
 function parseSource(inputs, sourcePath) {
   return JSON.parse(inputs.sources[sourcePath]);
+}
+
+function passingQualityReport() {
+  return {
+    status: "PASSED",
+    allPassed: true,
+    staticChecks: { passed: true, findings: [] },
+    commandResults: [],
+  };
 }

@@ -5,6 +5,7 @@ import "net/http"
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
+	mux.HandleFunc("/internal/teaching/db-pool", s.dbPoolDiagnostics)
 	mux.HandleFunc("/v1/teaching/archive-items", s.archiveItems)
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	mux.HandleFunc("/v1/student-app/teaching-materials", s.studentAppTeachingMaterials)

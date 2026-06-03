@@ -20,6 +20,8 @@ describe("system mixed workload ladder runner", () => {
       "reports/custom-ladder",
       "--steps",
       "smoke:2:4:8:16:2:4,edge:4:8:16:32:4:8",
+      "--conversation-write-batch-workers",
+      "2",
       "--teaching-db-max-conns",
       "2",
       "--stop-on-failure",
@@ -28,6 +30,7 @@ describe("system mixed workload ladder runner", () => {
 
     assert.equal(parsed.stepPrefix, "reports/custom-ladder");
     assert.equal(parsed.steps, "smoke:2:4:8:16:2:4,edge:4:8:16:32:4:8");
+    assert.equal(parsed.conversationWriteBatchWorkers, "2");
     assert.equal(parsed.teachingDbMaxConns, "2");
     assert.equal(parsed.stopOnFailure, "false");
   });
@@ -40,6 +43,7 @@ describe("system mixed workload ladder runner", () => {
       identityBaseUrl: "http://127.0.0.1:19000",
       conversationBaseUrl: "http://127.0.0.1:19100",
       teachingBaseUrl: "http://127.0.0.1:19200",
+      conversationWriteBatchWorkers: "2",
     });
 
     assert.deepEqual(steps.map((step) => step.name), ["smoke", "low"]);
@@ -52,6 +56,7 @@ describe("system mixed workload ladder runner", () => {
     assert.equal(steps[0].options.identityBaseUrl, "http://127.0.0.1:19000");
     assert.equal(steps[0].options.conversationBaseUrl, "http://127.0.0.1:19100");
     assert.equal(steps[0].options.teachingBaseUrl, "http://127.0.0.1:19200");
+    assert.equal(steps[0].options.conversationWriteBatchWorkers, "2");
   });
 
   it("allows compact step specs to set teaching archive load explicitly", () => {
@@ -196,6 +201,7 @@ describe("system mixed workload ladder runner", () => {
     assert.equal(report.status, "PASSED");
     assert.equal(report.summary.maxP99Ms, 40);
     assert.equal(report.summary.configuredSteps, 2);
+    assert.equal(report.databaseProfile.conversationWriteBatchWorkers, 1);
   });
 });
 

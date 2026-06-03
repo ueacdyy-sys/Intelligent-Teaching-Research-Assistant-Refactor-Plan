@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,6 +40,7 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 		"idx_teaching_archive_items_student_page",
 		"idx_teaching_archive_items_owner_page",
 		"idx_teaching_archive_items_material_page",
+		"idx_teaching_archive_items_owner_material_page",
 	} {
 		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
 			t.Fatalf("schema missing covered page index %s", indexName)
@@ -70,7 +73,7 @@ func TestEnsureSchemaUsesTransactionAdvisoryLockAroundStatements(t *testing.T) {
 }
 
 func TestEnsureSchemaSkipsMigrationWhenCurrentVersionExists(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-03.schema.1"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-03.schema.2"}}
 
 	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
 		t.Fatalf("EnsureSchema returned error: %v", err)
@@ -131,6 +134,198 @@ func TestCreateArchiveItemRecordsDatabaseInsertTiming(t *testing.T) {
 	}
 	if !strings.Contains(db.lastExecSQL, "INSERT INTO teaching_archive_items") {
 		t.Fatalf("lastExecSQL = %s", db.lastExecSQL)
+	}
+}
+
+func TestListArchiveItemsRecordsDatabaseQueryTiming(t *testing.T) {
+	db := &recordingDB{}
+	repository := postgres.NewArchiveRepository(db)
+	timing := &platform.TeachingArchiveTiming{}
+	ctx := platform.WithTeachingArchiveTiming(context.Background(), timing)
+
+	_, err := repository.List(ctx, domain.ArchiveItemQuery{
+		OwnerType:  domain.OwnerTypeStudent,
+		StudentID:  "student_001",
+		FetchLimit: 10,
+	})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if timing.DBQuery <= 0 {
+		t.Fatalf("DBQuery timing = %s, want positive duration", timing.DBQuery)
+	}
+	if !strings.Contains(db.lastSQL, "FROM teaching_archive_items") {
+		t.Fatalf("lastSQL = %s", db.lastSQL)
+	}
+}
+
+func TestBatchingArchiveItemRepositoryGroupsConcurrentCreatesIntoSingleInsert(t *testing.T) {
+	db := &batchRecordingDB{}
+	repository := postgres.NewBatchingArchiveItemRepository(db, postgres.ArchiveCreateBatchConfig{
+		MaxSize:  3,
+		MaxDelay: time.Second,
+	})
+	start := make(chan struct{})
+	errs := make(chan error, 3)
+	timings := make([]*platform.TeachingArchiveTiming, 3)
+
+	for index := 0; index < 3; index++ {
+		index := index
+		timings[index] = &platform.TeachingArchiveTiming{}
+		go func() {
+			<-start
+			ctx := platform.WithTeachingArchiveTiming(context.Background(), timings[index])
+			errs <- repository.Create(ctx, testArchiveItem(index))
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 3; index++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("Create returned error: %v", err)
+		}
+	}
+	repository.Close()
+
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if db.releaseCount != 1 {
+		t.Fatalf("Release count = %d want 1", db.releaseCount)
+	}
+	if len(db.statements) != 1 {
+		t.Fatalf("statements = %d want 1", len(db.statements))
+	}
+	if got := strings.Count(db.statements[0], "::jsonb"); got != 6 {
+		t.Fatalf("multi-row insert should contain 6 jsonb casts, got %d in:\n%s", got, db.statements[0])
+	}
+	if len(db.args) != 33 {
+		t.Fatalf("args = %d want 33", len(db.args))
+	}
+	for index, timing := range timings {
+		if timing.DBBatchWait <= 0 {
+			t.Fatalf("timing[%d].DBBatchWait = %s want > 0", index, timing.DBBatchWait)
+		}
+		if timing.DBAcquire <= 0 {
+			t.Fatalf("timing[%d].DBAcquire = %s want > 0", index, timing.DBAcquire)
+		}
+		if timing.DBExec <= 0 {
+			t.Fatalf("timing[%d].DBExec = %s want > 0", index, timing.DBExec)
+		}
+		if timing.DBInsert <= 0 {
+			t.Fatalf("timing[%d].DBInsert = %s want > 0", index, timing.DBInsert)
+		}
+	}
+}
+
+func TestBatchingArchiveItemRepositoryReturnsInsertErrorToWholeBatch(t *testing.T) {
+	insertErr := errors.New("archive insert failed")
+	db := &batchRecordingDB{
+		failOnStatement: "INSERT INTO teaching_archive_items",
+		failErr:         insertErr,
+	}
+	repository := postgres.NewBatchingArchiveItemRepository(db, postgres.ArchiveCreateBatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Second,
+	})
+	defer repository.Close()
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+
+	for index := 0; index < 2; index++ {
+		index := index
+		go func() {
+			<-start
+			errs <- repository.Create(context.Background(), testArchiveItem(index))
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 2; index++ {
+		if err := <-errs; !errors.Is(err, insertErr) {
+			t.Fatalf("Create error = %v want %v", err, insertErr)
+		}
+	}
+}
+
+func TestBatchingArchiveItemRepositorySkipsCanceledRequestBeforeFlush(t *testing.T) {
+	db := &batchRecordingDB{}
+	repository := postgres.NewBatchingArchiveItemRepository(db, postgres.ArchiveCreateBatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Second,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	firstErr := make(chan error, 1)
+	go func() {
+		firstErr <- repository.Create(ctx, testArchiveItem(1))
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	secondErr := make(chan error, 1)
+	go func() {
+		secondErr <- repository.Create(context.Background(), testArchiveItem(2))
+	}()
+	if err := <-firstErr; !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled Create error = %v want context.Canceled", err)
+	}
+	if err := <-secondErr; err != nil {
+		t.Fatalf("active Create error = %v", err)
+	}
+	repository.Close()
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if len(db.args) != 11 {
+		t.Fatalf("args = %d want 11", len(db.args))
+	}
+	if got := db.args[0]; got != "tarch_2" {
+		t.Fatalf("inserted ID = %v want tarch_2", got)
+	}
+}
+
+func TestBatchingArchiveItemRepositoryCloseFlushesQueuedRequest(t *testing.T) {
+	db := &batchRecordingDB{}
+	repository := postgres.NewBatchingArchiveItemRepository(db, postgres.ArchiveCreateBatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Hour,
+	})
+
+	errs := make(chan error, 1)
+	go func() {
+		errs <- repository.Create(context.Background(), testArchiveItem(3))
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	repository.Close()
+
+	if err := <-errs; err != nil {
+		t.Fatalf("queued Create error after Close = %v", err)
+	}
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if len(db.args) != 11 {
+		t.Fatalf("args = %d want 11", len(db.args))
+	}
+	if got := db.args[0]; got != "tarch_3" {
+		t.Fatalf("inserted ID = %v want tarch_3", got)
+	}
+}
+
+func TestBatchingArchiveItemRepositoryCreateAfterCloseReturnsClosedError(t *testing.T) {
+	db := &batchRecordingDB{}
+	repository := postgres.NewBatchingArchiveItemRepository(db, postgres.ArchiveCreateBatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Millisecond,
+	})
+	repository.Close()
+
+	err := repository.Create(context.Background(), testArchiveItem(4))
+	if !errors.Is(err, postgres.ErrArchiveRepositoryClosed) {
+		t.Fatalf("Create error = %v want %v", err, postgres.ErrArchiveRepositoryClosed)
 	}
 }
 
@@ -459,6 +654,68 @@ func (db *recordingDB) Query(_ context.Context, query string, args ...any) (post
 		return &emptyRows{}, nil
 	}
 	return db.rows, nil
+}
+
+type batchRecordingDB struct {
+	mu              sync.Mutex
+	statements      []string
+	args            []any
+	acquireCount    int
+	releaseCount    int
+	failOnStatement string
+	failErr         error
+}
+
+func (db *batchRecordingDB) Exec(_ context.Context, statement string, args ...any) (postgres.CommandTag, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.statements = append(db.statements, statement)
+	db.args = append([]any(nil), args...)
+	if db.failOnStatement != "" && strings.Contains(statement, db.failOnStatement) {
+		return nil, db.failErr
+	}
+	return commandTag{rowsAffected: 1}, nil
+}
+
+func (db *batchRecordingDB) Query(_ context.Context, _ string, _ ...any) (postgres.Rows, error) {
+	return &emptyRows{}, nil
+}
+
+func (db *batchRecordingDB) Acquire(context.Context) (postgres.Conn, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.acquireCount += 1
+	return batchRecordingConn{db: db}, nil
+}
+
+type batchRecordingConn struct {
+	db *batchRecordingDB
+}
+
+func (conn batchRecordingConn) Exec(ctx context.Context, statement string, args ...any) (postgres.CommandTag, error) {
+	return conn.db.Exec(ctx, statement, args...)
+}
+
+func (conn batchRecordingConn) Release() {
+	conn.db.mu.Lock()
+	defer conn.db.mu.Unlock()
+	conn.db.releaseCount += 1
+}
+
+func testArchiveItem(index int) domain.ArchiveItem {
+	createdAt := time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC)
+	return domain.ArchiveItem{
+		ID:              "tarch_" + strconv.Itoa(index),
+		OwnerType:       domain.OwnerTypeTeaching,
+		MaterialType:    domain.MaterialTypeQuiz,
+		Title:           "Week 3 Quiz",
+		Source:          domain.SourceTeacherUpload,
+		ContentRef:      "local://archive/quiz-" + strconv.Itoa(index) + ".json",
+		Tags:            []string{"performance"},
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentAIGrading, domain.AnalysisIntentArchiveOnly},
+		OCRStatus:       domain.OCRStatusReserved,
+		CreatedAt:       createdAt.Add(time.Duration(index) * time.Second),
+	}
 }
 
 type singleStringRow struct {

@@ -37,6 +37,10 @@ describe("conversation write benchmark runner", () => {
       "32",
       "--write-batch-delay-ms",
       "2",
+      "--write-batch-workers",
+      "4",
+      "--write-batch-mode",
+      "copy",
       "--agent-api-key",
       "ueacd",
       "--dsn",
@@ -121,6 +125,8 @@ describe("conversation write benchmark runner", () => {
     assert.equal(failed.gatewayWriteProfile.batchingEnabled, true);
     assert.equal(failed.gatewayWriteProfile.batchSize, 32);
     assert.equal(failed.gatewayWriteProfile.batchDelayMs, 2);
+    assert.equal(failed.gatewayWriteProfile.batchWorkers, 4);
+    assert.equal(failed.gatewayWriteProfile.batchMode, "copy");
     assert.deepEqual(failed.gatewayBaseUrls, gatewayBaseUrls(options));
     assert.equal(failed.gatewayDatabaseDiagnostics.before.gateways[0].stats.emptyAcquireCount, 9);
     assert.equal(failed.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
@@ -157,6 +163,8 @@ describe("conversation write benchmark runner", () => {
     assert.equal(passed.clientTraceEnabled, true);
     assert.equal(passed.gatewayWriteProfile.batchSize, 32);
     assert.equal(passed.gatewayWriteProfile.batchDelayMs, 2);
+    assert.equal(passed.gatewayWriteProfile.batchWorkers, 4);
+    assert.equal(passed.gatewayWriteProfile.batchMode, "copy");
     assert.equal(passed.gatewayDatabaseDiagnostics.after.gateways[0].stats.acquireDurationMs, 55.5);
     assert.equal(passed.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.deepEqual(passed.benchmarkRuntimeProfile.targetBaseUrls, gatewayBaseUrls(options));
@@ -334,6 +342,8 @@ describe("conversation write benchmark runner", () => {
       "64",
       "--write-batch-delay-ms",
       "3",
+      "--write-batch-workers",
+      "2",
       "--out",
       out,
     ]);
@@ -369,9 +379,12 @@ describe("conversation write benchmark runner", () => {
       assert.equal(observedGatewayEnvs.length, 2);
       assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_SIZE === "64"));
       assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_DELAY_MS === "3"));
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_WORKERS === "2"));
       assert.equal(report.gatewayWriteProfile.batchingEnabled, true);
       assert.equal(report.gatewayWriteProfile.batchSize, 64);
       assert.equal(report.gatewayWriteProfile.batchDelayMs, 3);
+      assert.equal(report.gatewayWriteProfile.batchWorkers, 2);
+      assert.equal(report.gatewayWriteProfile.batchMode, "insert");
       assert.equal(report.gatewayRuntimeDiagnostics.after.gateways[0].stats.maxCurrentConns, 4);
       assert(!JSON.stringify(report).includes("ueacd"));
       assert(!JSON.stringify(report).includes("postgres://"));

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -132,9 +133,11 @@ func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
 		log.Fatal(err)
 	}
 
-	maxConns := getenvInt("DB_MAX_CONNS", 8)
-	config.MaxConns = int32(maxConns)
-	config.MinConns = int32(maxConns)
+	settings, err := conversationPostgresPoolSettingsFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	applyConversationPostgresPoolSettings(config, settings)
 	config.MaxConnIdleTime = 10 * time.Minute
 	config.MaxConnLifetime = 30 * time.Minute
 
@@ -142,14 +145,121 @@ func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := pool.Ping(ctx); err != nil {
+	if err := prewarmConversationPostgresPool(ctx, pool, settings.PrewarmConns); err != nil {
+		pool.Close()
 		log.Fatal(err)
 	}
-	if err := postgres.EnsureSchema(ctx, postgres.NewPoolDB(pool)); err != nil {
+	poolDB := postgres.NewPoolDB(pool)
+	if err := retryConversationStartupOperation(ctx, 8, 100*time.Millisecond, func() error {
+		return postgres.EnsureSchema(ctx, poolDB)
+	}); err != nil {
+		pool.Close()
 		log.Fatal(err)
 	}
-	log.Printf("postgres pool ready: maxConns=%d", maxConns)
+	log.Printf(
+		"conversation postgres pool ready: maxConns=%d minConns=%d prewarmConns=%d",
+		settings.MaxConns,
+		settings.MinConns,
+		settings.PrewarmConns,
+	)
 	return pool
+}
+
+type conversationPostgresPoolSettings struct {
+	MaxConns     int
+	MinConns     int
+	PrewarmConns int
+}
+
+func conversationPostgresPoolSettingsFromEnv() (conversationPostgresPoolSettings, error) {
+	return parseConversationPostgresPoolSettings(os.Getenv)
+}
+
+func parseConversationPostgresPoolSettings(getenv func(string) string) (conversationPostgresPoolSettings, error) {
+	settings := conversationPostgresPoolSettings{}
+	var err error
+	settings.MaxConns, err = getenvIntFrom(getenv, "DB_MAX_CONNS", 8, true)
+	if err != nil {
+		return conversationPostgresPoolSettings{}, err
+	}
+	settings.MinConns, err = getenvIntFrom(getenv, "DB_MIN_CONNS", settings.MaxConns, false)
+	if err != nil {
+		return conversationPostgresPoolSettings{}, err
+	}
+	settings.PrewarmConns, err = getenvIntFrom(getenv, "DB_PREWARM_CONNS", 1, false)
+	if err != nil {
+		return conversationPostgresPoolSettings{}, err
+	}
+	if settings.MinConns > settings.MaxConns {
+		return conversationPostgresPoolSettings{}, fmt.Errorf("DB_MIN_CONNS must be <= DB_MAX_CONNS: %d > %d", settings.MinConns, settings.MaxConns)
+	}
+	if settings.PrewarmConns > settings.MaxConns {
+		return conversationPostgresPoolSettings{}, fmt.Errorf("DB_PREWARM_CONNS must be <= DB_MAX_CONNS: %d > %d", settings.PrewarmConns, settings.MaxConns)
+	}
+	return settings, nil
+}
+
+func applyConversationPostgresPoolSettings(config *pgxpool.Config, settings conversationPostgresPoolSettings) {
+	config.MaxConns = int32(settings.MaxConns)
+	config.MinConns = int32(settings.MinConns)
+}
+
+func prewarmConversationPostgresPool(ctx context.Context, pool *pgxpool.Pool, count int) error {
+	if count == 0 {
+		return nil
+	}
+	connections := make([]*pgxpool.Conn, 0, count)
+	defer func() {
+		for _, connection := range connections {
+			connection.Release()
+		}
+	}()
+	for index := 0; index < count; index++ {
+		connection, err := acquireConversationPrewarmPostgresConnection(ctx, pool)
+		if err != nil {
+			return err
+		}
+		connections = append(connections, connection)
+	}
+	return nil
+}
+
+func acquireConversationPrewarmPostgresConnection(ctx context.Context, pool *pgxpool.Pool) (*pgxpool.Conn, error) {
+	var connection *pgxpool.Conn
+	err := retryConversationStartupOperation(ctx, 8, 100*time.Millisecond, func() error {
+		acquired, err := pool.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		if err := acquired.Ping(ctx); err != nil {
+			acquired.Release()
+			return err
+		}
+		connection = acquired
+		return nil
+	})
+	return connection, err
+}
+
+func retryConversationStartupOperation(ctx context.Context, attempts int, delay time.Duration, operation func() error) error {
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		lastErr = operation()
+		if lastErr == nil {
+			return nil
+		}
+		if attempt == attempts {
+			break
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return errors.Join(lastErr, ctx.Err())
+		case <-timer.C:
+		}
+	}
+	return lastErr
 }
 
 func conversationRepositoryFromConfig(db postgres.DB) usecase.ConversationRepository {
@@ -160,7 +270,21 @@ func conversationRepositoryFromConfig(db postgres.DB) usecase.ConversationReposi
 	return postgres.NewBatchingConversationRepository(db, postgres.BatchConfig{
 		MaxSize:  batchSize,
 		MaxDelay: time.Duration(getenvInt("CONVERSATION_WRITE_BATCH_DELAY_MS", 0)) * time.Millisecond,
+		Workers:  getenvInt("CONVERSATION_WRITE_BATCH_WORKERS", 1),
+		Mode:     conversationWriteBatchModeFromConfig(),
 	})
+}
+
+func conversationWriteBatchModeFromConfig() postgres.BatchWriteMode {
+	value := getenv("CONVERSATION_WRITE_BATCH_MODE", string(postgres.BatchWriteModeInsert))
+	switch postgres.BatchWriteMode(value) {
+	case postgres.BatchWriteModeInsert:
+		return postgres.BatchWriteModeInsert
+	case postgres.BatchWriteModeCopy:
+		return postgres.BatchWriteModeCopy
+	default:
+		panic(fmt.Sprintf("CONVERSATION_WRITE_BATCH_MODE must be %q or %q: %q", postgres.BatchWriteModeInsert, postgres.BatchWriteModeCopy, value))
+	}
 }
 
 func getenv(key string, fallback string) string {
@@ -181,4 +305,22 @@ func getenvInt(key string, fallback int) int {
 		panic(fmt.Sprintf("%s must be an integer: %q", key, value))
 	}
 	return parsed
+}
+
+func getenvIntFrom(getenv func(string) string, key string, fallback int, positive bool) (int, error) {
+	value := getenv(key)
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer: %q", key, value)
+	}
+	if positive && parsed <= 0 {
+		return 0, fmt.Errorf("%s must be > 0: %d", key, parsed)
+	}
+	if !positive && parsed < 0 {
+		return 0, fmt.Errorf("%s must be >= 0: %d", key, parsed)
+	}
+	return parsed, nil
 }

@@ -24,6 +24,18 @@ func writeTeachingServerTiming(
 	if timing != nil && timing.DBInsert > 0 {
 		metrics = append(metrics, "db.insert;dur="+formatServerTimingDuration(timing.DBInsert))
 	}
+	if timing != nil && timing.DBBatchWait > 0 {
+		metrics = append(metrics, "db.batch_wait;dur="+formatServerTimingDuration(timing.DBBatchWait))
+	}
+	if timing != nil && timing.DBAcquire > 0 {
+		metrics = append(metrics, "db.acquire;dur="+formatServerTimingDuration(timing.DBAcquire))
+	}
+	if timing != nil && timing.DBExec > 0 {
+		metrics = append(metrics, "db.exec;dur="+formatServerTimingDuration(timing.DBExec))
+	}
+	if timing != nil && timing.DBQuery > 0 {
+		metrics = append(metrics, "db.query;dur="+formatServerTimingDuration(timing.DBQuery))
+	}
 	w.Header().Set("Server-Timing", strings.Join(metrics, ", "))
 }
 

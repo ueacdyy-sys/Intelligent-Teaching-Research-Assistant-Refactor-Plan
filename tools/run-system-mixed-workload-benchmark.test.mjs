@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import {
+  argumentAfter,
+  childReportsFor,
+  fixedClock,
+  makeTempRoot,
+  successfulChildCommand,
+} from "./run-system-mixed-workload-benchmark-fixtures.test.mjs";
 import {
   buildSystemMixedWorkloadReport,
   buildWorkloadCommands,
@@ -24,6 +30,10 @@ describe("system mixed workload benchmark runner", () => {
       "4",
       "--conversation-write-batch-size",
       "64",
+      "--conversation-write-batch-workers",
+      "2",
+      "--conversation-write-batch-mode",
+      "copy",
       "--conversation-benchmark-runtime",
       "wsl",
       "--conversation-benchmark-wsl-host",
@@ -40,12 +50,22 @@ describe("system mixed workload benchmark runner", () => {
       "docker",
       "--teaching-benchmark-docker-host",
       "host.docker.internal",
+      "--teaching-db-min-conns",
+      "12",
+      "--teaching-db-prewarm-conns",
+      "12",
       "--teaching-max-conns-per-host",
       "128",
       "--teaching-warm-connections-per-host",
       "96",
       "--teaching-client-trace",
       "true",
+      "--teaching-archive-create-batch-size",
+      "64",
+      "--teaching-archive-create-batch-delay-ms",
+      "1",
+      "--teaching-archive-create-batch-workers",
+      "2",
       "--teaching-concurrency",
       "6",
       "--identity-ingress-proxy",
@@ -66,6 +86,8 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.conversationGatewayCount, "16");
     assert.equal(parsed.teachingGatewayCount, "4");
     assert.equal(parsed.conversationWriteBatchSize, "64");
+    assert.equal(parsed.conversationWriteBatchWorkers, "2");
+    assert.equal(parsed.conversationWriteBatchMode, "copy");
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
@@ -74,9 +96,14 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
     assert.equal(parsed.teachingBenchmarkRuntime, "docker");
     assert.equal(parsed.teachingBenchmarkDockerHost, "host.docker.internal");
+    assert.equal(parsed.teachingDbMinConns, "12");
+    assert.equal(parsed.teachingDbPrewarmConns, "12");
     assert.equal(parsed.teachingMaxConnsPerHost, "128");
     assert.equal(parsed.teachingWarmConnectionsPerHost, "96");
     assert.equal(parsed.teachingClientTrace, "true");
+    assert.equal(parsed.teachingArchiveCreateBatchSize, "64");
+    assert.equal(parsed.teachingArchiveCreateBatchDelayMs, "1");
+    assert.equal(parsed.teachingArchiveCreateBatchWorkers, "2");
     assert.equal(parsed.teachingConcurrency, "6");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
@@ -113,15 +140,26 @@ describe("system mixed workload benchmark runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      conversationWriteBatchWorkers: "2",
+      conversationWriteBatchMode: "copy",
+      conversationClientTrace: "true",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
       identityBenchmarkDockerHost: "host.docker.internal",
       teachingBenchmarkRuntime: "docker",
       teachingBenchmarkDockerImage: "golang:1.26-alpine",
       teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingDbMinConns: "12",
+      teachingDbPrewarmConns: "12",
       teachingMaxConnsPerHost: "128",
       teachingWarmConnectionsPerHost: "96",
       teachingClientTrace: "true",
+      teachingArchiveCreateBatchSize: "64",
+      teachingArchiveCreateBatchDelayMs: "1",
+      teachingArchiveCreateBatchWorkers: "2",
+      pgbouncerDiagnostics: "true",
+      postgresDiagnostics: "true",
+      postgresDiagnosticsRelations: "teaching_archive_items",
     });
 
     assert.deepEqual(commands.map((command) => command.name), [
@@ -151,8 +189,12 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[1].args, "--benchmark-wsl-workspace"), "/mnt/c/workspace");
     assert.equal(argumentAfter(commands[1].args, "--max-conns-per-host"), "70");
     assert.equal(argumentAfter(commands[1].args, "--warm-connections-per-host"), "9");
+    assert.equal(argumentAfter(commands[1].args, "--write-batch-workers"), "2");
+    assert.equal(argumentAfter(commands[1].args, "--client-trace"), "true");
     assert.equal(argumentAfter(commands[2].args, "--base-url"), "http://127.0.0.1:19200");
     assert.equal(argumentAfter(commands[2].args, "--gateway-count"), "3");
+    assert.equal(argumentAfter(commands[2].args, "--db-min-conns"), "12");
+    assert.equal(argumentAfter(commands[2].args, "--db-prewarm-conns"), "12");
     assert.equal(argumentAfter(commands[2].args, "--agent-api-key"), "ueacd");
     assert.equal(argumentAfter(commands[2].args, "--benchmark-runtime"), "docker");
     assert.equal(argumentAfter(commands[2].args, "--benchmark-docker-image"), "golang:1.26-alpine");
@@ -160,6 +202,12 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[2].args, "--max-conns-per-host"), "128");
     assert.equal(argumentAfter(commands[2].args, "--warm-connections-per-host"), "96");
     assert.equal(argumentAfter(commands[2].args, "--client-trace"), "true");
+    assert.equal(argumentAfter(commands[2].args, "--archive-create-batch-size"), "64");
+    assert.equal(argumentAfter(commands[2].args, "--archive-create-batch-delay-ms"), "1");
+    assert.equal(argumentAfter(commands[2].args, "--archive-create-batch-workers"), "2");
+    assert.equal(argumentAfter(commands[2].args, "--pgbouncer-diagnostics"), "true");
+    assert.equal(argumentAfter(commands[2].args, "--postgres-diagnostics"), "true");
+    assert.equal(argumentAfter(commands[2].args, "--postgres-diagnostics-relations"), "teaching_archive_items");
     assert.equal(commands[3].sourceReportPath, "reports/knowledge.json");
     assert.equal(commands[4].sourceReportPath, "reports/ai.json");
   });
@@ -349,6 +397,8 @@ describe("system mixed workload benchmark runner", () => {
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
+      conversationWriteBatchWorkers: "2",
+      conversationWriteBatchMode: "copy",
       teachingGatewayCount: "3",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
@@ -356,9 +406,14 @@ describe("system mixed workload benchmark runner", () => {
       teachingBenchmarkRuntime: "docker",
       teachingBenchmarkDockerImage: "golang:1.26-alpine",
       teachingBenchmarkDockerHost: "host.docker.internal",
+      teachingDbMinConns: "12",
+      teachingDbPrewarmConns: "12",
       teachingMaxConnsPerHost: "128",
       teachingWarmConnectionsPerHost: "96",
       teachingClientTrace: "true",
+      teachingArchiveCreateBatchSize: "64",
+      teachingArchiveCreateBatchDelayMs: "1",
+      teachingArchiveCreateBatchWorkers: "2",
     };
     const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
@@ -388,6 +443,9 @@ describe("system mixed workload benchmark runner", () => {
       teachingMaxConnsPerHost: 128,
       teachingWarmConnectionsPerHost: 96,
       teachingClientTrace: true,
+      teachingArchiveCreateBatchSize: 64,
+      teachingArchiveCreateBatchDelayMs: 1,
+      teachingArchiveCreateBatchWorkers: 2,
       identityMaxConnsPerHost: 150,
       identityWarmConnectionsPerHost: 150,
     });
@@ -402,6 +460,13 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(report.concurrencyProfile.teachingGatewayCount, 3);
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    assert.equal(report.databaseProfile.conversationWriteBatchWorkers, 2);
+    assert.equal(report.databaseProfile.conversationWriteBatchMode, "copy");
+    assert.equal(report.databaseProfile.teachingDbMinConns, 12);
+    assert.equal(report.databaseProfile.teachingDbPrewarmConns, 12);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchSize, 64);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchDelayMs, 1);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchWorkers, 2);
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
@@ -482,9 +547,31 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(teaching.summary.handlerP99Ms, 36);
     assert.equal(teaching.summary.preUsecaseP99Ms, 5);
     assert.equal(teaching.summary.appP99Ms, 31);
+    assert.equal(teaching.summary.dbBatchWaitP99Ms, 7);
     assert.equal(teaching.summary.dbInsertP99Ms, 24);
+    assert.deepEqual(teaching.summary.gatewayWriteProfile, {
+      archiveCreateBatchingEnabled: true,
+      archiveCreateBatchSize: 64,
+      archiveCreateBatchDelayMs: 1,
+      archiveCreateBatchWorkers: 2,
+      quizSubmissionBatchingEnabled: true,
+      quizSubmissionBatchSize: 64,
+      quizSubmissionBatchDelayMs: 1,
+      quizSubmissionBatchWorkers: 2,
+    });
     assert.equal(teaching.summary.clientHandlerGapP99Ms, 14);
     assert.equal(teaching.summary.benchmarkRuntimeProfile.executor, "DOCKER_GO");
+    assert.deepEqual(teaching.summary.databaseDiagnostics.after, {
+      gatewayCount: 2,
+      okGateways: 2,
+      unavailableGateways: 0,
+      maxTotalConns: 12,
+      maxAcquiredConns: 8,
+      maxIdleConns: 6,
+      totalEmptyAcquireCount: 3,
+      totalEmptyAcquireWaitTimeMs: 17,
+      totalNewConnsCount: 24,
+    });
   });
 
   it("counts failed teaching reports without phase metrics as errors", () => {
@@ -578,202 +665,3 @@ describe("system mixed workload benchmark runner", () => {
     );
   });
 });
-
-async function successfulChildCommand(command, args, root) {
-  const sourceReportPath = argumentAfter(args, "--out");
-  fs.mkdirSync(path.dirname(path.join(root, sourceReportPath)), { recursive: true });
-  fs.writeFileSync(
-    path.join(root, sourceReportPath),
-    `${JSON.stringify(reportForScript(args[0]), null, 2)}\n`,
-  );
-  return {
-    command,
-    args,
-    exitCode: 0,
-    elapsedMs: 11,
-    outputTail: "ok ueacd postgres://app_user:ueacd@127.0.0.1:16432/db",
-  };
-}
-
-function childReportsFor(commands) {
-  return Object.fromEntries(commands.map((command) => [
-    command.name,
-    { present: true, parseable: true, value: reportForScript(command.args[0]) },
-  ]));
-}
-
-function reportForScript(script) {
-  if (script.includes("run-identity-http-benchmark")) return identityReport();
-  if (script.includes("run-conversation-write-benchmark")) return conversationReport();
-  if (script.includes("run-teaching-archive-benchmark")) return teachingReport();
-  if (script.includes("knowledge-retrieval-benchmark-audit")) return knowledgeReport();
-  if (script.includes("ai-worker-job-admission")) return aiAdmissionReport();
-  throw new Error(`unknown child script: ${script}`);
-}
-
-function identityReport() {
-  return {
-    status: "PASSED",
-    concurrency: 16,
-    phases: {
-      passwordLogin: phase("passwordLogin", 20, 30, 110),
-      principalLookup: phase("principalLookup", 12, 18, 150),
-      refreshRotation: phase("refreshRotation", 18, 25, 120),
-      revokeCycle: {
-        ...phase("revokeCycle", 60, 66, 90),
-        stepLatencyAttribution: {
-          slowestStep: "revoke",
-          slowestStepP99Ms: 44,
-          phaseP99Ms: 66,
-        },
-      },
-    },
-    gatewayDatabasePhaseDiagnostics: {
-      passwordLogin: {
-        delta: {
-          sessionOperations: {
-            saveSession: {
-              count: 16,
-              totalElapsedMs: 160,
-              averageElapsedMs: 10,
-            },
-          },
-        },
-      },
-      revokeCycle: {
-        delta: {
-          sessionOperations: {
-            revokeOwnSession: {
-              count: 16,
-              totalElapsedMs: 320,
-              averageElapsedMs: 20,
-            },
-            saveSession: {
-              count: 16,
-              totalElapsedMs: 240,
-              averageElapsedMs: 15,
-            },
-          },
-        },
-      },
-    },
-  };
-}
-
-function conversationReport() {
-  return {
-    status: "PASSED",
-    concurrency: 64,
-    benchmarkRuntimeProfile: {
-      executor: "WSL_GO",
-      wslDistro: "Ubuntu",
-      wslHostAlias: "172.28.160.1",
-      wslWorkspace: "/mnt/c/workspace",
-      targetBaseUrls: ["http://172.28.160.1:18100"],
-    },
-    gatewayExitCode: [null, null],
-    gatewaySignal: [null, null],
-    gatewayRuntimeDiagnostics: {
-      before: {
-        gateways: [
-          { status: "OK", stats: { acceptedConns: 1, maxCurrentConns: 1 } },
-          { status: "OK", stats: { acceptedConns: 1, maxCurrentConns: 1 } },
-        ],
-      },
-      after: {
-        gateways: [
-          { status: "OK", stats: { acceptedConns: 276, maxCurrentConns: 276 } },
-          { status: "OK", stats: { acceptedConns: 270, maxCurrentConns: 270 } },
-        ],
-      },
-    },
-    gatewayDatabaseDiagnostics: {
-      after: {
-        gateways: [
-          { status: "OK", stats: { emptyAcquireCount: 1, emptyAcquireWaitTimeMs: 11.5 } },
-          { status: "OK", stats: { emptyAcquireCount: 2, emptyAcquireWaitTimeMs: 5.5 } },
-        ],
-      },
-    },
-    phases: {
-      createConversation: {
-        errors: 0,
-        rps: 900,
-        latencyMs: { p95: 25, p99: 35 },
-        serverTimingMs: { p99: 21 },
-        clientServerGapMs: { p99: 44 },
-        serverTimingBreakdownMs: {
-          "db.acquire": { p99: 0.3 },
-          "db.batch_wait": { p99: 12.5 },
-          "db.insert": { p99: 15.2 },
-        },
-      },
-    },
-  };
-}
-
-function teachingReport() {
-  return {
-    status: "PASSED",
-    concurrency: 8,
-    benchmarkRuntimeProfile: {
-      executor: "DOCKER_GO",
-      dockerImage: "golang:1.26-alpine",
-      dockerHostAlias: "host.docker.internal",
-      targetBaseUrls: ["http://host.docker.internal:18500"],
-    },
-    phases: {
-      createArchiveItem: phase("createArchiveItem", 12, 50, 180, 31, 24, 36, 5),
-      createQuizSubmission: phase("createQuizSubmission", 14, 19, 160),
-      listArchiveItems: phase("listArchiveItems", 7, 9, 300),
-    },
-  };
-}
-
-function knowledgeReport() {
-  return {
-    readiness: "READY",
-    benchmark: {
-      metrics: { p95QueryPlanMs: 2.55 },
-    },
-  };
-}
-
-function aiAdmissionReport() {
-  return {
-    readiness: "READY",
-  };
-}
-
-function phase(name, p95, p99, rps, serverP99 = null, dbInsertP99 = null, handlerP99 = null, preUsecaseP99 = null) {
-  const report = {
-    name,
-    errors: 0,
-    rps,
-    latencyMs: { p95, p99 },
-  };
-  if (serverP99 !== null) {
-    report.serverTimingMs = { p99: serverP99 };
-    report.serverTimingBreakdownMs = {
-      ...(handlerP99 !== null ? { handler: { p99: handlerP99 } } : {}),
-      ...(preUsecaseP99 !== null ? { "pre.usecase": { p99: preUsecaseP99 } } : {}),
-      "db.insert": { p99: dbInsertP99 },
-    };
-  }
-  return report;
-}
-
-function argumentAfter(args, name) {
-  const index = args.indexOf(name);
-  assert.notEqual(index, -1, `${name} argument should exist`);
-  return args[index + 1];
-}
-
-function makeTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "ita-mixed-workload-"));
-}
-
-function fixedClock() {
-  let tick = 0;
-  return () => `2026-06-01T00:00:0${tick++}.000Z`;
-}

@@ -1,6 +1,9 @@
 package httpapi
 
-import "ita-refactor/services/teaching-archive-gateway/internal/usecase"
+import (
+	"ita-refactor/services/teaching-archive-gateway/internal/platform"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
+)
 
 type ServerConfig struct {
 	CreateArchiveItem                *usecase.CreateArchiveItem
@@ -32,4 +35,6 @@ type ServerConfig struct {
 	GetAttendanceStatistics          *usecase.GetAttendanceStatistics
 	CreateScannedQuizSubmission      *usecase.CreateScannedQuizSubmission
 	AgentAPIKey                      string
+	DiagnosticsSecret                string
+	DBPoolStatsProvider              platform.TeachingArchiveDBPoolStatsProvider
 }

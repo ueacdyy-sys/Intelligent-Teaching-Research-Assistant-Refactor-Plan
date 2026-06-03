@@ -11,6 +11,16 @@ type DB interface {
 	Query(ctx context.Context, sql string, args ...any) (Rows, error)
 }
 
+type AcquireDB interface {
+	DB
+	Acquire(ctx context.Context) (Conn, error)
+}
+
+type Conn interface {
+	Exec(ctx context.Context, sql string, args ...any) (CommandTag, error)
+	Release()
+}
+
 type Tx interface {
 	DB
 	Commit(ctx context.Context) error

@@ -1,31 +1,13 @@
-import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-import {
-  buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile,
-  buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile,
-  buildSustainedMixedWorkloadIdentityIngressProfile,
-  buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile,
-  buildSustainedMixedWorkloadTransportProfile,
-  defaults as sustainedDefaults,
-  runSystemSustainedMixedWorkload,
-} from "./run-system-sustained-mixed-workload.mjs";
-import {
-  defaultSessionTablePersistence,
-  normalizeSessionTablePersistence,
-} from "./identity-http-benchmark-session-profile.mjs";
+import { assertNonNegativeInteger, assertPositiveInteger, countCommandErrors, kebabToCamel, maskSensitive, maxFinite, minFinite, numberOrNull, numberOrZero, parseBoolean, parseInteger, parseOptionalInteger, removeReports, sanitizeCommandResult, tailText, toRunnableCommand, writeJsonReport } from "./benchmark-runner-utils.mjs";
+import { buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile, buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile, buildSustainedMixedWorkloadIdentityIngressProfile, buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile, buildSustainedMixedWorkloadTransportProfile, defaults as sustainedDefaults, runSystemSustainedMixedWorkload } from "./run-system-sustained-mixed-workload.mjs";
+import { defaultSessionTablePersistence, normalizeSessionTablePersistence } from "./identity-http-benchmark-session-profile.mjs";
 import { mergeSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
-import {
-  assertProductionTargetPressure as assertProductionTargetPressureProfile,
-} from "./system-production-target-pressure-profile.mjs";
-import {
-  buildThroughputTargetNextAction,
-  resolveTargetReadWriteRps,
-  summarizeThroughputTarget,
-  targetBearingSteps,
-} from "./system-throughput-target-profile.mjs";
+import { assertProductionTargetPressure as assertProductionTargetPressureProfile } from "./system-production-target-pressure-profile.mjs";
+import { buildThroughputTargetNextAction, resolveTargetReadWriteRps, summarizeThroughputTarget, targetBearingSteps } from "./system-throughput-target-profile.mjs";
 
 const standardScaleSteps = "smoke:2:4:8:16:2:4,low:4:8:16:32:4:8,medium:8:16:32:64:8:16,high:16:32:64:128:16:32";
 const production10kScaleSteps = [
@@ -60,7 +42,12 @@ export const defaults = {
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "1",
   teachingDbMaxConns: "1",
+  teachingDbMinConns: sustainedDefaults.teachingDbMinConns,
+  teachingDbPrewarmConns: sustainedDefaults.teachingDbPrewarmConns,
   conversationWriteBatchSize: "8",
+  conversationWriteBatchWorkers: sustainedDefaults.conversationWriteBatchWorkers,
+  conversationWriteBatchMode: sustainedDefaults.conversationWriteBatchMode,
+  conversationClientTrace: sustainedDefaults.conversationClientTrace,
   conversationBenchmarkRuntime: sustainedDefaults.conversationBenchmarkRuntime,
   conversationBenchmarkDockerImage: sustainedDefaults.conversationBenchmarkDockerImage,
   conversationBenchmarkDockerHost: sustainedDefaults.conversationBenchmarkDockerHost,
@@ -81,6 +68,9 @@ export const defaults = {
   teachingMaxConnsPerHost: sustainedDefaults.teachingMaxConnsPerHost,
   teachingWarmConnectionsPerHost: sustainedDefaults.teachingWarmConnectionsPerHost,
   teachingClientTrace: sustainedDefaults.teachingClientTrace,
+  teachingArchiveCreateBatchSize: sustainedDefaults.teachingArchiveCreateBatchSize,
+  teachingArchiveCreateBatchDelayMs: sustainedDefaults.teachingArchiveCreateBatchDelayMs,
+  teachingArchiveCreateBatchWorkers: sustainedDefaults.teachingArchiveCreateBatchWorkers,
   identityMaxConnsPerHost: sustainedDefaults.identityMaxConnsPerHost,
   identityWarmConnectionsPerHost: sustainedDefaults.identityWarmConnectionsPerHost,
   identityIngressProxy: sustainedDefaults.identityIngressProxy,
@@ -93,6 +83,22 @@ export const defaults = {
   startupTimeoutMs: "120000",
   maxP99Ms: "1000",
   maxP99DriftMs: "250",
+  pgbouncerDiagnostics: sustainedDefaults.pgbouncerDiagnostics,
+  pgbouncerPostgresContainer: sustainedDefaults.pgbouncerPostgresContainer,
+  pgbouncerHost: sustainedDefaults.pgbouncerHost,
+  pgbouncerPort: sustainedDefaults.pgbouncerPort,
+  pgbouncerUser: sustainedDefaults.pgbouncerUser,
+  pgbouncerDatabase: sustainedDefaults.pgbouncerDatabase,
+  postgresDiagnostics: sustainedDefaults.postgresDiagnostics,
+  postgresDiagnosticsContainer: sustainedDefaults.postgresDiagnosticsContainer,
+  postgresDiagnosticsHost: sustainedDefaults.postgresDiagnosticsHost,
+  postgresDiagnosticsPort: sustainedDefaults.postgresDiagnosticsPort,
+  postgresDiagnosticsUser: sustainedDefaults.postgresDiagnosticsUser,
+  postgresDiagnosticsDatabase: sustainedDefaults.postgresDiagnosticsDatabase,
+  postgresDiagnosticsRelations: sustainedDefaults.postgresDiagnosticsRelations,
+  postgresDiagnosticsIntervalMs: sustainedDefaults.postgresDiagnosticsIntervalMs,
+  postgresDiagnosticsMaxSamples: sustainedDefaults.postgresDiagnosticsMaxSamples,
+  postgresDiagnosticsQueryTimeoutMs: sustainedDefaults.postgresDiagnosticsQueryTimeoutMs,
 };
 
 export const scaleProfileDefaults = {
@@ -109,7 +115,12 @@ export const scaleProfileDefaults = {
     identitySessionDbSessionTablePersistence: "unlogged",
     conversationDbMaxConns: "32",
     teachingDbMaxConns: "12",
+    teachingDbMinConns: "12",
+    teachingDbPrewarmConns: "12",
     conversationWriteBatchSize: "128",
+    conversationWriteBatchWorkers: "4",
+    conversationWriteBatchMode: "copy",
+    conversationClientTrace: "false",
     conversationBenchmarkRuntime: "wsl",
     conversationBenchmarkWslHost: "172.28.160.1",
     maxConnsPerHost: "256",
@@ -118,6 +129,9 @@ export const scaleProfileDefaults = {
     teachingMaxConnsPerHost: "128",
     teachingWarmConnectionsPerHost: "96",
     teachingClientTrace: "true",
+    teachingArchiveCreateBatchSize: "64",
+    teachingArchiveCreateBatchDelayMs: "0",
+    teachingArchiveCreateBatchWorkers: "1",
     identityMaxConnsPerHost: "64",
     identityWarmConnectionsPerHost: "16",
     identityIngressProxy: "true",
@@ -188,7 +202,12 @@ export function buildScaleUpSteps(options) {
         identitySessionDbSessionTablePersistence: identitySessionTablePersistence(options),
         conversationDbMaxConns: options.conversationDbMaxConns,
         teachingDbMaxConns: options.teachingDbMaxConns,
+        teachingDbMinConns: options.teachingDbMinConns,
+        teachingDbPrewarmConns: options.teachingDbPrewarmConns,
         conversationWriteBatchSize: options.conversationWriteBatchSize,
+        conversationWriteBatchWorkers: options.conversationWriteBatchWorkers,
+        conversationWriteBatchMode: options.conversationWriteBatchMode,
+        conversationClientTrace: options.conversationClientTrace,
         conversationBenchmarkRuntime: options.conversationBenchmarkRuntime,
         conversationBenchmarkDockerImage: options.conversationBenchmarkDockerImage,
         conversationBenchmarkDockerHost: options.conversationBenchmarkDockerHost,
@@ -209,6 +228,9 @@ export function buildScaleUpSteps(options) {
         teachingMaxConnsPerHost: options.teachingMaxConnsPerHost,
         teachingWarmConnectionsPerHost: options.teachingWarmConnectionsPerHost,
         teachingClientTrace: options.teachingClientTrace,
+        teachingArchiveCreateBatchSize: options.teachingArchiveCreateBatchSize,
+        teachingArchiveCreateBatchDelayMs: options.teachingArchiveCreateBatchDelayMs,
+        teachingArchiveCreateBatchWorkers: options.teachingArchiveCreateBatchWorkers,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
         identityWarmConnectionsPerHost: options.identityWarmConnectionsPerHost,
         identityIngressProxy: options.identityIngressProxy,
@@ -219,6 +241,22 @@ export function buildScaleUpSteps(options) {
         timeout: options.timeout,
         teachingTimeoutMs: options.teachingTimeoutMs,
         startupTimeoutMs: options.startupTimeoutMs,
+        pgbouncerDiagnostics: options.pgbouncerDiagnostics,
+        pgbouncerPostgresContainer: options.pgbouncerPostgresContainer,
+        pgbouncerHost: options.pgbouncerHost,
+        pgbouncerPort: options.pgbouncerPort,
+        pgbouncerUser: options.pgbouncerUser,
+        pgbouncerDatabase: options.pgbouncerDatabase,
+        postgresDiagnostics: options.postgresDiagnostics,
+        postgresDiagnosticsContainer: options.postgresDiagnosticsContainer,
+        postgresDiagnosticsHost: options.postgresDiagnosticsHost,
+        postgresDiagnosticsPort: options.postgresDiagnosticsPort,
+        postgresDiagnosticsUser: options.postgresDiagnosticsUser,
+        postgresDiagnosticsDatabase: options.postgresDiagnosticsDatabase,
+        postgresDiagnosticsRelations: options.postgresDiagnosticsRelations,
+        postgresDiagnosticsIntervalMs: options.postgresDiagnosticsIntervalMs,
+        postgresDiagnosticsMaxSamples: options.postgresDiagnosticsMaxSamples,
+        postgresDiagnosticsQueryTimeoutMs: options.postgresDiagnosticsQueryTimeoutMs,
         identityConcurrency: String(step.identityConcurrency),
         identityOperations: String(step.identityOperations),
         conversationConcurrency: String(step.conversationConcurrency),
@@ -337,13 +375,21 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
       identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
+      teachingDbMinConns: parseInteger(options.teachingDbMinConns),
+      teachingDbPrewarmConns: parseInteger(options.teachingDbPrewarmConns),
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
+      conversationWriteBatchWorkers: parseInteger(options.conversationWriteBatchWorkers),
+      conversationWriteBatchMode: conversationWriteBatchMode(options),
+      teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
+      teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
+      teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
     },
     runtimeProfile: {
       executor: "LOCAL_NODE_SUSTAINED_SCALEUP_ORCHESTRATOR",
       managedDocker: parseBoolean(options.manageDocker),
       dockerCleanup: options.dockerCleanup,
     },
+    diagnosticsProfile: buildSustainedScaleUpDiagnosticsProfile(options),
     conversationBenchmarkRuntimeProfile: buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options),
     identityBenchmarkRuntimeProfile: buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options),
     teachingBenchmarkRuntimeProfile: buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options),
@@ -382,6 +428,25 @@ export function formatSystemSustainedMixedWorkloadScaleUp(report) {
   }
   lines.push("", report.nextAction);
   return lines.join("\n");
+}
+
+export function buildSustainedScaleUpDiagnosticsProfile(options) {
+  return {
+    pgbouncerDiagnostics: parseBoolean(options.pgbouncerDiagnostics),
+    postgresDiagnostics: parseBoolean(options.postgresDiagnostics),
+    pgbouncerPostgresContainer: options.pgbouncerPostgresContainer,
+    pgbouncerHost: options.pgbouncerHost,
+    pgbouncerPort: parseInteger(options.pgbouncerPort),
+    pgbouncerDatabase: options.pgbouncerDatabase,
+    postgresDiagnosticsContainer: options.postgresDiagnosticsContainer,
+    postgresDiagnosticsHost: options.postgresDiagnosticsHost,
+    postgresDiagnosticsPort: parseInteger(options.postgresDiagnosticsPort),
+    postgresDiagnosticsDatabase: options.postgresDiagnosticsDatabase,
+    postgresDiagnosticsRelations: String(options.postgresDiagnosticsRelations ?? "").trim() || null,
+    postgresDiagnosticsIntervalMs: parseInteger(options.postgresDiagnosticsIntervalMs),
+    postgresDiagnosticsMaxSamples: parseInteger(options.postgresDiagnosticsMaxSamples),
+    postgresDiagnosticsQueryTimeoutMs: parseInteger(options.postgresDiagnosticsQueryTimeoutMs),
+  };
 }
 
 function summarizeStep(step, report, options) {
@@ -512,6 +577,7 @@ function mergeWorkloadSummary(left, right) {
     ),
     dbAcquireP99Ms: maxNullable(numberOrNull(left.dbAcquireP99Ms), numberOrNull(right.dbAcquireP99Ms)),
     dbBatchWaitP99Ms: maxNullable(numberOrNull(left.dbBatchWaitP99Ms), numberOrNull(right.dbBatchWaitP99Ms)),
+    dbExecP99Ms: maxNullable(numberOrNull(left.dbExecP99Ms), numberOrNull(right.dbExecP99Ms)),
     dbInsertP99Ms: maxNullable(numberOrNull(left.dbInsertP99Ms), numberOrNull(right.dbInsertP99Ms)),
     runtimeDiagnostics: right.runtimeDiagnostics ?? left.runtimeDiagnostics,
     databaseDiagnostics: right.databaseDiagnostics ?? left.databaseDiagnostics,
@@ -624,7 +690,17 @@ function validateOptions(options, steps) {
   identitySessionTablePersistence(options);
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
+  assertNonNegativeInteger(options.teachingDbMinConns, "teaching-db-min-conns");
+  assertNonNegativeInteger(options.teachingDbPrewarmConns, "teaching-db-prewarm-conns");
+  if (parseInteger(options.teachingDbMinConns) > parseInteger(options.teachingDbMaxConns)) {
+    throw new Error("teaching-db-min-conns must be <= teaching-db-max-conns");
+  }
+  if (parseInteger(options.teachingDbPrewarmConns) > parseInteger(options.teachingDbMaxConns)) {
+    throw new Error("teaching-db-prewarm-conns must be <= teaching-db-max-conns");
+  }
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
+  assertPositiveInteger(options.conversationWriteBatchWorkers, "conversation-write-batch-workers");
+  conversationWriteBatchMode(options);
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options);
@@ -641,6 +717,14 @@ function validateOptions(options, steps) {
     scaleProfile: options.scaleProfile,
     targetReadWriteRps,
   });
+}
+
+function conversationWriteBatchMode(options) {
+  const normalized = String(options.conversationWriteBatchMode ?? "insert").trim().toLowerCase();
+  if (normalized !== "insert" && normalized !== "copy") {
+    throw new Error("conversation-write-batch-mode must be insert or copy");
+  }
+  return normalized;
 }
 
 function cleanupDocker(options, root, runSyncFn) {
@@ -667,65 +751,10 @@ function runSync(command, args, root) {
   };
 }
 
-function toRunnableCommand(command, args) {
-  if (process.platform === "win32" && command === "npm") {
-    return {
-      command: process.env.ComSpec || "cmd.exe",
-      args: ["/d", "/s", "/c", ["npm", ...args].join(" ")],
-    };
-  }
-  return { command, args };
-}
-
-function removeReports(root, relativePaths) {
-  for (const relativePath of relativePaths) {
-    const absolute = path.join(root, relativePath);
-    if (fs.existsSync(absolute)) fs.rmSync(absolute);
-  }
-}
-
-function writeJsonReport(absolutePath, report) {
-  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-  fs.writeFileSync(absolutePath, `${JSON.stringify(report, null, 2)}\n`);
-}
-
-function sanitizeCommandResult(result) {
-  return {
-    phase: result.phase,
-    command: result.command,
-    args: result.args,
-    exitCode: result.exitCode ?? 1,
-    elapsedMs: result.elapsedMs ?? null,
-    outputTail: tailText(maskSensitive(result.outputTail ?? ""), 80),
-    error: result.error ? maskSensitive(result.error) : undefined,
-  };
-}
-
 function sanitizeStepName(value) {
   const name = String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]/gu, "-");
   if (!name) throw new Error("sustained scale-up step name is required");
   return name;
-}
-
-function maskSensitive(value) {
-  return String(value ?? "")
-    .replace(/postgres(?:ql)?:\/\/[^\s"']+/giu, "[database-url]")
-    .replaceAll("ueacd", "***");
-}
-
-function tailText(value, maxLines = 80) {
-  const text = String(value ?? "").replace(/\s+$/u, "");
-  if (!text) return "";
-  return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
-}
-
-function assertPositiveInteger(value, name) {
-  const parsed = parseInteger(value);
-  if (parsed <= 0) throw new Error(`${name} must be a positive integer`);
-}
-
-function assertNonNegativeInteger(value, name) {
-  if (!/^\d+$/u.test(String(value))) throw new Error(`${name} must be a non-negative integer`);
 }
 
 function assertKnownScaleProfile(value) {
@@ -735,21 +764,6 @@ function assertKnownScaleProfile(value) {
   }
 }
 
-function parseInteger(value) {
-  if (!/^-?\d+$/u.test(String(value))) return 0;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseOptionalInteger(value) {
-  if (value === undefined || value === "") return null;
-  return parseInteger(value);
-}
-
-function parseBoolean(value) {
-  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
-}
-
 function normalizeScaleProfile(value) {
   const normalized = String(value ?? "standard").trim().toLowerCase().replace(/[^a-z0-9]/gu, "");
   return normalized || "standard";
@@ -757,20 +771,6 @@ function normalizeScaleProfile(value) {
 
 function identitySessionTablePersistence(options) {
   return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence);
-}
-
-function numberOrNull(value) { return Number.isFinite(value) ? value : null; }
-
-function numberOrZero(value) { return Number.isFinite(value) ? value : 0; }
-
-function maxFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.max(...finite) : null;
-}
-
-function minFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.min(...finite) : null;
 }
 
 function maxNullable(left, right) {
@@ -783,10 +783,6 @@ function firstFinite(...values) {
 }
 
 function roundRps(value) { return Number.isFinite(value) ? Math.round(value * 100) / 100 : null; }
-
-function countCommandErrors(results) { return results.filter((result) => result.exitCode !== 0).length; }
-
-function kebabToCamel(value) { return value.replace(/-([a-z])/gu, (_match, letter) => letter.toUpperCase()); }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const report = await runSystemSustainedMixedWorkloadScaleUp();
