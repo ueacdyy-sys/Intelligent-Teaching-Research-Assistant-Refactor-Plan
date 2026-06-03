@@ -118,7 +118,10 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.phases.createQuizSubmission.operations, 4);
     assert.equal(report.phases.listArchiveItems.operations, 4);
     assert.equal(report.phases.createArchiveItem.serverTimingMs.p99, 12);
+    assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs.handler.p99, 15);
+    assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs["pre.usecase"].p99, 3);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs["db.insert"].p99, 8);
+    assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples.handler, 4);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples["db.insert"], 4);
     assert.equal(calls.filter((call) => call.includes("/quiz-submissions")).length, 4);
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching.json"), "utf8")).status, "PASSED");
@@ -231,7 +234,7 @@ function fakeTeachingFetch(calls, options = {}) {
     }
     if (init.method === "POST" && url.endsWith("/v1/teaching/archive-items")) {
       archiveItemCounter += 1;
-      return jsonResponse(201, { id: `tarch_perf_${archiveItemCounter}` }, "app;dur=12, db.insert;dur=8");
+      return jsonResponse(201, { id: `tarch_perf_${archiveItemCounter}` }, "handler;dur=15, pre.usecase;dur=3, app;dur=12, db.insert;dur=8");
     }
     if (init.method === "POST" && url.includes("/quiz-submissions")) {
       submissionCounter += 1;

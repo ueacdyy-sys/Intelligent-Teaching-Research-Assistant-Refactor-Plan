@@ -61,6 +61,12 @@ func TestCreateArchiveItemReturnsServerTiming(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
 	timing := response.Header().Get("Server-Timing")
+	if !strings.Contains(timing, "handler;dur=") {
+		t.Fatalf("Server-Timing = %q, want handler duration", timing)
+	}
+	if !strings.Contains(timing, "pre.usecase;dur=") {
+		t.Fatalf("Server-Timing = %q, want pre.usecase duration", timing)
+	}
 	if !strings.Contains(timing, "app;dur=") {
 		t.Fatalf("Server-Timing = %q, want app duration", timing)
 	}

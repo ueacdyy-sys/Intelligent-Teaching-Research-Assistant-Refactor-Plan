@@ -9,6 +9,7 @@ import (
 )
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
+	handlerStart := time.Now()
 	if !s.authorized(r) {
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
 		return
@@ -25,7 +26,8 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 
 	timing := &platform.TeachingArchiveTiming{}
 	ctx := platform.WithTeachingArchiveTiming(r.Context(), timing)
-	start := time.Now()
+	preUsecaseDuration := time.Since(handlerStart)
+	appStart := time.Now()
 	item, err := s.createArchiveItem.Execute(ctx, domain.CreateArchiveItemInput{
 		Principal:       principal,
 		OwnerType:       request.OwnerType,
@@ -41,7 +43,7 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	if handleArchiveError(w, err, "failed to create archive item") {
 		return
 	}
-	writeTeachingServerTiming(w, time.Since(start), timing)
+	writeTeachingServerTiming(w, time.Since(handlerStart), preUsecaseDuration, time.Since(appStart), timing)
 
 	writeJSON(w, http.StatusCreated, toResponse(item))
 }

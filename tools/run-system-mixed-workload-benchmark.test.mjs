@@ -441,7 +441,11 @@ describe("system mixed workload benchmark runner", () => {
     });
     const teaching = report.workloads.find((workload) => workload.name === "teaching_archive");
     assert.equal(teaching.summary.serverTimingP99Ms, 31);
+    assert.equal(teaching.summary.handlerP99Ms, 36);
+    assert.equal(teaching.summary.preUsecaseP99Ms, 5);
+    assert.equal(teaching.summary.appP99Ms, 31);
     assert.equal(teaching.summary.dbInsertP99Ms, 24);
+    assert.equal(teaching.summary.clientHandlerGapP99Ms, 14);
   });
 
   it("rejects negative identity write concurrency", async () => {
@@ -628,7 +632,7 @@ function teachingReport() {
     status: "PASSED",
     concurrency: 8,
     phases: {
-      createArchiveItem: phase("createArchiveItem", 12, 17, 180, 31, 24),
+      createArchiveItem: phase("createArchiveItem", 12, 50, 180, 31, 24, 36, 5),
       createQuizSubmission: phase("createQuizSubmission", 14, 19, 160),
       listArchiveItems: phase("listArchiveItems", 7, 9, 300),
     },
@@ -650,7 +654,7 @@ function aiAdmissionReport() {
   };
 }
 
-function phase(name, p95, p99, rps, serverP99 = null, dbInsertP99 = null) {
+function phase(name, p95, p99, rps, serverP99 = null, dbInsertP99 = null, handlerP99 = null, preUsecaseP99 = null) {
   const report = {
     name,
     errors: 0,
@@ -660,6 +664,8 @@ function phase(name, p95, p99, rps, serverP99 = null, dbInsertP99 = null) {
   if (serverP99 !== null) {
     report.serverTimingMs = { p99: serverP99 };
     report.serverTimingBreakdownMs = {
+      ...(handlerP99 !== null ? { handler: { p99: handlerP99 } } : {}),
+      ...(preUsecaseP99 !== null ? { "pre.usecase": { p99: preUsecaseP99 } } : {}),
       "db.insert": { p99: dbInsertP99 },
     };
   }

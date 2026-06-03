@@ -508,14 +508,23 @@ function summarizeTeachingArchive(report) {
   const p95Values = phases.map((phase) => numberOrNull(phase.latencyMs?.p95)).filter(Number.isFinite);
   const p99Values = phases.map((phase) => numberOrNull(phase.latencyMs?.p99)).filter(Number.isFinite);
   const errors = phases.reduce((total, phase) => total + numberOrZero(phase.errors), 0);
+  const handlerP99Ms = maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.handler?.p99)));
+  const preUsecaseP99Ms = maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["pre.usecase"]?.p99)));
+  const appP99Ms = maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingMs?.p99)));
   return {
     errors,
     p95Ms: p95Values.length ? Math.max(...p95Values) : null,
     p99Ms: p99Values.length ? Math.max(...p99Values) : null,
     rps: minFinite(phases.map((phase) => numberOrNull(phase.rps))),
     concurrency: numberOrNull(report.concurrency),
-    serverTimingP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingMs?.p99))),
+    serverTimingP99Ms: appP99Ms,
+    handlerP99Ms,
+    preUsecaseP99Ms,
+    appP99Ms,
     dbInsertP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99))),
+    clientHandlerGapP99Ms: maxFinite(phases.map((phase) =>
+      nullableDelta(numberOrNull(phase.latencyMs?.p99), numberOrNull(phase.serverTimingBreakdownMs?.handler?.p99))
+    )),
   };
 }
 
@@ -766,6 +775,11 @@ function sumFinite(values) {
 function round(value, digits) {
   const multiplier = 10 ** digits;
   return Math.round(value * multiplier) / multiplier;
+}
+
+function nullableDelta(left, right) {
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+  return round(left - right, 2);
 }
 
 function countCommandErrors(results) {

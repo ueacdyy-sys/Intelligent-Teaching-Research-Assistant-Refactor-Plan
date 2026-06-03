@@ -9,8 +9,18 @@ import (
 	"ita-refactor/services/teaching-archive-gateway/internal/platform"
 )
 
-func writeTeachingServerTiming(w headerWriter, duration time.Duration, timing *platform.TeachingArchiveTiming) {
-	metrics := []string{"app;dur=" + formatServerTimingDuration(duration)}
+func writeTeachingServerTiming(
+	w headerWriter,
+	handlerDuration time.Duration,
+	preUsecaseDuration time.Duration,
+	appDuration time.Duration,
+	timing *platform.TeachingArchiveTiming,
+) {
+	metrics := []string{
+		"handler;dur=" + formatServerTimingDuration(handlerDuration),
+		"pre.usecase;dur=" + formatServerTimingDuration(preUsecaseDuration),
+		"app;dur=" + formatServerTimingDuration(appDuration),
+	}
 	if timing != nil && timing.DBInsert > 0 {
 		metrics = append(metrics, "db.insert;dur="+formatServerTimingDuration(timing.DBInsert))
 	}
