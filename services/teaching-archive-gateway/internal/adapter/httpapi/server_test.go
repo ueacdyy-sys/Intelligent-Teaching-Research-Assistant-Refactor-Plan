@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,31 @@ func TestCreateArchiveItemReturnsCreatedResponse(t *testing.T) {
 	}
 	if body["ocrStatus"] != "RESERVED" {
 		t.Fatalf("ocrStatus = %v", body["ocrStatus"])
+	}
+}
+
+func TestCreateArchiveItemReturnsServerTiming(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/archive-items",
+		bytes.NewBufferString(`{"ownerType":"STUDENT","studentId":"student_001","materialType":"QUIZ","title":"Week 3 Quiz","source":"TEACHER_UPLOAD","contentRef":"local://archive/student_001/quiz_001.pdf","analysisIntents":["TUTORING"]}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, teacherPrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	timing := response.Header().Get("Server-Timing")
+	if !strings.Contains(timing, "app;dur=") {
+		t.Fatalf("Server-Timing = %q, want app duration", timing)
+	}
+	if !strings.Contains(timing, "db.insert;dur=") {
+		t.Fatalf("Server-Timing = %q, want db.insert duration", timing)
 	}
 }
 

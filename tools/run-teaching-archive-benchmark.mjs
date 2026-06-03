@@ -208,7 +208,8 @@ async function runCreateArchiveItemPhase(options, fetchFn) {
         analysisIntents: ["AI_GRADING", "ARCHIVE_ONLY"],
       }),
     }, options);
-    items.push(response.id);
+    items.push(response.body.id);
+    return response;
   });
   return { ...phase, items };
 }
@@ -225,7 +226,7 @@ async function runCreateQuizSubmissionPhase(options, fetchFn, archiveItemIds) {
   }
   return runPhase(options, "createQuizSubmission", async (index) => {
     const archiveItemId = archiveItemIds[index % archiveItemIds.length];
-    await requestJson(fetchFn, `${gatewayBaseUrl(options, index)}/v1/teaching/archive-items/${archiveItemId}/quiz-submissions`, {
+    return requestJson(fetchFn, `${gatewayBaseUrl(options, index)}/v1/teaching/archive-items/${archiveItemId}/quiz-submissions`, {
       method: "POST",
       headers: requestHeaders(options.agentApiKey, studentPrincipal()),
       body: JSON.stringify({
@@ -237,7 +238,7 @@ async function runCreateQuizSubmissionPhase(options, fetchFn, archiveItemIds) {
 
 async function runListArchiveItemsPhase(options, fetchFn) {
   return runPhase(options, "listArchiveItems", async (index) => {
-    await requestJson(
+    return requestJson(
       fetchFn,
       `${gatewayBaseUrl(options, index)}/v1/teaching/archive-items?ownerType=TEACHING&materialType=QUIZ&pageSize=10`,
       {
@@ -253,6 +254,7 @@ async function runPhase(options, _name, operation) {
   const totalOperations = parseInteger(options.operations);
   const concurrency = parseInteger(options.concurrency);
   const latencies = [];
+  const serverTimings = [];
   let nextIndex = 0;
   let errors = 0;
   let firstError = "";
@@ -264,7 +266,10 @@ async function runPhase(options, _name, operation) {
       nextIndex += 1;
       const operationStartedAt = Date.now();
       try {
-        await operation(index);
+        const result = await operation(index);
+        if (result?.serverTimings && Object.keys(result.serverTimings).length > 0) {
+          serverTimings.push(result.serverTimings);
+        }
       } catch (error) {
         errors += 1;
         if (!firstError) firstError = maskSensitive(error instanceof Error ? error.message : String(error));
@@ -280,6 +285,7 @@ async function runPhase(options, _name, operation) {
     errors,
     firstError,
     latencies,
+    serverTimings,
     durationMs: Date.now() - startedAt,
   };
 }
@@ -293,7 +299,10 @@ async function requestJson(fetchFn, url, init, options) {
   if (!response.ok) {
     throw new Error(`${init.method} ${url} failed ${response.status}: ${text}`);
   }
-  return text.trim() ? JSON.parse(text) : {};
+  return {
+    body: text.trim() ? JSON.parse(text) : {},
+    serverTimings: parseServerTimingDurations(response.headers?.get?.("Server-Timing") ?? ""),
+  };
 }
 
 function requestHeaders(agentApiKey, principal) {
@@ -305,13 +314,53 @@ function requestHeaders(agentApiKey, principal) {
 }
 
 function summarizePhase(phase) {
-  return {
+  const report = {
     operations: phase.operations,
     errors: phase.errors,
     firstError: phase.firstError || undefined,
     rps: phase.durationMs > 0 ? round((phase.operations - phase.errors) / (phase.durationMs / 1000), 2) : 0,
     latencyMs: summarizeLatencies(phase.latencies),
   };
+  const serverTimingBreakdown = observedTimings(phase.serverTimings ?? []);
+  if (Object.keys(serverTimingBreakdown).length > 0) {
+    report.serverTimingBreakdownMs = {};
+    report.serverTimingBreakdownSamples = {};
+    for (const [name, values] of Object.entries(serverTimingBreakdown)) {
+      report.serverTimingBreakdownMs[name] = summarizeLatencies(values);
+      report.serverTimingBreakdownSamples[name] = values.length;
+    }
+    if (serverTimingBreakdown.app?.length > 0) {
+      report.serverTimingMs = summarizeLatencies(serverTimingBreakdown.app);
+      report.serverTimingSamples = serverTimingBreakdown.app.length;
+    }
+  }
+  return report;
+}
+
+function observedTimings(values) {
+  const observed = {};
+  for (const metrics of values) {
+    for (const [name, durationMs] of Object.entries(metrics)) {
+      if (!Number.isFinite(durationMs)) continue;
+      observed[name] ??= [];
+      observed[name].push(durationMs);
+    }
+  }
+  return observed;
+}
+
+function parseServerTimingDurations(value) {
+  const timings = {};
+  for (const part of value.split(",")) {
+    const [rawName, ...attributes] = part.trim().split(";");
+    const name = rawName.trim();
+    if (!name) continue;
+    const durationAttribute = attributes.find((attribute) => attribute.trim().startsWith("dur="));
+    if (!durationAttribute) continue;
+    const durationMs = Number.parseFloat(durationAttribute.trim().slice("dur=".length));
+    if (Number.isFinite(durationMs)) timings[name] = durationMs;
+  }
+  return timings;
 }
 
 function summarizeBenchmark(phases) {

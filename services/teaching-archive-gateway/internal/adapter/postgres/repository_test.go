@@ -10,6 +10,7 @@ import (
 
 	"ita-refactor/services/teaching-archive-gateway/internal/adapter/postgres"
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/platform"
 )
 
 func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
@@ -41,6 +42,35 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
 			t.Fatalf("schema missing covered page index %s", indexName)
 		}
+	}
+}
+
+func TestCreateArchiveItemRecordsDatabaseInsertTiming(t *testing.T) {
+	db := &recordingDB{}
+	repository := postgres.NewArchiveRepository(db)
+	timing := &platform.TeachingArchiveTiming{}
+	ctx := platform.WithTeachingArchiveTiming(context.Background(), timing)
+
+	err := repository.Create(ctx, domain.ArchiveItem{
+		ID:              "tarch_timing",
+		OwnerType:       domain.OwnerTypeTeaching,
+		MaterialType:    domain.MaterialTypeQuiz,
+		Title:           "Week 3 Quiz",
+		Source:          domain.SourceTeacherUpload,
+		ContentRef:      "local://archive/quiz.json",
+		Tags:            []string{"performance"},
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentAIGrading},
+		OCRStatus:       domain.OCRStatusReserved,
+		CreatedAt:       time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+	if timing.DBInsert <= 0 {
+		t.Fatalf("DBInsert timing = %s, want positive duration", timing.DBInsert)
+	}
+	if !strings.Contains(db.lastExecSQL, "INSERT INTO teaching_archive_items") {
+		t.Fatalf("lastExecSQL = %s", db.lastExecSQL)
 	}
 }
 

@@ -514,6 +514,8 @@ function summarizeTeachingArchive(report) {
     p99Ms: p99Values.length ? Math.max(...p99Values) : null,
     rps: minFinite(phases.map((phase) => numberOrNull(phase.rps))),
     concurrency: numberOrNull(report.concurrency),
+    serverTimingP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingMs?.p99))),
+    dbInsertP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99))),
   };
 }
 

@@ -11,6 +11,7 @@ import (
 
 	"ita-refactor/services/teaching-archive-gateway/internal/adapter/httpapi"
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/platform"
 	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
@@ -215,7 +216,10 @@ type fakeRepository struct {
 	lastAttendanceStatsQuery domain.AttendanceStatisticsQuery
 }
 
-func (f *fakeRepository) Create(_ context.Context, _ domain.ArchiveItem) error {
+func (f *fakeRepository) Create(ctx context.Context, _ domain.ArchiveItem) error {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.DBInsert = time.Millisecond
+	}
 	return nil
 }
 

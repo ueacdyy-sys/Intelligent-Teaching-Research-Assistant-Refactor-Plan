@@ -117,6 +117,9 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.phases.createArchiveItem.operations, 4);
     assert.equal(report.phases.createQuizSubmission.operations, 4);
     assert.equal(report.phases.listArchiveItems.operations, 4);
+    assert.equal(report.phases.createArchiveItem.serverTimingMs.p99, 12);
+    assert.equal(report.phases.createArchiveItem.serverTimingBreakdownMs["db.insert"].p99, 8);
+    assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples["db.insert"], 4);
     assert.equal(calls.filter((call) => call.includes("/quiz-submissions")).length, 4);
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, "reports/teaching.json"), "utf8")).status, "PASSED");
   });
@@ -228,23 +231,28 @@ function fakeTeachingFetch(calls, options = {}) {
     }
     if (init.method === "POST" && url.endsWith("/v1/teaching/archive-items")) {
       archiveItemCounter += 1;
-      return jsonResponse(201, { id: `tarch_perf_${archiveItemCounter}` });
+      return jsonResponse(201, { id: `tarch_perf_${archiveItemCounter}` }, "app;dur=12, db.insert;dur=8");
     }
     if (init.method === "POST" && url.includes("/quiz-submissions")) {
       submissionCounter += 1;
-      return jsonResponse(201, { id: `quiz_sub_perf_${submissionCounter}` });
+      return jsonResponse(201, { id: `quiz_sub_perf_${submissionCounter}` }, "app;dur=6, db.insert;dur=4");
     }
     if ((init.method ?? "GET") === "GET" && url.includes("/v1/teaching/archive-items?")) {
-      return jsonResponse(200, { items: [] });
+      return jsonResponse(200, { items: [] }, "app;dur=2");
     }
     return jsonResponse(404, { error: "not found" });
   };
 }
 
-function jsonResponse(status, body) {
+function jsonResponse(status, body, serverTiming = "") {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: {
+      get(name) {
+        return name.toLowerCase() === "server-timing" ? serverTiming : "";
+      },
+    },
     text: async () => JSON.stringify(body),
   };
 }

@@ -2,8 +2,10 @@ package httpapi
 
 import (
 	"net/http"
+	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/platform"
 )
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +23,10 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := s.createArchiveItem.Execute(r.Context(), domain.CreateArchiveItemInput{
+	timing := &platform.TeachingArchiveTiming{}
+	ctx := platform.WithTeachingArchiveTiming(r.Context(), timing)
+	start := time.Now()
+	item, err := s.createArchiveItem.Execute(ctx, domain.CreateArchiveItemInput{
 		Principal:       principal,
 		OwnerType:       request.OwnerType,
 		StudentID:       request.StudentID,
@@ -36,6 +41,7 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	if handleArchiveError(w, err, "failed to create archive item") {
 		return
 	}
+	writeTeachingServerTiming(w, time.Since(start), timing)
 
 	writeJSON(w, http.StatusCreated, toResponse(item))
 }

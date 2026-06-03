@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/platform"
 )
 
 func (r *ArchiveRepository) Create(ctx context.Context, item domain.ArchiveItem) error {
@@ -19,6 +21,7 @@ func (r *ArchiveRepository) Create(ctx context.Context, item domain.ArchiveItem)
 		return err
 	}
 
+	insertStart := time.Now()
 	_, err = r.db.Exec(ctx, `
 		INSERT INTO teaching_archive_items (
 			id,
@@ -46,7 +49,21 @@ func (r *ArchiveRepository) Create(ctx context.Context, item domain.ArchiveItem)
 		item.OCRStatus,
 		item.CreatedAt,
 	)
+	recordDBInsertTiming(ctx, observableDuration(time.Since(insertStart)))
 	return err
+}
+
+func recordDBInsertTiming(ctx context.Context, duration time.Duration) {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.DBInsert = duration
+	}
+}
+
+func observableDuration(duration time.Duration) time.Duration {
+	if duration <= 0 {
+		return time.Nanosecond
+	}
+	return duration
 }
 
 func (r *ArchiveRepository) GetByID(ctx context.Context, id string) (domain.ArchiveItem, bool, error) {
