@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T09:59:22.032Z",
+  "generatedAt": "2026-06-03T15:47:37.797Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -41,17 +41,21 @@
       "contractOnlyWorkflows": []
     },
     "moduleEvidenceDepth": {
-      "shallowModules": []
+      "shallowModules": [
+        "teaching_archive_and_quiz:MODULE_SMOKE_ONLY",
+        "knowledge_retrieval:POLICY_SMOKE_ONLY",
+        "ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY"
+      ]
     },
     "latency": {
       "targetP99Ms": 300,
       "samples": [
         {
           "name": "production_target.max_p99_ms",
-          "value": 310.78
+          "value": 253.6
         }
       ],
-      "maxP99Ms": 310.78,
+      "maxP99Ms": 253.6,
       "maxP99Source": "production_target.max_p99_ms",
       "diagnosticContextSamples": [
         {
@@ -72,7 +76,7 @@
         },
         {
           "name": "sustained_scaleup.max_p99_ms",
-          "value": 97
+          "value": 246.51
         }
       ],
       "identityRevokeCycleAttribution": {
@@ -89,8 +93,8 @@
       "targetStatus": "MET",
       "targetConfigured": true,
       "targetAttempted": true,
-      "measuredReadWriteRps": 22836.8,
-      "maxP99Ms": 310.78
+      "measuredReadWriteRps": 20808.62,
+      "maxP99Ms": 253.6
     },
     "databaseHeadroom": {
       "pgbouncerMaxDbConnections": 90,
@@ -118,7 +122,7 @@
     },
     "productionThroughput": {
       "targetReadWriteRps": 10000,
-      "measuredReadWriteRps": 22836.8,
+      "measuredReadWriteRps": 20808.62,
       "source": "production_target.summary.highestPassedReadWriteRps",
       "targetConfiguredReadWriteRps": 10000,
       "targetAttemptStatus": "MET",
@@ -138,14 +142,14 @@
     "blockerCount": 1,
     "blockers": [
       {
-        "id": "promotion.interactive_tail_latency_within_target",
-        "actual": "production_target.max_p99_ms=310.78",
-        "expected": "max interactive/root workflow P99 <= 300ms",
-        "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
+        "id": "promotion.module_evidence_depth_sufficient",
+        "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY",
+        "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
+        "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
       }
     ],
     "requiredNextEvidence": [
-      "ROOT_INTERACTIVE_TAIL_LATENCY_REMEDIATION"
+      "MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"
     ]
   },
   "auditFindings": [
@@ -217,17 +221,17 @@
     },
     {
       "id": "promotion.module_evidence_depth_sufficient",
-      "passed": true,
-      "severity": "info",
-      "actual": "none",
+      "passed": false,
+      "severity": "promotion_blocker",
+      "actual": "teaching_archive_and_quiz:MODULE_SMOKE_ONLY;knowledge_retrieval:POLICY_SMOKE_ONLY;ai_worker_optional_runtime:WORKER_BOUNDARY_ONLY",
       "expected": "no root module remains smoke-only, policy-only, worker-boundary-only, or review-only",
       "remediation": "Promote Teaching, Knowledge, AI worker, and Agent/Workflow paths from boundary smoke to measurable runtime SLO evidence."
     },
     {
       "id": "promotion.interactive_tail_latency_within_target",
-      "passed": false,
-      "severity": "promotion_blocker",
-      "actual": "production_target.max_p99_ms=310.78",
+      "passed": true,
+      "severity": "info",
+      "actual": "production_target.max_p99_ms=253.6",
       "expected": "max interactive/root workflow P99 <= 300ms",
       "remediation": "Reduce the slowest root workflow tail latency before making a production 10k RPS claim."
     },
@@ -251,7 +255,7 @@
       "id": "promotion.production_read_write_rps_target_met",
       "passed": true,
       "severity": "info",
-      "actual": "22836.8 rps from production_target.summary.highestPassedReadWriteRps;targetRps=10000;targetStatus=MET;targetAttempted=true;shortfall=0",
+      "actual": "20808.62 rps from production_target.summary.highestPassedReadWriteRps;targetRps=10000;targetStatus=MET;targetAttempted=true;shortfall=0",
       "expected": "measured sustained read/write RPS >= 10000 with production target status MET",
       "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
     }

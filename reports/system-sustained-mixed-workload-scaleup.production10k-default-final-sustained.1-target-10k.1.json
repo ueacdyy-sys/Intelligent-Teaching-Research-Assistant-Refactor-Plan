@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-06-03T08:56:39.917Z",
-  "startedAt": "2026-06-03T08:55:56.154Z",
-  "endedAt": "2026-06-03T08:56:39.917Z",
+  "generatedAt": "2026-06-03T15:05:25.988Z",
+  "startedAt": "2026-06-03T15:04:27.936Z",
+  "endedAt": "2026-06-03T15:05:25.988Z",
   "benchmarkKind": "system_mixed_workload",
   "workloadType": "MIXED_WORKLOAD",
   "profile": "SUSTAINED_SCALEUP_TARGET-10K_SAMPLE_1",
@@ -20,6 +20,9 @@
     "teachingMaxConnsPerHost": 128,
     "teachingWarmConnectionsPerHost": 96,
     "teachingClientTrace": true,
+    "teachingArchiveCreateBatchSize": 64,
+    "teachingArchiveCreateBatchDelayMs": 0,
+    "teachingArchiveCreateBatchWorkers": 1,
     "identityMaxConnsPerHost": 64,
     "identityWarmConnectionsPerHost": 16
   },
@@ -37,12 +40,35 @@
     "identitySessionTablePersistence": "unlogged",
     "conversationDbMaxConns": 32,
     "teachingDbMaxConns": 12,
-    "conversationWriteBatchSize": 128
+    "teachingDbMinConns": 12,
+    "teachingDbPrewarmConns": 12,
+    "conversationWriteBatchSize": 128,
+    "conversationWriteBatchWorkers": 4,
+    "conversationWriteBatchMode": "copy",
+    "teachingArchiveCreateBatchSize": 64,
+    "teachingArchiveCreateBatchDelayMs": 0,
+    "teachingArchiveCreateBatchWorkers": 1
   },
   "runtimeProfile": {
     "executor": "LOCAL_NODE_ORCHESTRATOR",
     "managedDocker": false,
     "dockerCleanup": "none"
+  },
+  "diagnosticsProfile": {
+    "pgbouncerDiagnostics": true,
+    "postgresDiagnostics": true,
+    "pgbouncerPostgresContainer": "ita-identity-session-postgres",
+    "pgbouncerHost": "identity-session-pgbouncer",
+    "pgbouncerPort": 6432,
+    "pgbouncerDatabase": "pgbouncer",
+    "postgresDiagnosticsContainer": "ita-identity-session-postgres",
+    "postgresDiagnosticsHost": "127.0.0.1",
+    "postgresDiagnosticsPort": 5432,
+    "postgresDiagnosticsDatabase": "intelligent_teaching_assistant",
+    "postgresDiagnosticsRelations": null,
+    "postgresDiagnosticsIntervalMs": 1000,
+    "postgresDiagnosticsMaxSamples": 240,
+    "postgresDiagnosticsQueryTimeoutMs": 5000
   },
   "conversationBenchmarkRuntimeProfile": {
     "runtime": "wsl",
@@ -75,141 +101,141 @@
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.identity-http.json",
       "status": "PASSED",
       "exitCode": 0,
-      "elapsedMs": 39625,
+      "elapsedMs": 48896,
       "errors": 0,
-      "p95Ms": 143.35,
-      "p99Ms": 179.67,
-      "rps": 1869.41,
+      "p95Ms": 235.2,
+      "p99Ms": 251.71,
+      "rps": 1349.97,
       "readiness": null,
       "reportPresent": true,
       "reportParseable": true,
-      "outputTail": "                  \"rotateSession\": {\n                    \"acquireCount\": 0,\n                    \"acquireWaitTimeMs\": 0,\n                    \"canceledAcquireCount\": 0,\n                    \"canceledAcquireWaitTimeMs\": 0,\n                    \"waiting\": 0\n                  },\n                  \"saveSession\": {\n                    \"acquireCount\": 264,\n                    \"acquireWaitTimeMs\": 0.5935,\n                    \"canceledAcquireCount\": 0,\n                    \"canceledAcquireWaitTimeMs\": 0,\n                    \"waiting\": 0\n                  }\n                },\n                \"waiting\": 0\n              }\n            }\n          }\n        ]\n      },\n      \"delta\": {\n        \"pool\": {\n          \"acquireCount\": 1536,\n          \"acquireDurationMs\": 360.84,\n          \"emptyAcquireWaitTimeMs\": 360.84,\n          \"canceledAcquireCount\": 0,\n          \"canceledAcquireWaitTimeMs\": 0\n        },\n        \"writeLimiter\": {\n          \"enabledGateways\": 8,\n          \"configuredLimitTotal\": 256,\n          \"acquireCount\": 1536,\n          \"acquireWaitTimeMs\": 172.6,\n          \"averageAcquireWaitTimeMs\": 0.11,\n          \"operations\": {\n            \"revokeOwnSession\": {\n              \"acquireCount\": 768,\n              \"acquireWaitTimeMs\": 65.81,\n              \"averageAcquireWaitTimeMs\": 0.09\n            },\n            \"saveSession\": {\n              \"acquireCount\": 768,\n              \"acquireWaitTimeMs\": 106.79,\n              \"averageAcquireWaitTimeMs\": 0.14\n            }\n          }\n        },\n        \"sessionOperations\": {\n          \"revokeOwnSession\": {\n            \"count\": 768,\n            \"totalElapsedMs\": 39836.07,\n            \"averageElapsedMs\": 51.87,\n            \"poolAcquireCount\": 768,\n            \"poolAcquireElapsedMs\": 1256.83,\n            \"averagePoolAcquireElapsedMs\": 1.64,\n            \"dbExecuteElapsedMs\": 38575.45,\n            \"averageDbExecuteElapsedMs\": 50.23,\n            \"rowsAffectedCount\": 768,\n            \"rowsAffected\": 768,\n            \"averageRowsAffected\": 1\n          },\n          \"saveSession\": {\n            \"count\": 768,\n            \"totalElapsedMs\": 30843.04,\n            \"averageElapsedMs\": 40.16,\n            \"poolAcquireCount\": 768,\n            \"poolAcquireElapsedMs\": 631.81,\n            \"averagePoolAcquireElapsedMs\": 0.82,\n            \"dbExecuteElapsedMs\": 30207.15,\n            \"averageDbExecuteElapsedMs\": 39.33,\n            \"rowsAffectedCount\": 768,\n            \"rowsAffected\": 768,\n            \"averageRowsAffected\": 1\n          }\n        }\n      }\n    }\n  }\n}",
+      "outputTail": "                  \"rotateSession\": {\n                    \"acquireCount\": 0,\n                    \"acquireWaitTimeMs\": 0,\n                    \"canceledAcquireCount\": 0,\n                    \"canceledAcquireWaitTimeMs\": 0,\n                    \"waiting\": 0\n                  },\n                  \"saveSession\": {\n                    \"acquireCount\": 264,\n                    \"acquireWaitTimeMs\": 2.2722,\n                    \"canceledAcquireCount\": 0,\n                    \"canceledAcquireWaitTimeMs\": 0,\n                    \"waiting\": 0\n                  }\n                },\n                \"waiting\": 0\n              }\n            }\n          }\n        ]\n      },\n      \"delta\": {\n        \"pool\": {\n          \"acquireCount\": 1536,\n          \"acquireDurationMs\": 63.6,\n          \"emptyAcquireWaitTimeMs\": 60.77,\n          \"canceledAcquireCount\": 0,\n          \"canceledAcquireWaitTimeMs\": 0\n        },\n        \"writeLimiter\": {\n          \"enabledGateways\": 8,\n          \"configuredLimitTotal\": 256,\n          \"acquireCount\": 1536,\n          \"acquireWaitTimeMs\": 51.2,\n          \"averageAcquireWaitTimeMs\": 0.03,\n          \"operations\": {\n            \"revokeOwnSession\": {\n              \"acquireCount\": 768,\n              \"acquireWaitTimeMs\": 44.72,\n              \"averageAcquireWaitTimeMs\": 0.06\n            },\n            \"saveSession\": {\n              \"acquireCount\": 768,\n              \"acquireWaitTimeMs\": 6.48,\n              \"averageAcquireWaitTimeMs\": 0.01\n            }\n          }\n        },\n        \"sessionOperations\": {\n          \"revokeOwnSession\": {\n            \"count\": 768,\n            \"totalElapsedMs\": 50634.73,\n            \"averageElapsedMs\": 65.93,\n            \"poolAcquireCount\": 768,\n            \"poolAcquireElapsedMs\": 2431.41,\n            \"averagePoolAcquireElapsedMs\": 3.17,\n            \"dbExecuteElapsedMs\": 48200.93,\n            \"averageDbExecuteElapsedMs\": 62.76,\n            \"rowsAffectedCount\": 768,\n            \"rowsAffected\": 768,\n            \"averageRowsAffected\": 1\n          },\n          \"saveSession\": {\n            \"count\": 768,\n            \"totalElapsedMs\": 43674.96,\n            \"averageElapsedMs\": 56.87,\n            \"poolAcquireCount\": 768,\n            \"poolAcquireElapsedMs\": 5286.04,\n            \"averagePoolAcquireElapsedMs\": 6.88,\n            \"dbExecuteElapsedMs\": 38381.92,\n            \"averageDbExecuteElapsedMs\": 49.98,\n            \"rowsAffectedCount\": 768,\n            \"rowsAffected\": 768,\n            \"averageRowsAffected\": 1\n          }\n        }\n      }\n    }\n  }\n}",
       "summary": {
         "errors": 0,
-        "p95Ms": 143.35,
-        "p99Ms": 179.67,
-        "rps": 1869.41,
+        "p95Ms": 235.2,
+        "p99Ms": 251.71,
+        "rps": 1349.97,
         "concurrency": 192,
         "phases": {
           "passwordLogin": {
             "errors": 0,
-            "p95Ms": 133.94,
-            "p99Ms": 172.99,
-            "rps": 2674.7,
+            "p95Ms": 165.32,
+            "p99Ms": 196.32,
+            "rps": 2220.28,
             "writeLimiter": {
               "enabledGateways": 8,
               "configuredLimitTotal": 256,
               "acquireCount": 768,
-              "acquireWaitTimeMs": 6.28,
-              "averageAcquireWaitTimeMs": 0.01,
+              "acquireWaitTimeMs": 17.41,
+              "averageAcquireWaitTimeMs": 0.02,
               "operations": {
                 "saveSession": {
                   "acquireCount": 768,
-                  "acquireWaitTimeMs": 6.28,
-                  "averageAcquireWaitTimeMs": 0.01
+                  "acquireWaitTimeMs": 17.41,
+                  "averageAcquireWaitTimeMs": 0.02
                 }
               }
             },
             "highestWriteLimiterWaitOperation": "saveSession",
-            "highestWriteLimiterWaitTimeMs": 6.28,
+            "highestWriteLimiterWaitTimeMs": 17.41,
             "sessionOperations": {
               "saveSession": {
                 "count": 768,
-                "totalElapsedMs": 38593.99,
-                "averageElapsedMs": 50.25,
+                "totalElapsedMs": 50230.31,
+                "averageElapsedMs": 65.4,
                 "poolAcquireCount": 768,
-                "poolAcquireElapsedMs": 10680.18,
-                "averagePoolAcquireElapsedMs": 13.91,
-                "dbExecuteElapsedMs": 27906.34,
-                "averageDbExecuteElapsedMs": 36.34,
+                "poolAcquireElapsedMs": 9922.43,
+                "averagePoolAcquireElapsedMs": 12.92,
+                "dbExecuteElapsedMs": 40298.95,
+                "averageDbExecuteElapsedMs": 52.47,
                 "rowsAffectedCount": 768,
                 "rowsAffected": 768,
                 "averageRowsAffected": 1
               }
             },
             "slowestSessionOperation": "saveSession",
-            "slowestSessionOperationAverageElapsedMs": 50.25
+            "slowestSessionOperationAverageElapsedMs": 65.4
           },
           "principalLookup": {
             "errors": 0,
-            "p95Ms": 122.31,
-            "p99Ms": 126.38,
-            "rps": 2993.1,
+            "p95Ms": 148.86,
+            "p99Ms": 157.43,
+            "rps": 2428.96,
             "sessionOperations": {
               "getPrincipalByAccessToken": {
                 "count": 768,
-                "totalElapsedMs": 40571.72,
-                "averageElapsedMs": 52.83,
+                "totalElapsedMs": 50899.32,
+                "averageElapsedMs": 66.28,
                 "poolAcquireCount": 768,
-                "poolAcquireElapsedMs": 4458.45,
-                "averagePoolAcquireElapsedMs": 5.81,
-                "dbExecuteElapsedMs": 36110.29,
-                "averageDbExecuteElapsedMs": 47.02
+                "poolAcquireElapsedMs": 5993.71,
+                "averagePoolAcquireElapsedMs": 7.8,
+                "dbExecuteElapsedMs": 44899.9,
+                "averageDbExecuteElapsedMs": 58.46
               }
             },
             "slowestSessionOperation": "getPrincipalByAccessToken",
-            "slowestSessionOperationAverageElapsedMs": 52.83
+            "slowestSessionOperationAverageElapsedMs": 66.28
           },
           "refreshRotation": {
             "errors": 0,
-            "p95Ms": 115.15,
-            "p99Ms": 125.67,
-            "rps": 3140.29,
+            "p95Ms": 235.2,
+            "p99Ms": 251.71,
+            "rps": 1688.86,
             "writeLimiter": {
               "enabledGateways": 8,
               "configuredLimitTotal": 256,
               "acquireCount": 768,
-              "acquireWaitTimeMs": 4.41,
-              "averageAcquireWaitTimeMs": 0.01,
+              "acquireWaitTimeMs": 1.67,
+              "averageAcquireWaitTimeMs": 0,
               "operations": {
                 "rotateRefreshSession": {
                   "acquireCount": 768,
-                  "acquireWaitTimeMs": 4.41,
-                  "averageAcquireWaitTimeMs": 0.01
+                  "acquireWaitTimeMs": 1.68,
+                  "averageAcquireWaitTimeMs": 0
                 }
               }
             },
             "highestWriteLimiterWaitOperation": "rotateRefreshSession",
-            "highestWriteLimiterWaitTimeMs": 4.41,
+            "highestWriteLimiterWaitTimeMs": 1.68,
             "sessionOperations": {
               "rotateRefreshSession": {
                 "count": 768,
-                "totalElapsedMs": 44540.8,
-                "averageElapsedMs": 58,
+                "totalElapsedMs": 76824.77,
+                "averageElapsedMs": 100.03,
                 "poolAcquireCount": 768,
-                "poolAcquireElapsedMs": 3902.43,
-                "averagePoolAcquireElapsedMs": 5.08,
-                "dbExecuteElapsedMs": 40633.01,
-                "averageDbExecuteElapsedMs": 52.91
+                "poolAcquireElapsedMs": 12563.91,
+                "averagePoolAcquireElapsedMs": 16.36,
+                "dbExecuteElapsedMs": 64257.11,
+                "averageDbExecuteElapsedMs": 83.67
               }
             },
             "slowestSessionOperation": "rotateRefreshSession",
-            "slowestSessionOperationAverageElapsedMs": 58
+            "slowestSessionOperationAverageElapsedMs": 100.03
           },
           "revokeCycle": {
             "errors": 0,
-            "p95Ms": 143.35,
-            "p99Ms": 179.67,
-            "rps": 1869.41,
+            "p95Ms": 226.73,
+            "p99Ms": 246.94,
+            "rps": 1349.97,
             "slowestStep": "revoke",
-            "slowestStepP99Ms": 120.88,
+            "slowestStepP99Ms": 161.86,
             "stepOperationAttribution": {
               "login": {
-                "stepP99Ms": 86.4,
-                "stepAvgMs": 42.9,
+                "stepP99Ms": 126.21,
+                "stepAvgMs": 61.52,
                 "expectedSessionOperations": [
                   "saveSession"
                 ],
                 "sessionOperations": {
                   "saveSession": {
                     "count": 768,
-                    "totalElapsedMs": 30843.04,
-                    "averageElapsedMs": 40.16,
+                    "totalElapsedMs": 43674.96,
+                    "averageElapsedMs": 56.87,
                     "poolAcquireCount": 768,
-                    "poolAcquireElapsedMs": 631.81,
-                    "averagePoolAcquireElapsedMs": 0.82,
-                    "dbExecuteElapsedMs": 30207.15,
-                    "averageDbExecuteElapsedMs": 39.33,
+                    "poolAcquireElapsedMs": 5286.04,
+                    "averagePoolAcquireElapsedMs": 6.88,
+                    "dbExecuteElapsedMs": 38381.92,
+                    "averageDbExecuteElapsedMs": 49.98,
                     "rowsAffectedCount": 768,
                     "rowsAffected": 768,
                     "averageRowsAffected": 1
@@ -218,27 +244,27 @@
                 "writeLimiterOperations": {
                   "saveSession": {
                     "acquireCount": 768,
-                    "acquireWaitTimeMs": 106.79,
-                    "averageAcquireWaitTimeMs": 0.14
+                    "acquireWaitTimeMs": 6.48,
+                    "averageAcquireWaitTimeMs": 0.01
                   }
                 }
               },
               "revoke": {
-                "stepP99Ms": 120.88,
-                "stepAvgMs": 50.76,
+                "stepP99Ms": 161.86,
+                "stepAvgMs": 68.56,
                 "expectedSessionOperations": [
                   "revokeOwnSession"
                 ],
                 "sessionOperations": {
                   "revokeOwnSession": {
                     "count": 768,
-                    "totalElapsedMs": 39836.07,
-                    "averageElapsedMs": 51.87,
+                    "totalElapsedMs": 50634.73,
+                    "averageElapsedMs": 65.93,
                     "poolAcquireCount": 768,
-                    "poolAcquireElapsedMs": 1256.83,
-                    "averagePoolAcquireElapsedMs": 1.64,
-                    "dbExecuteElapsedMs": 38575.45,
-                    "averageDbExecuteElapsedMs": 50.23,
+                    "poolAcquireElapsedMs": 2431.41,
+                    "averagePoolAcquireElapsedMs": 3.17,
+                    "dbExecuteElapsedMs": 48200.93,
+                    "averageDbExecuteElapsedMs": 62.76,
                     "rowsAffectedCount": 768,
                     "rowsAffected": 768,
                     "averageRowsAffected": 1
@@ -247,14 +273,14 @@
                 "writeLimiterOperations": {
                   "revokeOwnSession": {
                     "acquireCount": 768,
-                    "acquireWaitTimeMs": 65.81,
-                    "averageAcquireWaitTimeMs": 0.09
+                    "acquireWaitTimeMs": 44.72,
+                    "averageAcquireWaitTimeMs": 0.06
                   }
                 }
               },
               "revokedPrincipalLookup": {
-                "stepP99Ms": 7.9,
-                "stepAvgMs": 2.91,
+                "stepP99Ms": 6.51,
+                "stepAvgMs": 2.57,
                 "expectedSessionOperations": [
                   "getPrincipalByAccessToken"
                 ],
@@ -267,57 +293,57 @@
               "enabledGateways": 8,
               "configuredLimitTotal": 256,
               "acquireCount": 1536,
-              "acquireWaitTimeMs": 172.6,
-              "averageAcquireWaitTimeMs": 0.11,
+              "acquireWaitTimeMs": 51.2,
+              "averageAcquireWaitTimeMs": 0.03,
               "operations": {
                 "revokeOwnSession": {
                   "acquireCount": 768,
-                  "acquireWaitTimeMs": 65.81,
-                  "averageAcquireWaitTimeMs": 0.09
+                  "acquireWaitTimeMs": 44.72,
+                  "averageAcquireWaitTimeMs": 0.06
                 },
                 "saveSession": {
                   "acquireCount": 768,
-                  "acquireWaitTimeMs": 106.79,
-                  "averageAcquireWaitTimeMs": 0.14
+                  "acquireWaitTimeMs": 6.48,
+                  "averageAcquireWaitTimeMs": 0.01
                 }
               }
             },
-            "highestWriteLimiterWaitOperation": "saveSession",
-            "highestWriteLimiterWaitTimeMs": 106.79,
+            "highestWriteLimiterWaitOperation": "revokeOwnSession",
+            "highestWriteLimiterWaitTimeMs": 44.72,
             "sessionOperations": {
               "revokeOwnSession": {
                 "count": 768,
-                "totalElapsedMs": 39836.07,
-                "averageElapsedMs": 51.87,
+                "totalElapsedMs": 50634.73,
+                "averageElapsedMs": 65.93,
                 "poolAcquireCount": 768,
-                "poolAcquireElapsedMs": 1256.83,
-                "averagePoolAcquireElapsedMs": 1.64,
-                "dbExecuteElapsedMs": 38575.45,
-                "averageDbExecuteElapsedMs": 50.23,
+                "poolAcquireElapsedMs": 2431.41,
+                "averagePoolAcquireElapsedMs": 3.17,
+                "dbExecuteElapsedMs": 48200.93,
+                "averageDbExecuteElapsedMs": 62.76,
                 "rowsAffectedCount": 768,
                 "rowsAffected": 768,
                 "averageRowsAffected": 1
               },
               "saveSession": {
                 "count": 768,
-                "totalElapsedMs": 30843.04,
-                "averageElapsedMs": 40.16,
+                "totalElapsedMs": 43674.96,
+                "averageElapsedMs": 56.87,
                 "poolAcquireCount": 768,
-                "poolAcquireElapsedMs": 631.81,
-                "averagePoolAcquireElapsedMs": 0.82,
-                "dbExecuteElapsedMs": 30207.15,
-                "averageDbExecuteElapsedMs": 39.33,
+                "poolAcquireElapsedMs": 5286.04,
+                "averagePoolAcquireElapsedMs": 6.88,
+                "dbExecuteElapsedMs": 38381.92,
+                "averageDbExecuteElapsedMs": 49.98,
                 "rowsAffectedCount": 768,
                 "rowsAffected": 768,
                 "averageRowsAffected": 1
               }
             },
             "slowestSessionOperation": "revokeOwnSession",
-            "slowestSessionOperationAverageElapsedMs": 51.87
+            "slowestSessionOperationAverageElapsedMs": 65.93
           }
         },
-        "dominantPhase": "revokeCycle",
-        "dominantPhaseP99Ms": 179.67
+        "dominantPhase": "refreshRotation",
+        "dominantPhaseP99Ms": 251.71
       }
     },
     {
@@ -326,26 +352,26 @@
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.conversation-write.json",
       "status": "PASSED",
       "exitCode": 0,
-      "elapsedMs": 43744,
+      "elapsedMs": 58027,
       "errors": 0,
-      "p95Ms": 173.61,
-      "p99Ms": 218.36,
-      "rps": 19092.45,
+      "p95Ms": 228.59,
+      "p99Ms": 253.6,
+      "rps": 16709.08,
       "readiness": null,
       "reportPresent": true,
       "reportParseable": true,
       "outputTail": "",
       "summary": {
         "errors": 0,
-        "p95Ms": 173.61,
-        "p99Ms": 218.36,
-        "rps": 19092.45,
+        "p95Ms": 228.59,
+        "p99Ms": 253.6,
+        "rps": 16709.08,
         "concurrency": 2304,
-        "serverTimingP99Ms": 152.51,
-        "clientServerGapP99Ms": 139.51,
-        "dbAcquireP99Ms": 0.57,
-        "dbBatchWaitP99Ms": 73.4,
-        "dbInsertP99Ms": 88.31,
+        "serverTimingP99Ms": 195.84,
+        "clientServerGapP99Ms": 99.03,
+        "dbAcquireP99Ms": 0,
+        "dbBatchWaitP99Ms": 75.48,
+        "dbInsertP99Ms": 164.04,
         "benchmarkRuntimeProfile": {
           "executor": "WSL_GO",
           "wslDistro": "Ubuntu",
@@ -420,8 +446,8 @@
             "gatewayCount": 16,
             "okGateways": 16,
             "unavailableGateways": 0,
-            "maxCurrentConns": 252,
-            "totalAcceptedConns": 3130,
+            "maxCurrentConns": 256,
+            "totalAcceptedConns": 3278,
             "totalEmptyAcquireCount": 0,
             "totalAcquireWaitTimeMs": 0
           }
@@ -434,7 +460,7 @@
             "maxCurrentConns": null,
             "totalAcceptedConns": 0,
             "totalEmptyAcquireCount": 16,
-            "totalAcquireWaitTimeMs": 253.38
+            "totalAcquireWaitTimeMs": 237.79
           },
           "after": {
             "gatewayCount": 16,
@@ -443,7 +469,7 @@
             "maxCurrentConns": null,
             "totalAcceptedConns": 0,
             "totalEmptyAcquireCount": 16,
-            "totalAcquireWaitTimeMs": 253.38
+            "totalAcquireWaitTimeMs": 237.79
           }
         }
       }
@@ -454,27 +480,41 @@
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.teaching-archive.json",
       "status": "PASSED",
       "exitCode": 0,
-      "elapsedMs": 20644,
+      "elapsedMs": 28265,
       "errors": 0,
-      "p95Ms": 276.18,
-      "p99Ms": 310.78,
-      "rps": 1874.94,
+      "p95Ms": 165.9,
+      "p99Ms": 189.4,
+      "rps": 2749.57,
       "readiness": null,
       "reportPresent": true,
       "reportParseable": true,
-      "outputTail": "Teaching archive benchmark: PASSED\nConcurrency: 384\nOperations per phase: 1536\nTotal errors: 0\n\nPhase results:\n- createArchiveItem p95=276.18ms p99=310.78ms errors=0\n- createQuizSubmission p95=121.73ms p99=138.87ms errors=0\n- listArchiveItems p95=108.02ms p99=124.49ms errors=0",
+      "outputTail": "Teaching archive benchmark: PASSED\nConcurrency: 384\nOperations per phase: 1536\nTotal errors: 0\n\nPhase results:\n- createArchiveItem p95=76.43ms p99=83.78ms errors=0\n- createQuizSubmission p95=80.83ms p99=90.37ms errors=0\n- listArchiveItems p95=165.9ms p99=189.4ms errors=0",
       "summary": {
         "errors": 0,
-        "p95Ms": 276.18,
-        "p99Ms": 310.78,
-        "rps": 1874.94,
+        "p95Ms": 165.9,
+        "p99Ms": 189.4,
+        "rps": 2749.57,
         "concurrency": 384,
-        "serverTimingP99Ms": 270.08,
-        "handlerP99Ms": 270.35,
-        "preUsecaseP99Ms": 0.62,
-        "appP99Ms": 270.08,
-        "dbInsertP99Ms": 270.08,
-        "clientHandlerGapP99Ms": 40.43,
+        "serverTimingP99Ms": 171.86,
+        "handlerP99Ms": 171.86,
+        "preUsecaseP99Ms": 0.84,
+        "appP99Ms": 171.86,
+        "dbBatchWaitP99Ms": 38.1,
+        "dbAcquireP99Ms": 148.86,
+        "dbExecP99Ms": 28.26,
+        "dbQueryP99Ms": 171.86,
+        "dbInsertP99Ms": 28.26,
+        "gatewayWriteProfile": {
+          "archiveCreateBatchingEnabled": true,
+          "archiveCreateBatchSize": 64,
+          "archiveCreateBatchDelayMs": 0,
+          "archiveCreateBatchWorkers": 1,
+          "quizSubmissionBatchingEnabled": true,
+          "quizSubmissionBatchSize": 64,
+          "quizSubmissionBatchDelayMs": 0,
+          "quizSubmissionBatchWorkers": 1
+        },
+        "clientHandlerGapP99Ms": 40.84,
         "benchmarkRuntimeProfile": {
           "executor": "DOCKER_GO",
           "dockerImage": "golang:1.26-alpine",
@@ -485,6 +525,30 @@
             "http://host.docker.internal:18502",
             "http://host.docker.internal:18503"
           ]
+        },
+        "databaseDiagnostics": {
+          "before": {
+            "gatewayCount": 4,
+            "okGateways": 4,
+            "unavailableGateways": 0,
+            "maxTotalConns": 12,
+            "maxAcquiredConns": 0,
+            "maxIdleConns": 12,
+            "totalEmptyAcquireCount": 4,
+            "totalEmptyAcquireWaitTimeMs": 38.82,
+            "totalNewConnsCount": 48
+          },
+          "after": {
+            "gatewayCount": 4,
+            "okGateways": 4,
+            "unavailableGateways": 0,
+            "maxTotalConns": 12,
+            "maxAcquiredConns": 0,
+            "maxIdleConns": 12,
+            "totalEmptyAcquireCount": 1492,
+            "totalEmptyAcquireWaitTimeMs": 148528.88,
+            "totalNewConnsCount": 48
+          }
         }
       }
     },
@@ -494,7 +558,7 @@
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.knowledge-retrieval.json",
       "status": "READY",
       "exitCode": 0,
-      "elapsedMs": 129,
+      "elapsedMs": 153,
       "errors": 0,
       "p95Ms": 2.55,
       "p99Ms": null,
@@ -515,7 +579,7 @@
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.ai-worker-admission.json",
       "status": "READY",
       "exitCode": 0,
-      "elapsedMs": 121,
+      "elapsedMs": 136,
       "errors": 0,
       "p95Ms": null,
       "p99Ms": null,
@@ -534,8 +598,8 @@
     "totalErrors": 0,
     "workloadErrors": 0,
     "orchestrationErrors": 0,
-    "maxP95Ms": 276.18,
-    "maxP99Ms": 310.78,
+    "maxP95Ms": 235.2,
+    "maxP99Ms": 253.6,
     "passedWorkloads": 5,
     "failedWorkloads": 0
   },
@@ -547,19 +611,19 @@
       "name": "identity_http",
       "moduleSlice": "Identity And Access",
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.identity-http.json",
-      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-identity-http-benchmark.mjs --base-url http://127.0.0.1:18300 --gateway-count 8 --session-db-max-conns 32 --session-db-write-concurrency 32 --session-db-session-table-persistence unlogged --concurrency 192 --operations 768 --max-conns-per-host 64 --warm-connections-per-host 16 --ingress-proxy true --ingress-port 18080 --ingress-count 8 --ingress-max-conns-per-host 64 --ingress-warm-connections-per-host 8 --benchmark-runtime docker --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --out reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.identity-http.json --timeout 180s --startup-timeout-ms 120000"
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-identity-http-benchmark.mjs --base-url http://127.0.0.1:18300 --gateway-count 8 --session-db-max-conns 32 --session-db-write-concurrency 32 --session-db-session-table-persistence unlogged --concurrency 192 --operations 768 --max-conns-per-host 64 --warm-connections-per-host 16 --ingress-proxy true --ingress-port 18080 --ingress-count 8 --ingress-max-conns-per-host 64 --ingress-warm-connections-per-host 8 --benchmark-runtime docker --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --out reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.identity-http.json --timeout 180s --startup-timeout-ms 120000 --pgbouncer-diagnostics true --pgbouncer-postgres-container ita-identity-session-postgres --pgbouncer-host identity-session-pgbouncer --pgbouncer-port 6432 --pgbouncer-user app_user --pgbouncer-database pgbouncer --postgres-diagnostics true --postgres-diagnostics-container ita-identity-session-postgres --postgres-diagnostics-host 127.0.0.1 --postgres-diagnostics-port 5432 --postgres-diagnostics-user app_user --postgres-diagnostics-database intelligent_teaching_assistant --postgres-diagnostics-interval-ms 1000 --postgres-diagnostics-max-samples 240 --postgres-diagnostics-query-timeout-ms 5000"
     },
     {
       "name": "conversation_write",
       "moduleSlice": "Research Conversation Write",
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.conversation-write.json",
-      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-conversation-write-benchmark.mjs --base-url http://127.0.0.1:18400 --gateway-count 16 --db-max-conns 32 --write-batch-size 128 --write-batch-delay-ms 0 --benchmark-runtime wsl --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --benchmark-wsl-distro Ubuntu --benchmark-wsl-host 172.28.160.1 --benchmark-wsl-workspace  --agent-api-key *** --concurrency 2304 --operations 9216 --max-conns-per-host 256 --warm-connections-per-host 144 --out reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.conversation-write.json --timeout 180s --startup-timeout-ms 120000"
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-conversation-write-benchmark.mjs --base-url http://127.0.0.1:18400 --gateway-count 16 --db-max-conns 32 --write-batch-size 128 --write-batch-delay-ms 0 --write-batch-workers 4 --write-batch-mode copy --benchmark-runtime wsl --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --benchmark-wsl-distro Ubuntu --benchmark-wsl-host 172.28.160.1 --benchmark-wsl-workspace  --agent-api-key *** --concurrency 2304 --operations 9216 --max-conns-per-host 256 --warm-connections-per-host 144 --client-trace false --out reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.conversation-write.json --timeout 180s --startup-timeout-ms 120000 --pgbouncer-diagnostics true --pgbouncer-postgres-container ita-identity-session-postgres --pgbouncer-host identity-session-pgbouncer --pgbouncer-port 6432 --pgbouncer-user app_user --pgbouncer-database pgbouncer --postgres-diagnostics true --postgres-diagnostics-container ita-identity-session-postgres --postgres-diagnostics-host 127.0.0.1 --postgres-diagnostics-port 5432 --postgres-diagnostics-user app_user --postgres-diagnostics-database intelligent_teaching_assistant --postgres-diagnostics-interval-ms 1000 --postgres-diagnostics-max-samples 240 --postgres-diagnostics-query-timeout-ms 5000"
     },
     {
       "name": "teaching_archive",
       "moduleSlice": "Teaching Archive And Quiz",
       "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.teaching-archive.json",
-      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-teaching-archive-benchmark.mjs --base-url http://127.0.0.1:18500 --gateway-count 4 --db-max-conns 12 --agent-api-key *** --concurrency 384 --operations 1536 --benchmark-runtime docker --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --benchmark-wsl-distro Ubuntu --benchmark-wsl-host host.docker.internal --benchmark-wsl-workspace  --max-conns-per-host 128 --warm-connections-per-host 96 --client-trace true --out reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.teaching-archive.json --timeout 180s --timeout-ms 10000 --startup-timeout-ms 120000"
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-teaching-archive-benchmark.mjs --base-url http://127.0.0.1:18500 --gateway-count 4 --db-max-conns 12 --db-min-conns 12 --db-prewarm-conns 12 --agent-api-key *** --concurrency 384 --operations 1536 --benchmark-runtime docker --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --benchmark-wsl-distro Ubuntu --benchmark-wsl-host host.docker.internal --benchmark-wsl-workspace  --max-conns-per-host 128 --warm-connections-per-host 96 --client-trace true --archive-create-batch-size 64 --archive-create-batch-delay-ms 0 --archive-create-batch-workers 1 --out reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.1-target-10k.1.teaching-archive.json --timeout 180s --timeout-ms 10000 --startup-timeout-ms 120000 --pgbouncer-diagnostics true --pgbouncer-postgres-container ita-identity-session-postgres --pgbouncer-host identity-session-pgbouncer --pgbouncer-port 6432 --pgbouncer-user app_user --pgbouncer-database pgbouncer --postgres-diagnostics true --postgres-diagnostics-container ita-identity-session-postgres --postgres-diagnostics-host 127.0.0.1 --postgres-diagnostics-port 5432 --postgres-diagnostics-user app_user --postgres-diagnostics-database intelligent_teaching_assistant --postgres-diagnostics-interval-ms 1000 --postgres-diagnostics-max-samples 240 --postgres-diagnostics-query-timeout-ms 5000"
     },
     {
       "name": "knowledge_retrieval",
