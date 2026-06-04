@@ -788,7 +788,7 @@ const production10kTargetOptions = {
   conversationBenchmarkRuntime: "wsl", conversationBenchmarkWslHost: "172.28.160.1", maxConnsPerHost: "256",
   warmConnectionsPerHost: "144", teachingBenchmarkRuntime: "docker", teachingMaxConnsPerHost: "128",
   teachingWarmConnectionsPerHost: "96", teachingClientTrace: "true", teachingArchiveCreateBatchSize: "64",
-  teachingArchiveCreateBatchDelayMs: "0", teachingArchiveCreateBatchWorkers: "1", identityIngressProxy: "true",
+  teachingArchiveCreateBatchDelayMs: "0", teachingArchiveCreateBatchWorkers: "4", identityIngressProxy: "true",
   identityIngressCount: "8", identityMaxConnsPerHost: "64", identityWarmConnectionsPerHost: "16",
   identityIngressMaxConnsPerHost: "64", identityIngressWarmConnectionsPerHost: "8",
   identityBenchmarkRuntime: "docker", requireTargetReadWriteRps: "true",

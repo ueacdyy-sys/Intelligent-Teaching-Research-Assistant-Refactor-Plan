@@ -40,7 +40,7 @@ export const scaleProfileDefaults = {
     teachingClientTrace: "true",
     teachingArchiveCreateBatchSize: "64",
     teachingArchiveCreateBatchDelayMs: "0",
-    teachingArchiveCreateBatchWorkers: "1",
+    teachingArchiveCreateBatchWorkers: "4",
     identityMaxConnsPerHost: "64",
     identityWarmConnectionsPerHost: "16",
     identityIngressProxy: "true",
