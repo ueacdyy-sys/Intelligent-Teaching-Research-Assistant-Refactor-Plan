@@ -333,6 +333,9 @@ function buildProductionTargetWorkloadHotspots(report) {
         breakdown: {
           serverTimingP99Ms: numberOrNull(summary.serverTimingP99Ms),
           clientServerGapP99Ms: numberOrNull(summary.clientServerGapP99Ms),
+          acceptanceMode: summary.acceptanceMode ?? null,
+          commandAppendP99Ms: numberOrNull(summary.commandAppendP99Ms),
+          projectionEnqueueP99Ms: numberOrNull(summary.projectionEnqueueP99Ms),
           dbAcquireP99Ms: numberOrNull(summary.dbAcquireP99Ms),
           dbBatchWaitP99Ms: numberOrNull(summary.dbBatchWaitP99Ms),
           dbInsertP99Ms: numberOrNull(summary.dbInsertP99Ms),

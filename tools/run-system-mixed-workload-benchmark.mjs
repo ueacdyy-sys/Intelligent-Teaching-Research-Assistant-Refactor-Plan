@@ -1,7 +1,6 @@
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-
 import { assertNonNegativeInteger, assertPositiveInteger, countCommandErrors, kebabToCamel, maskSensitive, maxFinite, minFinite, nullableDelta, numberOrNull, numberOrZero, parseBoolean, parseInteger, readOptionalJson, removeReports, round, sanitizeCommandLine, sanitizeCommandResult, sumFinite, tailText, toRunnableCommand, writeJsonReport } from "./benchmark-runner-utils.mjs";
 import {
   defaultSessionTablePersistence,
@@ -28,7 +27,8 @@ import {
 import { buildSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 import { portRange, portSequence } from "./system-port-profile.mjs";
 import { postgresDiagnosticsDefaults } from "./postgres-diagnostics.mjs";
-
+import { summarizeCommandLogDiagnostics } from "./conversation-command-log-summary.mjs";
+import { assertConversationFastLaneOptions, conversationFastLaneArgs, conversationFastLaneOptionDefaults, conversationFastLaneProfile } from "./conversation-fast-lane-options.mjs";
 export const defaults = {
   out: "reports/system-mixed-workload-benchmark.current.json",
   profile: "SMOKE",
@@ -61,6 +61,7 @@ export const defaults = {
   conversationWriteBatchSize: "32",
   conversationWriteBatchWorkers: "1",
   conversationWriteBatchMode: "insert",
+  ...conversationFastLaneOptionDefaults,
   conversationClientTrace: "false",
   conversationBenchmarkRuntime: benchmarkRuntimeDefaults.benchmarkRuntime,
   conversationBenchmarkDockerImage: benchmarkRuntimeDefaults.benchmarkDockerImage,
@@ -179,6 +180,7 @@ export function buildWorkloadCommands(options) {
         options.conversationWriteBatchWorkers,
         "--write-batch-mode",
         options.conversationWriteBatchMode,
+        ...conversationFastLaneArgs(options),
         "--benchmark-runtime",
         systemConversationBenchmarkRuntime(options),
         "--benchmark-docker-image",
@@ -364,6 +366,7 @@ export function buildSystemMixedWorkloadReport({
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
       conversationWriteBatchWorkers: parseInteger(options.conversationWriteBatchWorkers),
       conversationWriteBatchMode: conversationWriteBatchMode(options),
+      ...conversationFastLaneProfile(options),
       teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
       teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
       teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
@@ -520,6 +523,9 @@ function summarizeConversation(report) {
     concurrency: numberOrNull(report.concurrency),
     serverTimingP99Ms: numberOrNull(phase.serverTimingMs?.p99),
     clientServerGapP99Ms: numberOrNull(phase.clientServerGapMs?.p99),
+    acceptanceMode: report.gatewayWriteProfile?.acceptanceMode ?? null,
+    commandAppendP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["command.append"]?.p99),
+    projectionEnqueueP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["projection.enqueue"]?.p99),
     dbAcquireP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.acquire"]?.p99),
     dbBatchWaitP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.batch_wait"]?.p99),
     dbInsertP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99),
@@ -528,6 +534,7 @@ function summarizeConversation(report) {
     gatewaySignal: report.gatewaySignal ?? null,
     runtimeDiagnostics: summarizeGatewayDiagnostics(report.gatewayRuntimeDiagnostics),
     databaseDiagnostics: summarizeGatewayDiagnostics(report.gatewayDatabaseDiagnostics),
+    commandLogDiagnostics: summarizeCommandLogDiagnostics(report.gatewayCommandLogDiagnostics),
   };
 }
 
@@ -603,6 +610,7 @@ function validateOptions(options) {
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   assertPositiveInteger(options.conversationWriteBatchWorkers, "conversation-write-batch-workers");
   conversationWriteBatchMode(options);
+  assertConversationFastLaneOptions(options);
   systemConversationBenchmarkRuntime(options);
   systemIdentityBenchmarkRuntime(options);
   assertSystemTeachingBenchmarkOptions(options);
@@ -777,11 +785,9 @@ function identityMaxConnsPerHost(options) {
 function identityWarmConnectionsPerHost(options) {
   return optionOrFallback(options.identityWarmConnectionsPerHost, options.warmConnectionsPerHost);
 }
-
 function identitySessionTablePersistence(options) {
   return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence);
 }
-
 function optionOrFallback(value, fallback) {
   return String(value ?? "").trim() === "" ? fallback : value;
 }

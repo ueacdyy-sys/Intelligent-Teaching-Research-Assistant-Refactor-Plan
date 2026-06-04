@@ -239,6 +239,32 @@ func TestDoJSONSkipsClientTraceByDefault(t *testing.T) {
 	}
 }
 
+func TestDoJSONAcceptsConfiguredAcceptedStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Server-Timing", "app;dur=0.8, command.append;dur=0.3")
+		response.WriteHeader(http.StatusAccepted)
+		_, _ = response.Write([]byte(`{"id":"conv_accepted","command":{"id":"cmd_conv_accepted","status":"accepted","resourceId":"conv_accepted"}}`))
+	}))
+	t.Cleanup(server.Close)
+
+	result, err := doJSON(
+		context.Background(),
+		server.Client(),
+		http.MethodPost,
+		server.URL+"/v1/research/conversations",
+		"local-key",
+		map[string]string{"title": "bench"},
+		http.StatusAccepted,
+		false,
+	)
+
+	if err != nil {
+		t.Fatalf("doJSON() error = %v", err)
+	}
+	assertDuration(t, result.serverTimings, "app", 800*time.Microsecond)
+	assertDuration(t, result.serverTimings, "command.append", 300*time.Microsecond)
+}
+
 func TestParseServerTimingDurations(t *testing.T) {
 	got := parseServerTimingDurations(`db.acquire;dur=7.2, app;dur=12.34, db.insert;dur=5`)
 	if len(got) != 3 {

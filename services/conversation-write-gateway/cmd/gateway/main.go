@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"ita-refactor/services/conversation-write-gateway/internal/adapter/commandlog"
 	"ita-refactor/services/conversation-write-gateway/internal/adapter/event"
 	"ita-refactor/services/conversation-write-gateway/internal/adapter/httpapi"
 	"ita-refactor/services/conversation-write-gateway/internal/adapter/postgres"
@@ -26,9 +27,11 @@ func main() {
 	pool := mustOpenPostgres(ctx)
 	defer pool.Close()
 	poolDB := postgres.NewPoolDB(pool)
+	repository := conversationRepositoryFromConfig(poolDB)
+	defer repository.Close()
 
 	createConversation := usecase.NewCreateConversation(
-		conversationRepositoryFromConfig(poolDB),
+		repository.Repository,
 		event.NoopPublisher{},
 		platform.IDGenerator{},
 		platform.Clock{},
@@ -43,6 +46,7 @@ func main() {
 			DiagnosticsSecret:    getenv("INTERNAL_DIAGNOSTICS_SECRET", "ueacd"),
 			DBPoolStatsProvider:  poolDB,
 			RuntimeStatsProvider: connectionStates,
+			CommandLogProvider:   repository.CommandLogProvider,
 		}).Handler(),
 		ConnState:         connectionStates.ConnState,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -262,7 +266,41 @@ func retryConversationStartupOperation(ctx context.Context, attempts int, delay 
 	return lastErr
 }
 
-func conversationRepositoryFromConfig(db postgres.DB) usecase.ConversationRepository {
+type conversationRepositoryBundle struct {
+	Repository         usecase.ConversationRepository
+	CommandLogProvider platform.ConversationCommandLogStatsProvider
+}
+
+func (bundle conversationRepositoryBundle) Close() {
+	if closer, ok := bundle.Repository.(interface{ Close() }); ok {
+		closer.Close()
+	}
+}
+
+func conversationRepositoryFromConfig(db postgres.DB) conversationRepositoryBundle {
+	projection := conversationProjectionRepositoryFromConfig(db)
+	if conversationWriteAcceptanceModeFromConfig() == "durable-log" {
+		repository, err := commandlog.NewRepository(commandlog.Config{
+			Path:              getenv("CONVERSATION_COMMAND_LOG_PATH", "data/conversation-commands.jsonl"),
+			AppendBatchSize:   getenvInt("CONVERSATION_COMMAND_LOG_APPEND_BATCH_SIZE", 32),
+			AppendMaxDelay:    time.Duration(getenvInt("CONVERSATION_COMMAND_LOG_APPEND_DELAY_MS", 0)) * time.Millisecond,
+			QueueCapacity:     getenvInt("CONVERSATION_COMMAND_LOG_QUEUE_CAPACITY", 65536),
+			ProjectionWorkers: getenvInt("CONVERSATION_COMMAND_LOG_PROJECTION_WORKERS", 4),
+			Sync:              getenvBool("CONVERSATION_COMMAND_LOG_SYNC", true),
+			Projection:        projection,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		return conversationRepositoryBundle{
+			Repository:         repository,
+			CommandLogProvider: repository,
+		}
+	}
+	return conversationRepositoryBundle{Repository: projection}
+}
+
+func conversationProjectionRepositoryFromConfig(db postgres.DB) usecase.ConversationRepository {
 	batchSize := getenvInt("CONVERSATION_WRITE_BATCH_SIZE", 1)
 	if batchSize <= 1 {
 		return postgres.NewConversationRepository(db)
@@ -273,6 +311,18 @@ func conversationRepositoryFromConfig(db postgres.DB) usecase.ConversationReposi
 		Workers:  getenvInt("CONVERSATION_WRITE_BATCH_WORKERS", 1),
 		Mode:     conversationWriteBatchModeFromConfig(),
 	})
+}
+
+func conversationWriteAcceptanceModeFromConfig() string {
+	value := getenv("CONVERSATION_WRITE_ACCEPTANCE_MODE", "sync")
+	switch value {
+	case "sync":
+		return value
+	case "durable-log":
+		return value
+	default:
+		panic(fmt.Sprintf("CONVERSATION_WRITE_ACCEPTANCE_MODE must be %q or %q: %q", "sync", "durable-log", value))
+	}
 }
 
 func conversationWriteBatchModeFromConfig() postgres.BatchWriteMode {
@@ -305,6 +355,21 @@ func getenvInt(key string, fallback int) int {
 		panic(fmt.Sprintf("%s must be an integer: %q", key, value))
 	}
 	return parsed
+}
+
+func getenvBool(key string, fallback bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "true", "1", "yes":
+		return true
+	case "false", "0", "no":
+		return false
+	default:
+		panic(fmt.Sprintf("%s must be a boolean: %q", key, value))
+	}
 }
 
 func getenvIntFrom(getenv func(string) string, key string, fallback int, positive bool) (int, error) {

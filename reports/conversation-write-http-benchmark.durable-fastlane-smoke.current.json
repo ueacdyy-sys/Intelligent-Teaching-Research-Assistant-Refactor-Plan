@@ -1,0 +1,647 @@
+{
+  "generatedAt": "2026-06-03T17:20:10.4378409Z",
+  "benchmarkKind": "conversation_write_gateway",
+  "workloadType": "HTTP_BENCHMARK",
+  "status": "PASSED",
+  "baseUrl": "http://127.0.0.1:18080",
+  "gatewayCount": 4,
+  "gatewayBaseUrls": [
+    "http://127.0.0.1:18080",
+    "http://127.0.0.1:18081",
+    "http://127.0.0.1:18082",
+    "http://127.0.0.1:18083"
+  ],
+  "loadBalancingStrategy": "ROUND_ROBIN",
+  "transportProfile": {
+    "maxIdleConns": 1024,
+    "maxIdleConnsPerHost": 256,
+    "maxConnsPerHost": 256,
+    "warmConnectionsPerHost": 64,
+    "warmConnectionsTotal": 256,
+    "warmConnectionStrategy": "PER_HOST_PARALLEL",
+    "warmConnectionRetries": 3
+  },
+  "clientTraceEnabled": false,
+  "expectedStatus": 202,
+  "concurrency": 256,
+  "operations": 1024,
+  "totalDurationMs": 68.04,
+  "phases": {
+    "createConversation": {
+      "name": "createConversation",
+      "operations": 1024,
+      "errors": 0,
+      "rps": 15297.6,
+      "latencyMs": {
+        "min": 2.3,
+        "avg": 14.48,
+        "p50": 11.28,
+        "p95": 31.33,
+        "p99": 40.77,
+        "max": 44.98
+      },
+      "serverTimingMs": {
+        "min": 0.68,
+        "avg": 3.69,
+        "p50": 3.5,
+        "p95": 6.12,
+        "p99": 7.32,
+        "max": 7.86
+      },
+      "serverTimingSamples": 1024,
+      "serverTimingBreakdownMs": {
+        "app": {
+          "min": 0.68,
+          "avg": 3.69,
+          "p50": 3.5,
+          "p95": 6.12,
+          "p99": 7.32,
+          "max": 7.86
+        },
+        "command.append": {
+          "min": 0.68,
+          "avg": 3.66,
+          "p50": 3.48,
+          "p95": 6.12,
+          "p99": 7.27,
+          "max": 7.86
+        },
+        "projection.enqueue": {
+          "min": 0,
+          "avg": 0.03,
+          "p50": 0,
+          "p95": 0.31,
+          "p99": 0.6,
+          "max": 0.63
+        }
+      },
+      "serverTimingBreakdownSamples": {
+        "app": 1024,
+        "command.append": 1024,
+        "projection.enqueue": 1024
+      },
+      "clientServerGapMs": {
+        "min": 0,
+        "avg": 10.79,
+        "p50": 7.67,
+        "p95": 26.39,
+        "p99": 34.7,
+        "max": 38.88
+      },
+      "clientServerGapSamples": 1024
+    }
+  },
+  "gatewayWorkerCount": 4,
+  "gatewayDatabaseProfile": {
+    "workerCount": 4,
+    "dbMaxConnsPerWorker": 8,
+    "dbMaxConnsTotal": 32
+  },
+  "gatewayWriteProfile": {
+    "acceptanceMode": "durable-log",
+    "batchingEnabled": true,
+    "batchSize": 128,
+    "batchDelayMs": 0,
+    "batchWorkers": 4,
+    "batchMode": "insert",
+    "commandLog": {
+      "appendBatchSize": 64,
+      "appendDelayMs": 0,
+      "queueCapacity": 65536,
+      "projectionWorkers": 4,
+      "sync": true,
+      "settleTimeoutMs": 10000
+    }
+  },
+  "benchmarkRuntimeProfile": {
+    "executor": "LOCAL_GO",
+    "dockerImage": null,
+    "dockerHostAlias": null,
+    "targetBaseUrls": [
+      "http://127.0.0.1:18080",
+      "http://127.0.0.1:18081",
+      "http://127.0.0.1:18082",
+      "http://127.0.0.1:18083"
+    ]
+  },
+  "gatewayExitCode": [
+    null,
+    null,
+    null,
+    null
+  ],
+  "gatewaySignal": [
+    null,
+    null,
+    null,
+    null
+  ],
+  "gatewayOutputTail": "[gateway 1]\n2026/06/04 01:20:09 conversation postgres pool ready: maxConns=8 minConns=8 prewarmConns=1\n2026/06/04 01:20:09 conversation-write-gateway listening on :18080\n\n[gateway 2]\n2026/06/04 01:20:09 conversation postgres pool ready: maxConns=8 minConns=8 prewarmConns=1\n2026/06/04 01:20:09 conversation-write-gateway listening on :18081\n\n[gateway 3]\n2026/06/04 01:20:09 conversation postgres pool ready: maxConns=8 minConns=8 prewarmConns=1\n2026/06/04 01:20:09 conversation-write-gateway listening on :18082\n\n[gateway 4]\n2026/06/04 01:20:09 conversation postgres pool ready: maxConns=8 minConns=8 prewarmConns=1\n2026/06/04 01:20:09 conversation-write-gateway listening on :18083",
+  "gatewayDatabaseDiagnostics": {
+    "before": {
+      "endpoint": "/internal/conversation/db-pool",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-03T17:20:09.555Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18080",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 0,
+            "idleConns": 8,
+            "constructingConns": 0,
+            "acquireCount": 2,
+            "acquireDurationMs": 10.291,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 10.291,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18081",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 0,
+            "idleConns": 8,
+            "constructingConns": 0,
+            "acquireCount": 2,
+            "acquireDurationMs": 9.712,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 9.712,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18082",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 0,
+            "idleConns": 8,
+            "constructingConns": 0,
+            "acquireCount": 2,
+            "acquireDurationMs": 8.987,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 8.987,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18083",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 0,
+            "idleConns": 8,
+            "constructingConns": 0,
+            "acquireCount": 2,
+            "acquireDurationMs": 9.736,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 9.736,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        }
+      ]
+    },
+    "after": {
+      "endpoint": "/internal/conversation/db-pool",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-03T17:20:10.484Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18080",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 4,
+            "idleConns": 4,
+            "constructingConns": 0,
+            "acquireCount": 74,
+            "acquireDurationMs": 10.291,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 10.291,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18081",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 4,
+            "idleConns": 4,
+            "constructingConns": 0,
+            "acquireCount": 75,
+            "acquireDurationMs": 9.712,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 9.712,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18082",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 4,
+            "idleConns": 4,
+            "constructingConns": 0,
+            "acquireCount": 75,
+            "acquireDurationMs": 8.987,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 8.987,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18083",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "maxConns": 8,
+            "totalConns": 8,
+            "acquiredConns": 4,
+            "idleConns": 4,
+            "constructingConns": 0,
+            "acquireCount": 74,
+            "acquireDurationMs": 9.736,
+            "canceledAcquireCount": 0,
+            "emptyAcquireCount": 1,
+            "emptyAcquireWaitTimeMs": 9.736,
+            "newConnsCount": 8,
+            "maxIdleDestroyCount": 0,
+            "maxLifetimeDestroyCount": 0
+          }
+        }
+      ]
+    }
+  },
+  "gatewayRuntimeDiagnostics": {
+    "before": {
+      "endpoint": "/internal/conversation/runtime",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-03T17:20:09.564Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18080",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 1,
+            "currentConns": 1,
+            "maxCurrentConns": 1,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18081",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 1,
+            "currentConns": 1,
+            "maxCurrentConns": 1,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18082",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 1,
+            "currentConns": 1,
+            "maxCurrentConns": 1,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18083",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 1,
+            "currentConns": 1,
+            "maxCurrentConns": 1,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 0
+          }
+        }
+      ]
+    },
+    "after": {
+      "endpoint": "/internal/conversation/runtime",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-03T17:20:10.488Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18080",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 73,
+            "currentConns": 1,
+            "maxCurrentConns": 73,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 72
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18081",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 68,
+            "currentConns": 1,
+            "maxCurrentConns": 68,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 67
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18082",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 71,
+            "currentConns": 1,
+            "maxCurrentConns": 71,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 70
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18083",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedConns": 69,
+            "currentConns": 1,
+            "maxCurrentConns": 69,
+            "activeConns": 1,
+            "idleConns": 0,
+            "hijackedConns": 0,
+            "closedConns": 68
+          }
+        }
+      ]
+    }
+  },
+  "gatewayCommandLogDiagnostics": {
+    "before": {
+      "endpoint": "/internal/conversation/command-log",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-03T17:20:09.573Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18080",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 0,
+            "appendErrors": 0,
+            "projectionEnqueued": 0,
+            "projectionSucceeded": 0,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18081",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 0,
+            "appendErrors": 0,
+            "projectionEnqueued": 0,
+            "projectionSucceeded": 0,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18082",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 0,
+            "appendErrors": 0,
+            "projectionEnqueued": 0,
+            "projectionSucceeded": 0,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18083",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 0,
+            "appendErrors": 0,
+            "projectionEnqueued": 0,
+            "projectionSucceeded": 0,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        }
+      ]
+    },
+    "after": {
+      "endpoint": "/internal/conversation/command-log",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-03T17:20:10.495Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18080",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 77,
+            "projectionFailed": 0,
+            "queueDepth": 179,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 84.022
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18081",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 76,
+            "projectionFailed": 0,
+            "queueDepth": 180,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 94.706
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18082",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 76,
+            "projectionFailed": 0,
+            "queueDepth": 180,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 96.42
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18083",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 79,
+            "projectionFailed": 0,
+            "queueDepth": 177,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 100.536
+          }
+        }
+      ]
+    },
+    "settled": {
+      "endpoint": "/internal/conversation/command-log",
+      "secretHeader": "X-Internal-Diagnostics-Secret",
+      "sampledAt": "2026-06-03T17:20:10.734Z",
+      "gateways": [
+        {
+          "baseUrl": "http://127.0.0.1:18080",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 256,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18081",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 256,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18082",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 256,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        },
+        {
+          "baseUrl": "http://127.0.0.1:18083",
+          "status": "OK",
+          "httpStatus": 200,
+          "stats": {
+            "acceptedCommands": 256,
+            "appendErrors": 0,
+            "projectionEnqueued": 256,
+            "projectionSucceeded": 256,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "queueCapacity": 65536,
+            "oldestPendingAgeMs": 0
+          }
+        }
+      ]
+    }
+  }
+}

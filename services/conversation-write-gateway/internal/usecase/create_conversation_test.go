@@ -21,7 +21,7 @@ func TestCreateConversationTrimsTitleAndPersists(t *testing.T) {
 		fixedClock{now: now},
 	)
 
-	got, err := uc.Execute(context.Background(), domain.CreateConversationInput{
+	result, err := uc.Execute(context.Background(), domain.CreateConversationInput{
 		Title:    "  多模型融合研究  ",
 		Settings: domain.NewSettingsJSON([]byte(`{"fusionMode":"balanced"}`)),
 	})
@@ -29,6 +29,7 @@ func TestCreateConversationTrimsTitleAndPersists(t *testing.T) {
 		t.Fatalf("Execute returned error: %v", err)
 	}
 
+	got := result.Conversation
 	if got.ID != "conv_fixed" {
 		t.Fatalf("ID = %q", got.ID)
 	}
@@ -46,6 +47,35 @@ func TestCreateConversationTrimsTitleAndPersists(t *testing.T) {
 	}
 	if events.created.ID != got.ID {
 		t.Fatalf("event publisher did not receive created conversation")
+	}
+	if result.Persistence.Status != usecase.PersistenceStatusPersisted {
+		t.Fatalf("persistence status = %q", result.Persistence.Status)
+	}
+}
+
+func TestCreateConversationSkipsCreatedEventForAcceptedCommand(t *testing.T) {
+	repo := &fakeRepository{outcome: usecase.AcceptedOutcome("cmd_conv_fixed")}
+	events := &fakeEvents{}
+	uc := usecase.NewCreateConversation(
+		repo,
+		events,
+		fixedIDs{id: "conv_fixed"},
+		fixedClock{},
+	)
+
+	result, err := uc.Execute(context.Background(), domain.CreateConversationInput{Title: "Research"})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+
+	if result.Persistence.Status != usecase.PersistenceStatusAccepted {
+		t.Fatalf("persistence status = %q", result.Persistence.Status)
+	}
+	if result.Persistence.CommandID != "cmd_conv_fixed" {
+		t.Fatalf("command id = %q", result.Persistence.CommandID)
+	}
+	if events.created.ID != "" {
+		t.Fatalf("created event was published before projection: %#v", events.created)
 	}
 }
 
@@ -69,11 +99,15 @@ func TestCreateConversationRequiresPrefixedServerID(t *testing.T) {
 
 type fakeRepository struct {
 	created domain.Conversation
+	outcome usecase.CreatePersistenceOutcome
 }
 
-func (f *fakeRepository) Create(_ context.Context, conversation domain.Conversation) error {
+func (f *fakeRepository) Create(_ context.Context, conversation domain.Conversation) (usecase.CreatePersistenceOutcome, error) {
 	f.created = conversation
-	return nil
+	if f.outcome.Status != "" {
+		return f.outcome, nil
+	}
+	return usecase.PersistedOutcome(), nil
 }
 
 type fakeEvents struct {

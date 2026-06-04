@@ -1,0 +1,690 @@
+{
+  "generatedAt": "2026-06-03T17:29:56.441Z",
+  "startedAt": "2026-06-03T17:29:04.916Z",
+  "endedAt": "2026-06-03T17:29:56.441Z",
+  "benchmarkKind": "system_mixed_workload",
+  "workloadType": "MIXED_WORKLOAD",
+  "profile": "SUSTAINED_SCALEUP_TARGET-10K_SAMPLE_1",
+  "status": "PASSED",
+  "concurrencyProfile": {
+    "identityConcurrency": 192,
+    "conversationConcurrency": 2304,
+    "teachingConcurrency": 384,
+    "identityGatewayCount": 8,
+    "conversationGatewayCount": 16,
+    "teachingGatewayCount": 4
+  },
+  "transportProfile": {
+    "sharedMaxConnsPerHost": 256,
+    "sharedWarmConnectionsPerHost": 144,
+    "teachingMaxConnsPerHost": 128,
+    "teachingWarmConnectionsPerHost": 96,
+    "teachingClientTrace": true,
+    "teachingArchiveCreateBatchSize": 64,
+    "teachingArchiveCreateBatchDelayMs": 0,
+    "teachingArchiveCreateBatchWorkers": 1,
+    "identityMaxConnsPerHost": 64,
+    "identityWarmConnectionsPerHost": 16
+  },
+  "identityIngressProfile": {
+    "enabled": true,
+    "basePort": 18080,
+    "workerCount": 8,
+    "upstreamGatewayCount": 8,
+    "maxConnsPerHost": 64,
+    "warmConnectionsPerHost": 8
+  },
+  "databaseProfile": {
+    "identitySessionDbMaxConns": 32,
+    "identitySessionDbWriteConcurrency": 32,
+    "identitySessionTablePersistence": "unlogged",
+    "conversationDbMaxConns": 32,
+    "teachingDbMaxConns": 12,
+    "teachingDbMinConns": 12,
+    "teachingDbPrewarmConns": 12,
+    "conversationWriteBatchSize": 128,
+    "conversationWriteBatchWorkers": 4,
+    "conversationWriteBatchMode": "insert",
+    "conversationWriteAcceptanceMode": "durable-log",
+    "conversationCommandLogAppendBatchSize": 64,
+    "conversationCommandLogQueueCapacity": 65536,
+    "conversationCommandLogProjectionWorkers": 4,
+    "conversationCommandLogSync": true,
+    "conversationCommandLogSettleTimeoutMs": 30000,
+    "teachingArchiveCreateBatchSize": 64,
+    "teachingArchiveCreateBatchDelayMs": 0,
+    "teachingArchiveCreateBatchWorkers": 1
+  },
+  "runtimeProfile": {
+    "executor": "LOCAL_NODE_ORCHESTRATOR",
+    "managedDocker": false,
+    "dockerCleanup": "none"
+  },
+  "diagnosticsProfile": {
+    "pgbouncerDiagnostics": false,
+    "postgresDiagnostics": false,
+    "pgbouncerPostgresContainer": "ita-identity-session-postgres",
+    "pgbouncerHost": "identity-session-pgbouncer",
+    "pgbouncerPort": 6432,
+    "pgbouncerDatabase": "pgbouncer",
+    "postgresDiagnosticsContainer": "ita-identity-session-postgres",
+    "postgresDiagnosticsHost": "127.0.0.1",
+    "postgresDiagnosticsPort": 5432,
+    "postgresDiagnosticsDatabase": "intelligent_teaching_assistant",
+    "postgresDiagnosticsRelations": null,
+    "postgresDiagnosticsIntervalMs": 1000,
+    "postgresDiagnosticsMaxSamples": 240,
+    "postgresDiagnosticsQueryTimeoutMs": 5000
+  },
+  "conversationBenchmarkRuntimeProfile": {
+    "runtime": "wsl",
+    "executor": "WSL_GO",
+    "dockerImage": null,
+    "dockerHostAlias": null,
+    "wslDistro": "Ubuntu",
+    "wslHostAlias": "172.28.160.1",
+    "wslWorkspace": null
+  },
+  "identityBenchmarkRuntimeProfile": {
+    "runtime": "docker",
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal"
+  },
+  "teachingBenchmarkRuntimeProfile": {
+    "runtime": "docker",
+    "executor": "DOCKER_GO",
+    "dockerImage": "golang:1.26-alpine",
+    "dockerHostAlias": "host.docker.internal",
+    "wslDistro": null,
+    "wslHostAlias": null,
+    "wslWorkspace": null
+  },
+  "workloads": [
+    {
+      "name": "identity_http",
+      "moduleSlice": "Identity And Access",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.identity-http.json",
+      "status": "PASSED",
+      "exitCode": 0,
+      "elapsedMs": 51509,
+      "errors": 0,
+      "p95Ms": 194.09,
+      "p99Ms": 211.87,
+      "rps": 1777.92,
+      "readiness": null,
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "                  \"rotateSession\": {\n                    \"acquireCount\": 0,\n                    \"acquireWaitTimeMs\": 0,\n                    \"canceledAcquireCount\": 0,\n                    \"canceledAcquireWaitTimeMs\": 0,\n                    \"waiting\": 0\n                  },\n                  \"saveSession\": {\n                    \"acquireCount\": 264,\n                    \"acquireWaitTimeMs\": 0.5918,\n                    \"canceledAcquireCount\": 0,\n                    \"canceledAcquireWaitTimeMs\": 0,\n                    \"waiting\": 0\n                  }\n                },\n                \"waiting\": 0\n              }\n            }\n          }\n        ]\n      },\n      \"delta\": {\n        \"pool\": {\n          \"acquireCount\": 1536,\n          \"acquireDurationMs\": 205.53,\n          \"emptyAcquireWaitTimeMs\": 204.2,\n          \"canceledAcquireCount\": 0,\n          \"canceledAcquireWaitTimeMs\": 0\n        },\n        \"writeLimiter\": {\n          \"enabledGateways\": 8,\n          \"configuredLimitTotal\": 256,\n          \"acquireCount\": 1536,\n          \"acquireWaitTimeMs\": 123.05,\n          \"averageAcquireWaitTimeMs\": 0.08,\n          \"operations\": {\n            \"revokeOwnSession\": {\n              \"acquireCount\": 768,\n              \"acquireWaitTimeMs\": 95.48,\n              \"averageAcquireWaitTimeMs\": 0.12\n            },\n            \"saveSession\": {\n              \"acquireCount\": 768,\n              \"acquireWaitTimeMs\": 27.58,\n              \"averageAcquireWaitTimeMs\": 0.04\n            }\n          }\n        },\n        \"sessionOperations\": {\n          \"revokeOwnSession\": {\n            \"count\": 768,\n            \"totalElapsedMs\": 33654.67,\n            \"averageElapsedMs\": 43.82,\n            \"poolAcquireCount\": 768,\n            \"poolAcquireElapsedMs\": 2169.39,\n            \"averagePoolAcquireElapsedMs\": 2.82,\n            \"dbExecuteElapsedMs\": 31477.21,\n            \"averageDbExecuteElapsedMs\": 40.99,\n            \"rowsAffectedCount\": 768,\n            \"rowsAffected\": 768,\n            \"averageRowsAffected\": 1\n          },\n          \"saveSession\": {\n            \"count\": 768,\n            \"totalElapsedMs\": 25256.05,\n            \"averageElapsedMs\": 32.89,\n            \"poolAcquireCount\": 768,\n            \"poolAcquireElapsedMs\": 1982.64,\n            \"averagePoolAcquireElapsedMs\": 2.58,\n            \"dbExecuteElapsedMs\": 23267.49,\n            \"averageDbExecuteElapsedMs\": 30.3,\n            \"rowsAffectedCount\": 768,\n            \"rowsAffected\": 768,\n            \"averageRowsAffected\": 1\n          }\n        }\n      }\n    }\n  }\n}",
+      "summary": {
+        "errors": 0,
+        "p95Ms": 194.09,
+        "p99Ms": 211.87,
+        "rps": 1777.92,
+        "concurrency": 192,
+        "phases": {
+          "passwordLogin": {
+            "errors": 0,
+            "p95Ms": 194.09,
+            "p99Ms": 211.87,
+            "rps": 2291.28,
+            "writeLimiter": {
+              "enabledGateways": 8,
+              "configuredLimitTotal": 256,
+              "acquireCount": 768,
+              "acquireWaitTimeMs": 53.96,
+              "averageAcquireWaitTimeMs": 0.07,
+              "operations": {
+                "saveSession": {
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 53.96,
+                  "averageAcquireWaitTimeMs": 0.07
+                }
+              }
+            },
+            "highestWriteLimiterWaitOperation": "saveSession",
+            "highestWriteLimiterWaitTimeMs": 53.96,
+            "sessionOperations": {
+              "saveSession": {
+                "count": 768,
+                "totalElapsedMs": 46901.35,
+                "averageElapsedMs": 61.07,
+                "poolAcquireCount": 768,
+                "poolAcquireElapsedMs": 13499.04,
+                "averagePoolAcquireElapsedMs": 17.58,
+                "dbExecuteElapsedMs": 33392.76,
+                "averageDbExecuteElapsedMs": 43.48,
+                "rowsAffectedCount": 768,
+                "rowsAffected": 768,
+                "averageRowsAffected": 1
+              }
+            },
+            "slowestSessionOperation": "saveSession",
+            "slowestSessionOperationAverageElapsedMs": 61.07
+          },
+          "principalLookup": {
+            "errors": 0,
+            "p95Ms": 134.43,
+            "p99Ms": 141.71,
+            "rps": 2815.62,
+            "sessionOperations": {
+              "getPrincipalByAccessToken": {
+                "count": 768,
+                "totalElapsedMs": 43012.99,
+                "averageElapsedMs": 56.01,
+                "poolAcquireCount": 768,
+                "poolAcquireElapsedMs": 5731.76,
+                "averagePoolAcquireElapsedMs": 7.46,
+                "dbExecuteElapsedMs": 37273.76,
+                "averageDbExecuteElapsedMs": 48.53
+              }
+            },
+            "slowestSessionOperation": "getPrincipalByAccessToken",
+            "slowestSessionOperationAverageElapsedMs": 56.01
+          },
+          "refreshRotation": {
+            "errors": 0,
+            "p95Ms": 117.41,
+            "p99Ms": 134.11,
+            "rps": 3039.84,
+            "writeLimiter": {
+              "enabledGateways": 8,
+              "configuredLimitTotal": 256,
+              "acquireCount": 768,
+              "acquireWaitTimeMs": 4.06,
+              "averageAcquireWaitTimeMs": 0.01,
+              "operations": {
+                "rotateRefreshSession": {
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 4.06,
+                  "averageAcquireWaitTimeMs": 0.01
+                }
+              }
+            },
+            "highestWriteLimiterWaitOperation": "rotateRefreshSession",
+            "highestWriteLimiterWaitTimeMs": 4.06,
+            "sessionOperations": {
+              "rotateRefreshSession": {
+                "count": 768,
+                "totalElapsedMs": 41287.06,
+                "averageElapsedMs": 53.76,
+                "poolAcquireCount": 768,
+                "poolAcquireElapsedMs": 4497.11,
+                "averagePoolAcquireElapsedMs": 5.86,
+                "dbExecuteElapsedMs": 36782.29,
+                "averageDbExecuteElapsedMs": 47.89
+              }
+            },
+            "slowestSessionOperation": "rotateRefreshSession",
+            "slowestSessionOperationAverageElapsedMs": 53.76
+          },
+          "revokeCycle": {
+            "errors": 0,
+            "p95Ms": 177.21,
+            "p99Ms": 185.07,
+            "rps": 1777.92,
+            "slowestStep": "revoke",
+            "slowestStepP99Ms": 133.21,
+            "stepOperationAttribution": {
+              "login": {
+                "stepP99Ms": 92.21,
+                "stepAvgMs": 42.64,
+                "expectedSessionOperations": [
+                  "saveSession"
+                ],
+                "sessionOperations": {
+                  "saveSession": {
+                    "count": 768,
+                    "totalElapsedMs": 25256.05,
+                    "averageElapsedMs": 32.89,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 1982.64,
+                    "averagePoolAcquireElapsedMs": 2.58,
+                    "dbExecuteElapsedMs": 23267.49,
+                    "averageDbExecuteElapsedMs": 30.3,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  }
+                },
+                "writeLimiterOperations": {
+                  "saveSession": {
+                    "acquireCount": 768,
+                    "acquireWaitTimeMs": 27.58,
+                    "averageAcquireWaitTimeMs": 0.04
+                  }
+                }
+              },
+              "revoke": {
+                "stepP99Ms": 133.21,
+                "stepAvgMs": 52.21,
+                "expectedSessionOperations": [
+                  "revokeOwnSession"
+                ],
+                "sessionOperations": {
+                  "revokeOwnSession": {
+                    "count": 768,
+                    "totalElapsedMs": 33654.67,
+                    "averageElapsedMs": 43.82,
+                    "poolAcquireCount": 768,
+                    "poolAcquireElapsedMs": 2169.39,
+                    "averagePoolAcquireElapsedMs": 2.82,
+                    "dbExecuteElapsedMs": 31477.21,
+                    "averageDbExecuteElapsedMs": 40.99,
+                    "rowsAffectedCount": 768,
+                    "rowsAffected": 768,
+                    "averageRowsAffected": 1
+                  }
+                },
+                "writeLimiterOperations": {
+                  "revokeOwnSession": {
+                    "acquireCount": 768,
+                    "acquireWaitTimeMs": 95.48,
+                    "averageAcquireWaitTimeMs": 0.12
+                  }
+                }
+              },
+              "revokedPrincipalLookup": {
+                "stepP99Ms": 23.52,
+                "stepAvgMs": 6.93,
+                "expectedSessionOperations": [
+                  "getPrincipalByAccessToken"
+                ],
+                "missingSessionOperations": [
+                  "getPrincipalByAccessToken"
+                ]
+              }
+            },
+            "writeLimiter": {
+              "enabledGateways": 8,
+              "configuredLimitTotal": 256,
+              "acquireCount": 1536,
+              "acquireWaitTimeMs": 123.05,
+              "averageAcquireWaitTimeMs": 0.08,
+              "operations": {
+                "revokeOwnSession": {
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 95.48,
+                  "averageAcquireWaitTimeMs": 0.12
+                },
+                "saveSession": {
+                  "acquireCount": 768,
+                  "acquireWaitTimeMs": 27.58,
+                  "averageAcquireWaitTimeMs": 0.04
+                }
+              }
+            },
+            "highestWriteLimiterWaitOperation": "revokeOwnSession",
+            "highestWriteLimiterWaitTimeMs": 95.48,
+            "sessionOperations": {
+              "revokeOwnSession": {
+                "count": 768,
+                "totalElapsedMs": 33654.67,
+                "averageElapsedMs": 43.82,
+                "poolAcquireCount": 768,
+                "poolAcquireElapsedMs": 2169.39,
+                "averagePoolAcquireElapsedMs": 2.82,
+                "dbExecuteElapsedMs": 31477.21,
+                "averageDbExecuteElapsedMs": 40.99,
+                "rowsAffectedCount": 768,
+                "rowsAffected": 768,
+                "averageRowsAffected": 1
+              },
+              "saveSession": {
+                "count": 768,
+                "totalElapsedMs": 25256.05,
+                "averageElapsedMs": 32.89,
+                "poolAcquireCount": 768,
+                "poolAcquireElapsedMs": 1982.64,
+                "averagePoolAcquireElapsedMs": 2.58,
+                "dbExecuteElapsedMs": 23267.49,
+                "averageDbExecuteElapsedMs": 30.3,
+                "rowsAffectedCount": 768,
+                "rowsAffected": 768,
+                "averageRowsAffected": 1
+              }
+            },
+            "slowestSessionOperation": "revokeOwnSession",
+            "slowestSessionOperationAverageElapsedMs": 43.82
+          }
+        },
+        "dominantPhase": "passwordLogin",
+        "dominantPhaseP99Ms": 211.87
+      }
+    },
+    {
+      "name": "conversation_write",
+      "moduleSlice": "Research Conversation Write",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.conversation-write.json",
+      "status": "PASSED",
+      "exitCode": 0,
+      "elapsedMs": 37693,
+      "errors": 0,
+      "p95Ms": 163.84,
+      "p99Ms": 201.55,
+      "rps": 23794.74,
+      "readiness": null,
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "",
+      "summary": {
+        "errors": 0,
+        "p95Ms": 163.84,
+        "p99Ms": 201.55,
+        "rps": 23794.74,
+        "concurrency": 2304,
+        "serverTimingP99Ms": 24.6,
+        "clientServerGapP99Ms": 189.01,
+        "acceptanceMode": "durable-log",
+        "commandAppendP99Ms": 24.52,
+        "projectionEnqueueP99Ms": 0.63,
+        "dbAcquireP99Ms": null,
+        "dbBatchWaitP99Ms": null,
+        "dbInsertP99Ms": null,
+        "benchmarkRuntimeProfile": {
+          "executor": "WSL_GO",
+          "wslDistro": "Ubuntu",
+          "wslHostAlias": "172.28.160.1",
+          "wslWorkspace": "/mnt/c/Users/Administrator/Desktop/Intelligent-Teaching-Research-Assistant-Refactor-Plan",
+          "targetBaseUrls": [
+            "http://172.28.160.1:18400",
+            "http://172.28.160.1:18401",
+            "http://172.28.160.1:18402",
+            "http://172.28.160.1:18403",
+            "http://172.28.160.1:18404",
+            "http://172.28.160.1:18405",
+            "http://172.28.160.1:18406",
+            "http://172.28.160.1:18407",
+            "http://172.28.160.1:18408",
+            "http://172.28.160.1:18409",
+            "http://172.28.160.1:18410",
+            "http://172.28.160.1:18411",
+            "http://172.28.160.1:18412",
+            "http://172.28.160.1:18413",
+            "http://172.28.160.1:18414",
+            "http://172.28.160.1:18415"
+          ]
+        },
+        "gatewayExitCode": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "gatewaySignal": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "runtimeDiagnostics": {
+          "before": {
+            "gatewayCount": 16,
+            "okGateways": 16,
+            "unavailableGateways": 0,
+            "maxCurrentConns": 1,
+            "totalAcceptedConns": 16,
+            "totalEmptyAcquireCount": 0,
+            "totalAcquireWaitTimeMs": 0
+          },
+          "after": {
+            "gatewayCount": 16,
+            "okGateways": 16,
+            "unavailableGateways": 0,
+            "maxCurrentConns": 155,
+            "totalAcceptedConns": 2202,
+            "totalEmptyAcquireCount": 0,
+            "totalAcquireWaitTimeMs": 0
+          }
+        },
+        "databaseDiagnostics": {
+          "before": {
+            "gatewayCount": 16,
+            "okGateways": 16,
+            "unavailableGateways": 0,
+            "maxCurrentConns": null,
+            "totalAcceptedConns": 0,
+            "totalEmptyAcquireCount": 16,
+            "totalAcquireWaitTimeMs": 284.11
+          },
+          "after": {
+            "gatewayCount": 16,
+            "okGateways": 16,
+            "unavailableGateways": 0,
+            "maxCurrentConns": null,
+            "totalAcceptedConns": 0,
+            "totalEmptyAcquireCount": 16,
+            "totalAcquireWaitTimeMs": 284.11
+          }
+        },
+        "commandLogDiagnostics": {
+          "before": {
+            "gatewayCount": 16,
+            "okGateways": 16,
+            "unavailableGateways": 0,
+            "acceptedCommands": 0,
+            "appendErrors": 0,
+            "projectionEnqueued": 0,
+            "projectionSucceeded": 0,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "maxOldestPendingAgeMs": 0
+          },
+          "after": {
+            "gatewayCount": 16,
+            "okGateways": 16,
+            "unavailableGateways": 0,
+            "acceptedCommands": 9216,
+            "appendErrors": 0,
+            "projectionEnqueued": 9216,
+            "projectionSucceeded": 464,
+            "projectionFailed": 0,
+            "queueDepth": 8752,
+            "maxOldestPendingAgeMs": 550.373
+          },
+          "settled": {
+            "gatewayCount": 16,
+            "okGateways": 16,
+            "unavailableGateways": 0,
+            "acceptedCommands": 9216,
+            "appendErrors": 0,
+            "projectionEnqueued": 9216,
+            "projectionSucceeded": 9216,
+            "projectionFailed": 0,
+            "queueDepth": 0,
+            "maxOldestPendingAgeMs": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "teaching_archive",
+      "moduleSlice": "Teaching Archive And Quiz",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.teaching-archive.json",
+      "status": "PASSED",
+      "exitCode": 0,
+      "elapsedMs": 38124,
+      "errors": 0,
+      "p95Ms": 187.75,
+      "p99Ms": 215.22,
+      "rps": 3667.84,
+      "readiness": null,
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "Teaching archive benchmark: PASSED\nConcurrency: 384\nOperations per phase: 1536\nTotal errors: 0\n\nPhase results:\n- createArchiveItem p95=187.75ms p99=215.22ms errors=0\n- createQuizSubmission p95=61.19ms p99=78.73ms errors=0\n- listArchiveItems p95=94.26ms p99=111.49ms errors=0",
+      "summary": {
+        "errors": 0,
+        "p95Ms": 187.75,
+        "p99Ms": 215.22,
+        "rps": 3667.84,
+        "concurrency": 384,
+        "serverTimingP99Ms": 176.71,
+        "handlerP99Ms": 176.71,
+        "preUsecaseP99Ms": 1.19,
+        "appP99Ms": 176.71,
+        "dbBatchWaitP99Ms": 117.97,
+        "dbAcquireP99Ms": 59.28,
+        "dbExecP99Ms": 121.56,
+        "dbQueryP99Ms": 69.93,
+        "dbInsertP99Ms": 121.56,
+        "gatewayWriteProfile": {
+          "archiveCreateBatchingEnabled": true,
+          "archiveCreateBatchSize": 64,
+          "archiveCreateBatchDelayMs": 0,
+          "archiveCreateBatchWorkers": 1,
+          "quizSubmissionBatchingEnabled": true,
+          "quizSubmissionBatchSize": 64,
+          "quizSubmissionBatchDelayMs": 0,
+          "quizSubmissionBatchWorkers": 1
+        },
+        "clientHandlerGapP99Ms": 41.39,
+        "benchmarkRuntimeProfile": {
+          "executor": "DOCKER_GO",
+          "dockerImage": "golang:1.26-alpine",
+          "dockerHostAlias": "host.docker.internal",
+          "targetBaseUrls": [
+            "http://host.docker.internal:18500",
+            "http://host.docker.internal:18501",
+            "http://host.docker.internal:18502",
+            "http://host.docker.internal:18503"
+          ]
+        },
+        "databaseDiagnostics": {
+          "before": {
+            "gatewayCount": 4,
+            "okGateways": 4,
+            "unavailableGateways": 0,
+            "maxTotalConns": 12,
+            "maxAcquiredConns": 0,
+            "maxIdleConns": 12,
+            "totalEmptyAcquireCount": 4,
+            "totalEmptyAcquireWaitTimeMs": 49.28,
+            "totalNewConnsCount": 48
+          },
+          "after": {
+            "gatewayCount": 4,
+            "okGateways": 4,
+            "unavailableGateways": 0,
+            "maxTotalConns": 12,
+            "maxAcquiredConns": 0,
+            "maxIdleConns": 12,
+            "totalEmptyAcquireCount": 1492,
+            "totalEmptyAcquireWaitTimeMs": 66848.31,
+            "totalNewConnsCount": 48
+          }
+        }
+      }
+    },
+    {
+      "name": "knowledge_retrieval",
+      "moduleSlice": "Knowledge Retrieval",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.knowledge-retrieval.json",
+      "status": "READY",
+      "exitCode": 0,
+      "elapsedMs": 153,
+      "errors": 0,
+      "p95Ms": 2.55,
+      "p99Ms": null,
+      "rps": null,
+      "readiness": "READY",
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "Knowledge retrieval benchmark: READY\n\nP95 query plan: 2.55ms\nMax candidates: directory=1 chunk=2\n\nFindings:\n- PASS profile.non_empty_corpus: actual=documents=4 chunks=8 workloads=4 expected=documents>0 chunks>0 workloads>0\n- PASS profile.workload_coverage: actual=nodes=CLOUD,LOCAL,REMOTE_DEVICE classifications=PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED expected=nodes=CLOUD,LOCAL,REMOTE_DEVICE classifications=PUBLIC,PRIVATE,STUDENT_ARCHIVE,REMOTE_DEVICE_OWNED\n- PASS policy.hybrid_enabled: actual=default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true expected=default=HYBRID chunkingRetained=true directoryIntentIndexEnabled=true\n- PASS benchmark.non_empty_hybrid_plans: actual=cloud_public_lesson_design:HYBRID:dir=1:chunk=2:returned=3;local_private_rag_notes:HYBRID:dir=1:chunk=2:returned=3;local_student_archive_tutoring:HYBRID:dir=1:chunk=2:returned=3;remote_owned_research_notes:HYBRID:dir=1:chunk=2:returned=3 expected=every workload HYBRID with directoryCandidates>0 chunkCandidates>0 returnedCandidates>0\n- PASS benchmark.candidate_budget: actual=directory=1 chunk=2 expected=directory<=24 chunk<=80\n- PASS benchmark.p95_budget: actual=2.55ms expected=<=120ms\n- PASS benchmark.no_cross_classification_leakage: actual=none expected=all expected and returned classifications are allowed by node policy",
+      "summary": {
+        "readiness": "READY",
+        "errors": 0,
+        "p95Ms": 2.55
+      }
+    },
+    {
+      "name": "ai_worker_admission",
+      "moduleSlice": "AI Worker Admission",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.ai-worker-admission.json",
+      "status": "READY",
+      "exitCode": 0,
+      "elapsedMs": 141,
+      "errors": 0,
+      "p95Ms": null,
+      "p99Ms": null,
+      "rps": null,
+      "readiness": "READY",
+      "reportPresent": true,
+      "reportParseable": true,
+      "outputTail": "AI Worker job admission: READY\n\nDispatch decision: ALLOW_DISPATCH\n\nFindings:\n- PASS admission.current_jobs_allowed: actual=ai_worker_job_public_rag_cloud_001:ALLOW_DISPATCH;ai_worker_job_private_rag_local_001:ALLOW_DISPATCH;ai_worker_job_student_ocr_local_001:ALLOW_DISPATCH;ai_worker_job_private_finetune_local_001:ALLOW_DISPATCH;ai_worker_job_remote_owned_rag_001:ALLOW_DISPATCH expected=all current AI worker job examples ALLOW_DISPATCH\n- PASS admission.identity_preserved: actual=ai_worker_job_public_rag_cloud_001:CLOUD:RAG_RETRIEVAL;ai_worker_job_private_rag_local_001:LOCAL:RAG_RETRIEVAL;ai_worker_job_student_ocr_local_001:LOCAL:OCR_RECOGNITION;ai_worker_job_private_finetune_local_001:LOCAL:FINE_TUNING;ai_worker_job_remote_owned_rag_001:REMOTE_DEVICE:RAG_RETRIEVAL expected=jobId,nodeType,capabilityKind preserved in every admission\n- PASS admission.policy_version_preserved: actual=2026-05-30.knowledge.access-policy.v1 expected=2026-05-30.knowledge.access-policy.v1\n- PASS admission.no_baseline_runtime_dependency: actual=ai_worker_job_public_rag_cloud_001:baseline=false;ai_worker_job_private_rag_local_001:baseline=false;ai_worker_job_student_ocr_local_001:baseline=false;ai_worker_job_private_finetune_local_001:baseline=false;ai_worker_job_remote_owned_rag_001:baseline=false expected=baselineRuntimeDependencyAllowed=false for every job\n- PASS admission.no_direct_db_write: actual=ai_worker_job_public_rag_cloud_001:directDb=false;ai_worker_job_private_rag_local_001:directDb=false;ai_worker_job_student_ocr_local_001:directDb=false;ai_worker_job_private_finetune_local_001:directDb=false;ai_worker_job_remote_owned_rag_001:directDb=false expected=directMainDatabaseWriteAllowed=false for every job\n- PASS admission.cloud_public_only: actual=ai_worker_job_public_rag_cloud_001:PUBLIC_KNOWLEDGE:student=NONE expected=CLOUD jobs use PUBLIC_KNOWLEDGE with studentDataScope=NONE\n- PASS admission.remote_device_owned_only: actual=ai_worker_job_remote_owned_rag_001:REMOTE_DEVICE_OWNED_KNOWLEDGE:student=NONE expected=REMOTE_DEVICE jobs use REMOTE_DEVICE_OWNED_KNOWLEDGE only",
+      "summary": {
+        "readiness": "READY",
+        "errors": 0
+      }
+    }
+  ],
+  "summary": {
+    "totalErrors": 0,
+    "workloadErrors": 0,
+    "orchestrationErrors": 0,
+    "maxP95Ms": 194.09,
+    "maxP99Ms": 215.22,
+    "passedWorkloads": 5,
+    "failedWorkloads": 0
+  },
+  "setup": [],
+  "cleanup": [],
+  "runnerErrors": [],
+  "sourceCommands": [
+    {
+      "name": "identity_http",
+      "moduleSlice": "Identity And Access",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.identity-http.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-identity-http-benchmark.mjs --base-url http://127.0.0.1:18300 --gateway-count 8 --session-db-max-conns 32 --session-db-write-concurrency 32 --session-db-session-table-persistence unlogged --concurrency 192 --operations 768 --max-conns-per-host 64 --warm-connections-per-host 16 --ingress-proxy true --ingress-port 18080 --ingress-count 8 --ingress-max-conns-per-host 64 --ingress-warm-connections-per-host 8 --benchmark-runtime docker --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --out reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.identity-http.json --timeout 300s --startup-timeout-ms 120000 --pgbouncer-diagnostics false --pgbouncer-postgres-container ita-identity-session-postgres --pgbouncer-host identity-session-pgbouncer --pgbouncer-port 6432 --pgbouncer-user app_user --pgbouncer-database pgbouncer --postgres-diagnostics false --postgres-diagnostics-container ita-identity-session-postgres --postgres-diagnostics-host 127.0.0.1 --postgres-diagnostics-port 5432 --postgres-diagnostics-user app_user --postgres-diagnostics-database intelligent_teaching_assistant --postgres-diagnostics-interval-ms 1000 --postgres-diagnostics-max-samples 240 --postgres-diagnostics-query-timeout-ms 5000"
+    },
+    {
+      "name": "conversation_write",
+      "moduleSlice": "Research Conversation Write",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.conversation-write.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-conversation-write-benchmark.mjs --base-url http://127.0.0.1:18400 --gateway-count 16 --db-max-conns 32 --write-batch-size 128 --write-batch-delay-ms 0 --write-batch-workers 4 --write-batch-mode insert --write-acceptance-mode durable-log --command-log-append-batch-size 64 --command-log-queue-capacity 65536 --command-log-projection-workers 4 --command-log-sync true --command-log-settle-timeout-ms 30000 --benchmark-runtime wsl --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --benchmark-wsl-distro Ubuntu --benchmark-wsl-host 172.28.160.1 --benchmark-wsl-workspace  --agent-api-key *** --concurrency 2304 --operations 9216 --max-conns-per-host 256 --warm-connections-per-host 144 --client-trace false --out reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.conversation-write.json --timeout 300s --startup-timeout-ms 120000 --pgbouncer-diagnostics false --pgbouncer-postgres-container ita-identity-session-postgres --pgbouncer-host identity-session-pgbouncer --pgbouncer-port 6432 --pgbouncer-user app_user --pgbouncer-database pgbouncer --postgres-diagnostics false --postgres-diagnostics-container ita-identity-session-postgres --postgres-diagnostics-host 127.0.0.1 --postgres-diagnostics-port 5432 --postgres-diagnostics-user app_user --postgres-diagnostics-database intelligent_teaching_assistant --postgres-diagnostics-interval-ms 1000 --postgres-diagnostics-max-samples 240 --postgres-diagnostics-query-timeout-ms 5000"
+    },
+    {
+      "name": "teaching_archive",
+      "moduleSlice": "Teaching Archive And Quiz",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.teaching-archive.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/run-teaching-archive-benchmark.mjs --base-url http://127.0.0.1:18500 --gateway-count 4 --db-max-conns 12 --db-min-conns 12 --db-prewarm-conns 12 --agent-api-key *** --concurrency 384 --operations 1536 --benchmark-runtime docker --benchmark-docker-image golang:1.26-alpine --benchmark-docker-host host.docker.internal --benchmark-wsl-distro Ubuntu --benchmark-wsl-host host.docker.internal --benchmark-wsl-workspace  --max-conns-per-host 128 --warm-connections-per-host 96 --client-trace true --archive-create-batch-size 64 --archive-create-batch-delay-ms 0 --archive-create-batch-workers 1 --out reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.teaching-archive.json --timeout 300s --timeout-ms 10000 --startup-timeout-ms 120000 --pgbouncer-diagnostics false --pgbouncer-postgres-container ita-identity-session-postgres --pgbouncer-host identity-session-pgbouncer --pgbouncer-port 6432 --pgbouncer-user app_user --pgbouncer-database pgbouncer --postgres-diagnostics false --postgres-diagnostics-container ita-identity-session-postgres --postgres-diagnostics-host 127.0.0.1 --postgres-diagnostics-port 5432 --postgres-diagnostics-user app_user --postgres-diagnostics-database intelligent_teaching_assistant --postgres-diagnostics-interval-ms 1000 --postgres-diagnostics-max-samples 240 --postgres-diagnostics-query-timeout-ms 5000"
+    },
+    {
+      "name": "knowledge_retrieval",
+      "moduleSlice": "Knowledge Retrieval",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.knowledge-retrieval.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/knowledge-retrieval-benchmark-audit.mjs --out reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.knowledge-retrieval.json"
+    },
+    {
+      "name": "ai_worker_admission",
+      "moduleSlice": "AI Worker Admission",
+      "sourceReportPath": "reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.ai-worker-admission.json",
+      "command": "C:\\Program Files\\nodejs\\node.exe tools/ai-worker-job-admission.mjs --out reports/system-sustained-mixed-workload-scaleup.production10k-conversation-durable-fastlane.1-target-10k.1.ai-worker-admission.json"
+    }
+  ],
+  "errors": 0,
+  "nextAction": "Treat this as mixed workload smoke evidence only; increase duration, concurrency, and root workflow coverage before promoting full-system ultra-concurrency."
+}

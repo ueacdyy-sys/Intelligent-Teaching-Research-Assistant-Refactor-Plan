@@ -10,7 +10,7 @@ import (
 )
 
 type ConversationRepository interface {
-	Create(ctx context.Context, conversation domain.Conversation) error
+	Create(ctx context.Context, conversation domain.Conversation) (CreatePersistenceOutcome, error)
 }
 
 type EventPublisher interface {
@@ -23,6 +23,23 @@ type IDGenerator interface {
 
 type Clock interface {
 	Now() time.Time
+}
+
+type CreatePersistenceStatus string
+
+const (
+	PersistenceStatusPersisted CreatePersistenceStatus = "persisted"
+	PersistenceStatusAccepted  CreatePersistenceStatus = "accepted"
+)
+
+type CreatePersistenceOutcome struct {
+	Status    CreatePersistenceStatus
+	CommandID string
+}
+
+type CreateConversationResult struct {
+	Conversation domain.Conversation
+	Persistence  CreatePersistenceOutcome
 }
 
 type CreateConversation struct {
@@ -49,15 +66,15 @@ func NewCreateConversation(
 func (uc *CreateConversation) Execute(
 	ctx context.Context,
 	input domain.CreateConversationInput,
-) (domain.Conversation, error) {
+) (CreateConversationResult, error) {
 	title, err := domain.NormalizeTitle(input.Title)
 	if err != nil {
-		return domain.Conversation{}, err
+		return CreateConversationResult{}, err
 	}
 
 	id := uc.ids.NewID()
 	if !strings.HasPrefix(id, "conv_") {
-		return domain.Conversation{}, fmt.Errorf("generated conversation id must use conv_ prefix")
+		return CreateConversationResult{}, fmt.Errorf("generated conversation id must use conv_ prefix")
 	}
 
 	now := uc.clock.Now().UTC()
@@ -71,13 +88,33 @@ func (uc *CreateConversation) Execute(
 		Settings:     input.Settings,
 	}
 
-	if err := uc.repository.Create(ctx, conversation); err != nil {
-		return domain.Conversation{}, err
+	persistence, err := uc.repository.Create(ctx, conversation)
+	if err != nil {
+		return CreateConversationResult{}, err
 	}
-	if uc.events != nil {
+	persistence = normalizePersistenceOutcome(persistence)
+	if uc.events != nil && persistence.Status == PersistenceStatusPersisted {
 		if err := uc.events.ConversationCreated(ctx, conversation); err != nil {
-			return domain.Conversation{}, err
+			return CreateConversationResult{}, err
 		}
 	}
-	return conversation, nil
+	return CreateConversationResult{
+		Conversation: conversation,
+		Persistence:  persistence,
+	}, nil
+}
+
+func PersistedOutcome() CreatePersistenceOutcome {
+	return CreatePersistenceOutcome{Status: PersistenceStatusPersisted}
+}
+
+func AcceptedOutcome(commandID string) CreatePersistenceOutcome {
+	return CreatePersistenceOutcome{Status: PersistenceStatusAccepted, CommandID: commandID}
+}
+
+func normalizePersistenceOutcome(outcome CreatePersistenceOutcome) CreatePersistenceOutcome {
+	if outcome.Status == "" {
+		outcome.Status = PersistenceStatusPersisted
+	}
+	return outcome
 }

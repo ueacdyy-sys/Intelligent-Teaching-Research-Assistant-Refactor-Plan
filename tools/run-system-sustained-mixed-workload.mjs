@@ -17,6 +17,7 @@ import {
   defaultSessionTablePersistence,
   normalizeSessionTablePersistence,
 } from "./identity-http-benchmark-session-profile.mjs";
+import { assertConversationFastLaneOptions, conversationFastLaneOptionDefaults, conversationFastLaneProfile } from "./conversation-fast-lane-options.mjs";
 
 const readWriteWorkloadNames = new Set(["identity_http", "conversation_write", "teaching_archive"]);
 
@@ -51,6 +52,7 @@ export const defaults = {
   conversationWriteBatchSize: "8",
   conversationWriteBatchWorkers: mixedDefaults.conversationWriteBatchWorkers,
   conversationWriteBatchMode: mixedDefaults.conversationWriteBatchMode,
+  ...conversationFastLaneOptionDefaults,
   conversationClientTrace: mixedDefaults.conversationClientTrace,
   conversationBenchmarkRuntime: mixedDefaults.conversationBenchmarkRuntime,
   conversationBenchmarkDockerImage: mixedDefaults.conversationBenchmarkDockerImage,
@@ -165,6 +167,12 @@ export function buildSampleRuns(options) {
         conversationWriteBatchSize: options.conversationWriteBatchSize,
         conversationWriteBatchWorkers: options.conversationWriteBatchWorkers,
         conversationWriteBatchMode: options.conversationWriteBatchMode,
+        conversationWriteAcceptanceMode: options.conversationWriteAcceptanceMode,
+        conversationCommandLogAppendBatchSize: options.conversationCommandLogAppendBatchSize,
+        conversationCommandLogQueueCapacity: options.conversationCommandLogQueueCapacity,
+        conversationCommandLogProjectionWorkers: options.conversationCommandLogProjectionWorkers,
+        conversationCommandLogSync: options.conversationCommandLogSync,
+        conversationCommandLogSettleTimeoutMs: options.conversationCommandLogSettleTimeoutMs,
         conversationClientTrace: options.conversationClientTrace,
         conversationBenchmarkRuntime: options.conversationBenchmarkRuntime,
         conversationBenchmarkDockerImage: options.conversationBenchmarkDockerImage,
@@ -326,6 +334,7 @@ export function buildSystemSustainedMixedWorkloadReport({
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
       conversationWriteBatchWorkers: parseInteger(options.conversationWriteBatchWorkers),
       conversationWriteBatchMode: conversationWriteBatchMode(options),
+      ...conversationFastLaneProfile(options),
       teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
       teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
       teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
@@ -538,6 +547,7 @@ function validateOptions(options, sampleRuns) {
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   assertPositiveInteger(options.conversationWriteBatchWorkers, "conversation-write-batch-workers");
   conversationWriteBatchMode(options);
+  assertConversationFastLaneOptions(options);
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options);

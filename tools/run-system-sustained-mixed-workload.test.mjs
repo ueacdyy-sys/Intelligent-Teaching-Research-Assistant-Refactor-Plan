@@ -412,9 +412,14 @@ describe("system sustained mixed workload runner", () => {
     assert.equal(identity.summary.phases.revokeCycle.sessionOperations.revokeOwnSession.averageElapsedMs, 20);
     const conversation = report.samples[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 77);
+    assert.equal(conversation.summary.acceptanceMode, "durable-log");
+    assert.equal(conversation.summary.commandAppendP99Ms, 4);
+    assert.equal(conversation.summary.projectionEnqueueP99Ms, 1);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 12);
     assert.equal(conversation.summary.benchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(conversation.summary.runtimeDiagnostics.after.maxCurrentConns, 33);
+    assert.equal(conversation.summary.commandLogDiagnostics.after.projectionFailed, 0);
+    assert.equal(conversation.summary.commandLogDiagnostics.after.queueDepth, 3);
   });
 });
 
@@ -503,6 +508,9 @@ function conversationSummary() {
     errors: 0,
     rps: 210,
     clientServerGapP99Ms: 77,
+    acceptanceMode: "durable-log",
+    commandAppendP99Ms: 4,
+    projectionEnqueueP99Ms: 1,
     dbBatchWaitP99Ms: 12,
     benchmarkRuntimeProfile: {
       executor: "WSL_GO",
@@ -517,6 +525,16 @@ function conversationSummary() {
         okGateways: 2,
         unavailableGateways: 0,
         maxCurrentConns: 33,
+      },
+    },
+    commandLogDiagnostics: {
+      after: {
+        acceptedCommands: 210,
+        projectionEnqueued: 210,
+        projectionSucceeded: 207,
+        projectionFailed: 0,
+        queueDepth: 3,
+        maxOldestPendingAgeMs: 5,
       },
     },
   };

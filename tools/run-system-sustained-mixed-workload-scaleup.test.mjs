@@ -41,43 +41,7 @@ describe("system sustained mixed workload scale-up runner", () => {
       "target-10k",
     ]);
     assert.equal(targetStep.targetReadWriteRps, 10000);
-    assert.equal(targetStep.options.identityConcurrency, "192");
-    assert.equal(targetStep.options.identityOperations, "768");
-    assert.equal(targetStep.options.conversationConcurrency, "2304");
-    assert.equal(targetStep.options.conversationOperations, "9216");
-    assert.equal(targetStep.options.teachingConcurrency, "384");
-    assert.equal(targetStep.options.teachingOperations, "1536");
-    assert.equal(targetStep.options.identityGatewayCount, "8");
-    assert.equal(targetStep.options.conversationGatewayCount, "16");
-    assert.equal(targetStep.options.teachingGatewayCount, "4");
-    assert.equal(targetStep.options.identitySessionDbMaxConns, "32");
-    assert.equal(targetStep.options.identitySessionDbSessionTablePersistence, "unlogged");
-    assert.equal(targetStep.options.conversationDbMaxConns, "32");
-    assert.equal(targetStep.options.teachingDbMaxConns, "12");
-    assert.equal(targetStep.options.teachingDbMinConns, "12");
-    assert.equal(targetStep.options.teachingDbPrewarmConns, "12");
-    assert.equal(targetStep.options.conversationWriteBatchSize, "128");
-    assert.equal(targetStep.options.conversationWriteBatchWorkers, "4");
-    assert.equal(targetStep.options.conversationWriteBatchMode, "copy");
-    assert.equal(targetStep.options.conversationBenchmarkRuntime, "wsl");
-    assert.equal(targetStep.options.conversationBenchmarkWslHost, "172.28.160.1");
-    assert.equal(targetStep.options.maxConnsPerHost, "256");
-    assert.equal(targetStep.options.warmConnectionsPerHost, "144");
-    assert.equal(targetStep.options.teachingBenchmarkRuntime, "docker");
-    assert.equal(targetStep.options.teachingMaxConnsPerHost, "128");
-    assert.equal(targetStep.options.teachingWarmConnectionsPerHost, "96");
-    assert.equal(targetStep.options.teachingClientTrace, "true");
-    assert.equal(targetStep.options.teachingArchiveCreateBatchSize, "64");
-    assert.equal(targetStep.options.teachingArchiveCreateBatchDelayMs, "0");
-    assert.equal(targetStep.options.teachingArchiveCreateBatchWorkers, "1");
-    assert.equal(targetStep.options.identityIngressProxy, "true");
-    assert.equal(targetStep.options.identityIngressCount, "8");
-    assert.equal(targetStep.options.identityMaxConnsPerHost, "64");
-    assert.equal(targetStep.options.identityWarmConnectionsPerHost, "16");
-    assert.equal(targetStep.options.identityIngressMaxConnsPerHost, "64");
-    assert.equal(targetStep.options.identityIngressWarmConnectionsPerHost, "8");
-    assert.equal(targetStep.options.identityBenchmarkRuntime, "docker");
-    assert.equal(targetStep.options.requireTargetReadWriteRps, "true");
+    assert.deepEqual(pickOptions(targetStep.options, production10kTargetOptions), production10kTargetOptions);
     assert.deepEqual(buildScaleUpSteps(defaults).map((step) => step.name), ["smoke", "low", "medium", "high"]);
   });
 
@@ -562,9 +526,14 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(identity.summary.phases.revokeCycle.slowestSessionOperationAverageElapsedMs, 26);
     const conversation = report.steps[0].workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.clientServerGapP99Ms, 101);
+    assert.equal(conversation.summary.acceptanceMode, "durable-log");
+    assert.equal(conversation.summary.commandAppendP99Ms, 6);
+    assert.equal(conversation.summary.projectionEnqueueP99Ms, 2);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 14);
     assert.equal(conversation.summary.benchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(conversation.summary.runtimeDiagnostics.after.totalAcceptedConns, 240);
+    assert.equal(conversation.summary.commandLogDiagnostics.after.projectionSucceeded, 405);
+    assert.equal(conversation.summary.commandLogDiagnostics.after.queueDepth, 15);
   });
 
   it("blocks a required production target when the target step runs below 10k", () => {
@@ -769,6 +738,9 @@ function conversationSummary(index) {
     errors: 0,
     rps: index === 0 ? 210 : 205,
     clientServerGapP99Ms: index === 0 ? 77 : 101,
+    acceptanceMode: "durable-log",
+    commandAppendP99Ms: index === 0 ? 4 : 6,
+    projectionEnqueueP99Ms: index === 0 ? 1 : 2,
     dbBatchWaitP99Ms: index === 0 ? 12 : 14,
     benchmarkRuntimeProfile: {
       executor: "WSL_GO",
@@ -785,6 +757,16 @@ function conversationSummary(index) {
         totalAcceptedConns: index === 0 ? 120 : 240,
       },
     },
+    commandLogDiagnostics: {
+      after: {
+        acceptedCommands: index === 0 ? 210 : 205,
+        projectionEnqueued: index === 0 ? 210 : 205,
+        projectionSucceeded: index === 0 ? 207 : 198,
+        projectionFailed: 0,
+        queueDepth: index === 0 ? 3 : 12,
+        maxOldestPendingAgeMs: index === 0 ? 5 : 9,
+      },
+    },
   };
 }
 
@@ -795,4 +777,23 @@ function makeTempRoot() {
 function fixedClock() {
   let tick = 0;
   return () => `2026-06-01T00:00:0${tick++}.000Z`;
+}
+
+const production10kTargetOptions = {
+  identityConcurrency: "192", identityOperations: "768", conversationConcurrency: "2304", conversationOperations: "9216",
+  teachingConcurrency: "384", teachingOperations: "1536", identityGatewayCount: "8", conversationGatewayCount: "16",
+  teachingGatewayCount: "4", identitySessionDbMaxConns: "32", identitySessionDbSessionTablePersistence: "unlogged",
+  conversationDbMaxConns: "32", teachingDbMaxConns: "12", teachingDbMinConns: "12", teachingDbPrewarmConns: "12",
+  conversationWriteBatchSize: "128", conversationWriteBatchWorkers: "4", conversationWriteBatchMode: "copy",
+  conversationBenchmarkRuntime: "wsl", conversationBenchmarkWslHost: "172.28.160.1", maxConnsPerHost: "256",
+  warmConnectionsPerHost: "144", teachingBenchmarkRuntime: "docker", teachingMaxConnsPerHost: "128",
+  teachingWarmConnectionsPerHost: "96", teachingClientTrace: "true", teachingArchiveCreateBatchSize: "64",
+  teachingArchiveCreateBatchDelayMs: "0", teachingArchiveCreateBatchWorkers: "1", identityIngressProxy: "true",
+  identityIngressCount: "8", identityMaxConnsPerHost: "64", identityWarmConnectionsPerHost: "16",
+  identityIngressMaxConnsPerHost: "64", identityIngressWarmConnectionsPerHost: "8",
+  identityBenchmarkRuntime: "docker", requireTargetReadWriteRps: "true",
+};
+
+function pickOptions(options, expected) {
+  return Object.fromEntries(Object.keys(expected).map((key) => [key, options[key]]));
 }

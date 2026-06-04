@@ -25,6 +25,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConversationResponse'
+        '202':
+          description: Durable command accepted for asynchronous projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationAcceptedResponse'
         '401':
           description: Invalid or missing API key.
           content:
@@ -92,6 +98,58 @@ components:
             - object
             - 'null'
           additionalProperties: true
+    ConversationAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+        - messageCount
+        - totalTokens
+        - command
+      properties:
+        id:
+          type: string
+          pattern: '^conv_[A-Za-z0-9_-]+$'
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+          minimum: 0
+        totalTokens:
+          type: integer
+          minimum: 0
+        settings:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+        command:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - status
+            - resourceId
+          properties:
+            id:
+              type: string
+              pattern: '^cmd_conv_[A-Za-z0-9_-]+$'
+            status:
+              type: string
+              enum:
+                - accepted
+            resourceId:
+              type: string
+              pattern: '^conv_[A-Za-z0-9_-]+$'
     ErrorResponse:
       type: object
       additionalProperties: false

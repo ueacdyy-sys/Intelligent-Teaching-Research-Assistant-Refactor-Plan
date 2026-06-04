@@ -21,6 +21,7 @@ type Server struct {
 	diagnosticsSecret    string
 	dbPoolStatsProvider  platform.ConversationDBPoolStatsProvider
 	runtimeStatsProvider platform.ConversationRuntimeStatsProvider
+	commandLogProvider   platform.ConversationCommandLogStatsProvider
 }
 
 type ServerConfig struct {
@@ -29,6 +30,7 @@ type ServerConfig struct {
 	DiagnosticsSecret    string
 	DBPoolStatsProvider  platform.ConversationDBPoolStatsProvider
 	RuntimeStatsProvider platform.ConversationRuntimeStatsProvider
+	CommandLogProvider   platform.ConversationCommandLogStatsProvider
 }
 
 type createConversationRequest struct {
@@ -44,6 +46,23 @@ type conversationResponse struct {
 	MessageCount int             `json:"messageCount"`
 	TotalTokens  int             `json:"totalTokens"`
 	Settings     json.RawMessage `json:"settings,omitempty"`
+}
+
+type conversationAcceptedResponse struct {
+	ID           string          `json:"id"`
+	Title        string          `json:"title"`
+	CreatedAt    string          `json:"createdAt"`
+	UpdatedAt    string          `json:"updatedAt"`
+	MessageCount int             `json:"messageCount"`
+	TotalTokens  int             `json:"totalTokens"`
+	Settings     json.RawMessage `json:"settings,omitempty"`
+	Command      commandResponse `json:"command"`
+}
+
+type commandResponse struct {
+	ID         string `json:"id"`
+	Status     string `json:"status"`
+	ResourceID string `json:"resourceId"`
 }
 
 type errorResponse struct {
@@ -69,6 +88,7 @@ func NewServerWithConfig(config ServerConfig) *Server {
 		diagnosticsSecret:    config.DiagnosticsSecret,
 		dbPoolStatsProvider:  config.DBPoolStatsProvider,
 		runtimeStatsProvider: config.RuntimeStatsProvider,
+		commandLogProvider:   config.CommandLogProvider,
 	}
 }
 
@@ -77,6 +97,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/internal/conversation/db-pool", s.dbPoolDiagnostics)
 	mux.HandleFunc("/internal/conversation/runtime", s.runtimeDiagnostics)
+	mux.HandleFunc("/internal/conversation/command-log", s.commandLogDiagnostics)
 	mux.HandleFunc("/v1/research/conversations", s.create)
 	return mux
 }
@@ -125,6 +146,26 @@ func (s *Server) runtimeDiagnostics(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) commandLogDiagnostics(w http.ResponseWriter, r *http.Request) {
+	if s.commandLogProvider == nil {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "diagnostics unavailable")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	if !constantTimeEquals(r.Header.Get("X-Internal-Diagnostics-Secret"), s.diagnosticsSecret) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid diagnostics secret")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "ok",
+		"service": "conversation-write-gateway",
+		"stats":   s.commandLogProvider.ConversationCommandLogStats(),
+	})
+}
+
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -151,7 +192,7 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	timing := &platform.ConversationTiming{}
 	ctx := platform.WithConversationTiming(r.Context(), timing)
 	start := time.Now()
-	conversation, err := s.createConversation.Execute(ctx, domain.CreateConversationInput{
+	result, err := s.createConversation.Execute(ctx, domain.CreateConversationInput{
 		Title:    request.Title,
 		Settings: settings,
 	})
@@ -165,7 +206,13 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, toResponse(conversation))
+	if result.Persistence.Status == usecase.PersistenceStatusAccepted {
+		w.Header().Set("X-Conversation-Write-Acceptance", "durable-log")
+		writeJSON(w, http.StatusAccepted, toAcceptedResponse(result))
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, toResponse(result.Conversation))
 }
 
 func (s *Server) authorized(r *http.Request) bool {
@@ -206,6 +253,24 @@ func toResponse(conversation domain.Conversation) conversationResponse {
 	}
 }
 
+func toAcceptedResponse(result usecase.CreateConversationResult) conversationAcceptedResponse {
+	conversation := result.Conversation
+	return conversationAcceptedResponse{
+		ID:           conversation.ID,
+		Title:        conversation.Title,
+		CreatedAt:    formatTime(conversation.CreatedAt),
+		UpdatedAt:    formatTime(conversation.UpdatedAt),
+		MessageCount: conversation.MessageCount,
+		TotalTokens:  conversation.TotalTokens,
+		Settings:     conversation.Settings.JSON(),
+		Command: commandResponse{
+			ID:         result.Persistence.CommandID,
+			Status:     string(result.Persistence.Status),
+			ResourceID: conversation.ID,
+		},
+	}
+}
+
 func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
 }
@@ -221,6 +286,12 @@ func writeServerTiming(w http.ResponseWriter, duration time.Duration, timing *pl
 		}
 		if timing.DBInsert > 0 {
 			metrics = append(metrics, "db.insert;dur="+formatServerTimingDuration(timing.DBInsert))
+		}
+		if timing.CommandAppend > 0 {
+			metrics = append(metrics, "command.append;dur="+formatServerTimingDuration(timing.CommandAppend))
+		}
+		if timing.ProjectionEnqueue > 0 {
+			metrics = append(metrics, "projection.enqueue;dur="+formatServerTimingDuration(timing.ProjectionEnqueue))
 		}
 	}
 	w.Header().Set("Server-Timing", strings.Join(metrics, ", "))

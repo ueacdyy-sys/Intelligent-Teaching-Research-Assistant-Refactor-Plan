@@ -8,15 +8,9 @@ import { defaultSessionTablePersistence, normalizeSessionTablePersistence } from
 import { mergeSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 import { assertProductionTargetPressure as assertProductionTargetPressureProfile } from "./system-production-target-pressure-profile.mjs";
 import { buildThroughputTargetNextAction, resolveTargetReadWriteRps, summarizeThroughputTarget, targetBearingSteps } from "./system-throughput-target-profile.mjs";
-
-const standardScaleSteps = "smoke:2:4:8:16:2:4,low:4:8:16:32:4:8,medium:8:16:32:64:8:16,high:16:32:64:128:16:32";
-const production10kScaleSteps = [
-  standardScaleSteps,
-  "target-3k:48:192:512:2048:96:384:3000",
-  "target-5k:80:320:1024:4096:160:640:5000",
-  "target-8k:128:512:1536:6144:256:1024:8000",
-  "target-10k:192:768:2304:9216:384:1536:10000",
-].join(",");
+import { mergeCommandLogDiagnostics } from "./conversation-command-log-summary.mjs";
+import { assertConversationFastLaneOptions, conversationFastLaneOptionDefaults, conversationFastLaneProfile } from "./conversation-fast-lane-options.mjs";
+import { normalizeScaleProfile, scaleProfileDefaults, scaleProfileNames, standardScaleSteps } from "./system-sustained-scaleup-profiles.mjs";
 
 export const defaults = {
   out: "reports/system-sustained-mixed-workload-scaleup.current.json",
@@ -47,6 +41,7 @@ export const defaults = {
   conversationWriteBatchSize: "8",
   conversationWriteBatchWorkers: sustainedDefaults.conversationWriteBatchWorkers,
   conversationWriteBatchMode: sustainedDefaults.conversationWriteBatchMode,
+  ...conversationFastLaneOptionDefaults,
   conversationClientTrace: sustainedDefaults.conversationClientTrace,
   conversationBenchmarkRuntime: sustainedDefaults.conversationBenchmarkRuntime,
   conversationBenchmarkDockerImage: sustainedDefaults.conversationBenchmarkDockerImage,
@@ -99,47 +94,6 @@ export const defaults = {
   postgresDiagnosticsIntervalMs: sustainedDefaults.postgresDiagnosticsIntervalMs,
   postgresDiagnosticsMaxSamples: sustainedDefaults.postgresDiagnosticsMaxSamples,
   postgresDiagnosticsQueryTimeoutMs: sustainedDefaults.postgresDiagnosticsQueryTimeoutMs,
-};
-
-export const scaleProfileDefaults = {
-  standard: {},
-  production10k: {
-    steps: production10kScaleSteps,
-    targetReadWriteRps: "10000",
-    requireTargetReadWriteRps: "true",
-    identityGatewayCount: "8",
-    conversationGatewayCount: "16",
-    teachingGatewayCount: "4",
-    identitySessionDbMaxConns: "32",
-    identitySessionDbWriteConcurrency: "32",
-    identitySessionDbSessionTablePersistence: "unlogged",
-    conversationDbMaxConns: "32",
-    teachingDbMaxConns: "12",
-    teachingDbMinConns: "12",
-    teachingDbPrewarmConns: "12",
-    conversationWriteBatchSize: "128",
-    conversationWriteBatchWorkers: "4",
-    conversationWriteBatchMode: "copy",
-    conversationClientTrace: "false",
-    conversationBenchmarkRuntime: "wsl",
-    conversationBenchmarkWslHost: "172.28.160.1",
-    maxConnsPerHost: "256",
-    warmConnectionsPerHost: "144",
-    teachingBenchmarkRuntime: "docker",
-    teachingMaxConnsPerHost: "128",
-    teachingWarmConnectionsPerHost: "96",
-    teachingClientTrace: "true",
-    teachingArchiveCreateBatchSize: "64",
-    teachingArchiveCreateBatchDelayMs: "0",
-    teachingArchiveCreateBatchWorkers: "1",
-    identityMaxConnsPerHost: "64",
-    identityWarmConnectionsPerHost: "16",
-    identityIngressProxy: "true",
-    identityIngressCount: "8",
-    identityIngressMaxConnsPerHost: "64",
-    identityIngressWarmConnectionsPerHost: "8",
-    identityBenchmarkRuntime: "docker",
-  },
 };
 
 export function parseArgs(argv) {
@@ -207,6 +161,12 @@ export function buildScaleUpSteps(options) {
         conversationWriteBatchSize: options.conversationWriteBatchSize,
         conversationWriteBatchWorkers: options.conversationWriteBatchWorkers,
         conversationWriteBatchMode: options.conversationWriteBatchMode,
+        conversationWriteAcceptanceMode: options.conversationWriteAcceptanceMode,
+        conversationCommandLogAppendBatchSize: options.conversationCommandLogAppendBatchSize,
+        conversationCommandLogQueueCapacity: options.conversationCommandLogQueueCapacity,
+        conversationCommandLogProjectionWorkers: options.conversationCommandLogProjectionWorkers,
+        conversationCommandLogSync: options.conversationCommandLogSync,
+        conversationCommandLogSettleTimeoutMs: options.conversationCommandLogSettleTimeoutMs,
         conversationClientTrace: options.conversationClientTrace,
         conversationBenchmarkRuntime: options.conversationBenchmarkRuntime,
         conversationBenchmarkDockerImage: options.conversationBenchmarkDockerImage,
@@ -380,6 +340,7 @@ export function buildSystemSustainedMixedWorkloadScaleUpReport({
       conversationWriteBatchSize: parseInteger(options.conversationWriteBatchSize),
       conversationWriteBatchWorkers: parseInteger(options.conversationWriteBatchWorkers),
       conversationWriteBatchMode: conversationWriteBatchMode(options),
+      ...conversationFastLaneProfile(options),
       teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
       teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
       teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
@@ -575,12 +536,19 @@ function mergeWorkloadSummary(left, right) {
       numberOrNull(left.clientServerGapP99Ms),
       numberOrNull(right.clientServerGapP99Ms),
     ),
+    acceptanceMode: right.acceptanceMode ?? left.acceptanceMode,
+    commandAppendP99Ms: maxNullable(numberOrNull(left.commandAppendP99Ms), numberOrNull(right.commandAppendP99Ms)),
+    projectionEnqueueP99Ms: maxNullable(
+      numberOrNull(left.projectionEnqueueP99Ms),
+      numberOrNull(right.projectionEnqueueP99Ms),
+    ),
     dbAcquireP99Ms: maxNullable(numberOrNull(left.dbAcquireP99Ms), numberOrNull(right.dbAcquireP99Ms)),
     dbBatchWaitP99Ms: maxNullable(numberOrNull(left.dbBatchWaitP99Ms), numberOrNull(right.dbBatchWaitP99Ms)),
     dbExecP99Ms: maxNullable(numberOrNull(left.dbExecP99Ms), numberOrNull(right.dbExecP99Ms)),
     dbInsertP99Ms: maxNullable(numberOrNull(left.dbInsertP99Ms), numberOrNull(right.dbInsertP99Ms)),
     runtimeDiagnostics: right.runtimeDiagnostics ?? left.runtimeDiagnostics,
     databaseDiagnostics: right.databaseDiagnostics ?? left.databaseDiagnostics,
+    commandLogDiagnostics: mergeCommandLogDiagnostics(left.commandLogDiagnostics, right.commandLogDiagnostics),
     gatewayExitCode: right.gatewayExitCode ?? left.gatewayExitCode,
     gatewaySignal: right.gatewaySignal ?? left.gatewaySignal,
   };
@@ -701,6 +669,7 @@ function validateOptions(options, steps) {
   assertPositiveInteger(options.conversationWriteBatchSize, "conversation-write-batch-size");
   assertPositiveInteger(options.conversationWriteBatchWorkers, "conversation-write-batch-workers");
   conversationWriteBatchMode(options);
+  assertConversationFastLaneOptions(options);
   buildSustainedMixedWorkloadConversationBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadIdentityBenchmarkRuntimeProfile(options);
   buildSustainedMixedWorkloadTeachingBenchmarkRuntimeProfile(options);
@@ -760,13 +729,8 @@ function sanitizeStepName(value) {
 function assertKnownScaleProfile(value) {
   const scaleProfile = normalizeScaleProfile(value);
   if (!Object.hasOwn(scaleProfileDefaults, scaleProfile)) {
-    throw new Error(`scale-profile must be one of ${Object.keys(scaleProfileDefaults).join(",")}`);
+    throw new Error(`scale-profile must be one of ${scaleProfileNames().join(",")}`);
   }
-}
-
-function normalizeScaleProfile(value) {
-  const normalized = String(value ?? "standard").trim().toLowerCase().replace(/[^a-z0-9]/gu, "");
-  return normalized || "standard";
 }
 
 function identitySessionTablePersistence(options) {

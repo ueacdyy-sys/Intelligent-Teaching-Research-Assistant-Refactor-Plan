@@ -97,6 +97,9 @@ function conversationReport() {
     },
     gatewayExitCode: [null, null],
     gatewaySignal: [null, null],
+    gatewayWriteProfile: {
+      acceptanceMode: "durable-log",
+    },
     gatewayRuntimeDiagnostics: {
       before: {
         gateways: [
@@ -119,6 +122,14 @@ function conversationReport() {
         ],
       },
     },
+    gatewayCommandLogDiagnostics: {
+      after: {
+        gateways: [
+          { status: "OK", stats: { acceptedCommands: 512, projectionEnqueued: 512, projectionSucceeded: 500, projectionFailed: 0, queueDepth: 12, oldestPendingAgeMs: 8 } },
+          { status: "OK", stats: { acceptedCommands: 512, projectionEnqueued: 512, projectionSucceeded: 506, projectionFailed: 0, queueDepth: 6, oldestPendingAgeMs: 5 } },
+        ],
+      },
+    },
     phases: {
       createConversation: {
         errors: 0,
@@ -130,6 +141,8 @@ function conversationReport() {
           "db.acquire": { p99: 0.3 },
           "db.batch_wait": { p99: 12.5 },
           "db.insert": { p99: 15.2 },
+          "command.append": { p99: 4.4 },
+          "projection.enqueue": { p99: 0.6 },
         },
       },
     },

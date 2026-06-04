@@ -90,7 +90,7 @@ func TestRepositoryCreateUsesExecutorPortAndJSONBSettings(t *testing.T) {
 	createdAt := time.Date(2026, 5, 31, 8, 0, 0, 0, time.UTC)
 	rawSettings := `{"fusionMode":"balanced","nested":{"strategy":"fast"}}`
 
-	err := repository.Create(context.Background(), domain.Conversation{
+	_, err := repository.Create(context.Background(), domain.Conversation{
 		ID:           "conv_test",
 		Title:        "Research",
 		CreatedAt:    createdAt,
@@ -121,7 +121,7 @@ func TestRepositoryCreateRecordsDatabaseTimings(t *testing.T) {
 	ctx := platform.WithConversationTiming(context.Background(), timing)
 	createdAt := time.Date(2026, 5, 31, 8, 0, 0, 0, time.UTC)
 
-	err := repository.Create(ctx, domain.Conversation{
+	_, err := repository.Create(ctx, domain.Conversation{
 		ID:        "conv_test",
 		Title:     "Research",
 		CreatedAt: createdAt,
@@ -155,7 +155,8 @@ func TestBatchingRepositoryGroupsConcurrentCreatesIntoSingleInsert(t *testing.T)
 		go func() {
 			<-start
 			ctx := platform.WithConversationTiming(context.Background(), timings[index])
-			errs <- repository.Create(ctx, testConversation(index))
+			_, err := repository.Create(ctx, testConversation(index))
+			errs <- err
 		}()
 	}
 	close(start)
@@ -211,7 +212,8 @@ func TestBatchingRepositoryReturnsInsertErrorToWholeBatch(t *testing.T) {
 		index := index
 		go func() {
 			<-start
-			errs <- repository.Create(context.Background(), testConversation(index))
+			_, err := repository.Create(context.Background(), testConversation(index))
+			errs <- err
 		}()
 	}
 	close(start)
@@ -240,7 +242,8 @@ func TestBatchingRepositoryCopyModeUsesCopyFromForWholeBatch(t *testing.T) {
 		go func() {
 			<-start
 			ctx := platform.WithConversationTiming(context.Background(), timings[index])
-			errs <- repository.Create(ctx, testConversation(index))
+			_, err := repository.Create(ctx, testConversation(index))
+			errs <- err
 		}()
 	}
 	close(start)
@@ -305,7 +308,8 @@ func TestBatchingRepositoryCopyModeReturnsCopyErrorToWholeBatch(t *testing.T) {
 		index := index
 		go func() {
 			<-start
-			errs <- repository.Create(context.Background(), testConversation(index))
+			_, err := repository.Create(context.Background(), testConversation(index))
+			errs <- err
 		}()
 	}
 	close(start)
@@ -327,7 +331,8 @@ func TestBatchingRepositorySkipsCanceledRequestBeforeFlush(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	firstErr := make(chan error, 1)
 	go func() {
-		firstErr <- repository.Create(ctx, testConversation(1))
+		_, err := repository.Create(ctx, testConversation(1))
+		firstErr <- err
 	}()
 
 	time.Sleep(10 * time.Millisecond)
@@ -335,7 +340,8 @@ func TestBatchingRepositorySkipsCanceledRequestBeforeFlush(t *testing.T) {
 
 	secondErr := make(chan error, 1)
 	go func() {
-		secondErr <- repository.Create(context.Background(), testConversation(2))
+		_, err := repository.Create(context.Background(), testConversation(2))
+		secondErr <- err
 	}()
 	if err := <-firstErr; !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled Create() error = %v want context.Canceled", err)
@@ -364,7 +370,8 @@ func TestBatchingRepositoryCloseFlushesQueuedRequest(t *testing.T) {
 
 	errs := make(chan error, 1)
 	go func() {
-		errs <- repository.Create(context.Background(), testConversation(3))
+		_, err := repository.Create(context.Background(), testConversation(3))
+		errs <- err
 	}()
 
 	time.Sleep(10 * time.Millisecond)
@@ -392,7 +399,7 @@ func TestBatchingRepositoryCreateAfterCloseReturnsClosedError(t *testing.T) {
 	})
 	repository.Close()
 
-	err := repository.Create(context.Background(), testConversation(4))
+	_, err := repository.Create(context.Background(), testConversation(4))
 	if !errors.Is(err, postgres.ErrConversationRepositoryClosed) {
 		t.Fatalf("Create() error = %v want %v", err, postgres.ErrConversationRepositoryClosed)
 	}
@@ -414,7 +421,8 @@ func TestBatchingRepositoryCloseUnblocksCreateWaitingForQueueSpace(t *testing.T)
 	for index := 0; index < 2; index++ {
 		index := index
 		go func() {
-			accepted <- repository.Create(context.Background(), testConversation(index))
+			_, err := repository.Create(context.Background(), testConversation(index))
+			accepted <- err
 		}()
 	}
 	waitForSignal(t, execStarted, "first batch insert")
@@ -422,14 +430,16 @@ func TestBatchingRepositoryCloseUnblocksCreateWaitingForQueueSpace(t *testing.T)
 	for index := 2; index < 10; index++ {
 		index := index
 		go func() {
-			accepted <- repository.Create(context.Background(), testConversation(index))
+			_, err := repository.Create(context.Background(), testConversation(index))
+			accepted <- err
 		}()
 	}
 	time.Sleep(10 * time.Millisecond)
 
 	blockedErr := make(chan error, 1)
 	go func() {
-		blockedErr <- repository.Create(context.Background(), testConversation(10))
+		_, err := repository.Create(context.Background(), testConversation(10))
+		blockedErr <- err
 	}()
 	time.Sleep(10 * time.Millisecond)
 
@@ -471,7 +481,8 @@ func TestBatchingRepositoryZeroDelayFlushesSparseCreateWithoutWaitingForMaxSize(
 
 	errs := make(chan error, 1)
 	go func() {
-		errs <- repository.Create(context.Background(), testConversation(11))
+		_, err := repository.Create(context.Background(), testConversation(11))
+		errs <- err
 	}()
 
 	select {

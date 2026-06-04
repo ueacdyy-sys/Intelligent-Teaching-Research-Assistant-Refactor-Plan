@@ -167,8 +167,46 @@ func TestConversationRuntimeDiagnosticsReturnsRuntimeStats(t *testing.T) {
 	}
 }
 
+func TestConversationCommandLogDiagnosticsReturnsStats(t *testing.T) {
+	handler := newCommandLogDiagnosticsTestHandler(fakeCommandLogStatsProvider{})
+	request := httptest.NewRequest(http.MethodGet, "/internal/conversation/command-log", nil)
+	request.Header.Set("X-Internal-Diagnostics-Secret", "ueacd")
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var body struct {
+		Status  string `json:"status"`
+		Service string `json:"service"`
+		Stats   struct {
+			AcceptedCommands    int64 `json:"acceptedCommands"`
+			ProjectionSucceeded int64 `json:"projectionSucceeded"`
+			QueueDepth          int   `json:"queueDepth"`
+			QueueCapacity       int   `json:"queueCapacity"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response JSON: %v", err)
+	}
+	if body.Status != "ok" || body.Service != "conversation-write-gateway" {
+		t.Fatalf("diagnostics identity = %#v", body)
+	}
+	if body.Stats.AcceptedCommands != 9 || body.Stats.ProjectionSucceeded != 7 {
+		t.Fatalf("command totals = %#v", body.Stats)
+	}
+	if body.Stats.QueueDepth != 2 || body.Stats.QueueCapacity != 64 {
+		t.Fatalf("queue stats = %#v", body.Stats)
+	}
+	if strings.Contains(response.Body.String(), "ueacd") {
+		t.Fatalf("diagnostics leaked secret: %s", response.Body.String())
+	}
+}
+
 func TestCreateConversationReturnsCreatedResponse(t *testing.T) {
-	handler, repo := newTestHandlerWithRepository()
+	handler, repo := newTestHandlerWithRepository(&fakeRepository{})
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/v1/research/conversations",
@@ -210,6 +248,49 @@ func TestCreateConversationReturnsCreatedResponse(t *testing.T) {
 	}
 	if string(repo.created.Settings.JSON()) != `{"fusionMode":"balanced"}` {
 		t.Fatalf("persisted settings = %s", repo.created.Settings.JSON())
+	}
+}
+
+func TestCreateConversationReturnsAcceptedResponseForDurableCommand(t *testing.T) {
+	handler, _ := newTestHandlerWithRepository(&fakeRepository{
+		outcome: usecase.AcceptedOutcome("cmd_conv_http"),
+	})
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/research/conversations",
+		bytes.NewBufferString(`{"title":"Research"}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if response.Header().Get("X-Conversation-Write-Acceptance") != "durable-log" {
+		t.Fatalf("acceptance header = %q", response.Header().Get("X-Conversation-Write-Acceptance"))
+	}
+	if timing := response.Header().Get("Server-Timing"); !strings.HasPrefix(timing, "app;dur=") {
+		t.Fatalf("Server-Timing = %q, want app duration", timing)
+	}
+
+	var body struct {
+		ID      string `json:"id"`
+		Command struct {
+			ID         string `json:"id"`
+			Status     string `json:"status"`
+			ResourceID string `json:"resourceId"`
+		} `json:"command"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response JSON: %v", err)
+	}
+	if body.ID != "conv_http" || body.Command.ResourceID != "conv_http" {
+		t.Fatalf("accepted body = %#v", body)
+	}
+	if body.Command.ID != "cmd_conv_http" || body.Command.Status != "accepted" {
+		t.Fatalf("command = %#v", body.Command)
 	}
 }
 
@@ -270,12 +351,11 @@ func TestCreateConversationRejectsNonObjectSettings(t *testing.T) {
 }
 
 func newTestHandler() http.Handler {
-	handler, _ := newTestHandlerWithRepository()
+	handler, _ := newTestHandlerWithRepository(&fakeRepository{})
 	return handler
 }
 
-func newTestHandlerWithRepository() (http.Handler, *fakeRepository) {
-	repo := &fakeRepository{}
+func newTestHandlerWithRepository(repo *fakeRepository) (http.Handler, *fakeRepository) {
 	uc := usecase.NewCreateConversation(
 		repo,
 		nil,
@@ -291,6 +371,10 @@ func newDiagnosticsTestHandler(provider platform.ConversationDBPoolStatsProvider
 
 func newRuntimeDiagnosticsTestHandler(provider platform.ConversationRuntimeStatsProvider) http.Handler {
 	return newDiagnosticsTestHandlerWithProviders(nil, provider)
+}
+
+func newCommandLogDiagnosticsTestHandler(provider platform.ConversationCommandLogStatsProvider) http.Handler {
+	return newDiagnosticsTestHandlerWithCommandLogProvider(provider)
 }
 
 func newDiagnosticsTestHandlerWithProviders(
@@ -313,17 +397,37 @@ func newDiagnosticsTestHandlerWithProviders(
 	}).Handler()
 }
 
-type fakeRepository struct {
-	created domain.Conversation
+func newDiagnosticsTestHandlerWithCommandLogProvider(commandLogProvider platform.ConversationCommandLogStatsProvider) http.Handler {
+	repo := &fakeRepository{}
+	uc := usecase.NewCreateConversation(
+		repo,
+		nil,
+		fixedIDs{id: "conv_http"},
+		fixedClock{now: time.Date(2026, 5, 28, 8, 0, 0, 0, time.UTC)},
+	)
+	return httpapi.NewServerWithConfig(httpapi.ServerConfig{
+		CreateConversation: uc,
+		AgentAPIKey:        "ueacd",
+		DiagnosticsSecret:  "ueacd",
+		CommandLogProvider: commandLogProvider,
+	}).Handler()
 }
 
-func (f *fakeRepository) Create(ctx context.Context, conversation domain.Conversation) error {
+type fakeRepository struct {
+	created domain.Conversation
+	outcome usecase.CreatePersistenceOutcome
+}
+
+func (f *fakeRepository) Create(ctx context.Context, conversation domain.Conversation) (usecase.CreatePersistenceOutcome, error) {
 	f.created = conversation
 	if timing := platform.ConversationTimingFromContext(ctx); timing != nil {
 		timing.DBAcquire = time.Millisecond
 		timing.DBInsert = 2 * time.Millisecond
 	}
-	return nil
+	if f.outcome.Status != "" {
+		return f.outcome, nil
+	}
+	return usecase.PersistedOutcome(), nil
 }
 
 type fixedIDs struct {
@@ -371,5 +475,16 @@ func (fakeRuntimeStatsProvider) ConversationRuntimeStats() platform.Conversation
 		IdleConns:       3,
 		HijackedConns:   1,
 		ClosedConns:     13,
+	}
+}
+
+type fakeCommandLogStatsProvider struct{}
+
+func (fakeCommandLogStatsProvider) ConversationCommandLogStats() platform.ConversationCommandLogStats {
+	return platform.ConversationCommandLogStats{
+		AcceptedCommands:    9,
+		ProjectionSucceeded: 7,
+		QueueDepth:          2,
+		QueueCapacity:       64,
 	}
 }

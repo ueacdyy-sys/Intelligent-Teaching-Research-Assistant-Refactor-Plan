@@ -115,11 +115,15 @@ func TestConversationRepositoryFromConfigDisablesBatchingByDefault(t *testing.T)
 	t.Setenv("CONVERSATION_WRITE_BATCH_DELAY_MS", "")
 	t.Setenv("CONVERSATION_WRITE_BATCH_WORKERS", "")
 	t.Setenv("CONVERSATION_WRITE_BATCH_MODE", "")
+	t.Setenv("CONVERSATION_WRITE_ACCEPTANCE_MODE", "")
 
-	repository := conversationRepositoryFromConfig(fakeConfigDB{})
+	bundle := conversationRepositoryFromConfig(fakeConfigDB{})
 
-	if _, ok := repository.(*postgres.ConversationRepository); !ok {
-		t.Fatalf("repository type = %T want *postgres.ConversationRepository", repository)
+	if _, ok := bundle.Repository.(*postgres.ConversationRepository); !ok {
+		t.Fatalf("repository type = %T want *postgres.ConversationRepository", bundle.Repository)
+	}
+	if bundle.CommandLogProvider != nil {
+		t.Fatalf("command log provider = %T want nil", bundle.CommandLogProvider)
 	}
 }
 
@@ -128,12 +132,13 @@ func TestConversationRepositoryFromConfigEnablesBatchingOnlyAboveOne(t *testing.
 	t.Setenv("CONVERSATION_WRITE_BATCH_DELAY_MS", "2")
 	t.Setenv("CONVERSATION_WRITE_BATCH_WORKERS", "3")
 	t.Setenv("CONVERSATION_WRITE_BATCH_MODE", "copy")
+	t.Setenv("CONVERSATION_WRITE_ACCEPTANCE_MODE", "")
 
-	repository := conversationRepositoryFromConfig(fakeConfigDB{})
+	bundle := conversationRepositoryFromConfig(fakeConfigDB{})
 
-	batchingRepository, ok := repository.(*postgres.BatchingConversationRepository)
+	batchingRepository, ok := bundle.Repository.(*postgres.BatchingConversationRepository)
 	if !ok {
-		t.Fatalf("repository type = %T want *postgres.BatchingConversationRepository", repository)
+		t.Fatalf("repository type = %T want *postgres.BatchingConversationRepository", bundle.Repository)
 	}
 	defer batchingRepository.Close()
 	if batchingRepository.WorkerCount() != 3 {
@@ -141,6 +146,26 @@ func TestConversationRepositoryFromConfigEnablesBatchingOnlyAboveOne(t *testing.
 	}
 	if batchingRepository.WriteMode() != postgres.BatchWriteModeCopy {
 		t.Fatalf("batch mode = %q want copy", batchingRepository.WriteMode())
+	}
+}
+
+func TestConversationRepositoryFromConfigEnablesDurableCommandLog(t *testing.T) {
+	t.Setenv("CONVERSATION_WRITE_ACCEPTANCE_MODE", "durable-log")
+	t.Setenv("CONVERSATION_COMMAND_LOG_PATH", t.TempDir()+"/conversation-commands.jsonl")
+	t.Setenv("CONVERSATION_COMMAND_LOG_SYNC", "false")
+	t.Setenv("CONVERSATION_COMMAND_LOG_APPEND_BATCH_SIZE", "4")
+	t.Setenv("CONVERSATION_COMMAND_LOG_QUEUE_CAPACITY", "16")
+	t.Setenv("CONVERSATION_COMMAND_LOG_PROJECTION_WORKERS", "1")
+
+	bundle := conversationRepositoryFromConfig(fakeConfigDB{})
+	defer bundle.Close()
+
+	if bundle.CommandLogProvider == nil {
+		t.Fatal("command log provider is nil")
+	}
+	stats := bundle.CommandLogProvider.ConversationCommandLogStats()
+	if stats.QueueCapacity != 16 {
+		t.Fatalf("queue capacity = %d want 16", stats.QueueCapacity)
 	}
 }
 

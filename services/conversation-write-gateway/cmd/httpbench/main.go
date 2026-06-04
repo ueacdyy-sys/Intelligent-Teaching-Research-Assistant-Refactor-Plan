@@ -33,6 +33,7 @@ type benchmarkConfig struct {
 	WarmConnectionsPerHost int
 	WarmConnectionRetries  int
 	ClientTrace            bool
+	ExpectedStatus         int
 }
 
 type benchmarkReport struct {
@@ -46,6 +47,7 @@ type benchmarkReport struct {
 	LoadBalancing    string                    `json:"loadBalancingStrategy"`
 	TransportProfile benchmarkTransportProfile `json:"transportProfile"`
 	ClientTrace      bool                      `json:"clientTraceEnabled"`
+	ExpectedStatus   int                       `json:"expectedStatus"`
 	Concurrency      int                       `json:"concurrency"`
 	Operations       int                       `json:"operations"`
 	TotalDurationMS  float64                   `json:"totalDurationMs"`
@@ -108,6 +110,7 @@ func parseConfig() benchmarkConfig {
 	flag.IntVar(&config.WarmConnectionsPerHost, "warm-connections-per-host", 0, "optional keep-alive connections to prewarm per gateway host")
 	flag.IntVar(&config.WarmConnectionRetries, "warm-connection-retries", 3, "warm-up retries per connection after transient listener refusal")
 	flag.BoolVar(&config.ClientTrace, "client-trace", false, "capture per-request client-side httptrace timings")
+	flag.IntVar(&config.ExpectedStatus, "expected-status", http.StatusCreated, "expected create conversation HTTP status")
 	flag.Parse()
 	return config
 }
@@ -130,6 +133,9 @@ func run(config benchmarkConfig) error {
 	}
 	if config.WarmConnectionRetries < 0 {
 		return errors.New("warm-connection-retries must be zero or positive")
+	}
+	if config.ExpectedStatus != http.StatusCreated && config.ExpectedStatus != http.StatusAccepted {
+		return errors.New("expected-status must be 201 or 202")
 	}
 
 	baseURLs, err := parseBaseURLs(config.BaseURL)
@@ -162,6 +168,7 @@ func run(config benchmarkConfig) error {
 		LoadBalancing:    loadBalancingStrategy(baseURLs),
 		TransportProfile: transportProfile,
 		ClientTrace:      config.ClientTrace,
+		ExpectedStatus:   config.ExpectedStatus,
 		Concurrency:      config.Concurrency,
 		Operations:       config.Operations,
 		TotalDurationMS:  roundMillis(time.Since(start)),
@@ -307,7 +314,7 @@ func warmConnectionStrategy(connectionsPerHost int) string {
 
 func runCreateConversationPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) phaseReport {
 	phase, firstErr := runPhase("createConversation", config.Concurrency, config.Operations, func(_ int, opIndex int) (operationResult, error) {
-		return createConversation(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, opIndex, config.ClientTrace)
+		return createConversation(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, opIndex, config.ExpectedStatus, config.ClientTrace)
 	})
 	if firstErr != nil {
 		phase.FirstError = firstErr.Error()
@@ -515,7 +522,7 @@ func requestHealth(ctx context.Context, client *http.Client, baseURL string) err
 	return nil
 }
 
-func createConversation(ctx context.Context, client *http.Client, baseURL string, agentAPIKey string, opIndex int, clientTrace bool) (operationResult, error) {
+func createConversation(ctx context.Context, client *http.Client, baseURL string, agentAPIKey string, opIndex int, expectedStatus int, clientTrace bool) (operationResult, error) {
 	body := map[string]any{
 		"title": fmt.Sprintf("bench conversation %d", opIndex),
 		"settings": map[string]any{
@@ -523,7 +530,7 @@ func createConversation(ctx context.Context, client *http.Client, baseURL string
 			"source":     "httpbench",
 		},
 	}
-	return doJSON(ctx, client, http.MethodPost, baseURL+"/v1/research/conversations", agentAPIKey, body, http.StatusCreated, clientTrace)
+	return doJSON(ctx, client, http.MethodPost, baseURL+"/v1/research/conversations", agentAPIKey, body, expectedStatus, clientTrace)
 }
 
 func doJSON(ctx context.Context, client *http.Client, method string, endpoint string, agentAPIKey string, payload any, expectedStatus int, clientTrace bool) (operationResult, error) {

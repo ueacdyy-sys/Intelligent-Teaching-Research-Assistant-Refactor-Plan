@@ -97,6 +97,11 @@ export function maxFinite(values) {
   return finite.length ? Math.max(...finite) : null;
 }
 
+export function maxNullable(left, right) {
+  if (Number.isFinite(left) && Number.isFinite(right)) return Math.max(left, right);
+  return Number.isFinite(left) ? left : right;
+}
+
 export function minFinite(values) {
   const finite = values.filter(Number.isFinite);
   return finite.length ? Math.min(...finite) : null;

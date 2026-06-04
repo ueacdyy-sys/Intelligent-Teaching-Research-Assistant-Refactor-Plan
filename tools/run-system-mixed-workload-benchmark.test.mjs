@@ -34,6 +34,16 @@ describe("system mixed workload benchmark runner", () => {
       "2",
       "--conversation-write-batch-mode",
       "copy",
+      "--conversation-write-acceptance-mode",
+      "durable-log",
+      "--conversation-command-log-append-batch-size",
+      "64",
+      "--conversation-command-log-queue-capacity",
+      "65536",
+      "--conversation-command-log-projection-workers",
+      "8",
+      "--conversation-command-log-settle-timeout-ms",
+      "30000",
       "--conversation-benchmark-runtime",
       "wsl",
       "--conversation-benchmark-wsl-host",
@@ -88,6 +98,11 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.conversationWriteBatchSize, "64");
     assert.equal(parsed.conversationWriteBatchWorkers, "2");
     assert.equal(parsed.conversationWriteBatchMode, "copy");
+    assert.equal(parsed.conversationWriteAcceptanceMode, "durable-log");
+    assert.equal(parsed.conversationCommandLogAppendBatchSize, "64");
+    assert.equal(parsed.conversationCommandLogQueueCapacity, "65536");
+    assert.equal(parsed.conversationCommandLogProjectionWorkers, "8");
+    assert.equal(parsed.conversationCommandLogSettleTimeoutMs, "30000");
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
     assert.equal(parsed.conversationBenchmarkWslHost, "172.28.160.1");
     assert.equal(parsed.conversationBenchmarkWslWorkspace, "/mnt/c/workspace");
@@ -142,6 +157,12 @@ describe("system mixed workload benchmark runner", () => {
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
       conversationWriteBatchWorkers: "2",
       conversationWriteBatchMode: "copy",
+      conversationWriteAcceptanceMode: "durable-log",
+      conversationCommandLogAppendBatchSize: "64",
+      conversationCommandLogQueueCapacity: "65536",
+      conversationCommandLogProjectionWorkers: "8",
+      conversationCommandLogSync: "true",
+      conversationCommandLogSettleTimeoutMs: "30000",
       conversationClientTrace: "true",
       identityBenchmarkRuntime: "docker",
       identityBenchmarkDockerImage: "golang:1.26-alpine",
@@ -190,6 +211,12 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[1].args, "--max-conns-per-host"), "70");
     assert.equal(argumentAfter(commands[1].args, "--warm-connections-per-host"), "9");
     assert.equal(argumentAfter(commands[1].args, "--write-batch-workers"), "2");
+    assert.equal(argumentAfter(commands[1].args, "--write-acceptance-mode"), "durable-log");
+    assert.equal(argumentAfter(commands[1].args, "--command-log-append-batch-size"), "64");
+    assert.equal(argumentAfter(commands[1].args, "--command-log-queue-capacity"), "65536");
+    assert.equal(argumentAfter(commands[1].args, "--command-log-projection-workers"), "8");
+    assert.equal(argumentAfter(commands[1].args, "--command-log-sync"), "true");
+    assert.equal(argumentAfter(commands[1].args, "--command-log-settle-timeout-ms"), "30000");
     assert.equal(argumentAfter(commands[1].args, "--client-trace"), "true");
     assert.equal(argumentAfter(commands[2].args, "--base-url"), "http://127.0.0.1:19200");
     assert.equal(argumentAfter(commands[2].args, "--gateway-count"), "3");
@@ -518,6 +545,9 @@ describe("system mixed workload benchmark runner", () => {
     const conversation = report.workloads.find((workload) => workload.name === "conversation_write");
     assert.equal(conversation.summary.serverTimingP99Ms, 21);
     assert.equal(conversation.summary.clientServerGapP99Ms, 44);
+    assert.equal(conversation.summary.acceptanceMode, "durable-log");
+    assert.equal(conversation.summary.commandAppendP99Ms, 4.4);
+    assert.equal(conversation.summary.projectionEnqueueP99Ms, 0.6);
     assert.equal(conversation.summary.dbAcquireP99Ms, 0.3);
     assert.equal(conversation.summary.dbBatchWaitP99Ms, 12.5);
     assert.equal(conversation.summary.dbInsertP99Ms, 15.2);
@@ -541,6 +571,18 @@ describe("system mixed workload benchmark runner", () => {
       totalAcceptedConns: 0,
       totalEmptyAcquireCount: 3,
       totalAcquireWaitTimeMs: 17,
+    });
+    assert.deepEqual(conversation.summary.commandLogDiagnostics.after, {
+      gatewayCount: 2,
+      okGateways: 2,
+      unavailableGateways: 0,
+      acceptedCommands: 1024,
+      appendErrors: 0,
+      projectionEnqueued: 1024,
+      projectionSucceeded: 1006,
+      projectionFailed: 0,
+      queueDepth: 18,
+      maxOldestPendingAgeMs: 8,
     });
     const teaching = report.workloads.find((workload) => workload.name === "teaching_archive");
     assert.equal(teaching.summary.serverTimingP99Ms, 31);

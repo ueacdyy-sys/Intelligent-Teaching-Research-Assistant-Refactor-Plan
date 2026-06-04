@@ -5,6 +5,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { collectPgbouncerDiagnostics } from "./pgbouncer-diagnostics.mjs";
 import { applyBenchmarkRuntimeArg, benchmarkRuntimeDefaults, benchmarkRuntimeProfile as buildBenchmarkRuntimeProfile, benchmarkTargetBaseUrls, buildBenchmarkRuntimeCommand } from "./conversation-benchmark-runtime.mjs";
+import { combineOutput, executableName, expectedConversationStatus, extractFailureMessage, gatewayCommandLogPath, gatewayCount, gatewayDatabaseProfile, gatewayWriteProfile, ingressCount, ingressEnabled, ingressProfile, loadBalancingStrategy, maskURL, parseBooleanOption, parseIntegerOption, parsePositiveIntegerOption, parseURL, portFromOptions, portRange, transportProfile, trimURL, writeAcceptanceMode, writeBatchMode } from "./conversation-write-benchmark-profiles.mjs";
 import { tailText, writeJsonReport } from "./benchmark-runner-utils.mjs";
 import { applyPostgresDiagnosticsArg, collectPostgresDiagnostics, postgresDiagnosticsDefaults, startPostgresDiagnosticsTimeline } from "./postgres-diagnostics.mjs";
 
@@ -21,6 +22,15 @@ export const defaults = {
   writeBatchDelayMs: "0",
   writeBatchWorkers: "1",
   writeBatchMode: "insert",
+  writeAcceptanceMode: "sync",
+  commandLogDir: "reports/conversation-command-log",
+  commandLogAppendBatchSize: "32",
+  commandLogAppendDelayMs: "0",
+  commandLogQueueCapacity: "65536",
+  commandLogProjectionWorkers: "4",
+  commandLogSync: "true",
+  commandLogSettleTimeoutMs: "0",
+  commandLogSettlePollMs: "100",
   agentApiKey: "ueacd",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
@@ -47,6 +57,7 @@ export const defaults = {
 const localSecretValue = "ueacd";
 const gatewayDiagnosticsPath = "/internal/conversation/db-pool";
 const gatewayRuntimeDiagnosticsPath = "/internal/conversation/runtime";
+const gatewayCommandLogDiagnosticsPath = "/internal/conversation/command-log";
 const internalDiagnosticsSecretHeader = "X-Internal-Diagnostics-Secret";
 const internalDiagnosticsSecretValue = "ueacd";
 
@@ -72,6 +83,15 @@ export function parseArgs(argv) {
     if (key === "--write-batch-delay-ms") parsed.writeBatchDelayMs = value;
     if (key === "--write-batch-workers") parsed.writeBatchWorkers = value;
     if (key === "--write-batch-mode") parsed.writeBatchMode = value;
+    if (key === "--write-acceptance-mode") parsed.writeAcceptanceMode = value;
+    if (key === "--command-log-dir") parsed.commandLogDir = value;
+    if (key === "--command-log-append-batch-size") parsed.commandLogAppendBatchSize = value;
+    if (key === "--command-log-append-delay-ms") parsed.commandLogAppendDelayMs = value;
+    if (key === "--command-log-queue-capacity") parsed.commandLogQueueCapacity = value;
+    if (key === "--command-log-projection-workers") parsed.commandLogProjectionWorkers = value;
+    if (key === "--command-log-sync") parsed.commandLogSync = value;
+    if (key === "--command-log-settle-timeout-ms") parsed.commandLogSettleTimeoutMs = value;
+    if (key === "--command-log-settle-poll-ms") parsed.commandLogSettlePollMs = value;
     if (key === "--agent-api-key") parsed.agentApiKey = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
     if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
@@ -162,6 +182,8 @@ export const collectGatewayDatabaseDiagnostics = (baseUrls, dependencies = {}) =
   collectGatewayInternalDiagnostics(baseUrls, gatewayDiagnosticsPath, dependencies);
 export const collectGatewayRuntimeDiagnostics = (baseUrls, dependencies = {}) =>
   collectGatewayInternalDiagnostics(baseUrls, gatewayRuntimeDiagnosticsPath, dependencies);
+export const collectGatewayCommandLogDiagnostics = (baseUrls, dependencies = {}) =>
+  collectGatewayInternalDiagnostics(baseUrls, gatewayCommandLogDiagnosticsPath, dependencies);
 
 async function collectGatewayInternalDiagnostics(baseUrls, endpointPath, dependencies = {}) {
   const fetchFn = dependencies.fetch ?? fetch;
@@ -219,6 +241,8 @@ export function buildBenchmarkCommand(options, baseUrls = benchmarkBaseUrls(opti
     String(parseIntegerOption(options.warmConnectionsPerHost)),
     "--warm-connection-retries",
     String(parseIntegerOption(options.warmConnectionRetries)),
+    "--expected-status",
+    String(expectedConversationStatus(options)),
     "--out",
     options.out,
     "--timeout",
@@ -243,6 +267,7 @@ export function buildFailureReport({
   ingressSignal,
   gatewayDatabaseDiagnostics,
   gatewayRuntimeDiagnostics,
+  gatewayCommandLogDiagnostics,
   pgbouncerDiagnostics,
   postgresDiagnostics,
   generatedAt = new Date().toISOString(),
@@ -270,7 +295,7 @@ export function buildFailureReport({
     gatewayOutputTail: tailText(maskSensitive(gatewayOutput), 80),
     benchmarkOutputTail: tailText(maskSensitive(benchmarkOutput), 80),
   };
-  if (ingressEnabled(options)) report.ingressProfile = ingressProfile(options);
+  if (ingressEnabled(options)) report.ingressProfile = ingressProfile(options, ingressBaseUrls(options), gatewayCount(options));
   if (gatewayExitCode !== undefined) report.gatewayExitCode = gatewayExitCode;
   if (gatewaySignal !== undefined) report.gatewaySignal = gatewaySignal;
   if (ingressExitCode !== undefined) report.ingressExitCode = ingressExitCode;
@@ -278,6 +303,7 @@ export function buildFailureReport({
   if (ingressOutput) report.ingressOutputTail = tailText(maskSensitive(ingressOutput), 80);
   if (gatewayDatabaseDiagnostics) report.gatewayDatabaseDiagnostics = gatewayDatabaseDiagnostics;
   if (gatewayRuntimeDiagnostics) report.gatewayRuntimeDiagnostics = gatewayRuntimeDiagnostics;
+  if (gatewayCommandLogDiagnostics) report.gatewayCommandLogDiagnostics = gatewayCommandLogDiagnostics;
   if (pgbouncerDiagnostics) report.pgbouncerDiagnostics = pgbouncerDiagnostics;
   if (postgresDiagnostics) report.postgresDiagnostics = postgresDiagnostics;
   return report;
@@ -297,7 +323,7 @@ export function addRuntimeProfileToReport(report, options, baseUrls = benchmarkB
     transportProfile: report.transportProfile ?? transportProfile(options, baseUrls.length),
     clientTraceEnabled: parseBooleanOption(options.clientTrace),
   };
-  if (ingressEnabled(options)) enriched.ingressProfile = ingressProfile(options);
+  if (ingressEnabled(options)) enriched.ingressProfile = ingressProfile(options, ingressBaseUrls(options), gatewayCount(options));
   if (diagnostics.gatewayExitCode !== undefined) enriched.gatewayExitCode = diagnostics.gatewayExitCode;
   if (diagnostics.gatewaySignal !== undefined) enriched.gatewaySignal = diagnostics.gatewaySignal;
   if (diagnostics.gatewayOutput) enriched.gatewayOutputTail = tailText(maskSensitive(diagnostics.gatewayOutput), 80);
@@ -309,6 +335,9 @@ export function addRuntimeProfileToReport(report, options, baseUrls = benchmarkB
   }
   if (diagnostics.gatewayRuntimeDiagnostics) {
     enriched.gatewayRuntimeDiagnostics = diagnostics.gatewayRuntimeDiagnostics;
+  }
+  if (diagnostics.gatewayCommandLogDiagnostics) {
+    enriched.gatewayCommandLogDiagnostics = diagnostics.gatewayCommandLogDiagnostics;
   }
   if (diagnostics.pgbouncerDiagnostics) enriched.pgbouncerDiagnostics = diagnostics.pgbouncerDiagnostics;
   if (diagnostics.postgresDiagnostics) enriched.postgresDiagnostics = diagnostics.postgresDiagnostics;
@@ -336,6 +365,7 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
   let benchmarkOutput = "";
   let gatewayDatabaseDiagnostics;
   let gatewayRuntimeDiagnostics;
+  let gatewayCommandLogDiagnostics;
   let pgbouncerDiagnostics;
   let postgresDiagnostics;
   let postgresDiagnosticsTimeline;
@@ -382,6 +412,11 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       "before",
       await collectGatewayRuntimeDiagnostics(baseUrls, { fetch: fetchFn }),
     );
+    gatewayCommandLogDiagnostics = addDiagnosticsSnapshot(
+      gatewayCommandLogDiagnostics,
+      "before",
+      await collectGatewayCommandLogDiagnostics(baseUrls, { fetch: fetchFn }),
+    );
     pgbouncerDiagnostics = addDiagnosticsSnapshot(
       pgbouncerDiagnostics,
       "before",
@@ -422,6 +457,20 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       "after",
       await collectGatewayRuntimeDiagnostics(baseUrls, { fetch: fetchFn }),
     );
+    gatewayCommandLogDiagnostics = addDiagnosticsSnapshot(
+      gatewayCommandLogDiagnostics,
+      "after",
+      await collectGatewayCommandLogDiagnostics(baseUrls, { fetch: fetchFn }),
+    );
+    gatewayCommandLogDiagnostics = await collectSettledCommandLogDiagnostics(
+      gatewayCommandLogDiagnostics,
+      baseUrls,
+      options,
+      {
+        fetch: fetchFn,
+        sleep: dependencies.sleep ?? sleep,
+      },
+    );
     pgbouncerDiagnostics = addDiagnosticsSnapshot(
       pgbouncerDiagnostics,
       "after",
@@ -439,6 +488,7 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
       gatewayDatabaseDiagnostics,
       gatewayRuntimeDiagnostics,
+      gatewayCommandLogDiagnostics,
       pgbouncerDiagnostics,
       postgresDiagnostics,
     });
@@ -451,6 +501,7 @@ export async function runConversationWriteBenchmark(options = parseArgs(process.
       ingressOutput: combineOutput(ingressOutputs, "ingress"),
       gatewayDatabaseDiagnostics,
       gatewayRuntimeDiagnostics,
+      gatewayCommandLogDiagnostics,
       pgbouncerDiagnostics,
       postgresDiagnostics,
     });
@@ -538,6 +589,11 @@ function buildIngressProxyBinary(root, spawnCommandSync) {
 
 function spawnGateway(binaryPath, options, baseUrl, root, spawnProcess) {
   const url = parseURL(baseUrl);
+  const commandLogPath = gatewayCommandLogPath(options, root, url.port);
+  if (writeAcceptanceMode(options) === "durable-log") {
+    fs.mkdirSync(path.dirname(commandLogPath), { recursive: true });
+    fs.rmSync(commandLogPath, { force: true });
+  }
   return spawnProcess(binaryPath, [], {
     cwd: root,
     shell: false,
@@ -550,6 +606,13 @@ function spawnGateway(binaryPath, options, baseUrl, root, spawnProcess) {
       CONVERSATION_WRITE_BATCH_DELAY_MS: String(parseIntegerOption(options.writeBatchDelayMs)),
       CONVERSATION_WRITE_BATCH_WORKERS: String(parsePositiveIntegerOption(options.writeBatchWorkers)),
       CONVERSATION_WRITE_BATCH_MODE: writeBatchMode(options),
+      CONVERSATION_WRITE_ACCEPTANCE_MODE: writeAcceptanceMode(options),
+      CONVERSATION_COMMAND_LOG_PATH: commandLogPath,
+      CONVERSATION_COMMAND_LOG_APPEND_BATCH_SIZE: String(parsePositiveIntegerOption(options.commandLogAppendBatchSize)),
+      CONVERSATION_COMMAND_LOG_APPEND_DELAY_MS: String(parseIntegerOption(options.commandLogAppendDelayMs)),
+      CONVERSATION_COMMAND_LOG_QUEUE_CAPACITY: String(parsePositiveIntegerOption(options.commandLogQueueCapacity)),
+      CONVERSATION_COMMAND_LOG_PROJECTION_WORKERS: String(parsePositiveIntegerOption(options.commandLogProjectionWorkers)),
+      CONVERSATION_COMMAND_LOG_SYNC: String(parseBooleanOption(options.commandLogSync)),
       AGENT_API_KEY: options.agentApiKey,
       INTERNAL_DIAGNOSTICS_SECRET: internalDiagnosticsSecretValue,
     },
@@ -656,141 +719,40 @@ async function stopDiagnosticsTimeline(timeline) {
   return timeline.stop();
 }
 
-function gatewayDatabaseProfile(options) {
-  const workers = gatewayCount(options);
-  const dbMaxConns = parseIntegerOption(options.dbMaxConns);
-  return {
-    workerCount: workers,
-    dbMaxConnsPerWorker: dbMaxConns,
-    dbMaxConnsTotal: workers * dbMaxConns,
-  };
-}
-
-function gatewayWriteProfile(options) {
-  const batchSize = parseIntegerOption(options.writeBatchSize);
-  const batchDelayMs = parseIntegerOption(options.writeBatchDelayMs);
-  const batchWorkers = parsePositiveIntegerOption(options.writeBatchWorkers);
-  const batchMode = writeBatchMode(options);
-  return {
-    batchingEnabled: batchSize > 1,
-    batchSize,
-    batchDelayMs,
-    batchWorkers,
-    batchMode,
-  };
-}
-
-function writeBatchMode(options) {
-  const normalized = String(options.writeBatchMode ?? "insert").trim().toLowerCase();
-  if (normalized !== "insert" && normalized !== "copy") {
-    throw new Error("write-batch-mode must be insert or copy");
+async function collectSettledCommandLogDiagnostics(current, baseUrls, options, dependencies = {}) {
+  const timeoutMs = parseIntegerOption(options.commandLogSettleTimeoutMs);
+  if (writeAcceptanceMode(options) !== "durable-log" || timeoutMs <= 0) return current;
+  const pollMs = Math.max(10, parseIntegerOption(options.commandLogSettlePollMs));
+  const sleepFn = dependencies.sleep ?? sleep;
+  const fetchFn = dependencies.fetch ?? fetch;
+  const deadline = Date.now() + timeoutMs;
+  let latest = current;
+  while (Date.now() <= deadline) {
+    const snapshot = await collectGatewayCommandLogDiagnostics(baseUrls, { fetch: fetchFn });
+    latest = addDiagnosticsSnapshot(latest, "settled", snapshot);
+    if (commandLogSnapshotSettled(snapshot)) return latest;
+    await sleepFn(pollMs);
   }
-  return normalized;
+  return latest;
+}
+
+function commandLogSnapshotSettled(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.gateways) || snapshot.gateways.length === 0) return false;
+  return snapshot.gateways.every((gateway) => {
+    if (gateway.status !== "OK") return false;
+    const stats = gateway.stats ?? {};
+    const accepted = Number(stats.acceptedCommands ?? 0);
+    const succeeded = Number(stats.projectionSucceeded ?? 0);
+    const failed = Number(stats.projectionFailed ?? 0);
+    const queueDepth = Number(stats.queueDepth ?? 0);
+    const appendErrors = Number(stats.appendErrors ?? 0);
+    return appendErrors === 0 && failed === 0 && queueDepth === 0 && succeeded >= accepted;
+  });
 }
 
 export function benchmarkRuntimeProfile(options, baseUrls) {
   return buildBenchmarkRuntimeProfile(options, baseUrls, maskURL);
 }
-
-function transportProfile(options, targetCount) {
-  const warmConnectionsPerHost = parseIntegerOption(options.warmConnectionsPerHost);
-  return {
-    maxConnsPerHost: parseIntegerOption(options.maxConnsPerHost),
-    warmConnectionsPerHost,
-    warmConnectionsTotal: targetCount * warmConnectionsPerHost,
-    warmConnectionStrategy: warmConnectionsPerHost > 0 ? "PER_HOST_PARALLEL" : "DISABLED",
-    warmConnectionRetries: parseIntegerOption(options.warmConnectionRetries),
-  };
-}
-
-function ingressProfile(options) {
-  const warmConnectionsPerHost = parseIntegerOption(options.ingressWarmConnectionsPerHost);
-  return {
-    enabled: true,
-    count: ingressCount(options),
-    baseUrls: ingressBaseUrls(options).map(maskURL),
-    upstreamGatewayCount: gatewayCount(options),
-    maxConnsPerHost: parseIntegerOption(options.ingressMaxConnsPerHost),
-    warmConnectionsPerHost,
-    warmConnectionsTotal: ingressCount(options) * warmConnectionsPerHost,
-  };
-}
-
-function loadBalancingStrategy(options, targetBaseUrls) {
-  if (ingressEnabled(options)) return "INGRESS_ROUND_ROBIN";
-  return targetBaseUrls.length > 1 ? "ROUND_ROBIN" : "SINGLE_GATEWAY";
-}
-
-function gatewayCount(options) {
-  return Math.max(1, parseIntegerOption(options.gatewayCount));
-}
-
-function ingressCount(options) {
-  return Math.max(1, parseIntegerOption(options.ingressCount));
-}
-
-function ingressEnabled(options) {
-  return parseBooleanOption(options.ingressProxy);
-}
-
-function parseBooleanOption(value) { return String(value).toLowerCase() === "true"; }
-
-function parseIntegerOption(value) {
-  const parsed = Number.parseInt(String(value), 10);
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new Error(`expected zero or positive integer, got ${value}`);
-  }
-  return parsed;
-}
-
-function parsePositiveIntegerOption(value) {
-  const parsed = parseIntegerOption(value);
-  if (parsed < 1) {
-    throw new Error(`expected positive integer, got ${value}`);
-  }
-  return parsed;
-}
-
-function portRange(start, count) { return Array.from({ length: count }, (_, index) => start + index); }
-
-function parseURL(value) {
-  try {
-    return new URL(value);
-  } catch {
-    throw new Error(`invalid URL: ${value}`);
-  }
-}
-
-function portFromOptions(options, base) {
-  if (base.port) return Number.parseInt(base.port, 10);
-  return parseIntegerOption(options.port);
-}
-
-function trimURL(value) { return String(value).replace(/\/$/u, ""); }
-
-function maskURL(value) {
-  const parsed = parseURL(value);
-  if (parsed.password) parsed.password = "***";
-  return trimURL(parsed.toString()).replaceAll(localSecretValue, "***");
-}
-
-function combineOutput(outputs, label) {
-  return outputs
-    .map((output, index) => output.trim() ? `[${label} ${index + 1}]\n${output.trim()}` : "")
-    .filter(Boolean)
-    .join("\n\n");
-}
-
-function extractFailureMessage(output, exitCode) {
-  const lines = String(output ?? "")
-    .split(/\r\n|\r|\n/u)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const lastMeaningful = [...lines].reverse().find((line) => !line.startsWith("{") && !line.startsWith("}"));
-  return maskSensitive(lastMeaningful ?? `conversation write benchmark exited with code ${exitCode}`);
-}
-
-function executableName(name) { return process.platform === "win32" ? `${name}.exe` : name; }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   runConversationWriteBenchmark().catch((error) => {

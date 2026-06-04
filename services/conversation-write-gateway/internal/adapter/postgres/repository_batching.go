@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"ita-refactor/services/conversation-write-gateway/internal/domain"
+	"ita-refactor/services/conversation-write-gateway/internal/usecase"
 )
 
 type BatchWriteMode string
@@ -49,7 +50,12 @@ type batchCreateRequest struct {
 	ctx          context.Context
 	conversation domain.Conversation
 	enqueuedAt   time.Time
-	result       chan error
+	result       chan batchCreateResult
+}
+
+type batchCreateResult struct {
+	outcome usecase.CreatePersistenceOutcome
+	err     error
 }
 
 func NewBatchingConversationRepository(db DB, config BatchConfig) *BatchingConversationRepository {
@@ -86,18 +92,18 @@ func (r *BatchingConversationRepository) WriteMode() BatchWriteMode {
 	return r.mode
 }
 
-func (r *BatchingConversationRepository) Create(ctx context.Context, conversation domain.Conversation) error {
+func (r *BatchingConversationRepository) Create(ctx context.Context, conversation domain.Conversation) (usecase.CreatePersistenceOutcome, error) {
 	request := batchCreateRequest{
 		ctx:          ctx,
 		conversation: conversation,
 		enqueuedAt:   time.Now(),
-		result:       make(chan error, 1),
+		result:       make(chan batchCreateResult, 1),
 	}
 
 	r.enqueueMu.RLock()
 	if r.closed {
 		r.enqueueMu.RUnlock()
-		return ErrConversationRepositoryClosed
+		return usecase.CreatePersistenceOutcome{}, ErrConversationRepositoryClosed
 	}
 	r.enqueueWG.Add(1)
 	r.enqueueMu.RUnlock()
@@ -106,15 +112,16 @@ func (r *BatchingConversationRepository) Create(ctx context.Context, conversatio
 		r.enqueueWG.Done()
 	case <-ctx.Done():
 		r.enqueueWG.Done()
-		return ctx.Err()
+		return usecase.CreatePersistenceOutcome{}, ctx.Err()
 	case <-r.closing:
 		r.enqueueWG.Done()
-		return ErrConversationRepositoryClosed
+		return usecase.CreatePersistenceOutcome{}, ErrConversationRepositoryClosed
 	}
 
 	// After enqueue, wait for the batch result so a caller cannot observe
 	// cancellation while the accepted row is later persisted.
-	return <-request.result
+	result := <-request.result
+	return result.outcome, result.err
 }
 
 func (r *BatchingConversationRepository) Close() {
@@ -183,7 +190,7 @@ func (r *BatchingConversationRepository) flush(batch []batchCreateRequest) {
 	active := make([]batchCreateRequest, 0, len(batch))
 	for _, request := range batch {
 		if err := request.ctx.Err(); err != nil {
-			request.result <- err
+			request.result <- batchCreateResult{err: err}
 			continue
 		}
 		recordDBBatchWaitTiming(request.ctx, observableDuration(flushStart.Sub(request.enqueuedAt)))
@@ -228,7 +235,11 @@ func observableDuration(duration time.Duration) time.Duration {
 
 func completeBatch(batch []batchCreateRequest, err error) {
 	for _, request := range batch {
-		request.result <- err
+		result := batchCreateResult{err: err}
+		if err == nil {
+			result.outcome = usecase.PersistedOutcome()
+		}
+		request.result <- result
 	}
 }
 
@@ -308,6 +319,7 @@ func buildInsertConversationsStatement(batch []batchCreateRequest) (string, []an
 			conversationSettingsValue(conversation),
 		)
 	}
+	builder.WriteString(" ON CONFLICT (id) DO NOTHING")
 	return builder.String(), args
 }
 

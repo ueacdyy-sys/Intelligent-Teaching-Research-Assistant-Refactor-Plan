@@ -10,6 +10,7 @@ import (
 
 	"ita-refactor/services/conversation-write-gateway/internal/domain"
 	"ita-refactor/services/conversation-write-gateway/internal/platform"
+	"ita-refactor/services/conversation-write-gateway/internal/usecase"
 )
 
 type DB interface {
@@ -116,7 +117,7 @@ func EnsureSchema(ctx context.Context, db DB) (err error) {
 	return nil
 }
 
-func (r *ConversationRepository) Create(ctx context.Context, conversation domain.Conversation) error {
+func (r *ConversationRepository) Create(ctx context.Context, conversation domain.Conversation) (usecase.CreatePersistenceOutcome, error) {
 	var settings any
 	if len(conversation.Settings) > 0 {
 		settings = conversation.Settings.JSONString()
@@ -126,7 +127,7 @@ func (r *ConversationRepository) Create(ctx context.Context, conversation domain
 	conn, err := r.db.Acquire(ctx)
 	recordDBAcquireTiming(ctx, time.Since(acquireStart))
 	if err != nil {
-		return err
+		return usecase.CreatePersistenceOutcome{}, err
 	}
 	defer conn.Release()
 
@@ -135,6 +136,7 @@ func (r *ConversationRepository) Create(ctx context.Context, conversation domain
 		INSERT INTO research_conversations
 			(id, title, created_at, updated_at, message_count, total_tokens, settings)
 		VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+		ON CONFLICT (id) DO NOTHING
 	`,
 		conversation.ID,
 		conversation.Title,
@@ -145,7 +147,10 @@ func (r *ConversationRepository) Create(ctx context.Context, conversation domain
 		settings,
 	)
 	recordDBInsertTiming(ctx, time.Since(insertStart))
-	return err
+	if err != nil {
+		return usecase.CreatePersistenceOutcome{}, err
+	}
+	return usecase.PersistedOutcome(), nil
 }
 
 func recordDBAcquireTiming(ctx context.Context, duration time.Duration) {

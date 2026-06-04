@@ -17,6 +17,7 @@ describe("conversation write benchmark runner", () => {
       benchmarkRuntimeProfile,
       buildBenchmarkCommand,
       buildFailureReport,
+      collectGatewayCommandLogDiagnostics,
       collectGatewayDatabaseDiagnostics,
       collectGatewayRuntimeDiagnostics,
       gatewayBaseUrls,
@@ -76,6 +77,7 @@ describe("conversation write benchmark runner", () => {
     assert(command.includes("--base-url"));
     assert(command.includes("http://127.0.0.1:18080,http://127.0.0.1:18081,http://127.0.0.1:18082"));
     assert.equal(command[command.indexOf("--warm-connection-retries") + 1], "3");
+    assert.equal(command[command.indexOf("--expected-status") + 1], "201");
     assert(command.includes("--client-trace"));
 
     const failed = buildFailureReport({
@@ -89,6 +91,12 @@ describe("conversation write benchmark runner", () => {
         before: {
           status: "OK",
           gateways: [{ stats: { maxConns: 10, emptyAcquireCount: 9 } }],
+        },
+      },
+      gatewayCommandLogDiagnostics: {
+        after: {
+          status: "OK",
+          gateways: [{ stats: { acceptedCommands: 10, projectionSucceeded: 9 } }],
         },
       },
       pgbouncerDiagnostics: {
@@ -127,8 +135,11 @@ describe("conversation write benchmark runner", () => {
     assert.equal(failed.gatewayWriteProfile.batchDelayMs, 2);
     assert.equal(failed.gatewayWriteProfile.batchWorkers, 4);
     assert.equal(failed.gatewayWriteProfile.batchMode, "copy");
+    assert.equal(failed.gatewayWriteProfile.acceptanceMode, "sync");
+    assert.equal(failed.gatewayWriteProfile.commandLog, null);
     assert.deepEqual(failed.gatewayBaseUrls, gatewayBaseUrls(options));
     assert.equal(failed.gatewayDatabaseDiagnostics.before.gateways[0].stats.emptyAcquireCount, 9);
+    assert.equal(failed.gatewayCommandLogDiagnostics.after.gateways[0].stats.acceptedCommands, 10);
     assert.equal(failed.pgbouncerDiagnostics.before.queries.pools.rows[0].cl_waiting, 0);
     assert.equal(failed.postgresDiagnostics.before.queries.activity.rows[0].wait_event, "WalSync");
     assert(!JSON.stringify(failed).includes("ueacd"));
@@ -165,6 +176,7 @@ describe("conversation write benchmark runner", () => {
     assert.equal(passed.gatewayWriteProfile.batchDelayMs, 2);
     assert.equal(passed.gatewayWriteProfile.batchWorkers, 4);
     assert.equal(passed.gatewayWriteProfile.batchMode, "copy");
+    assert.equal(passed.gatewayWriteProfile.acceptanceMode, "sync");
     assert.equal(passed.gatewayDatabaseDiagnostics.after.gateways[0].stats.acquireDurationMs, 55.5);
     assert.equal(passed.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.deepEqual(passed.benchmarkRuntimeProfile.targetBaseUrls, gatewayBaseUrls(options));
@@ -211,6 +223,28 @@ describe("conversation write benchmark runner", () => {
     assert.equal(runtimeDiagnostics.endpoint, "/internal/conversation/runtime");
     assert.equal(runtimeDiagnostics.gateways[0].stats.maxCurrentConns, 30);
     assert(!JSON.stringify(runtimeDiagnostics).includes("ueacd"));
+
+    const commandLogDiagnostics = await collectGatewayCommandLogDiagnostics(gatewayBaseUrls(options), {
+      now: () => "2026-06-01T00:00:00.000Z",
+      fetch: async (url, init) => {
+        assert.match(url, /\/internal\/conversation\/command-log$/u);
+        assert.equal(init.headers["X-Internal-Diagnostics-Secret"], "ueacd");
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            stats: {
+              acceptedCommands: 100,
+              projectionSucceeded: 99,
+              queueDepth: 1,
+            },
+          }),
+        };
+      },
+    });
+    assert.equal(commandLogDiagnostics.endpoint, "/internal/conversation/command-log");
+    assert.equal(commandLogDiagnostics.gateways[0].stats.projectionSucceeded, 99);
+    assert(!JSON.stringify(commandLogDiagnostics).includes("ueacd"));
   });
 
   it("can run the load generator inside Docker while host gateways stay local", async () => {
@@ -344,6 +378,20 @@ describe("conversation write benchmark runner", () => {
       "3",
       "--write-batch-workers",
       "2",
+      "--write-acceptance-mode",
+      "durable-log",
+      "--command-log-dir",
+      path.join(tmpDir, "commands"),
+      "--command-log-append-batch-size",
+      "16",
+      "--command-log-queue-capacity",
+      "128",
+      "--command-log-projection-workers",
+      "3",
+      "--command-log-sync",
+      "false",
+      "--command-log-settle-timeout-ms",
+      "250",
       "--out",
       out,
     ]);
@@ -380,11 +428,22 @@ describe("conversation write benchmark runner", () => {
       assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_SIZE === "64"));
       assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_DELAY_MS === "3"));
       assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_BATCH_WORKERS === "2"));
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_WRITE_ACCEPTANCE_MODE === "durable-log"));
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_COMMAND_LOG_APPEND_BATCH_SIZE === "16"));
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_COMMAND_LOG_QUEUE_CAPACITY === "128"));
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_COMMAND_LOG_PROJECTION_WORKERS === "3"));
+      assert(observedGatewayEnvs.every((env) => env.CONVERSATION_COMMAND_LOG_SYNC === "false"));
       assert.equal(report.gatewayWriteProfile.batchingEnabled, true);
       assert.equal(report.gatewayWriteProfile.batchSize, 64);
       assert.equal(report.gatewayWriteProfile.batchDelayMs, 3);
       assert.equal(report.gatewayWriteProfile.batchWorkers, 2);
       assert.equal(report.gatewayWriteProfile.batchMode, "insert");
+      assert.equal(report.gatewayWriteProfile.acceptanceMode, "durable-log");
+      assert.equal(report.gatewayWriteProfile.commandLog.appendBatchSize, 16);
+      assert.equal(report.gatewayWriteProfile.commandLog.queueCapacity, 128);
+      assert.equal(report.gatewayWriteProfile.commandLog.projectionWorkers, 3);
+      assert.equal(report.gatewayWriteProfile.commandLog.sync, false);
+      assert.equal(report.gatewayWriteProfile.commandLog.settleTimeoutMs, 250);
       assert.equal(report.gatewayRuntimeDiagnostics.after.gateways[0].stats.maxCurrentConns, 4);
       assert(!JSON.stringify(report).includes("ueacd"));
       assert(!JSON.stringify(report).includes("postgres://"));
