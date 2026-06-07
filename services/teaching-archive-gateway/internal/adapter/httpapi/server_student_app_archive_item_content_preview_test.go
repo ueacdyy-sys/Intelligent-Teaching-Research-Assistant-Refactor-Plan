@@ -132,6 +132,96 @@ func TestReadStudentAppArchiveItemContentPreviewRejectsUnsupportedMethod(t *test
 	}
 }
 
+func TestRenderStudentAppArchiveItemContentPreviewReturnsSafeTextBlocks(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001/content-preview/rendered",
+		nil,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"archiveItemId":"tarch_archive_material_001"`),
+		[]byte(`"renderFormat":"SAFE_TEXT_BLOCKS"`),
+		[]byte(`"previewStatus":"READY"`),
+		[]byte(`"blockType":"SECTION"`),
+		[]byte(`"sectionId":"section_001"`),
+		[]byte(`"text":"Practice equivalent fractions and common denominators."`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"studentId"`),
+		[]byte(`"contentRef"`),
+		[]byte(`renderedHtml`),
+		[]byte(`renderedMarkdown`),
+		[]byte(`rawContent`),
+		[]byte(`objectStorageKey`),
+		[]byte(`ocrText`),
+		[]byte(`ragChunks`),
+		[]byte(`expectedAnswer`),
+		[]byte(`rawModelOutput`),
+		[]byte(`workerId`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestRenderStudentAppArchiveItemContentPreviewRejectsCrossStudentTeacherAndMethod(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+
+	crossStudent := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_other/content-preview/rendered",
+		nil,
+	)
+	crossStudent.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, crossStudent, studentPrincipal("student_001"))
+	crossStudentResponse := httptest.NewRecorder()
+	handler.ServeHTTP(crossStudentResponse, crossStudent)
+	if crossStudentResponse.Code != http.StatusNotFound {
+		t.Fatalf("cross student status = %d, body = %s", crossStudentResponse.Code, crossStudentResponse.Body.String())
+	}
+
+	teacher := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001/content-preview/rendered",
+		nil,
+	)
+	teacher.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, teacher, teacherPrincipal())
+	teacherResponse := httptest.NewRecorder()
+	handler.ServeHTTP(teacherResponse, teacher)
+	if teacherResponse.Code != http.StatusForbidden {
+		t.Fatalf("teacher status = %d, body = %s", teacherResponse.Code, teacherResponse.Body.String())
+	}
+
+	post := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/archive-items/tarch_archive_material_001/content-preview/rendered",
+		http.NoBody,
+	)
+	post.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, post, studentPrincipal("student_001"))
+	postResponse := httptest.NewRecorder()
+	handler.ServeHTTP(postResponse, post)
+	if postResponse.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("post status = %d, body = %s", postResponse.Code, postResponse.Body.String())
+	}
+}
+
 func newTestHandlerWithPublishedArchiveItemContentPreview() http.Handler {
 	store := &fakeRepository{
 		items: []domain.ArchiveItem{
@@ -148,8 +238,9 @@ func newTestHandlerWithPublishedArchiveItemContentPreview() http.Handler {
 		},
 	}
 	return httpapi.NewServer(httpapi.ServerConfig{
-		ReadStudentAppArchiveItemContentPreview: usecase.NewReadStudentAppArchiveItemContentPreview(store),
-		AgentAPIKey:                             "ueacd",
+		ReadStudentAppArchiveItemContentPreview:   usecase.NewReadStudentAppArchiveItemContentPreview(store),
+		RenderStudentAppArchiveItemContentPreview: usecase.NewRenderStudentAppArchiveItemContentPreview(store),
+		AgentAPIKey: "ueacd",
 	}).Handler()
 }
 

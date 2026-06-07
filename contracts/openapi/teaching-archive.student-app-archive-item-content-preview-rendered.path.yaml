@@ -1,0 +1,95 @@
+get:
+  operationId: renderStudentAppArchiveItemContentPreview
+  summary: Render a safe published archive material content preview for Student App.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+        maxLength: 1000
+  responses:
+    '200':
+      description: Safe text-block render envelope for one authenticated student-owned published archive item.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - archiveItemId
+              - materialType
+              - title
+              - previewStatus
+              - renderFormat
+              - blocks
+              - createdAt
+              - updatedAt
+            properties:
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              materialType:
+                type: string
+                enum: [QUIZ, PAPER, HANDOUT, HOMEWORK]
+              title:
+                type: string
+                minLength: 1
+                maxLength: 200
+              previewStatus:
+                type: string
+                const: READY
+              renderFormat:
+                type: string
+                const: SAFE_TEXT_BLOCKS
+              blocks:
+                type: array
+                minItems: 1
+                maxItems: 20
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [blockId, blockType, sectionId, title, text]
+                  properties:
+                    blockId:
+                      type: string
+                      minLength: 1
+                      maxLength: 140
+                    blockType:
+                      type: string
+                      const: SECTION
+                    sectionId:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    title:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 1200
+                    pageHint:
+                      type: string
+                      minLength: 1
+                      maxLength: 80
+              createdAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

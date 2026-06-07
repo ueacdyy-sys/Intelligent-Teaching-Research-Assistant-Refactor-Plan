@@ -107,6 +107,59 @@ func TestBuildStudentAppArchiveItemContentPreviewRejectsCrossStudentOrWrongItem(
 	}
 }
 
+func TestBuildStudentAppArchiveItemContentPreviewRenderEnvelopeUsesSafeTextBlocks(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemContentPreviewInput(
+		domain.ReadStudentAppArchiveItemContentPreviewInput{
+			Principal:     studentPrincipal("student_001"),
+			ArchiveItemID: "tarch_archive_material_001",
+		},
+	)
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemContentPreviewInput returned error: %v", err)
+	}
+
+	rendered, err := domain.BuildStudentAppArchiveItemContentPreviewRenderEnvelope(
+		input,
+		publishedArchiveMaterialContentPreviewFixture(),
+	)
+	if err != nil {
+		t.Fatalf("BuildStudentAppArchiveItemContentPreviewRenderEnvelope returned error: %v", err)
+	}
+	if rendered.RenderFormat != domain.PublishedArchiveMaterialContentPreviewRenderFormatSafeTextBlocks {
+		t.Fatalf("RenderFormat = %q", rendered.RenderFormat)
+	}
+	if rendered.PreviewStatus != domain.PublishedArchiveMaterialContentPreviewStatusReady {
+		t.Fatalf("PreviewStatus = %q", rendered.PreviewStatus)
+	}
+	if len(rendered.Blocks) != 2 {
+		t.Fatalf("blocks = %#v", rendered.Blocks)
+	}
+	if rendered.Blocks[0].BlockType != domain.PublishedArchiveMaterialContentPreviewBlockTypeSection ||
+		rendered.Blocks[0].Text != "Practice equivalent fractions and common denominators." ||
+		rendered.Blocks[0].SectionID != "section_001" {
+		t.Fatalf("block = %#v", rendered.Blocks[0])
+	}
+}
+
+func TestBuildStudentAppArchiveItemContentPreviewRenderEnvelopeRejectsCrossStudentRepositoryLeak(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemContentPreviewInput(
+		domain.ReadStudentAppArchiveItemContentPreviewInput{
+			Principal:     studentPrincipal("student_001"),
+			ArchiveItemID: "tarch_archive_material_001",
+		},
+	)
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemContentPreviewInput returned error: %v", err)
+	}
+	preview := publishedArchiveMaterialContentPreviewFixture()
+	preview.StudentID = "student_002"
+
+	_, err = domain.BuildStudentAppArchiveItemContentPreviewRenderEnvelope(input, preview)
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}
+
 func publishedArchiveMaterialContentPreviewFixture() domain.PublishedArchiveMaterialContentPreview {
 	createdAt := time.Date(2026, 6, 7, 9, 0, 0, 0, time.UTC)
 	return domain.PublishedArchiveMaterialContentPreview{

@@ -178,6 +178,7 @@ import (
       "Teaching archive material published detail metadata read runtime audit",
       "Teaching archive material published content preview precheck runtime audit",
       "Teaching archive material published content preview read foundation audit",
+      "Teaching archive material published content preview render envelope audit",
       "AI worker runtime dependency audit",
       "pgbouncer current performance profile audit",
       "conversation fanout decision audit",

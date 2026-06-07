@@ -56,6 +56,38 @@ type PublishedArchiveMaterialContentPreviewSection struct {
 	PageHint string `json:"pageHint,omitempty"`
 }
 
+type PublishedArchiveMaterialContentPreviewRenderFormat string
+
+const (
+	PublishedArchiveMaterialContentPreviewRenderFormatSafeTextBlocks PublishedArchiveMaterialContentPreviewRenderFormat = "SAFE_TEXT_BLOCKS"
+)
+
+type PublishedArchiveMaterialContentPreviewBlockType string
+
+const (
+	PublishedArchiveMaterialContentPreviewBlockTypeSection PublishedArchiveMaterialContentPreviewBlockType = "SECTION"
+)
+
+type PublishedArchiveMaterialContentPreviewRenderEnvelope struct {
+	ArchiveItemID string
+	MaterialType  MaterialType
+	Title         string
+	PreviewStatus PublishedArchiveMaterialContentPreviewStatus
+	RenderFormat  PublishedArchiveMaterialContentPreviewRenderFormat
+	Blocks        []PublishedArchiveMaterialContentPreviewBlock
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type PublishedArchiveMaterialContentPreviewBlock struct {
+	BlockID   string
+	BlockType PublishedArchiveMaterialContentPreviewBlockType
+	SectionID string
+	Title     string
+	Text      string
+	PageHint  string
+}
+
 func NormalizeReadStudentAppArchiveItemContentPreviewInput(
 	input ReadStudentAppArchiveItemContentPreviewInput,
 ) (NormalizedReadStudentAppArchiveItemContentPreviewInput, error) {
@@ -139,6 +171,37 @@ func BuildStudentAppArchiveItemContentPreview(
 		return PublishedArchiveMaterialContentPreview{}, ErrForbidden
 	}
 	return normalized, nil
+}
+
+func BuildStudentAppArchiveItemContentPreviewRenderEnvelope(
+	input NormalizedReadStudentAppArchiveItemContentPreviewInput,
+	preview PublishedArchiveMaterialContentPreview,
+) (PublishedArchiveMaterialContentPreviewRenderEnvelope, error) {
+	normalized, err := BuildStudentAppArchiveItemContentPreview(input, preview)
+	if err != nil {
+		return PublishedArchiveMaterialContentPreviewRenderEnvelope{}, err
+	}
+	blocks := make([]PublishedArchiveMaterialContentPreviewBlock, 0, len(normalized.Sections))
+	for _, section := range normalized.Sections {
+		blocks = append(blocks, PublishedArchiveMaterialContentPreviewBlock{
+			BlockID:   "block_" + section.ID,
+			BlockType: PublishedArchiveMaterialContentPreviewBlockTypeSection,
+			SectionID: section.ID,
+			Title:     section.Title,
+			Text:      section.Text,
+			PageHint:  section.PageHint,
+		})
+	}
+	return PublishedArchiveMaterialContentPreviewRenderEnvelope{
+		ArchiveItemID: normalized.ArchiveItemID,
+		MaterialType:  normalized.MaterialType,
+		Title:         normalized.Title,
+		PreviewStatus: normalized.Status,
+		RenderFormat:  PublishedArchiveMaterialContentPreviewRenderFormatSafeTextBlocks,
+		Blocks:        blocks,
+		CreatedAt:     normalized.CreatedAt,
+		UpdatedAt:     normalized.UpdatedAt,
+	}, nil
 }
 
 func normalizeArchiveMaterialContentPreviewSections(

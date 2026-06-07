@@ -56,6 +56,26 @@ type studentAppArchiveItemContentPreviewSection struct {
 	PageHint string `json:"pageHint,omitempty"`
 }
 
+type studentAppArchiveItemContentPreviewRenderResponse struct {
+	ArchiveItemID string                                                    `json:"archiveItemId"`
+	MaterialType  domain.MaterialType                                       `json:"materialType"`
+	Title         string                                                    `json:"title"`
+	PreviewStatus domain.PublishedArchiveMaterialContentPreviewStatus       `json:"previewStatus"`
+	RenderFormat  domain.PublishedArchiveMaterialContentPreviewRenderFormat `json:"renderFormat"`
+	Blocks        []studentAppArchiveItemContentPreviewBlock                `json:"blocks"`
+	CreatedAt     string                                                    `json:"createdAt"`
+	UpdatedAt     string                                                    `json:"updatedAt"`
+}
+
+type studentAppArchiveItemContentPreviewBlock struct {
+	BlockID   string                                                 `json:"blockId"`
+	BlockType domain.PublishedArchiveMaterialContentPreviewBlockType `json:"blockType"`
+	SectionID string                                                 `json:"sectionId"`
+	Title     string                                                 `json:"title"`
+	Text      string                                                 `json:"text"`
+	PageHint  string                                                 `json:"pageHint,omitempty"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`

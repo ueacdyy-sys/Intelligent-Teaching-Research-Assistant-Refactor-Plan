@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-06-07T17:19:41.492Z",
+  "readiness": "READY",
+  "workloadType": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_CONTENT_PREVIEW_RENDER_ENVELOPE",
+  "runtime": {
+    "runtimeId": "teaching_archive_material_published_content_preview_render_envelope",
+    "useCase": "RenderStudentAppArchiveItemContentPreview.Execute",
+    "repository": "ArchiveRepository.GetPublishedContentPreviewForStudentApp",
+    "endpoint": "GET /v1/student-app/archive-items/{archiveItemId}/content-preview/rendered",
+    "status": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_CONTENT_PREVIEW_RENDER_ENVELOPE_READY"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_SAFE_TEXT_BLOCK_RENDER_ENVELOPE_AUDIT"
+  },
+  "safetyInvariants": {
+    "ownStudentOnly": true,
+    "safePreviewReadFoundationRequired": true,
+    "renderFormat": "SAFE_TEXT_BLOCKS",
+    "renderedHtmlAllowed": false,
+    "renderedMarkdownAllowed": false,
+    "contentRefExcluded": true,
+    "rawContentReadAllowed": false,
+    "objectStorageReadAllowed": false,
+    "ocrOrRagReadAllowed": false,
+    "semanticRetrievalAllowed": false,
+    "answerKeyOrModelOutputAllowed": false,
+    "aiGradingWriteAllowed": false,
+    "modelInferenceAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0318_read_foundation_ready",
+      "passed": true,
+      "actual": "READY:TEACHING_ARCHIVE_MATERIAL_PUBLISHED_CONTENT_PREVIEW_READ_FOUNDATION_READY",
+      "expected": "0318 published content preview read foundation report is READY",
+      "remediation": "Regenerate or fix 0318 read foundation evidence before claiming 0319 render envelope."
+    },
+    {
+      "severity": "info",
+      "id": "go.safe_text_block_render_envelope",
+      "passed": true,
+      "actual": "SAFE_TEXT_BLOCKS=true;BuildStudentAppArchiveItemContentPreviewRenderEnvelope=true;RenderStudentAppArchiveItemContentPreview=true",
+      "expected": "domain and use case render only safe reviewed preview sections into SAFE_TEXT_BLOCKS",
+      "remediation": "Keep rendering inside the 0318 safe preview read boundary and reject repository leaks."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_safe_render_endpoint",
+      "passed": true,
+      "actual": "StudentID=false;ContentRef=false;RenderedHTML=false;RenderedMarkdown=false;ExpectedAnswer=false;contentRef=false;studentId=false;rawContent=false;renderedHtml=false;renderedMarkdown=false",
+      "expected": "HTTP/OpenAPI exposes only safe text-block rendering fields",
+      "remediation": "Remove ownership, storage, raw rendering, answer, model, worker, and publication fields from the render response."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:teaching-archive-material-published-content-preview-render-envelope=true;teachingArchiveMaterialPublishedContentPreviewRenderEnvelope=true;10.93/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD trace, and architecture board track 0319",
+      "remediation": "Wire this render envelope through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as a safe Student App preview render envelope; keep full content rendering, OCR/RAG, semantic retrieval, and AI grading as later reviewed slices."
+}

@@ -217,6 +217,7 @@ export function buildQualityCommandPlan() {
     { name: "Teaching archive material published detail metadata read runtime audit", command: npmCommand(), args: ["run", "audit:teaching-archive-material-published-detail-metadata-read"] },
     { name: "Teaching archive material published content preview precheck runtime audit", command: npmCommand(), args: ["run", "audit:teaching-archive-material-published-content-preview-precheck"] },
     { name: "Teaching archive material published content preview read foundation audit", command: npmCommand(), args: ["run", "audit:teaching-archive-material-published-content-preview-read-foundation"] },
+    { name: "Teaching archive material published content preview render envelope audit", command: npmCommand(), args: ["run", "audit:teaching-archive-material-published-content-preview-render-envelope"] },
     { name: "AI worker runtime dependency audit", command: npmCommand(), args: ["run", "audit:ai-worker-runtime-dependencies"] },
     { name: "pgbouncer current performance profile audit", command: npmCommand(), args: ["run", "audit:pgbouncer-perf:current"] },
     { name: "conversation fanout decision audit", command: npmCommand(), args: ["run", "audit:conversation-fanout-decision"] },

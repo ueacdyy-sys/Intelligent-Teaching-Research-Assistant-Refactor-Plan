@@ -103,3 +103,34 @@ func (s *Server) readStudentAppArchiveItemContentPreviewHTTP(
 	}
 	writeJSON(w, http.StatusOK, toStudentAppArchiveItemContentPreviewResponse(preview))
 }
+
+func (s *Server) renderStudentAppArchiveItemContentPreviewHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+	archiveItemID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.renderStudentAppArchiveItemContentPreview == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app archive item content preview renderer use case is not configured")
+		return
+	}
+
+	rendered, err := s.renderStudentAppArchiveItemContentPreview.Execute(
+		r.Context(),
+		domain.ReadStudentAppArchiveItemContentPreviewInput{
+			Principal:     principal,
+			ArchiveItemID: archiveItemID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to render student app archive item content preview") {
+		return
+	}
+	writeJSON(w, http.StatusOK, toStudentAppArchiveItemContentPreviewRenderResponse(rendered))
+}

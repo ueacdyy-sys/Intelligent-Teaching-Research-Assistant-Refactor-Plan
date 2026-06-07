@@ -78,6 +78,32 @@ func toStudentAppArchiveItemContentPreviewResponse(
 	}
 }
 
+func toStudentAppArchiveItemContentPreviewRenderResponse(
+	rendered domain.PublishedArchiveMaterialContentPreviewRenderEnvelope,
+) studentAppArchiveItemContentPreviewRenderResponse {
+	blocks := make([]studentAppArchiveItemContentPreviewBlock, 0, len(rendered.Blocks))
+	for _, block := range rendered.Blocks {
+		blocks = append(blocks, studentAppArchiveItemContentPreviewBlock{
+			BlockID:   block.BlockID,
+			BlockType: block.BlockType,
+			SectionID: block.SectionID,
+			Title:     block.Title,
+			Text:      block.Text,
+			PageHint:  block.PageHint,
+		})
+	}
+	return studentAppArchiveItemContentPreviewRenderResponse{
+		ArchiveItemID: rendered.ArchiveItemID,
+		MaterialType:  rendered.MaterialType,
+		Title:         rendered.Title,
+		PreviewStatus: rendered.PreviewStatus,
+		RenderFormat:  rendered.RenderFormat,
+		Blocks:        blocks,
+		CreatedAt:     formatTime(rendered.CreatedAt),
+		UpdatedAt:     formatTime(rendered.UpdatedAt),
+	}
+}
+
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
 	return archiveItemAcceptedResponse{
 		archiveItemResponse: toResponse(result.Item),
