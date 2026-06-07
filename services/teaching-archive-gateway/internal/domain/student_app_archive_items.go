@@ -66,6 +66,18 @@ type NormalizedReadStudentAppArchiveItemInput struct {
 	StudentID     string
 }
 
+type StudentAppArchiveItemStudyPacketStatus string
+
+const (
+	StudentAppArchiveItemStudyPacketStatusReady StudentAppArchiveItemStudyPacketStatus = "READY"
+)
+
+type StudentAppArchiveItemStudyPacket struct {
+	PacketStatus   StudentAppArchiveItemStudyPacketStatus
+	ArchiveItem    ArchiveItem
+	ContentPreview PublishedArchiveMaterialContentPreviewRenderEnvelope
+}
+
 func NormalizeReadStudentAppArchiveItemInput(
 	input ReadStudentAppArchiveItemInput,
 ) (NormalizedReadStudentAppArchiveItemInput, error) {
@@ -102,6 +114,38 @@ func BuildStudentAppArchiveItemMetadata(
 		return ArchiveItem{}, err
 	}
 	return item, nil
+}
+
+func BuildStudentAppArchiveItemStudyPacket(
+	input NormalizedReadStudentAppArchiveItemInput,
+	item ArchiveItem,
+	preview PublishedArchiveMaterialContentPreview,
+) (StudentAppArchiveItemStudyPacket, error) {
+	metadata, err := BuildStudentAppArchiveItemMetadata(input, item)
+	if err != nil {
+		return StudentAppArchiveItemStudyPacket{}, err
+	}
+	rendered, err := BuildStudentAppArchiveItemContentPreviewRenderEnvelope(
+		NormalizedReadStudentAppArchiveItemContentPreviewInput{
+			Principal:     input.Principal,
+			ArchiveItemID: input.ArchiveItemID,
+			StudentID:     input.StudentID,
+		},
+		preview,
+	)
+	if err != nil {
+		return StudentAppArchiveItemStudyPacket{}, err
+	}
+	if metadata.ID != rendered.ArchiveItemID ||
+		metadata.MaterialType != rendered.MaterialType ||
+		metadata.Title != rendered.Title {
+		return StudentAppArchiveItemStudyPacket{}, ErrForbidden
+	}
+	return StudentAppArchiveItemStudyPacket{
+		PacketStatus:   StudentAppArchiveItemStudyPacketStatusReady,
+		ArchiveItem:    metadata,
+		ContentPreview: rendered,
+	}, nil
 }
 
 func normalizeStudentAppArchiveItemID(value string) (string, error) {

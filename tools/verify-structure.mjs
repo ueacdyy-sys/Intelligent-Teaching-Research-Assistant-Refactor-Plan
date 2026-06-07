@@ -14,7 +14,7 @@ const required = [
   "contracts/openapi/teaching-archive.attendance-session-random-selections.path.yaml", "contracts/openapi/teaching-archive.quiz-submissions.path.yaml",
   "contracts/openapi/teaching-archive.quiz-draft-intents.path.yaml", "contracts/openapi/teaching-archive.archive-material-draft-intents.path.yaml",
   "contracts/openapi/teaching-archive.quiz-scan-submissions.path.yaml", "contracts/openapi/teaching-archive.student-app-teaching-materials.path.yaml",
-  "contracts/openapi/teaching-archive.student-app-archive-items.path.yaml", "contracts/openapi/teaching-archive.student-app-archive-item-content-preview.path.yaml", "contracts/openapi/teaching-archive.student-app-archive-item-content-preview-rendered.path.yaml", "contracts/openapi/teaching-archive.student-app-quiz-submissions.path.yaml", "contracts/openapi/teaching-archive.student-app-quiz-scan-submissions.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-drafts.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-content.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-answer-submissions.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-answer-submission-ai-grading-requests.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-answer-submission-ai-grading-result.path.yaml", "contracts/openapi/teaching-archive.ai-grading-question-bank-answer-scoring-input.path.yaml", "contracts/openapi/teaching-archive.student-app-ai-tutor-requests.path.yaml",
+  "contracts/openapi/teaching-archive.student-app-archive-items.path.yaml", "contracts/openapi/teaching-archive.student-app-archive-item-content-preview.path.yaml", "contracts/openapi/teaching-archive.student-app-archive-item-content-preview-rendered.path.yaml", "contracts/openapi/teaching-archive.student-app-archive-item-study-packet.path.yaml", "contracts/openapi/teaching-archive.student-app-quiz-submissions.path.yaml", "contracts/openapi/teaching-archive.student-app-quiz-scan-submissions.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-drafts.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-content.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-answer-submissions.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-answer-submission-ai-grading-requests.path.yaml", "contracts/openapi/teaching-archive.student-app-question-bank-draft-answer-submission-ai-grading-result.path.yaml", "contracts/openapi/teaching-archive.ai-grading-question-bank-answer-scoring-input.path.yaml", "contracts/openapi/teaching-archive.student-app-ai-tutor-requests.path.yaml",
   "contracts/openapi/teaching-archive.quiz-submission-ai-grading-requests.path.yaml", "contracts/openapi/teaching-archive.ai-grading-requests.path.yaml",
   "contracts/openapi/teaching-archive.ai-grading-worker-claims.path.yaml", "contracts/openapi/teaching-archive.ai-grading-worker-result.path.yaml",
   "contracts/openapi/teaching-archive.tutoring-analysis-requests.path.yaml", "contracts/openapi/teaching-archive.tutoring-analysis-worker-claims.path.yaml",
@@ -549,6 +549,14 @@ function main() {
     "services/teaching-archive-gateway/internal/usecase/render_student_app_archive_item_content_preview_test.go",
     "contracts/openapi/teaching-archive.student-app-archive-item-content-preview-rendered.path.yaml",
   ];
+  const required0320 = [
+    "docs/sdd/0320-teaching-archive-material-published-study-packet.md",
+    "tools/teaching-archive-material-published-study-packet-audit.mjs",
+    "tools/teaching-archive-material-published-study-packet-audit.test.mjs",
+    "services/teaching-archive-gateway/internal/usecase/read_student_app_archive_item_study_packet.go",
+    "services/teaching-archive-gateway/internal/usecase/read_student_app_archive_item_study_packet_test.go",
+    "contracts/openapi/teaching-archive.student-app-archive-item-study-packet.path.yaml",
+  ];
   const required0302RuntimeEvidence = "teaching_archive_material_draft_human_review_runtime";
   const required0303RuntimeEvidence = "teaching_archive_material_draft_storage_precommit_runtime";
   const required0304RuntimeEvidence = "teaching_archive_material_draft_storage_commit_runtime";
@@ -567,7 +575,8 @@ function main() {
   const required0317RuntimeEvidence = "teaching_archive_material_published_content_preview_precheck_runtime";
   const required0318RuntimeEvidence = "teaching_archive_material_published_content_preview_read_foundation";
   const required0319RuntimeEvidence = "teaching_archive_material_published_content_preview_render_envelope";
-  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314, ...required0315, ...required0316, ...required0317, ...required0318, ...required0319].filter((file) => !fs.existsSync(path.join(root, file)));
+  const required0320RuntimeEvidence = "teaching_archive_material_published_study_packet";
+  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314, ...required0315, ...required0316, ...required0317, ...required0318, ...required0319, ...required0320].filter((file) => !fs.existsSync(path.join(root, file)));
   if (missing.length > 0) {
     console.error("Missing required refactor files:");
     for (const file of missing) console.error(`- ${file}`);
@@ -627,6 +636,9 @@ function main() {
   if (!fs.readFileSync(path.join(root, "tools/teaching-archive-material-published-content-preview-render-envelope-audit.mjs"), "utf8").includes(required0319RuntimeEvidence)) {
     fail("0319 teaching archive material published content preview render envelope evidence id is missing.");
   }
+  if (!fs.readFileSync(path.join(root, "tools/teaching-archive-material-published-study-packet-audit.mjs"), "utf8").includes(required0320RuntimeEvidence)) {
+    fail("0320 teaching archive material published study packet evidence id is missing.");
+  }
   for (const finding of verifySddDocuments(root)) {
     fail(finding.message);
   }
@@ -643,7 +655,7 @@ function main() {
   );
   for (const field of [
     "CreateArchiveItem", "ListArchiveItems",
-    "ListStudentAppTeachingMaterials", "ListStudentAppArchiveItems", "ReadStudentAppArchiveItem", "ReadStudentAppArchiveItemContentPreview", "RenderStudentAppArchiveItemContentPreview",
+    "ListStudentAppTeachingMaterials", "ListStudentAppArchiveItems", "ReadStudentAppArchiveItem", "ReadStudentAppArchiveItemContentPreview", "RenderStudentAppArchiveItemContentPreview", "ReadStudentAppArchiveItemStudyPacket",
     "CreateStudentAppAITutorRequest", "ListStudentAppAITutorRequests", "ListStudentAppQuizSubmissions", "ListStudentAppQuestionBankDrafts", "ReadStudentAppQuestionBankDraftContent", "SubmitStudentAppQuestionBankDraftAnswer", "CreateStudentAppQuestionBankDraftAnswerScoringRequest", "ReadStudentAppQuestionBankDraftAnswerScoringResult", "ReadQuestionBankDraftAnswerScoringInput", "CreateQuizSubmission",
     "CreateScannedQuizSubmission", "SubmitTeachingQuizDraftIntent",
     "SubmitArchiveMaterialDraftIntent", "CreateAttendanceSession",

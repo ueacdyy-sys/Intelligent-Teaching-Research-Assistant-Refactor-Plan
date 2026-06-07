@@ -134,3 +134,34 @@ func (s *Server) renderStudentAppArchiveItemContentPreviewHTTP(
 	}
 	writeJSON(w, http.StatusOK, toStudentAppArchiveItemContentPreviewRenderResponse(rendered))
 }
+
+func (s *Server) readStudentAppArchiveItemStudyPacketHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+	archiveItemID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.readStudentAppArchiveItemStudyPacket == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app archive item study packet use case is not configured")
+		return
+	}
+
+	packet, err := s.readStudentAppArchiveItemStudyPacket.Execute(
+		r.Context(),
+		domain.ReadStudentAppArchiveItemInput{
+			Principal:     principal,
+			ArchiveItemID: archiveItemID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to read student app archive item study packet") {
+		return
+	}
+	writeJSON(w, http.StatusOK, toStudentAppArchiveItemStudyPacketResponse(packet))
+}

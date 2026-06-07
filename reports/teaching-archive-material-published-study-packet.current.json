@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-06-07T17:50:49.370Z",
+  "readiness": "READY",
+  "workloadType": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_STUDY_PACKET",
+  "runtime": {
+    "runtimeId": "teaching_archive_material_published_study_packet",
+    "useCase": "ReadStudentAppArchiveItemStudyPacket.Execute",
+    "detailRepository": "ArchiveRepository.GetPublishedForStudentApp",
+    "previewRepository": "ArchiveRepository.GetPublishedContentPreviewForStudentApp",
+    "endpoint": "GET /v1/student-app/archive-items/{archiveItemId}/study-packet",
+    "status": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_STUDY_PACKET_READY"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_SAFE_STUDY_PACKET_AUDIT"
+  },
+  "safetyInvariants": {
+    "ownStudentOnly": true,
+    "publishedMetadataRequired": true,
+    "safePreviewRenderEnvelopeRequired": true,
+    "renderFormat": "SAFE_TEXT_BLOCKS",
+    "studentIdExcluded": true,
+    "contentRefExcluded": true,
+    "rawContentReadAllowed": false,
+    "renderedHtmlAllowed": false,
+    "renderedMarkdownAllowed": false,
+    "objectStorageReadAllowed": false,
+    "ocrOrRagReadAllowed": false,
+    "semanticRetrievalAllowed": false,
+    "answerKeyOrModelOutputAllowed": false,
+    "aiGradingWriteAllowed": false,
+    "modelInferenceAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0319_render_envelope_ready",
+      "passed": true,
+      "actual": "READY:TEACHING_ARCHIVE_MATERIAL_PUBLISHED_CONTENT_PREVIEW_RENDER_ENVELOPE_READY",
+      "expected": "0319 content preview render envelope report is READY",
+      "remediation": "Regenerate or fix 0319 render envelope evidence before claiming 0320 study packet."
+    },
+    {
+      "severity": "info",
+      "id": "go.safe_study_packet_composes_detail_and_preview",
+      "passed": true,
+      "actual": "BuildStudentAppArchiveItemStudyPacket=true;GetPublishedForStudentApp=true;GetPublishedContentPreviewForStudentApp=true",
+      "expected": "domain and use case compose published metadata and safe text-block preview only",
+      "remediation": "Keep the study packet inside the published detail and 0319 safe preview boundaries."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_safe_study_packet_endpoint",
+      "passed": true,
+      "actual": "StudentID=false;ContentRef=false;studentId=false;contentRef=false;rawContent=false;renderedHtml=false;renderedMarkdown=false;ragChunks=false;expectedAnswer=false",
+      "expected": "HTTP/OpenAPI exposes only safe metadata and SAFE_TEXT_BLOCKS preview",
+      "remediation": "Remove ownership internals, storage refs, raw rendering, answer, model, worker, and publication fields from the study packet response."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:teaching-archive-material-published-study-packet=true;teachingArchiveMaterialPublishedStudyPacket=true;10.96/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD trace, and architecture board track 0320",
+      "remediation": "Wire this study packet through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the Student App archive item study packet foundation; keep full content, OCR/RAG, semantic retrieval, AI tutoring, and Swarm as later reviewed slices."
+}

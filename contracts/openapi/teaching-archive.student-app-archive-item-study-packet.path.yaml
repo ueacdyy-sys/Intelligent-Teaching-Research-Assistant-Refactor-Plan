@@ -1,0 +1,155 @@
+get:
+  operationId: readStudentAppArchiveItemStudyPacket
+  summary: Read a safe study packet for one Student App archive item.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+        maxLength: 1000
+  responses:
+    '200':
+      description: Safe metadata and text-block preview for one authenticated student-owned published archive item.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - packetStatus
+              - archiveItem
+              - contentPreview
+            properties:
+              packetStatus:
+                type: string
+                const: READY
+              archiveItem:
+                type: object
+                additionalProperties: false
+                required:
+                  - id
+                  - ownerType
+                  - materialType
+                  - title
+                  - source
+                  - tags
+                  - analysisIntents
+                  - ocrStatus
+                  - createdAt
+                properties:
+                  id:
+                    type: string
+                    pattern: '^tarch_[A-Za-z0-9_-]+$'
+                  ownerType:
+                    type: string
+                    const: STUDENT
+                  materialType:
+                    type: string
+                    enum: [QUIZ, PAPER, HANDOUT, HOMEWORK]
+                  title:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                  source:
+                    type: string
+                    enum: [TEACHER_UPLOAD, SYSTEM_IMPORT]
+                  tags:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: string
+                      minLength: 1
+                      maxLength: 64
+                  analysisIntents:
+                    type: array
+                    maxItems: 8
+                    items:
+                      type: string
+                      enum: [TUTORING, DIAGNOSTIC, ARCHIVE_ONLY]
+                  ocrStatus:
+                    type: string
+                    enum: [NOT_REQUIRED, PENDING, COMPLETED]
+                  createdAt:
+                    type: string
+                    format: date-time
+              contentPreview:
+                type: object
+                additionalProperties: false
+                required:
+                  - archiveItemId
+                  - materialType
+                  - title
+                  - previewStatus
+                  - renderFormat
+                  - blocks
+                  - createdAt
+                  - updatedAt
+                properties:
+                  archiveItemId:
+                    type: string
+                    pattern: '^tarch_[A-Za-z0-9_-]+$'
+                  materialType:
+                    type: string
+                    enum: [QUIZ, PAPER, HANDOUT, HOMEWORK]
+                  title:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                  previewStatus:
+                    type: string
+                    const: READY
+                  renderFormat:
+                    type: string
+                    const: SAFE_TEXT_BLOCKS
+                  blocks:
+                    type: array
+                    minItems: 1
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [blockId, blockType, sectionId, title, text]
+                      properties:
+                        blockId:
+                          type: string
+                          minLength: 1
+                          maxLength: 140
+                        blockType:
+                          type: string
+                          const: SECTION
+                        sectionId:
+                          type: string
+                          minLength: 1
+                          maxLength: 128
+                        title:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                        text:
+                          type: string
+                          minLength: 1
+                          maxLength: 1200
+                        pageHint:
+                          type: string
+                          minLength: 1
+                          maxLength: 80
+                  createdAt:
+                    type: string
+                    format: date-time
+                  updatedAt:
+                    type: string
+                    format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

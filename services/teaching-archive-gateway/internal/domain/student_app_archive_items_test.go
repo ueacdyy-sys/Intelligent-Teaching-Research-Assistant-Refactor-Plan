@@ -3,6 +3,7 @@ package domain_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 )
@@ -163,5 +164,97 @@ func TestBuildStudentAppArchiveItemMetadataRejectsCrossStudentOrTeachingMaterial
 				t.Fatalf("error = %v, want ErrForbidden", err)
 			}
 		})
+	}
+}
+
+func TestBuildStudentAppArchiveItemStudyPacketCombinesSafeMetadataAndRenderedPreview(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_archive_material_001",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemInput returned error: %v", err)
+	}
+
+	packet, err := domain.BuildStudentAppArchiveItemStudyPacket(
+		input,
+		domain.ArchiveItem{
+			ID:              "tarch_archive_material_001",
+			OwnerType:       domain.OwnerTypeStudent,
+			StudentID:       "student_001",
+			MaterialType:    domain.MaterialTypeHandout,
+			Title:           "Fractions practice packet",
+			Source:          domain.SourceSystemImport,
+			ContentRef:      "precommit://archive-material/student_001/fractions-packet",
+			Tags:            []string{"fractions"},
+			AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly},
+			OCRStatus:       domain.OCRStatusNotRequired,
+		},
+		studentAppStudyPacketContentPreviewFixture("tarch_archive_material_001", "student_001"),
+	)
+	if err != nil {
+		t.Fatalf("BuildStudentAppArchiveItemStudyPacket returned error: %v", err)
+	}
+	if packet.PacketStatus != domain.StudentAppArchiveItemStudyPacketStatusReady {
+		t.Fatalf("PacketStatus = %q", packet.PacketStatus)
+	}
+	if packet.ArchiveItem.ID != "tarch_archive_material_001" ||
+		packet.ArchiveItem.ContentRef != "precommit://archive-material/student_001/fractions-packet" {
+		t.Fatalf("ArchiveItem = %#v", packet.ArchiveItem)
+	}
+	if packet.ContentPreview.RenderFormat != domain.PublishedArchiveMaterialContentPreviewRenderFormatSafeTextBlocks ||
+		len(packet.ContentPreview.Blocks) != 1 {
+		t.Fatalf("ContentPreview = %#v", packet.ContentPreview)
+	}
+}
+
+func TestBuildStudentAppArchiveItemStudyPacketRejectsPreviewMetadataMismatch(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_archive_material_001",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemInput returned error: %v", err)
+	}
+	preview := studentAppStudyPacketContentPreviewFixture("tarch_archive_material_001", "student_001")
+	preview.Title = "Different title"
+
+	_, err = domain.BuildStudentAppArchiveItemStudyPacket(
+		input,
+		domain.ArchiveItem{
+			ID:           "tarch_archive_material_001",
+			OwnerType:    domain.OwnerTypeStudent,
+			StudentID:    "student_001",
+			MaterialType: domain.MaterialTypeHandout,
+			Title:        "Fractions practice packet",
+		},
+		preview,
+	)
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}
+
+func studentAppStudyPacketContentPreviewFixture(
+	archiveItemID string,
+	studentID string,
+) domain.PublishedArchiveMaterialContentPreview {
+	createdAt := time.Date(2026, 6, 7, 9, 0, 0, 0, time.UTC)
+	return domain.PublishedArchiveMaterialContentPreview{
+		ArchiveItemID: archiveItemID,
+		StudentID:     studentID,
+		MaterialType:  domain.MaterialTypeHandout,
+		Title:         "Fractions practice packet",
+		Status:        domain.PublishedArchiveMaterialContentPreviewStatusReady,
+		PreviewSource: domain.PublishedArchiveMaterialContentPreviewSourceSafeReviewed,
+		Sections: []domain.PublishedArchiveMaterialContentPreviewSection{
+			{
+				ID:    "section_001",
+				Title: "Learning goals",
+				Text:  "Practice equivalent fractions and common denominators.",
+			},
+		},
+		CreatedAt: createdAt,
+		UpdatedAt: createdAt.Add(5 * time.Minute),
 	}
 }

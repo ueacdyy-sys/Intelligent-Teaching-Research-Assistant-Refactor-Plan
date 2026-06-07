@@ -76,6 +76,24 @@ type studentAppArchiveItemContentPreviewBlock struct {
 	PageHint  string                                                 `json:"pageHint,omitempty"`
 }
 
+type studentAppArchiveItemStudyPacketResponse struct {
+	PacketStatus   domain.StudentAppArchiveItemStudyPacketStatus     `json:"packetStatus"`
+	ArchiveItem    studentAppArchiveItemStudyPacketMetadata          `json:"archiveItem"`
+	ContentPreview studentAppArchiveItemContentPreviewRenderResponse `json:"contentPreview"`
+}
+
+type studentAppArchiveItemStudyPacketMetadata struct {
+	ID              string                  `json:"id"`
+	OwnerType       domain.OwnerType        `json:"ownerType"`
+	MaterialType    domain.MaterialType     `json:"materialType"`
+	Title           string                  `json:"title"`
+	Source          domain.Source           `json:"source"`
+	Tags            []string                `json:"tags"`
+	AnalysisIntents []domain.AnalysisIntent `json:"analysisIntents"`
+	OCRStatus       domain.OCRStatus        `json:"ocrStatus"`
+	CreatedAt       string                  `json:"createdAt"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`

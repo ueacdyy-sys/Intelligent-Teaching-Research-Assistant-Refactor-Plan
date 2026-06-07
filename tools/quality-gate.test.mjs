@@ -179,6 +179,7 @@ import (
       "Teaching archive material published content preview precheck runtime audit",
       "Teaching archive material published content preview read foundation audit",
       "Teaching archive material published content preview render envelope audit",
+      "Teaching archive material published study packet audit",
       "AI worker runtime dependency audit",
       "pgbouncer current performance profile audit",
       "conversation fanout decision audit",

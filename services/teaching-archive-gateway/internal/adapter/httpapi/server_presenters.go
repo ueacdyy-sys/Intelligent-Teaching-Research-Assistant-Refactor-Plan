@@ -104,6 +104,26 @@ func toStudentAppArchiveItemContentPreviewRenderResponse(
 	}
 }
 
+func toStudentAppArchiveItemStudyPacketResponse(
+	packet domain.StudentAppArchiveItemStudyPacket,
+) studentAppArchiveItemStudyPacketResponse {
+	return studentAppArchiveItemStudyPacketResponse{
+		PacketStatus: packet.PacketStatus,
+		ArchiveItem: studentAppArchiveItemStudyPacketMetadata{
+			ID:              packet.ArchiveItem.ID,
+			OwnerType:       packet.ArchiveItem.OwnerType,
+			MaterialType:    packet.ArchiveItem.MaterialType,
+			Title:           packet.ArchiveItem.Title,
+			Source:          packet.ArchiveItem.Source,
+			Tags:            packet.ArchiveItem.Tags,
+			AnalysisIntents: packet.ArchiveItem.AnalysisIntents,
+			OCRStatus:       packet.ArchiveItem.OCRStatus,
+			CreatedAt:       formatTime(packet.ArchiveItem.CreatedAt),
+		},
+		ContentPreview: toStudentAppArchiveItemContentPreviewRenderResponse(packet.ContentPreview),
+	}
+}
+
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
 	return archiveItemAcceptedResponse{
 		archiveItemResponse: toResponse(result.Item),
