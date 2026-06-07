@@ -211,6 +211,7 @@ type fakeRepository struct {
 	requests                           []domain.TutoringAnalysisRequest
 	gradingRequests                    []domain.AIGradingRequest
 	quizSubmissions                    []domain.QuizSubmission
+	contentPreviews                    []domain.PublishedArchiveMaterialContentPreview
 	questionBankDraftContents          []domain.QuestionBankDraftContent
 	questionBankDraftAnswerSubmissions []domain.QuestionBankDraftAnswerSubmission
 	quizDraftIntents                   []domain.TeachingQuizDraftIntent
@@ -319,6 +320,21 @@ func (f *fakeRepository) GetPublishedForStudentApp(
 		}
 	}
 	return domain.ArchiveItem{}, false, nil
+}
+
+func (f *fakeRepository) GetPublishedContentPreviewForStudentApp(
+	_ context.Context,
+	archiveItemID string,
+	studentID string,
+) (domain.PublishedArchiveMaterialContentPreview, bool, error) {
+	for _, preview := range f.contentPreviews {
+		if preview.ArchiveItemID == archiveItemID &&
+			preview.StudentID == studentID &&
+			f.publishedArchiveItemIDs[preview.ArchiveItemID] {
+			return preview, true, nil
+		}
+	}
+	return domain.PublishedArchiveMaterialContentPreview{}, false, nil
 }
 
 func (f *fakeRepository) CreateTutoringAnalysisRequest(_ context.Context, request domain.TutoringAnalysisRequest) error {

@@ -41,6 +41,7 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 		"idx_teaching_archive_items_student_material_search_scope",
 		"idx_teaching_archive_publications_student_app_visible_lookup",
 		"idx_teaching_archive_publications_student_app_visible_page",
+		"idx_teaching_archive_material_content_previews_student_updated",
 	} {
 		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
 			t.Fatalf("schema missing covered page index %s", indexName)
@@ -48,6 +49,9 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 	}
 	if !strings.Contains(statements, "CREATE TABLE IF NOT EXISTS teaching_archive_publications") {
 		t.Fatalf("schema missing teaching archive publication projection table")
+	}
+	if !strings.Contains(statements, "CREATE TABLE IF NOT EXISTS teaching_archive_material_content_previews") {
+		t.Fatalf("schema missing safe archive material content preview table")
 	}
 }
 
@@ -76,7 +80,7 @@ func TestEnsureSchemaUsesTransactionAdvisoryLockAroundStatements(t *testing.T) {
 }
 
 func TestEnsureSchemaSkipsMigrationWhenCurrentVersionExists(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.5"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.6"}}
 
 	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
 		t.Fatalf("EnsureSchema returned error: %v", err)
@@ -126,7 +130,7 @@ func TestEnsureSchemaWithHotWriteProfileDropsRedundantArchiveItemPageIndexes(t *
 }
 
 func TestEnsureSchemaWithFullProfileRestoresArchiveItemPageIndexes(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.5"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.6"}}
 
 	err := postgres.EnsureSchemaWithOptions(context.Background(), db, postgres.SchemaOptions{
 		IndexProfile: postgres.SchemaIndexProfileFull,

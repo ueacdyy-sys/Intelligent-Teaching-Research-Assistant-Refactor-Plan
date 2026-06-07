@@ -39,6 +39,23 @@ type studentAppArchiveItemMetadataResponse struct {
 	CreatedAt       string                  `json:"createdAt"`
 }
 
+type studentAppArchiveItemContentPreviewResponse struct {
+	ArchiveItemID string                                              `json:"archiveItemId"`
+	MaterialType  domain.MaterialType                                 `json:"materialType"`
+	Title         string                                              `json:"title"`
+	PreviewStatus domain.PublishedArchiveMaterialContentPreviewStatus `json:"previewStatus"`
+	Sections      []studentAppArchiveItemContentPreviewSection        `json:"sections"`
+	CreatedAt     string                                              `json:"createdAt"`
+	UpdatedAt     string                                              `json:"updatedAt"`
+}
+
+type studentAppArchiveItemContentPreviewSection struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Text     string `json:"text"`
+	PageHint string `json:"pageHint,omitempty"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`

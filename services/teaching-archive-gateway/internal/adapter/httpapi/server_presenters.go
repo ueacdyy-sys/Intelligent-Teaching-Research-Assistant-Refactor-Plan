@@ -55,6 +55,29 @@ func toStudentAppArchiveItemMetadataResponse(
 	}
 }
 
+func toStudentAppArchiveItemContentPreviewResponse(
+	preview domain.PublishedArchiveMaterialContentPreview,
+) studentAppArchiveItemContentPreviewResponse {
+	sections := make([]studentAppArchiveItemContentPreviewSection, 0, len(preview.Sections))
+	for _, section := range preview.Sections {
+		sections = append(sections, studentAppArchiveItemContentPreviewSection{
+			ID:       section.ID,
+			Title:    section.Title,
+			Text:     section.Text,
+			PageHint: section.PageHint,
+		})
+	}
+	return studentAppArchiveItemContentPreviewResponse{
+		ArchiveItemID: preview.ArchiveItemID,
+		MaterialType:  preview.MaterialType,
+		Title:         preview.Title,
+		PreviewStatus: preview.Status,
+		Sections:      sections,
+		CreatedAt:     formatTime(preview.CreatedAt),
+		UpdatedAt:     formatTime(preview.UpdatedAt),
+	}
+}
+
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
 	return archiveItemAcceptedResponse{
 		archiveItemResponse: toResponse(result.Item),

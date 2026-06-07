@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-06-07T16:49:48.329Z",
+  "readiness": "READY",
+  "workloadType": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_CONTENT_PREVIEW_READ_FOUNDATION",
+  "runtime": {
+    "runtimeId": "teaching_archive_material_published_content_preview_read_foundation",
+    "useCase": "ReadStudentAppArchiveItemContentPreview.Execute",
+    "repository": "ArchiveRepository.GetPublishedContentPreviewForStudentApp",
+    "endpoint": "GET /v1/student-app/archive-items/{archiveItemId}/content-preview",
+    "status": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_CONTENT_PREVIEW_READ_FOUNDATION_READY"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_SAFE_CONTENT_PREVIEW_READ_FOUNDATION_AUDIT"
+  },
+  "safetyInvariants": {
+    "ownStudentOnly": true,
+    "publicationProjectionFiltered": true,
+    "safePreviewStoreOnly": true,
+    "contentRefExcluded": true,
+    "rawContentReadAllowed": false,
+    "objectStorageReadAllowed": false,
+    "ocrOrRagReadAllowed": false,
+    "semanticRetrievalAllowed": false,
+    "answerKeyOrModelOutputAllowed": false,
+    "aiGradingWriteAllowed": false,
+    "modelInferenceAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0317_precheck_ready",
+      "passed": true,
+      "actual": "READY:TEACHING_ARCHIVE_MATERIAL_PUBLISHED_CONTENT_PREVIEW_PRECHECK_BLOCKED_UNTIL_SAFE_CONTENT_STORE",
+      "expected": "0317 published content preview precheck report is READY and blocked until safe content store",
+      "remediation": "Regenerate or fix 0317 precheck evidence before claiming 0318 read foundation."
+    },
+    {
+      "severity": "info",
+      "id": "go.domain_usecase_safe_preview_read",
+      "passed": true,
+      "actual": "PublishedArchiveMaterialContentPreview=true;ReadStudentAppArchiveItemContentPreview=true;RejectsCrossStudentRepositoryLeak=true",
+      "expected": "domain and use case enforce Student App own-student safe preview reads",
+      "remediation": "Keep all principal and cross-student checks inside domain/usecase before adapter reads."
+    },
+    {
+      "severity": "info",
+      "id": "postgres.safe_preview_table_and_publication_filter",
+      "passed": true,
+      "actual": "SELECT *=false;content_ref=false;teaching_archive_material_content_previews=true;teaching_archive_publications=true",
+      "expected": "PostgreSQL reads only safe preview rows scoped through the Student App publication projection",
+      "remediation": "Do not read raw archive content or content_ref; keep publication EXISTS filtering on every preview read."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_safe_student_preview_endpoint",
+      "passed": true,
+      "actual": "StudentID=false;ContentRef=false;Worker=false;Publication=false;ExpectedAnswer=false;contentRef=false;studentId=false;rawContent=false",
+      "expected": "HTTP/OpenAPI exposes only safe reviewed preview fields for an own-student published item",
+      "remediation": "Remove ownership, storage, publication, answer, worker, and raw content fields from the student response."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:teaching-archive-material-published-content-preview-read-foundation=true;teachingArchiveMaterialPublishedContentPreviewReadFoundation=true;10.90/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD trace, and architecture board track 0318",
+      "remediation": "Wire this foundation through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the safe preview store/read foundation; keep full content rendering, OCR/RAG, semantic retrieval, and AI grading as later reviewed slices."
+}

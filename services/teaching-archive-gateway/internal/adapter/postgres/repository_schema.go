@@ -8,7 +8,7 @@ import (
 
 const schemaAdvisoryLockID int64 = 7432026060301
 const schemaComponent = "teaching_archive_gateway"
-const schemaVersion = "2026-06-07.schema.5"
+const schemaVersion = "2026-06-07.schema.6"
 
 type SchemaIndexProfile string
 
@@ -282,6 +282,20 @@ var schemaFeatureStatements = []string{
 			AND publication_state = 'COMMITTED_TO_PUBLICATION_STORE'
 			AND visibility_state = 'STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED'
 			AND channel = 'STUDENT_APP'`,
+	`CREATE TABLE IF NOT EXISTS teaching_archive_material_content_previews (
+		archive_item_id TEXT PRIMARY KEY REFERENCES teaching_archive_items(id),
+		student_id TEXT NOT NULL,
+		material_type TEXT NOT NULL,
+		title TEXT NOT NULL,
+		preview_status TEXT NOT NULL,
+		preview_source TEXT NOT NULL,
+		preview_sections JSONB NOT NULL,
+		created_at TIMESTAMPTZ NOT NULL,
+		updated_at TIMESTAMPTZ NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_material_content_previews_student_updated
+		ON teaching_archive_material_content_previews (student_id, updated_at DESC, archive_item_id)
+		WHERE preview_status = 'READY'`,
 	`CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
 		id TEXT PRIMARY KEY,
 		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),

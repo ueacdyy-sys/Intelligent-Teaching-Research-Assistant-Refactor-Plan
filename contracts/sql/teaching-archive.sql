@@ -74,6 +74,22 @@ CREATE INDEX IF NOT EXISTS idx_teaching_archive_publications_student_app_visible
         AND visibility_state = 'STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED'
         AND channel = 'STUDENT_APP';
 
+CREATE TABLE IF NOT EXISTS teaching_archive_material_content_previews (
+    archive_item_id TEXT PRIMARY KEY REFERENCES teaching_archive_items(id),
+    student_id TEXT NOT NULL,
+    material_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    preview_status TEXT NOT NULL,
+    preview_source TEXT NOT NULL,
+    preview_sections JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_teaching_archive_material_content_previews_student_updated
+    ON teaching_archive_material_content_previews (student_id, updated_at DESC, archive_item_id)
+    WHERE preview_status = 'READY';
+
 -- archive_item_index_profile: hot_write
 -- Production write-pressure profile used by TEACHING_ARCHIVE_SCHEMA_INDEX_PROFILE=hot_write.
 -- Apply these profile statements instead of the broader full-profile page

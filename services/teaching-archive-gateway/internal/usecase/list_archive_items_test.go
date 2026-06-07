@@ -156,6 +156,11 @@ type fakeReader struct {
 	publishedReads            int
 	genericGetReads           int
 	publishedGetReads         int
+	contentPreview            domain.PublishedArchiveMaterialContentPreview
+	contentPreviewOK          bool
+	contentPreviewReads       int
+	contentPreviewArchiveID   string
+	contentPreviewStudentID   string
 	publishedGetArchiveItemID string
 	publishedGetStudentID     string
 }
@@ -191,6 +196,17 @@ func (f *fakeReader) GetPublishedForStudentApp(
 	f.publishedGetArchiveItemID = archiveItemID
 	f.publishedGetStudentID = studentID
 	return f.item, f.ok, nil
+}
+
+func (f *fakeReader) GetPublishedContentPreviewForStudentApp(
+	_ context.Context,
+	archiveItemID string,
+	studentID string,
+) (domain.PublishedArchiveMaterialContentPreview, bool, error) {
+	f.contentPreviewReads++
+	f.contentPreviewArchiveID = archiveItemID
+	f.contentPreviewStudentID = studentID
+	return f.contentPreview, f.contentPreviewOK, nil
 }
 
 func archiveItem(id string, studentID string, createdAt time.Time) domain.ArchiveItem {

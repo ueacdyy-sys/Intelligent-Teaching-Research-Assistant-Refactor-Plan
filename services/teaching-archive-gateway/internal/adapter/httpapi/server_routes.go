@@ -34,6 +34,14 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) studentAppArchiveItemSubresources(w http.ResponseWriter, r *http.Request) {
+	if archiveItemID, ok := parseStudentAppArchiveItemContentPreviewPath(r.URL.Path); ok {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.readStudentAppArchiveItemContentPreviewHTTP(w, r, archiveItemID)
+		return
+	}
 	archiveItemID, ok := parseStudentAppArchiveItemPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "student app archive item subresource not found")

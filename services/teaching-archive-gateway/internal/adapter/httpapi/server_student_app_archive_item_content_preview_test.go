@@ -1,0 +1,179 @@
+package httpapi_test
+
+import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"ita-refactor/services/teaching-archive-gateway/internal/adapter/httpapi"
+	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
+)
+
+func TestReadStudentAppArchiveItemContentPreviewReturnsSafeSections(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001/content-preview",
+		nil,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"archiveItemId":"tarch_archive_material_001"`),
+		[]byte(`"materialType":"HANDOUT"`),
+		[]byte(`"title":"Fractions practice packet"`),
+		[]byte(`"previewStatus":"READY"`),
+		[]byte(`"id":"section_001"`),
+		[]byte(`"text":"Practice equivalent fractions and common denominators."`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"studentId"`),
+		[]byte(`"contentRef"`),
+		[]byte(`publicationId`),
+		[]byte(`approvalId`),
+		[]byte(`workerId`),
+		[]byte(`rawContent`),
+		[]byte(`objectStorageKey`),
+		[]byte(`ocrText`),
+		[]byte(`ragChunks`),
+		[]byte(`expectedAnswer`),
+		[]byte(`rawModelOutput`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestReadStudentAppArchiveItemContentPreviewRejectsCrossStudentOrUnpublished(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+	for name, archiveItemID := range map[string]string{
+		"cross student": "tarch_archive_material_other",
+		"unpublished":   "tarch_archive_material_unpublished",
+	} {
+		t.Run(name, func(t *testing.T) {
+			request := httptest.NewRequest(
+				http.MethodGet,
+				"/v1/student-app/archive-items/"+archiveItemID+"/content-preview",
+				nil,
+			)
+			request.Header.Set("X-Agent-Api-Key", "ueacd")
+			setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestReadStudentAppArchiveItemContentPreviewRejectsTeacherAndUnsafeID(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+
+	teacherRequest := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001/content-preview",
+		nil,
+	)
+	teacherRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, teacherRequest, teacherPrincipal())
+	teacherResponse := httptest.NewRecorder()
+	handler.ServeHTTP(teacherResponse, teacherRequest)
+	if teacherResponse.Code != http.StatusForbidden {
+		t.Fatalf("teacher status = %d, body = %s", teacherResponse.Code, teacherResponse.Body.String())
+	}
+
+	unsafeRequest := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/archive_material_001/content-preview",
+		nil,
+	)
+	unsafeRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, unsafeRequest, studentPrincipal("student_001"))
+	unsafeResponse := httptest.NewRecorder()
+	handler.ServeHTTP(unsafeResponse, unsafeRequest)
+	if unsafeResponse.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("unsafe id status = %d, body = %s", unsafeResponse.Code, unsafeResponse.Body.String())
+	}
+}
+
+func TestReadStudentAppArchiveItemContentPreviewRejectsUnsupportedMethod(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/archive-items/tarch_archive_material_001/content-preview",
+		http.NoBody,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
+func newTestHandlerWithPublishedArchiveItemContentPreview() http.Handler {
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			committedMaterialDraftHTTPItem(),
+			studentHandoutHTTPItem("tarch_archive_material_unpublished", "student_001", time.Date(2026, 6, 7, 6, 0, 0, 0, time.UTC)),
+		},
+		publishedArchiveItemIDs: map[string]bool{
+			"tarch_archive_material_001": true,
+		},
+		contentPreviews: []domain.PublishedArchiveMaterialContentPreview{
+			publishedArchiveItemContentPreviewHTTPFixture("tarch_archive_material_001", "student_001"),
+			publishedArchiveItemContentPreviewHTTPFixture("tarch_archive_material_other", "student_002"),
+			publishedArchiveItemContentPreviewHTTPFixture("tarch_archive_material_unpublished", "student_001"),
+		},
+	}
+	return httpapi.NewServer(httpapi.ServerConfig{
+		ReadStudentAppArchiveItemContentPreview: usecase.NewReadStudentAppArchiveItemContentPreview(store),
+		AgentAPIKey:                             "ueacd",
+	}).Handler()
+}
+
+func publishedArchiveItemContentPreviewHTTPFixture(
+	archiveItemID string,
+	studentID string,
+) domain.PublishedArchiveMaterialContentPreview {
+	createdAt := time.Date(2026, 6, 7, 9, 0, 0, 0, time.UTC)
+	return domain.PublishedArchiveMaterialContentPreview{
+		ArchiveItemID: archiveItemID,
+		StudentID:     studentID,
+		MaterialType:  domain.MaterialTypeHandout,
+		Title:         "Fractions practice packet",
+		Status:        domain.PublishedArchiveMaterialContentPreviewStatusReady,
+		PreviewSource: domain.PublishedArchiveMaterialContentPreviewSourceSafeReviewed,
+		Sections: []domain.PublishedArchiveMaterialContentPreviewSection{
+			{
+				ID:       "section_001",
+				Title:    "Learning goals",
+				Text:     "Practice equivalent fractions and common denominators.",
+				PageHint: "p.1",
+			},
+		},
+		CreatedAt: createdAt,
+		UpdatedAt: createdAt.Add(5 * time.Minute),
+	}
+}
