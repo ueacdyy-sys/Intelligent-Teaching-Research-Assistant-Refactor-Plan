@@ -48,6 +48,7 @@ describe("Teaching Archive SQL contract", () => {
       "idx_teaching_archive_items_created_page",
       "idx_teaching_archive_items_owner_page",
       "idx_teaching_archive_items_material_page",
+      "idx_teaching_archive_items_student_material_search_scope",
     ]) {
       assert(
         hotWriteSection.includes(`DROP INDEX IF EXISTS ${indexName}`),
@@ -63,6 +64,19 @@ describe("Teaching Archive SQL contract", () => {
         hotWriteSection.includes(`CREATE INDEX IF NOT EXISTS ${indexName}`),
         `hot_write profile must retain hot query index ${indexName}`,
       );
+    }
+  });
+
+  it("defines the student app published-material search scope index", () => {
+    const sql = fs.readFileSync(contractPath, "utf8");
+
+    for (const fragment of [
+      "CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_student_material_search_scope",
+      "ON teaching_archive_items (student_id, material_type, created_at DESC, id DESC)",
+      "WHERE owner_type = 'STUDENT'",
+      "DROP INDEX IF EXISTS idx_teaching_archive_items_student_material_search_scope",
+    ]) {
+      assert(sql.includes(fragment), `SQL contract missing published-material search fragment: ${fragment}`);
     }
   });
 

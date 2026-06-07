@@ -3,6 +3,7 @@ package domain
 type ListStudentAppArchiveItemsInput struct {
 	Principal    PrincipalContext
 	MaterialType MaterialType
+	Query        string
 	PageSize     int
 	Cursor       string
 }
@@ -16,7 +17,11 @@ func NormalizeListStudentAppArchiveItemsInput(
 	if input.MaterialType == MaterialTypeTeachingMaterial {
 		return ArchiveItemQuery{}, validationError("materialType is not a student archive material")
 	}
-	return NormalizeListArchiveItemsInput(ListArchiveItemsInput{
+	searchText, err := normalizeArchiveSearchText(input.Query)
+	if err != nil {
+		return ArchiveItemQuery{}, err
+	}
+	query, err := NormalizeListArchiveItemsInput(ListArchiveItemsInput{
 		Principal:    input.Principal,
 		OwnerType:    OwnerTypeStudent,
 		StudentID:    primaryOwnStudentID(input.Principal),
@@ -24,6 +29,11 @@ func NormalizeListStudentAppArchiveItemsInput(
 		PageSize:     input.PageSize,
 		Cursor:       input.Cursor,
 	})
+	if err != nil {
+		return ArchiveItemQuery{}, err
+	}
+	query.SearchText = searchText
+	return query, nil
 }
 
 func AuthorizeListStudentAppArchiveItems(principal PrincipalContext) error {

@@ -70,6 +70,9 @@ func TestArchiveReaderCacheKeysIncludeScopedQuery(t *testing.T) {
 
 	queryA := domain.ArchiveItemQuery{OwnerType: domain.OwnerTypeStudent, StudentID: "student_a", PageSize: 10, FetchLimit: 11}
 	queryB := domain.ArchiveItemQuery{OwnerType: domain.OwnerTypeStudent, StudentID: "student_b", PageSize: 10, FetchLimit: 11}
+	queryC := domain.ArchiveItemQuery{OwnerType: domain.OwnerTypeStudent, StudentID: "student_a", SearchText: "fractions", PageSize: 10, FetchLimit: 11}
+	queryD := domain.ArchiveItemQuery{OwnerType: domain.OwnerTypeStudent, StudentIDs: []string{"student,a", "student_b"}, PageSize: 10, FetchLimit: 11}
+	queryE := domain.ArchiveItemQuery{OwnerType: domain.OwnerTypeStudent, StudentIDs: []string{"student", "a,student_b"}, PageSize: 10, FetchLimit: 11}
 
 	if _, err := cache.List(context.Background(), queryA); err != nil {
 		t.Fatalf("first queryA List returned error: %v", err)
@@ -84,9 +87,18 @@ func TestArchiveReaderCacheKeysIncludeScopedQuery(t *testing.T) {
 	if _, err := cache.List(context.Background(), queryB); err != nil {
 		t.Fatalf("queryB List returned error: %v", err)
 	}
+	if _, err := cache.List(context.Background(), queryC); err != nil {
+		t.Fatalf("queryC List returned error: %v", err)
+	}
+	if _, err := cache.List(context.Background(), queryD); err != nil {
+		t.Fatalf("queryD List returned error: %v", err)
+	}
+	if _, err := cache.List(context.Background(), queryE); err != nil {
+		t.Fatalf("queryE List returned error: %v", err)
+	}
 
-	if reader.calls() != 2 {
-		t.Fatalf("wrapped reader calls = %d, want 2 for distinct scoped queries", reader.calls())
+	if reader.calls() != 5 {
+		t.Fatalf("wrapped reader calls = %d, want 5 for distinct scoped/search queries", reader.calls())
 	}
 }
 

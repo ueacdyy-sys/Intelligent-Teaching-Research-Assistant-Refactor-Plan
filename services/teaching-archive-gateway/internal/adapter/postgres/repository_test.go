@@ -38,6 +38,7 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 		"idx_teaching_archive_items_owner_page",
 		"idx_teaching_archive_items_material_page",
 		"idx_teaching_archive_items_owner_material_page",
+		"idx_teaching_archive_items_student_material_search_scope",
 		"idx_teaching_archive_publications_student_app_visible_lookup",
 		"idx_teaching_archive_publications_student_app_visible_page",
 	} {
@@ -75,7 +76,7 @@ func TestEnsureSchemaUsesTransactionAdvisoryLockAroundStatements(t *testing.T) {
 }
 
 func TestEnsureSchemaSkipsMigrationWhenCurrentVersionExists(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.4"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.5"}}
 
 	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
 		t.Fatalf("EnsureSchema returned error: %v", err)
@@ -108,6 +109,7 @@ func TestEnsureSchemaWithHotWriteProfileDropsRedundantArchiveItemPageIndexes(t *
 		"idx_teaching_archive_items_created_page",
 		"idx_teaching_archive_items_owner_page",
 		"idx_teaching_archive_items_material_page",
+		"idx_teaching_archive_items_student_material_search_scope",
 	} {
 		if !strings.Contains(statements, "DROP INDEX IF EXISTS "+indexName) {
 			t.Fatalf("hot_write profile should drop write-amplifying page index %s", indexName)
@@ -124,7 +126,7 @@ func TestEnsureSchemaWithHotWriteProfileDropsRedundantArchiveItemPageIndexes(t *
 }
 
 func TestEnsureSchemaWithFullProfileRestoresArchiveItemPageIndexes(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.4"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.5"}}
 
 	err := postgres.EnsureSchemaWithOptions(context.Background(), db, postgres.SchemaOptions{
 		IndexProfile: postgres.SchemaIndexProfileFull,
@@ -138,6 +140,7 @@ func TestEnsureSchemaWithFullProfileRestoresArchiveItemPageIndexes(t *testing.T)
 		"idx_teaching_archive_items_created_page",
 		"idx_teaching_archive_items_owner_page",
 		"idx_teaching_archive_items_material_page",
+		"idx_teaching_archive_items_student_material_search_scope",
 	} {
 		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
 			t.Fatalf("full profile should restore archive item page index %s", indexName)

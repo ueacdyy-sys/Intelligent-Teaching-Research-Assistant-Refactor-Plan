@@ -511,6 +511,13 @@ function main() {
     "tools/teaching-archive-material-publication-projection-hardening-audit.mjs",
     "tools/teaching-archive-material-publication-projection-hardening-audit.test.mjs",
   ];
+  const required0315 = [
+    "docs/sdd/0315-teaching-archive-material-published-search-foundation.md",
+    "tools/teaching-archive-material-published-search-foundation-runtime.mjs",
+    "tools/teaching-archive-material-published-search-foundation-runtime.test.mjs",
+    "tools/teaching-archive-material-published-search-foundation-audit.mjs",
+    "tools/teaching-archive-material-published-search-foundation-audit.test.mjs",
+  ];
   const required0302RuntimeEvidence = "teaching_archive_material_draft_human_review_runtime";
   const required0303RuntimeEvidence = "teaching_archive_material_draft_storage_precommit_runtime";
   const required0304RuntimeEvidence = "teaching_archive_material_draft_storage_commit_runtime";
@@ -524,7 +531,8 @@ function main() {
   const required0312RuntimeEvidence = "teaching_archive_material_publication_row_verification_runtime";
   const required0313RuntimeEvidence = "teaching_archive_material_publication_student_app_read_runtime";
   const required0314RuntimeEvidence = "teaching_archive_material_publication_projection_hardening_runtime";
-  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314].filter((file) => !fs.existsSync(path.join(root, file)));
+  const required0315RuntimeEvidence = "teaching_archive_material_published_search_foundation_runtime";
+  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314, ...required0315].filter((file) => !fs.existsSync(path.join(root, file)));
   if (missing.length > 0) {
     console.error("Missing required refactor files:");
     for (const file of missing) console.error(`- ${file}`);
@@ -568,6 +576,9 @@ function main() {
   }
   if (!fs.readFileSync(path.join(root, "tools/teaching-archive-material-publication-projection-hardening-runtime.mjs"), "utf8").includes(required0314RuntimeEvidence)) {
     fail("0314 teaching archive material publication projection hardening runtime id is missing.");
+  }
+  if (!fs.readFileSync(path.join(root, "tools/teaching-archive-material-published-search-foundation-runtime.mjs"), "utf8").includes(required0315RuntimeEvidence)) {
+    fail("0315 teaching archive material published search foundation runtime id is missing.");
   }
   for (const finding of verifySddDocuments(root)) {
     fail(finding.message);

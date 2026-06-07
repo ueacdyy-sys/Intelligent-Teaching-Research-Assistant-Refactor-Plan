@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
 const (
 	defaultArchivePageSize = 50
 	maxArchivePageSize     = 100
+	maxArchiveSearchLength = 120
 )
 
 type ListArchiveItemsInput struct {
@@ -32,6 +34,7 @@ type ArchiveItemQuery struct {
 	StudentID    string
 	StudentIDs   []string
 	MaterialType MaterialType
+	SearchText   string
 	PageSize     int
 	FetchLimit   int
 	Cursor       *ArchiveCursor
@@ -70,7 +73,6 @@ func NormalizeListArchiveItemsInput(input ListArchiveItemsInput) (ArchiveItemQue
 	if ownerType == OwnerTypeTeaching && studentID != "" {
 		return ArchiveItemQuery{}, validationError("studentId cannot filter teaching-owned archive items")
 	}
-
 	pageSize := input.PageSize
 	if pageSize == 0 {
 		pageSize = defaultArchivePageSize
@@ -96,6 +98,20 @@ func NormalizeListArchiveItemsInput(input ListArchiveItemsInput) (ArchiveItemQue
 		FetchLimit:   pageSize + 1,
 		Cursor:       cursor,
 	}, nil
+}
+
+func normalizeArchiveSearchText(value string) (string, error) {
+	text := strings.TrimSpace(value)
+	if text == "" {
+		return "", nil
+	}
+	if utf8.RuneCountInString(text) > maxArchiveSearchLength {
+		return "", validationError("query is too long")
+	}
+	if strings.IndexFunc(text, unicode.IsControl) >= 0 {
+		return "", validationError("query contains unsupported characters")
+	}
+	return strings.Join(strings.Fields(text), " "), nil
 }
 
 func BuildArchiveItemPage(rows []ArchiveItem, pageSize int) (ArchiveItemPage, error) {

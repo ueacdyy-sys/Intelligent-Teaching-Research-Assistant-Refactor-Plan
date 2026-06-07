@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -128,18 +129,22 @@ func (c *ArchiveReaderCache) storeLocked(key string, items []domain.ArchiveItem)
 func archiveQueryCacheKey(query domain.ArchiveItemQuery) string {
 	studentIDs := append([]string(nil), query.StudentIDs...)
 	sort.Strings(studentIDs)
+	for index, studentID := range studentIDs {
+		studentIDs[index] = url.QueryEscape(studentID)
+	}
 	parts := []string{
-		"owner=" + string(query.OwnerType),
-		"student=" + query.StudentID,
+		"owner=" + url.QueryEscape(string(query.OwnerType)),
+		"student=" + url.QueryEscape(query.StudentID),
 		"students=" + strings.Join(studentIDs, ","),
-		"material=" + string(query.MaterialType),
+		"material=" + url.QueryEscape(string(query.MaterialType)),
+		"search=" + url.QueryEscape(query.SearchText),
 		"page=" + strconv.Itoa(query.PageSize),
 		"fetch=" + strconv.Itoa(query.FetchLimit),
 	}
 	if query.Cursor != nil {
 		parts = append(parts,
 			"cursorAt="+query.Cursor.CreatedAt.UTC().Format(time.RFC3339Nano),
-			"cursorID="+query.Cursor.ID,
+			"cursorID="+url.QueryEscape(query.Cursor.ID),
 		)
 	}
 	return strings.Join(parts, "|")

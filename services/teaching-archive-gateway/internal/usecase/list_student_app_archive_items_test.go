@@ -21,6 +21,7 @@ func TestListStudentAppArchiveItemsScopesOwnStudentBeforePublishedProjectionRead
 	page, err := uc.Execute(context.Background(), domain.ListStudentAppArchiveItemsInput{
 		Principal:    studentPrincipal("student_001"),
 		MaterialType: domain.MaterialTypeQuiz,
+		Query:        "fractions",
 		PageSize:     10,
 	})
 	if err != nil {
@@ -40,6 +41,9 @@ func TestListStudentAppArchiveItemsScopesOwnStudentBeforePublishedProjectionRead
 	}
 	if reader.publishedQuery.MaterialType != domain.MaterialTypeQuiz {
 		t.Fatalf("MaterialType = %q", reader.publishedQuery.MaterialType)
+	}
+	if reader.publishedQuery.SearchText != "fractions" {
+		t.Fatalf("SearchText = %q", reader.publishedQuery.SearchText)
 	}
 	if len(page.Items) != 1 {
 		t.Fatalf("items = %d", len(page.Items))

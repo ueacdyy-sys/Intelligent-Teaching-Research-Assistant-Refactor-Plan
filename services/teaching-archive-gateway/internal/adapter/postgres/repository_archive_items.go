@@ -185,6 +185,10 @@ func (r *ArchiveRepository) ListPublishedForStudentApp(ctx context.Context, quer
 	if query.MaterialType != "" {
 		clauses = append(clauses, "item.material_type = "+nextArg(&args, string(query.MaterialType)))
 	}
+	if query.SearchText != "" {
+		searchArg := nextArg(&args, "%"+escapeLikePattern(query.SearchText)+"%")
+		clauses = append(clauses, "(item.title ILIKE "+searchArg+" ESCAPE '\\' OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(item.tags) AS tag(value) WHERE tag.value ILIKE "+searchArg+" ESCAPE '\\'))")
+	}
 	if query.Cursor != nil {
 		createdAtArg := nextArg(&args, query.Cursor.CreatedAt)
 		idArg := nextArg(&args, query.Cursor.ID)
@@ -243,6 +247,11 @@ func (r *ArchiveRepository) ListPublishedForStudentApp(ctx context.Context, quer
 		return nil, err
 	}
 	return items, nil
+}
+
+func escapeLikePattern(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return replacer.Replace(value)
 }
 
 func recordDBQueryTiming(ctx context.Context, duration time.Duration) {

@@ -37,6 +37,11 @@ CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
 CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_material_page
     ON teaching_archive_items (owner_type, material_type, created_at DESC, id DESC);
 
+CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_student_material_search_scope
+    ON teaching_archive_items (student_id, material_type, created_at DESC, id DESC)
+    WHERE owner_type = 'STUDENT'
+        AND student_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS teaching_archive_publications (
     publication_id TEXT PRIMARY KEY,
     publication_state TEXT NOT NULL,
@@ -79,6 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_teaching_archive_publications_student_app_visible
 -- DROP INDEX IF EXISTS idx_teaching_archive_items_created_page;
 -- DROP INDEX IF EXISTS idx_teaching_archive_items_owner_page;
 -- DROP INDEX IF EXISTS idx_teaching_archive_items_material_page;
+-- DROP INDEX IF EXISTS idx_teaching_archive_items_student_material_search_scope;
 -- CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_student_page
 --     ON teaching_archive_items (student_id, created_at DESC, id DESC)
 --     WHERE student_id IS NOT NULL;

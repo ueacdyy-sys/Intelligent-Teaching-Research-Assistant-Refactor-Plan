@@ -55,7 +55,7 @@ func TestListStudentAppArchiveItemsReturns0305CommittedMaterialDraftRow(t *testi
 	handler := newTestHandlerWithCommittedMaterialDraftRow()
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/v1/student-app/archive-items?materialType=HANDOUT&pageSize=10",
+		"/v1/student-app/archive-items?materialType=HANDOUT&query=fractions&pageSize=10",
 		nil,
 	)
 	request.Header.Set("X-Agent-Api-Key", "ueacd")
@@ -86,6 +86,7 @@ func TestListStudentAppArchiveItemsReturns0305CommittedMaterialDraftRow(t *testi
 		[]byte(`tarch_archive_material_other`),
 		[]byte(`tarch_archive_material_teaching`),
 		[]byte(`tarch_archive_material_unpublished`),
+		[]byte(`tarch_archive_material_geometry`),
 	} {
 		if bytes.Contains(response.Body.Bytes(), leaked) {
 			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
@@ -145,9 +146,23 @@ func newTestHandlerWithCommittedMaterialDraftRow() http.Handler {
 			},
 			teachingMaterialHTTPItem("tarch_archive_material_teaching", time.Date(2026, 6, 7, 7, 0, 0, 0, time.UTC)),
 			studentHandoutHTTPItem("tarch_archive_material_unpublished", "student_001", time.Date(2026, 6, 7, 6, 0, 0, 0, time.UTC)),
+			{
+				ID:              "tarch_archive_material_geometry",
+				OwnerType:       domain.OwnerTypeStudent,
+				StudentID:       "student_001",
+				MaterialType:    domain.MaterialTypeHandout,
+				Title:           "Geometry practice packet",
+				Source:          domain.SourceSystemImport,
+				ContentRef:      "precommit://archive-material/student_001/geometry-packet",
+				Tags:            []string{"geometry", "published"},
+				AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly},
+				OCRStatus:       domain.OCRStatusNotRequired,
+				CreatedAt:       time.Date(2026, 6, 7, 9, 0, 0, 0, time.UTC),
+			},
 		},
 		publishedArchiveItemIDs: map[string]bool{
-			"tarch_archive_material_001": true,
+			"tarch_archive_material_001":      true,
+			"tarch_archive_material_geometry": true,
 		},
 	}
 	return httpapi.NewServer(httpapi.ServerConfig{

@@ -35,6 +35,7 @@ func (s *Server) listStudentAppArchiveItemMetadata(w http.ResponseWriter, r *htt
 	page, err := s.listStudentAppArchiveItems.Execute(r.Context(), domain.ListStudentAppArchiveItemsInput{
 		Principal:    principal,
 		MaterialType: domain.MaterialType(r.URL.Query().Get("materialType")),
+		Query:        r.URL.Query().Get("query"),
 		PageSize:     pageSize,
 		Cursor:       r.URL.Query().Get("cursor"),
 	})

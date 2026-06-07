@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -250,6 +251,9 @@ func (f *fakeRepository) List(ctx context.Context, query domain.ArchiveItemQuery
 		if query.MaterialType != "" && item.MaterialType != query.MaterialType {
 			continue
 		}
+		if query.SearchText != "" && !archiveItemMatchesSearch(item, query.SearchText) {
+			continue
+		}
 		items = append(items, item)
 		if query.FetchLimit > 0 && len(items) >= query.FetchLimit {
 			break
@@ -278,6 +282,9 @@ func (f *fakeRepository) ListPublishedForStudentApp(ctx context.Context, query d
 			continue
 		}
 		if query.MaterialType != "" && item.MaterialType != query.MaterialType {
+			continue
+		}
+		if query.SearchText != "" && !archiveItemMatchesSearch(item, query.SearchText) {
 			continue
 		}
 		items = append(items, item)
@@ -529,6 +536,19 @@ func (f *fakeRepository) GetLatestQuestionBankDraftAnswerScoringRequestForStuden
 func containsString(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func archiveItemMatchesSearch(item domain.ArchiveItem, query string) bool {
+	needle := strings.ToLower(query)
+	if strings.Contains(strings.ToLower(item.Title), needle) {
+		return true
+	}
+	for _, tag := range item.Tags {
+		if strings.Contains(strings.ToLower(tag), needle) {
 			return true
 		}
 	}
