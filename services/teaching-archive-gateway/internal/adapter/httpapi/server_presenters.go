@@ -38,6 +38,23 @@ func toResponse(item domain.ArchiveItem) archiveItemResponse {
 	}
 }
 
+func toStudentAppArchiveItemMetadataResponse(
+	item domain.ArchiveItem,
+) studentAppArchiveItemMetadataResponse {
+	return studentAppArchiveItemMetadataResponse{
+		ID:              item.ID,
+		OwnerType:       item.OwnerType,
+		StudentID:       item.StudentID,
+		MaterialType:    item.MaterialType,
+		Title:           item.Title,
+		Source:          item.Source,
+		Tags:            item.Tags,
+		AnalysisIntents: item.AnalysisIntents,
+		OCRStatus:       item.OCRStatus,
+		CreatedAt:       formatTime(item.CreatedAt),
+	}
+}
+
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
 	return archiveItemAcceptedResponse{
 		archiveItemResponse: toResponse(result.Item),

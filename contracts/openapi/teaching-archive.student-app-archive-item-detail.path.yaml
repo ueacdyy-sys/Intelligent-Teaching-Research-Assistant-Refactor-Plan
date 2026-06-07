@@ -1,0 +1,30 @@
+get:
+  operationId: readStudentAppArchiveItem
+  summary: Read safe metadata for one published Student App archive item.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+        maxLength: 1000
+  responses:
+    '200':
+      description: Safe metadata for one authenticated student-owned published archive item.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/StudentAppArchiveItemMetadataResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

@@ -108,6 +108,126 @@ func TestListStudentAppArchiveItemsRejectsUnsupportedMethod(t *testing.T) {
 	}
 }
 
+func TestReadStudentAppArchiveItemReturnsSafePublishedMetadata(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemDetail()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001",
+		nil,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"id":"tarch_archive_material_001"`),
+		[]byte(`"ownerType":"STUDENT"`),
+		[]byte(`"studentId":"student_001"`),
+		[]byte(`"materialType":"HANDOUT"`),
+		[]byte(`"title":"Fractions practice packet"`),
+		[]byte(`"source":"SYSTEM_IMPORT"`),
+		[]byte(`"analysisIntents":["ARCHIVE_ONLY"]`),
+		[]byte(`"ocrStatus":"NOT_REQUIRED"`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"contentRef"`),
+		[]byte(`publicationId`),
+		[]byte(`publicationState`),
+		[]byte(`visibilityState`),
+		[]byte(`approvalId`),
+		[]byte(`workerId`),
+		[]byte(`rawModelOutput`),
+		[]byte(`expectedAnswer`),
+		[]byte(`resultRef`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestReadStudentAppArchiveItemRejectsCrossStudentOrUnpublishedDetail(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemDetail()
+	for name, archiveItemID := range map[string]string{
+		"cross student": "tarch_archive_material_other",
+		"unpublished":   "tarch_archive_material_unpublished",
+	} {
+		t.Run(name, func(t *testing.T) {
+			request := httptest.NewRequest(
+				http.MethodGet,
+				"/v1/student-app/archive-items/"+archiveItemID,
+				nil,
+			)
+			request.Header.Set("X-Agent-Api-Key", "ueacd")
+			setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestReadStudentAppArchiveItemRejectsTeacherAndUnsafeID(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemDetail()
+
+	teacherRequest := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001",
+		nil,
+	)
+	teacherRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, teacherRequest, teacherPrincipal())
+	teacherResponse := httptest.NewRecorder()
+	handler.ServeHTTP(teacherResponse, teacherRequest)
+	if teacherResponse.Code != http.StatusForbidden {
+		t.Fatalf("teacher status = %d, body = %s", teacherResponse.Code, teacherResponse.Body.String())
+	}
+
+	unsafeRequest := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/archive_material_001",
+		nil,
+	)
+	unsafeRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, unsafeRequest, studentPrincipal("student_001"))
+	unsafeResponse := httptest.NewRecorder()
+	handler.ServeHTTP(unsafeResponse, unsafeRequest)
+	if unsafeResponse.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("unsafe id status = %d, body = %s", unsafeResponse.Code, unsafeResponse.Body.String())
+	}
+}
+
+func TestReadStudentAppArchiveItemRejectsUnsupportedMethod(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemDetail()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/archive-items/tarch_archive_material_001",
+		http.NoBody,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
 func newTestHandlerWithStudentAppArchiveItems() http.Handler {
 	store := &fakeRepository{
 		items: []domain.ArchiveItem{
@@ -124,6 +244,36 @@ func newTestHandlerWithStudentAppArchiveItems() http.Handler {
 	return httpapi.NewServer(httpapi.ServerConfig{
 		ListStudentAppArchiveItems: usecase.NewListStudentAppArchiveItems(store),
 		AgentAPIKey:                "ueacd",
+	}).Handler()
+}
+
+func newTestHandlerWithPublishedArchiveItemDetail() http.Handler {
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			committedMaterialDraftHTTPItem(),
+			{
+				ID:              "tarch_archive_material_other",
+				OwnerType:       domain.OwnerTypeStudent,
+				StudentID:       "student_002",
+				MaterialType:    domain.MaterialTypeHandout,
+				Title:           "Other student packet",
+				Source:          domain.SourceSystemImport,
+				ContentRef:      "precommit://archive-material/student_002/fractions-packet",
+				Tags:            []string{"fractions"},
+				AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly},
+				OCRStatus:       domain.OCRStatusNotRequired,
+				CreatedAt:       time.Date(2026, 6, 7, 8, 0, 0, 0, time.UTC),
+			},
+			studentHandoutHTTPItem("tarch_archive_material_unpublished", "student_001", time.Date(2026, 6, 7, 6, 0, 0, 0, time.UTC)),
+		},
+		publishedArchiveItemIDs: map[string]bool{
+			"tarch_archive_material_001":   true,
+			"tarch_archive_material_other": true,
+		},
+	}
+	return httpapi.NewServer(httpapi.ServerConfig{
+		ReadStudentAppArchiveItem: usecase.NewReadStudentAppArchiveItem(store),
+		AgentAPIKey:               "ueacd",
 	}).Handler()
 }
 

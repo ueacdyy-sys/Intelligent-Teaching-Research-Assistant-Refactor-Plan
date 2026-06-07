@@ -11,6 +11,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	mux.HandleFunc("/v1/student-app/teaching-materials", s.studentAppTeachingMaterials)
 	mux.HandleFunc("/v1/student-app/archive-items", s.studentAppArchiveItems)
+	mux.HandleFunc("/v1/student-app/archive-items/", s.studentAppArchiveItemSubresources)
 	mux.HandleFunc("/v1/student-app/quiz-submissions", s.studentAppQuizSubmissions)
 	mux.HandleFunc("/v1/student-app/quiz-scan-submissions", s.studentAppQuizScanSubmissions)
 	mux.HandleFunc("/v1/student-app/question-bank-drafts", s.studentAppQuestionBankDrafts)
@@ -30,6 +31,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests", s.tutoringAnalysisRequests)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests/", s.tutoringAnalysisRequestSubresources)
 	return mux
+}
+
+func (s *Server) studentAppArchiveItemSubresources(w http.ResponseWriter, r *http.Request) {
+	archiveItemID, ok := parseStudentAppArchiveItemPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "student app archive item subresource not found")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	s.readStudentAppArchiveItemMetadata(w, r, archiveItemID)
 }
 
 func (s *Server) quizDraftIntents(w http.ResponseWriter, r *http.Request) {

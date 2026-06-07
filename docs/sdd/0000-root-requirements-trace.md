@@ -27,3 +27,10 @@ The HTML architecture board is a derived planning artifact, not the source of tr
 - AI-generated workflows/plugins are draft-only until tests and human approval pass.
 - Training/model dependencies are optional worker dependencies, not baseline runtime dependencies.
 - New language modules require contracts, tests, performance evidence, and rollback.
+
+## Current Trace Slices
+
+| Slice | Root Capability | Evidence Boundary |
+| --- | --- | --- |
+| SDD 0315 published search foundation | Student app, teaching materials, student archive | `GET /v1/student-app/archive-items?query=` searches title/tags only inside the Student App visible publication projection. |
+| SDD 0316 published detail metadata read | Student app, teaching materials, student archive | `GET /v1/student-app/archive-items/{archiveItemId}` returns only safe metadata for the authenticated student's own published archive item and excludes `contentRef`, publication internals, answers, model output, and worker state. |

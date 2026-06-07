@@ -82,3 +82,86 @@ func TestNormalizeListStudentAppArchiveItemsRejectsNonStudentAppPrincipals(t *te
 		})
 	}
 }
+
+func TestNormalizeReadStudentAppArchiveItemScopesOwnPublishedDetail(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: " tarch_archive_material_001 ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemInput returned error: %v", err)
+	}
+	if input.ArchiveItemID != "tarch_archive_material_001" {
+		t.Fatalf("ArchiveItemID = %q", input.ArchiveItemID)
+	}
+	if input.StudentID != "student_001" {
+		t.Fatalf("StudentID = %q", input.StudentID)
+	}
+}
+
+func TestNormalizeReadStudentAppArchiveItemRejectsUnsafeIDs(t *testing.T) {
+	for name, archiveItemID := range map[string]string{
+		"missing prefix": "archive_material_001",
+		"empty suffix":   "tarch_",
+		"path token":     "tarch_archive/material",
+		"query token":    "tarch_archive?material",
+		"space token":    "tarch_archive material",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+				Principal:     studentPrincipal("student_001"),
+				ArchiveItemID: archiveItemID,
+			})
+			if !errors.Is(err, domain.ErrValidation) {
+				t.Fatalf("error = %v, want ErrValidation", err)
+			}
+		})
+	}
+}
+
+func TestNormalizeReadStudentAppArchiveItemRejectsNonStudentAppPrincipals(t *testing.T) {
+	_, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+		Principal:     teacherPrincipal(),
+		ArchiveItemID: "tarch_archive_material_001",
+	})
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}
+
+func TestBuildStudentAppArchiveItemMetadataRejectsCrossStudentOrTeachingMaterial(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_archive_material_001",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemInput returned error: %v", err)
+	}
+
+	for name, item := range map[string]domain.ArchiveItem{
+		"cross student": {
+			ID:           "tarch_archive_material_001",
+			OwnerType:    domain.OwnerTypeStudent,
+			StudentID:    "student_002",
+			MaterialType: domain.MaterialTypeHandout,
+		},
+		"teaching material": {
+			ID:           "tarch_archive_material_001",
+			OwnerType:    domain.OwnerTypeStudent,
+			StudentID:    "student_001",
+			MaterialType: domain.MaterialTypeTeachingMaterial,
+		},
+		"teaching owner": {
+			ID:           "tarch_archive_material_001",
+			OwnerType:    domain.OwnerTypeTeaching,
+			MaterialType: domain.MaterialTypeHandout,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := domain.BuildStudentAppArchiveItemMetadata(input, item)
+			if !errors.Is(err, domain.ErrForbidden) {
+				t.Fatalf("error = %v, want ErrForbidden", err)
+			}
+		})
+	}
+}

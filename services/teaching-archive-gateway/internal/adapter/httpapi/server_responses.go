@@ -26,6 +26,19 @@ type archiveItemListResponse struct {
 	PageInfo pageInfoResponse      `json:"pageInfo"`
 }
 
+type studentAppArchiveItemMetadataResponse struct {
+	ID              string                  `json:"id"`
+	OwnerType       domain.OwnerType        `json:"ownerType"`
+	StudentID       string                  `json:"studentId"`
+	MaterialType    domain.MaterialType     `json:"materialType"`
+	Title           string                  `json:"title"`
+	Source          domain.Source           `json:"source"`
+	Tags            []string                `json:"tags"`
+	AnalysisIntents []domain.AnalysisIntent `json:"analysisIntents"`
+	OCRStatus       domain.OCRStatus        `json:"ocrStatus"`
+	CreatedAt       string                  `json:"createdAt"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`

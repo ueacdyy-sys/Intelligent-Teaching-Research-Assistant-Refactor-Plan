@@ -249,6 +249,71 @@ func (r *ArchiveRepository) ListPublishedForStudentApp(ctx context.Context, quer
 	return items, nil
 }
 
+func (r *ArchiveRepository) GetPublishedForStudentApp(
+	ctx context.Context,
+	archiveItemID string,
+	studentID string,
+) (domain.ArchiveItem, bool, error) {
+	queryStart := time.Now()
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			item.id,
+			item.owner_type,
+			item.student_id,
+			item.material_type,
+			item.title,
+			item.source,
+			item.content_ref,
+			item.tags,
+			item.analysis_intents,
+			item.ocr_status,
+			item.created_at
+		FROM teaching_archive_items AS item
+		WHERE item.id = $1
+			AND item.owner_type = $2
+			AND item.student_id = $3
+			AND item.material_type <> 'TEACHING_MATERIAL'
+			AND EXISTS (
+				SELECT 1
+				FROM teaching_archive_publications AS publication
+				WHERE publication.archive_item_id = item.id
+					AND publication.student_id = item.student_id
+					AND publication.scope_type = 'STUDENT_OWN_ARCHIVE'
+					AND publication.publication_state = 'COMMITTED_TO_PUBLICATION_STORE'
+					AND publication.visibility_state = 'STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED'
+					AND publication.channel = 'STUDENT_APP'
+			)
+		LIMIT 1
+	`,
+		archiveItemID,
+		string(domain.OwnerTypeStudent),
+		studentID,
+	)
+	if err != nil {
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
+		return domain.ArchiveItem{}, false, err
+	}
+	defer func() {
+		rows.Close()
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
+	}()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.ArchiveItem{}, false, err
+		}
+		return domain.ArchiveItem{}, false, nil
+	}
+	item, err := scanArchiveItem(rows)
+	if err != nil {
+		return domain.ArchiveItem{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.ArchiveItem{}, false, err
+	}
+	return item, true, nil
+}
+
 func escapeLikePattern(value string) string {
 	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return replacer.Replace(value)

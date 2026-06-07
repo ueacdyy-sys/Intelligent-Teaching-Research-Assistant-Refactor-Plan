@@ -2,6 +2,18 @@ package httpapi
 
 import "strings"
 
+func parseStudentAppArchiveItemPath(path string) (string, bool) {
+	const prefix = "/v1/student-app/archive-items/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", false
+	}
+	archiveItemID := strings.TrimPrefix(path, prefix)
+	if archiveItemID == "" || strings.Contains(archiveItemID, "/") {
+		return "", false
+	}
+	return archiveItemID, true
+}
+
 func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/archive-items/"
 	const suffix = "/tutoring-analysis-requests"

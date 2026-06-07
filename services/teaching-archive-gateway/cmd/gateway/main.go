@@ -59,6 +59,7 @@ func main() {
 	listArchiveItems := usecase.NewListArchiveItems(archiveReader)
 	listStudentAppTeachingMaterials := usecase.NewListStudentAppTeachingMaterials(archiveReader)
 	listStudentAppArchiveItems := usecase.NewListStudentAppArchiveItems(archiveRepository)
+	readStudentAppArchiveItem := usecase.NewReadStudentAppArchiveItem(archiveRepository)
 	listStudentAppQuizSubmissions := usecase.NewListStudentAppQuizSubmissions(archiveRepository)
 	listStudentAppQuestionBankDrafts := usecase.NewListStudentAppQuestionBankDrafts(archiveRepository)
 	readStudentAppQuestionBankDraftContent := usecase.NewReadStudentAppQuestionBankDraftContent(archiveRepository)
@@ -173,6 +174,7 @@ func main() {
 			ListArchiveItems:                                      listArchiveItems,
 			ListStudentAppTeachingMaterials:                       listStudentAppTeachingMaterials,
 			ListStudentAppArchiveItems:                            listStudentAppArchiveItems,
+			ReadStudentAppArchiveItem:                             readStudentAppArchiveItem,
 			ListStudentAppQuizSubmissions:                         listStudentAppQuizSubmissions,
 			ListStudentAppQuestionBankDrafts:                      listStudentAppQuestionBankDrafts,
 			ReadStudentAppQuestionBankDraftContent:                readStudentAppQuestionBankDraftContent,

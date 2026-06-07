@@ -304,6 +304,23 @@ func (f *fakeRepository) GetByID(_ context.Context, id string) (domain.ArchiveIt
 	return domain.ArchiveItem{}, false, nil
 }
 
+func (f *fakeRepository) GetPublishedForStudentApp(
+	_ context.Context,
+	archiveItemID string,
+	studentID string,
+) (domain.ArchiveItem, bool, error) {
+	for _, item := range f.items {
+		if item.ID == archiveItemID &&
+			item.StudentID == studentID &&
+			item.OwnerType == domain.OwnerTypeStudent &&
+			item.MaterialType != domain.MaterialTypeTeachingMaterial &&
+			f.publishedArchiveItemIDs[item.ID] {
+			return item, true, nil
+		}
+	}
+	return domain.ArchiveItem{}, false, nil
+}
+
 func (f *fakeRepository) CreateTutoringAnalysisRequest(_ context.Context, request domain.TutoringAnalysisRequest) error {
 	f.requests = append(f.requests, request)
 	return nil

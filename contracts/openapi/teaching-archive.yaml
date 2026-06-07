@@ -26,6 +26,8 @@ paths:
     $ref: './teaching-archive.student-app-teaching-materials.path.yaml'
   /v1/student-app/archive-items:
     $ref: './teaching-archive.student-app-archive-items.path.yaml'
+  /v1/student-app/archive-items/{archiveItemId}:
+    $ref: './teaching-archive.student-app-archive-item-detail.path.yaml'
   /v1/student-app/quiz-submissions:
     $ref: './teaching-archive.student-app-quiz-submissions.path.yaml'
   /v1/student-app/quiz-scan-submissions:
@@ -338,6 +340,56 @@ components:
             $ref: '#/components/schemas/ArchiveItemResponse'
         pageInfo:
           $ref: '#/components/schemas/ArchivePageInfo'
+    StudentAppArchiveItemMetadataResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - ownerType
+        - studentId
+        - materialType
+        - title
+        - source
+        - tags
+        - analysisIntents
+        - ocrStatus
+        - createdAt
+      properties:
+        id:
+          type: string
+          pattern: '^tarch_[A-Za-z0-9_-]+$'
+        ownerType:
+          type: string
+          const: STUDENT
+        studentId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        materialType:
+          $ref: '#/components/schemas/StudentArchiveMaterialType'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        source:
+          $ref: '#/components/schemas/ArchiveSource'
+        tags:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        analysisIntents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArchiveAnalysisIntent'
+        ocrStatus:
+          type: string
+          enum: [RESERVED, NOT_REQUIRED]
+        createdAt:
+          type: string
+          format: date-time
     ArchivePageInfo:
       type: object
       additionalProperties: false
