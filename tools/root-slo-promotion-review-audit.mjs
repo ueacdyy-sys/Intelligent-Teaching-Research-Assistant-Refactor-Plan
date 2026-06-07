@@ -28,6 +28,7 @@ export const rootSloPromotionPolicy = {
   interactiveP99TargetMs: 50,
   interactiveP99ExcellentMs: 10,
   interactiveP99TargetClass: "PASS_TARGET",
+  minimumProductionTargetSamples: 2,
   minimumPgbouncerHeadroomRatio: 0.2,
   minimumSustainedStepName: "high",
   minimumSustainedStepRank: 4,
@@ -204,6 +205,10 @@ function buildPromotionEvidence(reports) {
   const productionCandidateHeadroom = numberOrNull(productionHeadroom.candidate?.sourceHotPathHeadroom);
   const productionCandidateMinimumHeadroom = numberOrNull(productionHeadroom.candidate?.minimumHeadroom);
   const productionThroughput = productionThroughputEvidence(productionTargetScaleUp, sustainedScaleUp, diagnostics);
+  const productionTargetQualification = qualifyProductionTargetEvidence({
+    report: productionTargetScaleUp,
+    throughput: productionThroughput,
+  });
   const sustainedScaleSource = productionTargetPresent ? productionTargetScaleUp : sustainedScaleUp;
   const mixedDiagnosticsSource = productionTargetPresent ? {} : diagnostics.mixedWorkloadDiagnostics ?? {};
   const shallowModules = modules
@@ -255,6 +260,12 @@ function buildPromotionEvidence(reports) {
       targetAttempted: productionTargetScaleUp.throughputTarget?.attempted === true,
       measuredReadWriteRps: numberOrNull(productionTargetScaleUp.summary?.highestPassedReadWriteRps),
       maxP99Ms: numberOrNull(productionTargetScaleUp.summary?.maxP99Ms),
+      samplesPerStep: numberOrNull(productionTargetScaleUp.concurrencyProfile?.samplesPerStep),
+      totalErrors: numberOrNull(productionTargetScaleUp.summary?.totalErrors),
+      orchestrationErrors: numberOrNull(productionTargetScaleUp.summary?.orchestrationErrors),
+      targetPressureStatus: productionTargetScaleUp.throughputTarget?.pressure?.status ?? null,
+      sloQualified: productionTargetQualification.qualified,
+      qualificationChecks: productionTargetQualification.checks,
     },
     databaseHeadroom: {
       pgbouncerMaxDbConnections: pgbouncerMax,
@@ -309,6 +320,31 @@ function hasProductionTargetEvidence(report) {
     Number.isFinite(numberOrNull(report?.summary?.maxP99Ms));
 }
 
+function qualifyProductionTargetEvidence({ report, throughput }) {
+  const checks = {
+    present: hasProductionTargetEvidence(report),
+    statusPassed: report?.status === "PASSED",
+    targetMet: throughput.targetAttemptStatus === "MET",
+    targetAttempted: throughput.targetAttempted === true,
+    targetConfigured: throughput.targetConfigured === true,
+    targetPressurePassed: report?.throughputTarget?.pressure?.status === "PASSED",
+    measuredRpsEnough: Number.isFinite(throughput.measuredReadWriteRps) &&
+      throughput.measuredReadWriteRps >= rootSloPromotionPolicy.productionReadWriteRpsTarget,
+    configuredTargetEnough: Number.isFinite(throughput.targetConfiguredReadWriteRps) &&
+      throughput.targetConfiguredReadWriteRps >= rootSloPromotionPolicy.productionReadWriteRpsTarget,
+    latencyWithinTarget: Number.isFinite(numberOrNull(report?.summary?.maxP99Ms)) &&
+      numberOrNull(report?.summary?.maxP99Ms) <= rootSloPromotionPolicy.interactiveP99TargetMs,
+    zeroErrors: numberOrNull(report?.summary?.totalErrors) === 0,
+    zeroOrchestrationErrors: numberOrNull(report?.summary?.orchestrationErrors) === 0,
+    enoughSamples: numberOrNull(report?.concurrencyProfile?.samplesPerStep) >=
+      rootSloPromotionPolicy.minimumProductionTargetSamples,
+  };
+  return {
+    qualified: Object.values(checks).every(Boolean),
+    checks,
+  };
+}
+
 function buildFallbackLatencySamples(identity, conversation, teaching, diagnostics) {
   return [
     latencySample("identity.slowest_p99_ms", identity?.metrics?.slowestP99Ms),
@@ -340,6 +376,7 @@ function buildProductionTargetWorkloadHotspots(report) {
           dbBatchWaitP99Ms: numberOrNull(summary.dbBatchWaitP99Ms),
           dbInsertP99Ms: numberOrNull(summary.dbInsertP99Ms),
           dbExecP99Ms: numberOrNull(summary.dbExecP99Ms),
+          responseEncodeP99Ms: numberOrNull(summary.responseEncodeP99Ms),
           dominantPhase: summary.dominantPhase ?? null,
           dominantPhaseP99Ms: numberOrNull(summary.dominantPhaseP99Ms),
         },
@@ -384,12 +421,10 @@ function buildPromotionFindings(evidence) {
   });
   addPromotionFinding(findings, {
     id: "promotion.sustained_scale_depth_sufficient",
-    passed: evidence.sustainedScale.highestPassedStepRank >= rootSloPromotionPolicy.minimumSustainedStepRank &&
-      evidence.sustainedScale.totalErrors === 0 &&
-      evidence.sustainedScale.orchestrationErrors === 0,
-    actual: `highest=${evidence.sustainedScale.highestPassedStep};rank=${evidence.sustainedScale.highestPassedStepRank};errors=${evidence.sustainedScale.totalErrors};orchestration=${evidence.sustainedScale.orchestrationErrors}`,
-    expected: `highest passed sustained mixed workload step >= ${rootSloPromotionPolicy.minimumSustainedStepName} with zero errors`,
-    remediation: "Run a higher sustained mixed workload step before promotion.",
+    passed: isSustainedScaleDepthSatisfied(evidence),
+    actual: `highest=${evidence.sustainedScale.highestPassedStep};rank=${evidence.sustainedScale.highestPassedStepRank};errors=${evidence.sustainedScale.totalErrors};orchestration=${evidence.sustainedScale.orchestrationErrors};productionTargetSloQualified=${evidence.productionTarget.sloQualified}`,
+    expected: `highest passed sustained mixed workload step >= ${rootSloPromotionPolicy.minimumSustainedStepName} with zero errors, or qualified production target evidence with >=${rootSloPromotionPolicy.minimumProductionTargetSamples} samples, target pressure passed, >=${rootSloPromotionPolicy.productionReadWriteRpsTarget} read/write RPS, and P99 <= ${rootSloPromotionPolicy.interactiveP99TargetMs}ms`,
+    remediation: "Run a higher sustained mixed workload step, or attach a qualified production target report instead of repeating under-specified performance probes.",
   });
   addPromotionFinding(findings, {
     id: "promotion.production_read_write_rps_target_met",
@@ -403,6 +438,13 @@ function buildPromotionFindings(evidence) {
     remediation: "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim.",
   });
   return findings;
+}
+
+function isSustainedScaleDepthSatisfied(evidence) {
+  const ladderSatisfied = evidence.sustainedScale.highestPassedStepRank >= rootSloPromotionPolicy.minimumSustainedStepRank &&
+    evidence.sustainedScale.totalErrors === 0 &&
+    evidence.sustainedScale.orchestrationErrors === 0;
+  return ladderSatisfied || evidence.productionTarget.sloQualified === true;
 }
 
 function requiredNextEvidence(blockers) {

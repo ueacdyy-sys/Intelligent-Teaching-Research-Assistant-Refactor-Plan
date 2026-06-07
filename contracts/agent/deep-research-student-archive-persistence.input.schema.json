@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-student-archive-persistence.input.schema.json",
+  "title": "Deep Research Student Archive Persistence Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "persistenceInvocationId",
+    "principal",
+    "studentDeliveryRecord",
+    "studentArchivePersistencePolicy",
+    "studentArchivePersistenceRequest",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-student-archive-persistence.v1"
+    },
+    "persistenceInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "const": "SERVICE" },
+        "subjectType": { "type": "string", "const": "SERVICE" },
+        "entryPoint": { "type": "string", "const": "STUDENT_ARCHIVE_PERSISTENCE_RUNTIME" },
+        "scopes": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["RESEARCH_READ", "STUDENT_ARCHIVE_PERSISTENCE", "STUDENT_APP_DELIVERY"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "studentDeliveryRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "runtimeId", "commandPort", "status", "recordId", "job", "studentDeliveryEnvelope", "evidenceRefs", "boundary"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-06-05.research.deep-research-student-delivery-recorded.v1"
+        },
+        "runtimeId": { "type": "string", "const": "research_deep_research_student_delivery_runtime" },
+        "commandPort": {
+          "type": "string",
+          "const": "DeepResearchStudentDeliveryPort.recordStudentDeliveryEnvelope"
+        },
+        "status": { "type": "string", "const": "STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED" },
+        "recordId": { "type": "string", "minLength": 1 },
+        "job": { "$ref": "#/$defs/researchJob" },
+        "studentDeliveryEnvelope": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["envelopeId", "envelopeKind", "deliveryMode", "audience", "channel", "scopeRef", "visibilityState", "deliveryState", "teacherDeliveryPackageId", "studentVisibilityReviewId", "claimCount", "citationCount", "sourceHashCount", "claims", "limitations", "risk"],
+          "properties": {
+            "envelopeId": { "type": "string", "minLength": 1 },
+            "envelopeKind": { "type": "string", "const": "EVIDENCE_GROUNDED_STUDENT_DELIVERY_ENVELOPE" },
+            "deliveryMode": { "type": "string", "const": "STUDENT_APP_RENDERABLE_ENVELOPE" },
+            "audience": { "type": "string", "const": "STUDENT_APP_LEARNING_SUPPORT" },
+            "channel": { "type": "string", "const": "STUDENT_APP" },
+            "scopeRef": { "type": "string", "minLength": 3, "maxLength": 200 },
+            "visibilityState": { "type": "string", "const": "STUDENT_VISIBLE_DELIVERY_ENVELOPE_NOT_PERSISTED" },
+            "deliveryState": { "type": "string", "const": "READY_FOR_STUDENT_APP_RENDER_NOT_ARCHIVED" },
+            "teacherDeliveryPackageId": { "type": "string", "minLength": 1 },
+            "studentVisibilityReviewId": { "type": "string", "minLength": 1 },
+            "claimCount": { "type": "integer", "minimum": 1 },
+            "citationCount": { "type": "integer", "minimum": 1 },
+            "sourceHashCount": { "type": "integer", "minimum": 1 },
+            "claims": { "type": "array", "minItems": 1 },
+            "limitations": { "type": "array", "minItems": 1 },
+            "risk": { "type": "object" }
+          }
+        },
+        "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "studentDeliveryEnvelopeCreated": { "type": "boolean", "const": true },
+            "studentVisible": { "type": "boolean", "const": true },
+            "studentDeliveryPersisted": { "type": "boolean", "const": false },
+            "studentArchiveWriteStarted": { "type": "boolean", "const": false },
+            "requiresFuturePersistenceReview": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "studentArchivePersistencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewedStudentDeliveryRequired",
+        "studentArchivePersistenceCommandAllowed",
+        "appendOnlyCommandLogRequired",
+        "preserveEvidenceRequired",
+        "preserveSourceHashesRequired",
+        "preserveLimitationsRequired",
+        "studentAudienceScopeRequired",
+        "futureDurableProjectionReviewRequired",
+        "directPublicationAllowed",
+        "directDatabaseAccessAllowed",
+        "mainDatabaseWriteAllowed",
+        "studentArchiveProjectionWriteAllowed",
+        "externalModelCallAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "reviewedStudentDeliveryRequired": { "type": "boolean", "const": true },
+        "studentArchivePersistenceCommandAllowed": { "type": "boolean", "const": true },
+        "appendOnlyCommandLogRequired": { "type": "boolean", "const": true },
+        "preserveEvidenceRequired": { "type": "boolean", "const": true },
+        "preserveSourceHashesRequired": { "type": "boolean", "const": true },
+        "preserveLimitationsRequired": { "type": "boolean", "const": true },
+        "studentAudienceScopeRequired": { "type": "boolean", "const": true },
+        "futureDurableProjectionReviewRequired": { "type": "boolean", "const": true },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "mainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentArchiveProjectionWriteAllowed": { "type": "boolean", "const": false },
+        "externalModelCallAllowed": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "studentArchivePersistenceRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "persistenceMode", "targetArchiveKind", "archiveScopeRef", "studentDeliveryRecordId", "studentDeliveryEnvelopeId", "studentVisibilityReviewId", "teacherDeliveryPackageId", "desiredArchiveState"],
+      "properties": {
+        "commandId": { "type": "string", "minLength": 1 },
+        "persistenceMode": { "type": "string", "const": "APPEND_ONLY_STUDENT_ARCHIVE_COMMAND" },
+        "targetArchiveKind": { "type": "string", "const": "STUDENT_LEARNING_ARCHIVE" },
+        "archiveScopeRef": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "studentDeliveryRecordId": { "type": "string", "minLength": 1 },
+        "studentDeliveryEnvelopeId": { "type": "string", "minLength": 1 },
+        "studentVisibilityReviewId": { "type": "string", "minLength": 1 },
+        "teacherDeliveryPackageId": { "type": "string", "minLength": 1 },
+        "desiredArchiveState": { "type": "string", "const": "PERSISTENCE_COMMAND_RECORDED_NOT_PROJECTED" }
+      }
+    },
+    "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 240 }
+  },
+  "$defs": {
+    "researchJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

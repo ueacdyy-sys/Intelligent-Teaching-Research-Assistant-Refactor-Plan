@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-retrieval-execution.input.schema.json",
+  "title": "Deep Research Retrieval Execution Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "executionInvocationId",
+    "principal",
+    "retrievalPlanRecord",
+    "executionPolicy",
+    "readPortDescriptor",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-retrieval-execution.v1"
+    },
+    "executionInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["SERVICE", "ADMIN"] },
+        "subjectType": { "type": "string", "enum": ["SERVICE", "USER"] },
+        "entryPoint": { "type": "string", "enum": ["AGENT_INTERNAL", "DESKTOP_ADMIN"] },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["AGENT_COMMAND_SUBMIT", "RESEARCH_READ", "KNOWLEDGE_PRIVATE_READ", "ADMIN_SYSTEM"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "retrievalPlanRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schemaVersion",
+        "runtimeId",
+        "commandPort",
+        "status",
+        "job",
+        "worker",
+        "approval",
+        "retrievalPlan",
+        "evidenceRefs",
+        "boundary"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-06-05.research.deep-research-retrieval-plan-recorded.v1"
+        },
+        "runtimeId": { "type": "string", "const": "research_deep_research_retrieval_plan_runtime" },
+        "commandPort": {
+          "type": "string",
+          "const": "DeepResearchRetrievalPlanPort.recordDeepResearchRetrievalPlan"
+        },
+        "status": { "type": "string", "const": "RETRIEVAL_PLAN_RECORDED" },
+        "job": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["taskId", "contextRef", "jobId", "queueName"],
+          "properties": {
+            "taskId": { "type": "string", "minLength": 1 },
+            "contextRef": { "type": "string", "minLength": 1 },
+            "jobId": { "type": "string", "minLength": 1 },
+            "queueName": { "type": "string", "const": "research_deep_research" }
+          }
+        },
+        "retrievalPlan": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["strategy", "planningOnly", "sourcePlan", "budget", "citationPolicy"],
+          "properties": {
+            "strategy": { "type": "string", "const": "DIRECTORY_INDEX_THEN_VECTOR_RAG" },
+            "planningOnly": { "type": "boolean", "const": true },
+            "sourcePlan": { "type": "array", "minItems": 1 },
+            "budget": { "type": "object" },
+            "citationPolicy": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": ["citationRequired", "sourceHashRequired", "quoteScope"],
+              "properties": {
+                "citationRequired": { "type": "boolean", "const": true },
+                "sourceHashRequired": { "type": "boolean", "const": true },
+                "quoteScope": { "type": "string", "const": "RETRIEVED_SOURCE_ONLY" }
+              }
+            }
+          }
+        },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "retrievalPlanRecorded",
+            "retrievalExecuted",
+            "externalModelCallStarted",
+            "ragSynthesisStarted",
+            "finalAnswerGenerated"
+          ],
+          "properties": {
+            "retrievalPlanRecorded": { "type": "boolean", "const": true },
+            "retrievalExecuted": { "type": "boolean", "const": false },
+            "externalModelCallStarted": { "type": "boolean", "const": false },
+            "ragSynthesisStarted": { "type": "boolean", "const": false },
+            "finalAnswerGenerated": { "type": "boolean", "const": false }
+          }
+        }
+      }
+    },
+    "executionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executeRetrievalNow",
+        "directoryIndexAccessAllowed",
+        "vectorSearchAllowed",
+        "directDatabaseAccessAllowed",
+        "writeAllowed",
+        "studentArchiveAllowed",
+        "remoteDeviceSourcesAllowed",
+        "externalModelCallAllowed",
+        "ragSynthesisAllowed",
+        "finalAnswerNowAllowed",
+        "citationRequired",
+        "sourceHashRequired"
+      ],
+      "properties": {
+        "executeRetrievalNow": { "type": "boolean", "const": true },
+        "directoryIndexAccessAllowed": { "type": "boolean", "const": true },
+        "vectorSearchAllowed": { "type": "boolean", "const": true },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "writeAllowed": { "type": "boolean", "const": false },
+        "studentArchiveAllowed": { "type": "boolean", "const": false },
+        "remoteDeviceSourcesAllowed": { "type": "boolean", "const": false },
+        "externalModelCallAllowed": { "type": "boolean", "const": false },
+        "ragSynthesisAllowed": { "type": "boolean", "const": false },
+        "finalAnswerNowAllowed": { "type": "boolean", "const": false },
+        "citationRequired": { "type": "boolean", "const": true },
+        "sourceHashRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "readPortDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["portName", "operation", "directDatabaseAccess", "writeAllowed"],
+      "properties": {
+        "portName": { "type": "string", "const": "DeepResearchRetrievalReadPort" },
+        "operation": { "type": "string", "const": "retrieveApprovedSources" },
+        "directDatabaseAccess": { "type": "boolean", "const": false },
+        "writeAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 }
+  }
+}

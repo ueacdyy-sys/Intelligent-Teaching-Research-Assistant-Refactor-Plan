@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-render-preview.output.schema.json",
+  "title": "Deep Research Render Preview Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "job",
+    "preview",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-render-preview-recorded.v1"
+    },
+    "runtimeId": { "type": "string", "const": "research_deep_research_render_preview_runtime" },
+    "commandPort": {
+      "type": "string",
+      "const": "DeepResearchRenderPreviewPort.recordDeepResearchRenderPreview"
+    },
+    "status": { "type": "string", "const": "RENDER_PREVIEW_READY_NOT_PUBLISHED" },
+    "recordId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 },
+    "idempotentReplay": { "type": "boolean" },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previewId",
+        "previewKind",
+        "audience",
+        "format",
+        "deliveryState",
+        "title",
+        "summary",
+        "claims",
+        "limitations",
+        "review",
+        "finalization",
+        "integrity"
+      ],
+      "properties": {
+        "previewId": { "type": "string", "minLength": 1 },
+        "previewKind": { "type": "string", "const": "EVIDENCE_GROUNDED_RESEARCH_PREVIEW" },
+        "audience": { "type": "string", "const": "TEACHER_REVIEW" },
+        "format": { "type": "string", "const": "SAFE_TEXT_BLOCKS" },
+        "deliveryState": { "type": "string", "const": "PREVIEW_READY_NOT_PUBLISHED" },
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["claimId", "text", "citations", "sourceHashes", "supportChunkIds", "confidence", "evidencePreserved"],
+            "properties": {
+              "claimId": { "type": "string", "minLength": 1 },
+              "text": { "type": "string", "minLength": 1 },
+              "citations": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+              "sourceHashes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } },
+              "supportChunkIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "evidencePreserved": { "type": "boolean", "const": true }
+            }
+          }
+        },
+        "limitations": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reviewRecordId", "reviewerPrincipalId"],
+          "properties": {
+            "reviewRecordId": { "type": "string", "minLength": 1 },
+            "reviewerPrincipalId": { "type": "string", "minLength": 1 }
+          }
+        },
+        "finalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifactId", "finalizerPrincipalId", "deliveryState"],
+          "properties": {
+            "artifactId": { "type": "string", "minLength": 1 },
+            "finalizerPrincipalId": { "type": "string", "minLength": 1 },
+            "deliveryState": { "type": "string", "const": "FINALIZED_NOT_PUBLISHED" }
+          }
+        },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claimCount", "citationCount", "sourceHashCount", "unsafeTextEncoded"],
+          "properties": {
+            "claimCount": { "type": "integer", "minimum": 1 },
+            "citationCount": { "type": "integer", "minimum": 1 },
+            "sourceHashCount": { "type": "integer", "minimum": 1 },
+            "unsafeTextEncoded": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finalizedArtifactVerified",
+        "reasoningSynthesisVerified",
+        "citationIntegrityPreserved",
+        "sourceHashIntegrityPreserved",
+        "unsafeTextEncoded",
+        "renderPreviewRecorded",
+        "publicationCandidateCreated",
+        "finalAnswerPublished",
+        "studentVisible",
+        "directPublicationAllowed",
+        "externalModelCallStarted",
+        "mainDatabaseWriteStarted",
+        "studentArchiveWriteStarted",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed",
+        "requiresFuturePublicationReview"
+      ],
+      "properties": {
+        "finalizedArtifactVerified": { "type": "boolean", "const": true },
+        "reasoningSynthesisVerified": { "type": "boolean", "const": true },
+        "citationIntegrityPreserved": { "type": "boolean", "const": true },
+        "sourceHashIntegrityPreserved": { "type": "boolean", "const": true },
+        "unsafeTextEncoded": { "type": "boolean", "const": true },
+        "renderPreviewRecorded": { "type": "boolean", "const": true },
+        "publicationCandidateCreated": { "type": "boolean", "const": false },
+        "finalAnswerPublished": { "type": "boolean", "const": false },
+        "studentVisible": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "externalModelCallStarted": { "type": "boolean", "const": false },
+        "mainDatabaseWriteStarted": { "type": "boolean", "const": false },
+        "studentArchiveWriteStarted": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "requiresFuturePublicationReview": { "type": "boolean", "const": true }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetP99Ms", "evidenceClass"],
+      "properties": {
+        "targetP99Ms": { "type": "integer", "minimum": 1, "maximum": 300 },
+        "evidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_RENDER_PREVIEW_BOUNDARY"
+        }
+      }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

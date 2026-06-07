@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "2026-06-05.research.deep-research-retrieval-execution-recorded.v1",
+  "runtimeId": "research_deep_research_retrieval_execution_runtime",
+  "commandPort": "DeepResearchRetrievalExecutionPort.recordDeepResearchRetrievalExecution",
+  "readPort": "DeepResearchRetrievalReadPort.retrieveApprovedSources",
+  "status": "RETRIEVAL_EXECUTION_RECORDED",
+  "recordId": "research_deep_research_retrieval_execution_deep-research-retrieval-execution_job-001",
+  "recordedAt": "2026-06-05T00:00:00.000Z",
+  "idempotencyKey": "deep-research-retrieval-execution:job-001",
+  "idempotentReplay": false,
+  "job": {
+    "taskId": "agent_task_research_deep_001",
+    "contextRef": "shared_ctx_research_deep_001",
+    "jobId": "deep_research_job_001",
+    "queueName": "research_deep_research"
+  },
+  "retrievalResult": {
+    "retrievalExecuted": true,
+    "chunkCount": 2,
+    "sourceRefCount": 2,
+    "items": [
+      {
+        "planItemId": "plan_public_directory_first",
+        "knowledgeBaseRef": "public_curriculum_knowledge",
+        "classification": "PUBLIC",
+        "chunks": [
+          {
+            "chunkId": "chunk_public_001",
+            "sourceRef": "source:public-curriculum:001",
+            "sourceKind": "PUBLIC_KNOWLEDGE",
+            "sourceTitle": "Personalized learning evidence review",
+            "citation": "public_curriculum_knowledge#source:public-curriculum:001",
+            "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "retrievedBy": "DIRECTORY_INDEX",
+            "localOnly": true,
+            "score": 0.91,
+            "excerpt": "Personalized tutoring systems require scoped evidence and measurable learning outcomes."
+          }
+        ]
+      },
+      {
+        "planItemId": "plan_private_notes",
+        "knowledgeBaseRef": "private_research_notes",
+        "classification": "PRIVATE",
+        "chunks": [
+          {
+            "chunkId": "chunk_private_001",
+            "sourceRef": "source:private-notes:001",
+            "sourceKind": "PRIVATE_KNOWLEDGE",
+            "sourceTitle": "智能教研助手私密研究笔记",
+            "citation": "private_research_notes#source:private-notes:001",
+            "sourceHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "retrievedBy": "VECTOR_SEARCH",
+            "localOnly": true,
+            "score": 0.88,
+            "excerpt": "私密知识库检索必须保留来源哈希和引用，后续综合回答不能脱离证据。"
+          }
+        ]
+      }
+    ]
+  },
+  "evidenceRefs": [
+    "evidence:retrieval-plan:job-001",
+    "evidence:approval:deep_research_approval_001",
+    "evidence:retrieval-source-hash:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "evidence:retrieval-source-hash:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "evidence:runtime:research_deep_research_retrieval_execution_runtime",
+    "evidence:read-port:DeepResearchRetrievalReadPort.retrieveApprovedSources"
+  ],
+  "boundary": {
+    "approvalVerified": true,
+    "workerClaimVerified": true,
+    "retrievalPlanVerified": true,
+    "retrievalExecuted": true,
+    "directoryIndexAccessUsed": true,
+    "vectorSearchMayHaveBeenUsed": true,
+    "externalModelCallStarted": false,
+    "ragSynthesisStarted": false,
+    "finalAnswerGenerated": false,
+    "directPublicationAllowed": false,
+    "localToolMutationAllowed": false,
+    "directMainDatabaseWriteAllowed": false,
+    "studentArchiveUsed": false,
+    "remoteDeviceSourcesUsed": false,
+    "swarmAllowed": false,
+    "requiresFutureReasoningSlice": true
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_RETRIEVAL_EXECUTION_BOUNDARY"
+  },
+  "nextAction": "Use these cited retrieval chunks as input to a future approved reasoning slice; do not publish a final answer from retrieval evidence alone."
+}

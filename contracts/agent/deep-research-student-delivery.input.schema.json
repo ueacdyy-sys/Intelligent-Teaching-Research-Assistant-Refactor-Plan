@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-student-delivery.input.schema.json",
+  "title": "Deep Research Student Delivery Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "deliveryInvocationId",
+    "principal",
+    "studentVisibilityReviewRecord",
+    "studentDeliveryPolicy",
+    "studentDeliveryRequest",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-student-delivery.v1"
+    },
+    "deliveryInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "const": "SERVICE" },
+        "subjectType": { "type": "string", "const": "SERVICE" },
+        "entryPoint": { "type": "string", "const": "STUDENT_DELIVERY_RUNTIME" },
+        "scopes": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["RESEARCH_READ", "STUDENT_DELIVERY_ENVELOPE", "STUDENT_APP_DELIVERY"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "studentVisibilityReviewRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schemaVersion",
+        "runtimeId",
+        "commandPort",
+        "status",
+        "recordId",
+        "job",
+        "teacherDeliveryPackage",
+        "studentVisibilityReview",
+        "evidenceRefs",
+        "boundary"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-06-05.research.deep-research-student-visibility-review-recorded.v1"
+        },
+        "runtimeId": { "type": "string", "const": "research_deep_research_student_visibility_review_runtime" },
+        "commandPort": {
+          "type": "string",
+          "const": "DeepResearchStudentVisibilityReviewPort.recordStudentVisibilityReview"
+        },
+        "status": { "type": "string", "const": "STUDENT_VISIBILITY_REVIEW_APPROVED_NOT_DELIVERED" },
+        "recordId": { "type": "string", "minLength": 1 },
+        "job": { "$ref": "#/$defs/researchJob" },
+        "teacherDeliveryPackage": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["packageId", "packageKind", "claimCount", "citationCount", "sourceHashCount", "claims", "limitations", "risk"],
+          "properties": {
+            "packageId": { "type": "string", "minLength": 1 },
+            "packageKind": { "type": "string", "const": "EVIDENCE_GROUNDED_TEACHER_DELIVERY_PACKAGE" },
+            "claimCount": { "type": "integer", "minimum": 1 },
+            "citationCount": { "type": "integer", "minimum": 1 },
+            "sourceHashCount": { "type": "integer", "minimum": 1 },
+            "claims": { "type": "array", "minItems": 1 },
+            "limitations": { "type": "array", "minItems": 1 },
+            "risk": { "type": "object" }
+          }
+        },
+        "studentVisibilityReview": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["reviewId", "decision", "approvedForFutureStudentDelivery", "targetAudience"],
+          "properties": {
+            "reviewId": { "type": "string", "minLength": 1 },
+            "decision": { "type": "string", "const": "APPROVED_FOR_STUDENT_VISIBILITY_DELIVERY_RUNTIME" },
+            "approvedForFutureStudentDelivery": { "type": "boolean", "const": true },
+            "targetAudience": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "visibilityState": {
+                  "type": "string",
+                  "const": "APPROVED_FOR_FUTURE_STUDENT_DELIVERY_NOT_VISIBLE"
+                }
+              }
+            }
+          }
+        },
+        "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "humanStudentVisibilityReviewRecorded": { "type": "boolean", "const": true },
+            "studentVisible": { "type": "boolean", "const": false },
+            "studentDeliveryStarted": { "type": "boolean", "const": false },
+            "requiresFutureStudentDeliveryRuntime": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "studentDeliveryPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewedTeacherDeliveryRequired",
+        "humanStudentVisibilityReviewRequired",
+        "studentDeliveryEnvelopeAllowed",
+        "studentVisibleEnvelopeAllowed",
+        "preserveEvidenceRequired",
+        "preserveSourceHashesRequired",
+        "preserveLimitationsRequired",
+        "studentAudienceScopeRequired",
+        "futurePersistenceReviewRequired",
+        "directPublicationAllowed",
+        "directDatabaseAccessAllowed",
+        "mainDatabaseWriteAllowed",
+        "studentArchiveWriteAllowed",
+        "externalModelCallAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "reviewedTeacherDeliveryRequired": { "type": "boolean", "const": true },
+        "humanStudentVisibilityReviewRequired": { "type": "boolean", "const": true },
+        "studentDeliveryEnvelopeAllowed": { "type": "boolean", "const": true },
+        "studentVisibleEnvelopeAllowed": { "type": "boolean", "const": true },
+        "preserveEvidenceRequired": { "type": "boolean", "const": true },
+        "preserveSourceHashesRequired": { "type": "boolean", "const": true },
+        "preserveLimitationsRequired": { "type": "boolean", "const": true },
+        "studentAudienceScopeRequired": { "type": "boolean", "const": true },
+        "futurePersistenceReviewRequired": { "type": "boolean", "const": true },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "mainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentArchiveWriteAllowed": { "type": "boolean", "const": false },
+        "externalModelCallAllowed": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "studentDeliveryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "envelopeId",
+        "deliveryMode",
+        "channel",
+        "audienceKind",
+        "visibilityState",
+        "scopeRef",
+        "studentVisibilityReviewRecordId",
+        "studentVisibilityReviewId",
+        "teacherDeliveryPackageId"
+      ],
+      "properties": {
+        "envelopeId": { "type": "string", "minLength": 1 },
+        "deliveryMode": { "type": "string", "const": "STUDENT_APP_RENDERABLE_ENVELOPE" },
+        "channel": { "type": "string", "const": "STUDENT_APP" },
+        "audienceKind": { "type": "string", "const": "STUDENT_APP_LEARNING_SUPPORT" },
+        "visibilityState": { "type": "string", "const": "STUDENT_VISIBLE_DELIVERY_ENVELOPE_NOT_PERSISTED" },
+        "scopeRef": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "studentVisibilityReviewRecordId": { "type": "string", "minLength": 1 },
+        "studentVisibilityReviewId": { "type": "string", "minLength": 1 },
+        "teacherDeliveryPackageId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 240 }
+  },
+  "$defs": {
+    "researchJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

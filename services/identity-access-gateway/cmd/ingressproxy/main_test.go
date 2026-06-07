@@ -83,6 +83,55 @@ func TestIngressHandlerUsesStableBearerTokenUpstream(t *testing.T) {
 	}
 }
 
+func TestIngressHandlerRoutesOwnedBearerTokenToMatchingGateway(t *testing.T) {
+	upstreams, err := parseUpstreamBaseURLs("http://gateway-a.test,http://gateway-b.test,http://gateway-c.test")
+	if err != nil {
+		t.Fatalf("parseUpstreamBaseURLs() error = %v", err)
+	}
+	transport := &scriptedRoundTripper{
+		results: []roundTripResult{{statusCode: http.StatusOK, body: "principal\n"}},
+	}
+	handler := newIngressHandler(upstreams, transport)
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/identity/principal", nil)
+	request.Header.Set("Authorization", "Bearer access_g1_token")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %q, want 200", response.Code, response.Body.String())
+	}
+	if got, want := transport.hosts, []string{"gateway-b.test"}; !slices.Equal(got, want) {
+		t.Fatalf("owned bearer upstreams = %#v want %#v", got, want)
+	}
+}
+
+func TestIngressHandlerRoutesOwnedRefreshTokenBodyToMatchingGateway(t *testing.T) {
+	upstreams, err := parseUpstreamBaseURLs("http://gateway-a.test,http://gateway-b.test,http://gateway-c.test")
+	if err != nil {
+		t.Fatalf("parseUpstreamBaseURLs() error = %v", err)
+	}
+	transport := &scriptedRoundTripper{
+		results: []roundTripResult{{statusCode: http.StatusOK, body: "refresh\n"}},
+	}
+	handler := newIngressHandler(upstreams, transport)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/identity/sessions/refresh",
+		strings.NewReader(`{"refreshToken":"refresh_g2_token"}`),
+	)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %q, want 200", response.Code, response.Body.String())
+	}
+	if got, want := transport.hosts, []string{"gateway-c.test"}; !slices.Equal(got, want) {
+		t.Fatalf("owned refresh upstreams = %#v want %#v", got, want)
+	}
+}
+
 func TestIngressHandlerKeepsRoundRobinForTokenlessRequests(t *testing.T) {
 	upstreams, err := parseUpstreamBaseURLs("http://gateway-a.test,http://gateway-b.test")
 	if err != nil {

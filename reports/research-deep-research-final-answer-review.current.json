@@ -1,0 +1,194 @@
+{
+  "generatedAt": "2026-06-07T12:29:23.667Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_DEEP_RESEARCH_FINAL_ANSWER_REVIEW",
+  "runtime": {
+    "runtimeId": "research_deep_research_final_answer_review_runtime",
+    "commandPort": "DeepResearchFinalAnswerReviewPort.recordDeepResearchFinalAnswerReview",
+    "asyncQueue": "research_deep_research"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_FINAL_ANSWER_REVIEW_PROBE"
+  },
+  "safetyInvariants": {
+    "reasoningSynthesisVerified": true,
+    "humanFinalAnswerReviewRecorded": true,
+    "finalAnswerGenerated": false,
+    "finalAnswerPublished": false,
+    "directPublicationAllowed": false,
+    "externalModelCallStarted": false,
+    "mainDatabaseWriteStarted": false,
+    "studentArchiveWriteStarted": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "finalAnswerReview": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.research.deep-research-final-answer-review-recorded.v1",
+        "runtimeId": "research_deep_research_final_answer_review_runtime",
+        "commandPort": "DeepResearchFinalAnswerReviewPort.recordDeepResearchFinalAnswerReview",
+        "status": "FINAL_ANSWER_REVIEW_APPROVED_FOR_FINALIZATION",
+        "recordId": "research_deep_research_final_answer_review_deep-research-final-answer-review_job-001",
+        "recordedAt": "2026-06-05T00:00:00.000Z",
+        "idempotencyKey": "deep-research-final-answer-review:job-001",
+        "idempotentReplay": false,
+        "job": {
+          "taskId": "agent_task_research_deep_001",
+          "contextRef": "shared_ctx_research_deep_001",
+          "jobId": "deep_research_job_001",
+          "queueName": "research_deep_research"
+        },
+        "review": {
+          "reviewId": "deep_research_final_review_001",
+          "reviewerPrincipalId": "teacher_research_reviewer_001",
+          "decision": "APPROVED_FOR_FINALIZATION",
+          "approvedForFinalization": true,
+          "revisionRequired": false,
+          "coverage": {
+            "claimCountReviewed": 2,
+            "citedClaimCount": 2,
+            "unsupportedClaimCount": 0,
+            "coverageRatio": 1
+          },
+          "risk": {
+            "hallucinationRisk": "LOW",
+            "privateKnowledgeRisk": "MEDIUM",
+            "studentDataRisk": "LOW"
+          },
+          "comments": "Evidence, limitations, citation and sourceHash integrity have been reviewed."
+        },
+        "evidenceRefs": [
+          "evidence:reasoning-synthesis:job-001",
+          "evidence:human-review:desktop-research",
+          "evidence:retrieval-execution:job-001",
+          "evidence:runtime:research_deep_research_reasoning_synthesis_runtime",
+          "evidence:final-answer-review-input-hash:sha256:59b7ef30eac51ac8cb821889451c4f608a0335273877c5bde8ec98c2e95fef16",
+          "evidence:runtime:research_deep_research_final_answer_review_runtime",
+          "evidence:command-port:DeepResearchFinalAnswerReviewPort.recordDeepResearchFinalAnswerReview",
+          "evidence:reviewer:teacher_research_reviewer_001"
+        ],
+        "boundary": {
+          "reasoningSynthesisVerified": true,
+          "humanFinalAnswerReviewRecorded": true,
+          "evidenceCoverageReviewed": true,
+          "citationIntegrityReviewed": true,
+          "sourceHashIntegrityReviewed": true,
+          "safetyReviewed": true,
+          "approvedForFutureFinalization": true,
+          "revisionRequired": false,
+          "finalAnswerGenerated": false,
+          "finalAnswerPublished": false,
+          "directPublicationAllowed": false,
+          "externalModelCallStarted": false,
+          "mainDatabaseWriteStarted": false,
+          "studentArchiveWriteStarted": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false,
+          "requiresFutureFinalizationRuntime": true
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 300,
+          "evidenceClass": "ASYNC_DEEP_RESEARCH_FINAL_ANSWER_REVIEW_BOUNDARY"
+        },
+        "nextAction": "Send the reviewed draft to a future finalization runtime; do not publish directly from this review record."
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 300,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "ASYNC_DEEP_RESEARCH_FINAL_ANSWER_REVIEW_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "severity": "info",
+      "actual": "APPROVED_FOR_FINALIZATION=true;FINAL_ANSWER_REVIEW_APPROVED_FOR_FINALIZATION=true;ASYNC_DEEP_RESEARCH_FINAL_ANSWER_REVIEW_BOUNDARY=true",
+      "expected": "final-answer review schemas and examples define review-only approval, not publication",
+      "remediation": "Keep contracts tied to reasoning synthesis input and future finalization only."
+    },
+    {
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "severity": "info",
+      "actual": "research_deep_research_final_answer_review_runtime=true;DeepResearchFinalAnswerReviewPort.recordDeepResearchFinalAnswerReview=true;FINAL_ANSWER_REVIEW_APPROVED_FOR_FINALIZATION=true",
+      "expected": "runtime records append-only review evidence through the final-answer review command port",
+      "remediation": "The review slice must stay port-based and idempotent."
+    },
+    {
+      "id": "runtime.synthesis_and_safety_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;publicationAllowed: true=false;directDatabaseAccessAllowed: true=false;writeAllowed: true=false;studentArchiveWriteAllowed: true=false;remoteDeviceControlAllowed: true=false;externalModelCallAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;finalAnswerGenerated: true=false;finalAnswerPublished: true=false;directPublicationAllowed: true=false;mainDatabaseWriteStarted: true=false;externalModelCallStarted: true=false",
+      "expected": "review verifies synthesis evidence and blocks publication, final answers, writes, model calls, tools, and Swarm",
+      "remediation": "Do not let review evidence collapse into final-answer generation or publication."
+    },
+    {
+      "id": "runtime.probe_records_review_without_publication",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=FINAL_ANSWER_REVIEW_APPROVED_FOR_FINALIZATION;decision=APPROVED_FOR_FINALIZATION;p99=6",
+      "expected": "probe records human final-answer review and stops before final answer or publication",
+      "remediation": "Final-answer review must only approve future finalization."
+    },
+    {
+      "id": "tests.cover_review_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "positive review, revision, idempotency, unsafe policy, invalid reviewer, coverage, and risk tests",
+      "remediation": "Add regression coverage before treating final-answer review as root evidence."
+    },
+    {
+      "id": "quality.gate_tracks_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:research-deep-research-final-answer-review=true;Research deep_research final answer review audit=true",
+      "expected": "npm script and strict quality command include the final-answer review audit",
+      "remediation": "Wire final-answer review into the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_final_answer_review_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "researchDeepResearchFinalAnswerReview=true;research-deep-research-final-answer-review.current.json=true;research_deep_research_final_answer_review_runtime=true",
+      "expected": "research root workflow requires deep_research final-answer review evidence",
+      "remediation": "Root workflow coverage must explicitly require the final-answer review gate."
+    },
+    {
+      "id": "structure_tracks_runtime_files",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires final-answer review contracts, SDD, runtime, tests, audit, and audit test",
+      "remediation": "Add the final-answer review slice to structure verification."
+    },
+    {
+      "id": "sdd.explicitly_defers_publication",
+      "passed": true,
+      "severity": "info",
+      "actual": "final-answer review gate=true;DeepResearchFinalAnswerReviewPort.recordDeepResearchFinalAnswerReview=true;not publication=true",
+      "expected": "SDD states review is not final-answer generation or publication",
+      "remediation": "Keep the SDD honest about the boundary."
+    },
+    {
+      "id": "architecture_board.reflects_final_answer_review_progress",
+      "passed": true,
+      "severity": "info",
+      "actual": "ResearchAgent.deep_research=true;final-answer review gate=true;8.7/10=true;8.6/10=true",
+      "expected": "architecture board shows final-answer review progress while preserving the 8.6/10 synthesis milestone",
+      "remediation": "Update the architecture board with current and historical deep_research milestones."
+    }
+  ],
+  "nextAction": "Use this as deep_research final-answer review evidence; finalization and publication remain separate future slices."
+}

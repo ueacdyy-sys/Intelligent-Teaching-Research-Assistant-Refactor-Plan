@@ -1,0 +1,198 @@
+{
+  "generatedAt": "2026-06-07T12:29:26.056Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_DEEP_RESEARCH_PUBLICATION_PRECHECK",
+  "runtime": {
+    "runtimeId": "research_deep_research_publication_precheck_runtime",
+    "commandPort": "DeepResearchPublicationPrecheckPort.recordDeepResearchPublicationPrecheck",
+    "asyncQueue": "research_deep_research"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_PUBLICATION_PRECHECK_PROBE"
+  },
+  "safetyInvariants": {
+    "renderPreviewVerified": true,
+    "humanPublicationPrecheckRecorded": true,
+    "evidenceIntegrityReviewed": true,
+    "safetyReviewed": true,
+    "studentVisibilityReviewed": true,
+    "publicationCandidateCreated": false,
+    "finalAnswerPublished": false,
+    "studentVisible": false,
+    "externalModelCallStarted": false,
+    "mainDatabaseWriteStarted": false,
+    "studentArchiveWriteStarted": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false,
+    "requiresFutureDeliveryRuntime": true
+  },
+  "runtimeProbes": {
+    "publicationPrecheck": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.research.deep-research-publication-precheck-recorded.v1",
+        "runtimeId": "research_deep_research_publication_precheck_runtime",
+        "commandPort": "DeepResearchPublicationPrecheckPort.recordDeepResearchPublicationPrecheck",
+        "status": "PUBLICATION_PRECHECK_APPROVED_NOT_DELIVERED",
+        "recordId": "research_deep_research_publication_precheck_deep-research-publication-precheck_job-001",
+        "recordedAt": "2026-06-05T00:00:00.000Z",
+        "idempotencyKey": "deep-research-publication-precheck:job-001",
+        "idempotentReplay": false,
+        "job": {
+          "taskId": "agent_task_research_deep_001",
+          "contextRef": "shared_ctx_research_deep_001",
+          "jobId": "deep_research_job_001",
+          "queueName": "research_deep_research"
+        },
+        "precheck": {
+          "precheckId": "deep_research_publication_precheck_001",
+          "reviewerPrincipalId": "teacher_research_reviewer_001",
+          "decision": "APPROVED_FOR_DELIVERY_RUNTIME",
+          "approvedForFutureDelivery": true,
+          "revisionRequired": false,
+          "previewId": "deep_research_render_preview_001",
+          "artifactId": "deep_research_finalization_artifact_001",
+          "claimCount": 2,
+          "citationCount": 2,
+          "sourceHashCount": 2,
+          "risk": {
+            "hallucinationRisk": "LOW",
+            "privateKnowledgeRisk": "MEDIUM",
+            "studentDataRisk": "LOW",
+            "publicationRisk": "LOW"
+          },
+          "comments": "Preview is safe to enter a future delivery runtime, but is not delivered by this precheck."
+        },
+        "evidenceRefs": [
+          "evidence:render-preview:job-001",
+          "evidence:publication-precheck:desktop-research",
+          "evidence:runtime:research_deep_research_render_preview_runtime",
+          "evidence:publication-precheck-input-hash:sha256:ab99a5e2067d3f3a7fc7aaaccb5bb1856ad3c0c1d61efe569ff8d9a9bd0b03b4",
+          "evidence:runtime:research_deep_research_publication_precheck_runtime",
+          "evidence:command-port:DeepResearchPublicationPrecheckPort.recordDeepResearchPublicationPrecheck",
+          "evidence:render-preview-record:research_deep_research_render_preview_deep-research-render-preview_job-001",
+          "evidence:publication-reviewer:teacher_research_reviewer_001"
+        ],
+        "boundary": {
+          "renderPreviewVerified": true,
+          "humanPublicationPrecheckRecorded": true,
+          "evidenceIntegrityReviewed": true,
+          "safetyReviewed": true,
+          "studentVisibilityReviewed": true,
+          "approvedForFutureDelivery": true,
+          "revisionRequired": false,
+          "publicationCandidateCreated": false,
+          "finalAnswerPublished": false,
+          "studentVisible": false,
+          "directPublicationAllowed": false,
+          "externalModelCallStarted": false,
+          "mainDatabaseWriteStarted": false,
+          "studentArchiveWriteStarted": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false,
+          "requiresFutureDeliveryRuntime": true
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 300,
+          "evidenceClass": "ASYNC_DEEP_RESEARCH_PUBLICATION_PRECHECK_BOUNDARY"
+        },
+        "nextAction": "Use this approval only as input to a future delivery runtime; do not publish or expose to students directly."
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 300,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "ASYNC_DEEP_RESEARCH_PUBLICATION_PRECHECK_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "severity": "info",
+      "actual": "PUBLICATION_PRECHECK_APPROVED_NOT_DELIVERED=true;APPROVED_FOR_DELIVERY_RUNTIME=true;ASYNC_DEEP_RESEARCH_PUBLICATION_PRECHECK_BOUNDARY=true",
+      "expected": "publication precheck schemas and examples consume render preview evidence without delivery",
+      "remediation": "Keep publication precheck separate from publication and student-visible delivery."
+    },
+    {
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "severity": "info",
+      "actual": "research_deep_research_publication_precheck_runtime=true;DeepResearchPublicationPrecheckPort.recordDeepResearchPublicationPrecheck=true;PUBLICATION_PRECHECK_APPROVED_NOT_DELIVERED=true",
+      "expected": "runtime records append-only publication precheck evidence through the command port",
+      "remediation": "The publication precheck slice must stay port-based and idempotent."
+    },
+    {
+      "id": "runtime.render_preview_review_and_safety_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;directPublicationAllowed: true=false;studentVisibleDeliveryAllowed: true=false;directDatabaseAccessAllowed: true=false;mainDatabaseWriteAllowed: true=false;studentArchiveWriteAllowed: true=false;externalModelCallAllowed: true=false;remoteDeviceControlAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;publicationCandidateCreated: true=false;finalAnswerPublished: true=false;studentVisible: true=false;externalModelCallStarted: true=false;mainDatabaseWriteStarted: true=false;studentArchiveWriteStarted: true=false;dangerouslySetInnerHTML=false;innerHTML=false",
+      "expected": "runtime verifies render preview, human review, safety, student visibility, and blocks direct delivery or writes",
+      "remediation": "Do not let publication precheck publish, write the main DB, call models, mutate tools, or expose to students."
+    },
+    {
+      "id": "runtime.probe_records_precheck_without_delivery",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=PUBLICATION_PRECHECK_APPROVED_NOT_DELIVERED;studentVisible=false;p99=6",
+      "expected": "probe records human precheck under async boundary budget without publication or delivery",
+      "remediation": "Publication precheck must stop before the future delivery runtime."
+    },
+    {
+      "id": "tests.cover_publication_precheck_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "positive, revision-required, idempotency, unsafe preview, invalid principal, direct publication, student delivery, reviewer mismatch, and high-risk approval tests",
+      "remediation": "Add regression coverage before treating publication precheck as root evidence."
+    },
+    {
+      "id": "quality.gate_tracks_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:research-deep-research-publication-precheck=true;Research deep_research publication precheck audit=true",
+      "expected": "npm script and strict quality command include the publication precheck audit",
+      "remediation": "Wire publication precheck into the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_publication_precheck_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "researchDeepResearchPublicationPrecheck=true;research-deep-research-publication-precheck.current.json=true;research_deep_research_publication_precheck_runtime=true",
+      "expected": "research root workflow requires deep_research publication precheck evidence after render preview",
+      "remediation": "Root workflow coverage must explicitly require publication precheck before future delivery."
+    },
+    {
+      "id": "structure_tracks_runtime_files",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires publication precheck contracts, SDD, runtime, tests, audit, and audit test",
+      "remediation": "Add the publication precheck slice to structure verification."
+    },
+    {
+      "id": "sdd.explicitly_defers_delivery",
+      "passed": true,
+      "severity": "info",
+      "actual": "publication precheck runtime=true;DeepResearchPublicationPrecheckPort.recordDeepResearchPublicationPrecheck=true;not publication=true",
+      "expected": "SDD states publication precheck is not publication and requires future delivery runtime",
+      "remediation": "Keep the SDD honest about the boundary."
+    },
+    {
+      "id": "architecture_board.reflects_publication_precheck_progress",
+      "passed": true,
+      "severity": "info",
+      "actual": "ResearchAgent.deep_research=true;publication precheck runtime=true;9.0/10=true;8.9/10=true",
+      "expected": "architecture board shows publication precheck progress while preserving the 8.9/10 render preview milestone",
+      "remediation": "Update the architecture board with current and historical deep_research milestones."
+    }
+  ],
+  "nextAction": "Use this as deep_research human publication precheck evidence; actual delivery and student visibility remain separate future slices."
+}

@@ -205,25 +205,30 @@ func servicePrincipal() domain.PrincipalContext {
 }
 
 type fakeRepository struct {
-	items              []domain.ArchiveItem
-	requests           []domain.TutoringAnalysisRequest
-	gradingRequests    []domain.AIGradingRequest
-	quizSubmissions    []domain.QuizSubmission
-	attendanceSessions []domain.AttendanceSession
-	attendanceRecords  []domain.AttendanceRecord
-	attendanceStats    domain.AttendanceStatistics
+	items                              []domain.ArchiveItem
+	publishedArchiveItemIDs            map[string]bool
+	requests                           []domain.TutoringAnalysisRequest
+	gradingRequests                    []domain.AIGradingRequest
+	quizSubmissions                    []domain.QuizSubmission
+	questionBankDraftContents          []domain.QuestionBankDraftContent
+	questionBankDraftAnswerSubmissions []domain.QuestionBankDraftAnswerSubmission
+	quizDraftIntents                   []domain.TeachingQuizDraftIntent
+	archiveMaterialDraftIntents        []domain.TeachingArchiveMaterialDraftIntent
+	attendanceSessions                 []domain.AttendanceSession
+	attendanceRecords                  []domain.AttendanceRecord
+	attendanceStats                    domain.AttendanceStatistics
 
 	lastAttendanceStatsQuery domain.AttendanceStatisticsQuery
 }
 
-func (f *fakeRepository) Create(ctx context.Context, _ domain.ArchiveItem) error {
+func (f *fakeRepository) Create(ctx context.Context, _ domain.ArchiveItem) (usecase.WritePersistenceOutcome, error) {
 	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
 		timing.DBBatchWait = 500 * time.Microsecond
 		timing.DBAcquire = time.Millisecond
 		timing.DBExec = 2 * time.Millisecond
 		timing.DBInsert = 3 * time.Millisecond
 	}
-	return nil
+	return usecase.PersistedWriteOutcome(), nil
 }
 
 func (f *fakeRepository) List(ctx context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
@@ -233,6 +238,36 @@ func (f *fakeRepository) List(ctx context.Context, query domain.ArchiveItemQuery
 	}
 	items := make([]domain.ArchiveItem, 0, len(f.items))
 	for _, item := range f.items {
+		if query.OwnerType != "" && item.OwnerType != query.OwnerType {
+			continue
+		}
+		if query.StudentID != "" && item.StudentID != query.StudentID {
+			continue
+		}
+		if len(query.StudentIDs) > 0 && !containsString(query.StudentIDs, item.StudentID) {
+			continue
+		}
+		if query.MaterialType != "" && item.MaterialType != query.MaterialType {
+			continue
+		}
+		items = append(items, item)
+		if query.FetchLimit > 0 && len(items) >= query.FetchLimit {
+			break
+		}
+	}
+	return items, nil
+}
+
+func (f *fakeRepository) ListPublishedForStudentApp(ctx context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.DBAcquire = time.Millisecond
+		timing.DBQuery = 2 * time.Millisecond
+	}
+	items := make([]domain.ArchiveItem, 0, len(f.items))
+	for _, item := range f.items {
+		if !f.publishedArchiveItemIDs[item.ID] {
+			continue
+		}
 		if query.OwnerType != "" && item.OwnerType != query.OwnerType {
 			continue
 		}
@@ -270,6 +305,28 @@ func (f *fakeRepository) CreateTutoringAnalysisRequest(_ context.Context, reques
 func (f *fakeRepository) CreateAIGradingRequest(_ context.Context, request domain.AIGradingRequest) error {
 	f.gradingRequests = append(f.gradingRequests, request)
 	return nil
+}
+
+func (f *fakeRepository) SubmitQuizDraftIntent(
+	ctx context.Context,
+	intent domain.TeachingQuizDraftIntent,
+) (usecase.WritePersistenceOutcome, error) {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.CommandAppend = time.Millisecond
+	}
+	f.quizDraftIntents = append(f.quizDraftIntents, intent)
+	return usecase.AcceptedWriteOutcome("cmd_" + intent.ID), nil
+}
+
+func (f *fakeRepository) SubmitArchiveMaterialDraftIntent(
+	ctx context.Context,
+	intent domain.TeachingArchiveMaterialDraftIntent,
+) (usecase.WritePersistenceOutcome, error) {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.CommandAppend = time.Millisecond
+	}
+	f.archiveMaterialDraftIntents = append(f.archiveMaterialDraftIntents, intent)
+	return usecase.AcceptedWriteOutcome("cmd_" + intent.ID), nil
 }
 
 func (f *fakeRepository) CreateAttendanceSession(_ context.Context, session domain.AttendanceSession) error {
@@ -408,6 +465,65 @@ func (f *fakeRepository) RecordTutoringAnalysisResult(
 	}
 	f.requests = append(f.requests, updated)
 	return nil
+}
+
+func (f *fakeRepository) GetQuestionBankDraftContentForStudent(
+	_ context.Context,
+	draftRef string,
+	studentID string,
+) (domain.QuestionBankDraftContent, bool, error) {
+	for _, content := range f.questionBankDraftContents {
+		if content.QuestionBankDraftRef == draftRef && content.StudentID == studentID {
+			return content, true, nil
+		}
+	}
+	return domain.QuestionBankDraftContent{}, false, nil
+}
+
+func (f *fakeRepository) SubmitQuestionBankDraftAnswerSubmission(
+	ctx context.Context,
+	submission domain.QuestionBankDraftAnswerSubmission,
+) (usecase.WritePersistenceOutcome, error) {
+	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
+		timing.DBExec = time.Millisecond
+		timing.DBInsert = time.Millisecond
+	}
+	f.questionBankDraftAnswerSubmissions = append(f.questionBankDraftAnswerSubmissions, submission)
+	return usecase.PersistedWriteOutcome(), nil
+}
+
+func (f *fakeRepository) GetQuestionBankDraftAnswerSubmissionForStudent(
+	_ context.Context,
+	submissionID string,
+	studentID string,
+) (domain.QuestionBankDraftAnswerSubmission, bool, error) {
+	for _, submission := range f.questionBankDraftAnswerSubmissions {
+		if submission.ID == submissionID && submission.StudentID == studentID {
+			return submission, true, nil
+		}
+	}
+	return domain.QuestionBankDraftAnswerSubmission{}, false, nil
+}
+
+func (f *fakeRepository) GetLatestQuestionBankDraftAnswerScoringRequestForStudent(
+	_ context.Context,
+	submissionID string,
+	studentID string,
+) (domain.AIGradingRequest, bool, error) {
+	var latest domain.AIGradingRequest
+	for _, request := range f.gradingRequests {
+		if request.SourceQuestionBankAnswerSubmissionID != submissionID ||
+			request.SourceArchiveStudentID != studentID ||
+			request.SourceQuestionBankDraftRef == "" {
+			continue
+		}
+		if latest.ID == "" ||
+			request.CreatedAt.After(latest.CreatedAt) ||
+			(request.CreatedAt.Equal(latest.CreatedAt) && request.ID > latest.ID) {
+			latest = request
+		}
+	}
+	return latest, latest.ID != "", nil
 }
 
 func containsString(values []string, target string) bool {

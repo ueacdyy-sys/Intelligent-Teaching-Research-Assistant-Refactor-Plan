@@ -16,6 +16,15 @@ func (s *Server) aiGradingRequestSubresources(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if requestID, ok := parseAIGradingQuestionBankAnswerScoringInputPath(r.URL.Path); ok {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.readQuestionBankDraftAnswerScoringInputMetadata(w, r, requestID)
+		return
+	}
+
 	requestID, ok := parseAIGradingWorkerResultPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "ai grading request subresource not found")
@@ -100,4 +109,42 @@ func (s *Server) recordAIGradingResultMetadata(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, http.StatusOK, toAIGradingRequestResponse(updated))
+}
+
+func (s *Server) readQuestionBankDraftAnswerScoringInputMetadata(
+	w http.ResponseWriter,
+	r *http.Request,
+	requestID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request readQuestionBankDraftAnswerScoringInputRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if s.readQuestionBankDraftAnswerScoringInput == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "question bank answer scoring input use case is not configured")
+		return
+	}
+
+	input, err := s.readQuestionBankDraftAnswerScoringInput.Execute(
+		r.Context(),
+		domain.ReadQuestionBankDraftAnswerScoringInputInput{
+			Principal: principal,
+			RequestID: requestID,
+			WorkerID:  request.WorkerID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to read question bank answer scoring input") {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toQuestionBankDraftAnswerScoringInputResponse(input))
 }

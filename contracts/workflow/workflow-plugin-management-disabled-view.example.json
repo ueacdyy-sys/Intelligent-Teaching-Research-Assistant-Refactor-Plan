@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "2026-06-05.workflow-plugin.management-disabled-view.v1",
+  "viewId": "workflow_plugin_management_disabled_view_lesson_archive_review",
+  "generatedAt": "2026-06-05T06:00:00.000Z",
+  "surface": "ADMIN_WORKFLOW_PLUGIN_MANAGEMENT",
+  "registryEntry": {
+    "registryEntryId": "workflow_registry_lesson_archive_review",
+    "draftId": "workflow_draft_lesson_archive_review",
+    "artifactKind": "WORKFLOW",
+    "capabilityKind": "WORKFLOW",
+    "status": "ACTIVE",
+    "executionMode": "DRY_RUN_ONLY",
+    "localExecutionEnabled": false
+  },
+  "badges": [
+    "DRY_RUN_ONLY",
+    "EXECUTION_CANDIDATES_DISABLED",
+    "PUBLICATION_DISABLED",
+    "FUTURE_SDD_REQUIRED"
+  ],
+  "actions": [
+    {
+      "actionId": "publish",
+      "label": "Publish",
+      "enabled": false,
+      "disabledReason": "Publication is blocked by the current SDD.",
+      "evidenceRef": "workflow-plugin-publication-disabled:workflow_plugin_publication_disabled_audit_workflow_publication_disabled"
+    },
+    {
+      "actionId": "enableLocalExecution",
+      "label": "Enable Local Execution",
+      "enabled": false,
+      "disabledReason": "Local execution requires a future executable isolation SDD.",
+      "evidenceRef": "workflow-plugin-execution-isolation:workflow_plugin_execution_isolation_audit-workflow-execution-isolation"
+    },
+    {
+      "actionId": "createExecutionCandidate",
+      "label": "Create Execution Candidate",
+      "enabled": false,
+      "disabledReason": "Execution candidates are disabled by the current SDD.",
+      "evidenceRef": "workflow-plugin-execution-isolation:workflow_plugin_execution_isolation_audit-workflow-execution-isolation"
+    },
+    {
+      "actionId": "exposeMarketplace",
+      "label": "Expose Marketplace",
+      "enabled": false,
+      "disabledReason": "Marketplace exposure is blocked by the current SDD.",
+      "evidenceRef": "workflow-plugin-publication-disabled:workflow_plugin_publication_disabled_audit_workflow_publication_disabled"
+    }
+  ],
+  "disabledActionCount": 4,
+  "evidence": {
+    "registryAdmissionRecordRef": "workflow-registry-admission:audit-registry-admission",
+    "executionIsolationRecordRef": "workflow-plugin-execution-isolation:workflow_plugin_execution_isolation_audit-workflow-execution-isolation",
+    "publicationDisabledRecordRef": "workflow-plugin-publication-disabled:workflow_plugin_publication_disabled_audit_workflow_publication_disabled",
+    "humanApprovalRecordRef": "workflow-human-approval:audit-human-approval",
+    "sandboxResultRecordRef": "workflow-sandbox-result:audit-sandbox-result",
+    "auditTraceRef": "audit:audit-workflow-management-disabled-view"
+  },
+  "boundary": {
+    "managementViewRendered": true,
+    "allActionsDisabled": true,
+    "workflowPublishAllowed": false,
+    "pluginMarketplaceExposureAllowed": false,
+    "executionCandidateAllowed": false,
+    "localExecutionEnabled": false,
+    "processLaunchAllowed": false,
+    "hostWriteAllowed": false,
+    "requiresFutureSdd": true
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-reasoning-synthesis.input.schema.json",
+  "title": "Deep Research Reasoning Synthesis Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "synthesisInvocationId",
+    "principal",
+    "retrievalExecutionRecord",
+    "reasoningPolicy",
+    "reasoningPortDescriptor",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-reasoning-synthesis.v1"
+    },
+    "synthesisInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["SERVICE", "ADMIN"] },
+        "subjectType": { "type": "string", "enum": ["SERVICE", "USER"] },
+        "entryPoint": { "type": "string", "enum": ["AGENT_INTERNAL", "DESKTOP_ADMIN"] },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["AGENT_COMMAND_SUBMIT", "RESEARCH_READ", "KNOWLEDGE_PRIVATE_READ", "ADMIN_SYSTEM"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "retrievalExecutionRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "runtimeId", "status", "job", "retrievalResult", "boundary", "evidenceRefs"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-06-05.research.deep-research-retrieval-execution-recorded.v1"
+        },
+        "runtimeId": { "type": "string", "const": "research_deep_research_retrieval_execution_runtime" },
+        "status": { "type": "string", "const": "RETRIEVAL_EXECUTION_RECORDED" },
+        "job": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["taskId", "contextRef", "jobId", "queueName"],
+          "properties": {
+            "taskId": { "type": "string", "minLength": 1 },
+            "contextRef": { "type": "string", "minLength": 1 },
+            "jobId": { "type": "string", "minLength": 1 },
+            "queueName": { "type": "string", "const": "research_deep_research" }
+          }
+        },
+        "retrievalResult": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["retrievalExecuted", "chunkCount", "sourceRefCount", "items"],
+          "properties": {
+            "retrievalExecuted": { "type": "boolean", "const": true },
+            "chunkCount": { "type": "integer", "minimum": 1 },
+            "sourceRefCount": { "type": "integer", "minimum": 1 },
+            "items": { "type": "array", "minItems": 1 }
+          }
+        },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["retrievalExecuted", "ragSynthesisStarted", "finalAnswerGenerated"],
+          "properties": {
+            "retrievalExecuted": { "type": "boolean", "const": true },
+            "ragSynthesisStarted": { "type": "boolean", "const": false },
+            "finalAnswerGenerated": { "type": "boolean", "const": false }
+          }
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "reasoningPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "composeDraftNow",
+        "evidenceGroundedOnly",
+        "directDatabaseAccessAllowed",
+        "writeAllowed",
+        "studentArchiveAllowed",
+        "remoteDeviceSourcesAllowed",
+        "directExternalModelCallAllowed",
+        "finalAnswerNowAllowed",
+        "publicationAllowed",
+        "citationRequired",
+        "sourceHashRequired",
+        "maxDraftClaims",
+        "maxCitationsPerClaim",
+        "maxSourceHashesPerClaim",
+        "maxDraftTokens"
+      ],
+      "properties": {
+        "composeDraftNow": { "type": "boolean", "const": true },
+        "evidenceGroundedOnly": { "type": "boolean", "const": true },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "writeAllowed": { "type": "boolean", "const": false },
+        "studentArchiveAllowed": { "type": "boolean", "const": false },
+        "remoteDeviceSourcesAllowed": { "type": "boolean", "const": false },
+        "directExternalModelCallAllowed": { "type": "boolean", "const": false },
+        "finalAnswerNowAllowed": { "type": "boolean", "const": false },
+        "publicationAllowed": { "type": "boolean", "const": false },
+        "citationRequired": { "type": "boolean", "const": true },
+        "sourceHashRequired": { "type": "boolean", "const": true },
+        "maxDraftClaims": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "maxCitationsPerClaim": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "maxSourceHashesPerClaim": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "maxDraftTokens": { "type": "integer", "minimum": 100, "maximum": 4000 }
+      }
+    },
+    "reasoningPortDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["portName", "operation", "directExternalModelCall", "directDatabaseAccess", "writeAllowed"],
+      "properties": {
+        "portName": { "type": "string", "const": "DeepResearchReasoningPort" },
+        "operation": { "type": "string", "const": "composeEvidenceGroundedDraft" },
+        "directExternalModelCall": { "type": "boolean", "const": false },
+        "directDatabaseAccess": { "type": "boolean", "const": false },
+        "writeAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 }
+  }
+}

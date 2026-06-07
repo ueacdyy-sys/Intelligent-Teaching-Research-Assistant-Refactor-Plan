@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "2026-06-05.student-app.ai-tutor-request-queued.v1",
+  "runtimeId": "student_app_ai_tutor_request_runtime",
+  "commandPort": "StudentAppAITutorRequestPort.createStudentAppAITutorRequest",
+  "status": "STUDENT_APP_AI_TUTOR_REQUEST_QUEUED",
+  "recordId": "student_app_ai_tutor_request_student-app-ai-tutor-request_agent_task_student_app_ai_tutor_001",
+  "recordedAt": "2026-06-05T00:00:00.000Z",
+  "idempotencyKey": "student-app-ai-tutor-request:agent_task_student_app_ai_tutor_001",
+  "idempotentReplay": false,
+  "queue": {
+    "queueName": "student_app_ai_tutor",
+    "queueTable": "teaching_tutoring_analysis_requests",
+    "targetUseCase": "CreateStudentAppAITutorRequest.Execute",
+    "readRepository": "ArchiveRepository.GetByID",
+    "writeRepository": "ArchiveRepository.CreateTutoringAnalysisRequest"
+  },
+  "tutoringAnalysisRequest": {
+    "id": "tutor_req_student_app_001",
+    "archiveItemId": "tarch_student_quiz_001",
+    "requestedByPrincipalId": "student_001",
+    "analysisGoal": "explain weak algebra skills",
+    "questionBankIntent": "GENERATE_PERSONALIZED_CHECK",
+    "status": "QUEUED",
+    "sourceArchiveOwnerType": "STUDENT",
+    "sourceArchiveStudentId": "student_001",
+    "sourceArchiveMaterial": "QUIZ",
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  "evidenceRefs": [
+    "evidence:student-archive-item:tarch_student_quiz_001",
+    "evidence:student-app-profile:student_001",
+    "evidence:tutoring-analysis-request:tutor_req_student_app_001"
+  ],
+  "boundary": {
+    "studentOwnArchiveScopeEnforced": true,
+    "teachingArchiveReadVerified": true,
+    "tutoringAnalysisRequestQueued": true,
+    "questionBankDraftDeferred": true,
+    "asyncAnalysisRequired": true,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "externalModelCallNowAllowed": false,
+    "finalEvaluationNowAllowed": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "evidenceClass": "STUDENT_APP_AI_TUTOR_REQUEST_ADMISSION_BOUNDARY"
+  },
+  "nextAction": "Use this as Student App AI Tutor queue admission evidence; continue with worker claim, result review, and question-bank draft slices."
+}

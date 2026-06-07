@@ -1,0 +1,140 @@
+{
+  "generatedAt": "2026-06-07T12:29:49.174Z",
+  "readiness": "READY",
+  "workloadType": "AGENT_CONTROLLED_WRITE_INTENT_GATEWAY",
+  "gateway": {
+    "gatewayId": "agent_controlled_write_intent_gateway",
+    "gatewayMode": "REVIEW_ONLY_COMMAND_INTENT",
+    "acceptedIntentCount": 3,
+    "evidenceClass": "CONTRACT_REVIEW_ONLY_NO_EXECUTION"
+  },
+  "controlledWriteBoundary": {
+    "commandIntentRecordingAllowed": true,
+    "immediateBusinessWriteAllowed": false,
+    "directDatabaseWriteAllowed": false,
+    "finalAiGradingWriteAllowed": false,
+    "workflowPublishAllowed": false,
+    "localToolMutationAllowed": false,
+    "executionCandidateAllowed": false
+  },
+  "acceptedIntents": [
+    {
+      "intentId": "draft_teaching_quiz",
+      "workerAgent": "TeachingAgent",
+      "taskKind": "TEACHING",
+      "targetCapability": "QUIZ_DRAFT",
+      "commandPort": "TeachingDraftCommandPort.submitQuizDraftIntent",
+      "approvalRequired": true,
+      "executionCandidateAllowed": false
+    },
+    {
+      "intentId": "draft_archive_material",
+      "workerAgent": "TeachingAgent",
+      "taskKind": "TEACHING",
+      "targetCapability": "ARCHIVE_MATERIAL_DRAFT",
+      "commandPort": "TeachingDraftCommandPort.submitArchiveMaterialDraftIntent",
+      "approvalRequired": true,
+      "executionCandidateAllowed": false
+    },
+    {
+      "intentId": "draft_workflow_plugin",
+      "workerAgent": "WorkflowAgent",
+      "taskKind": "WORKFLOW",
+      "targetCapability": "WORKFLOW_PLUGIN_DRAFT",
+      "commandPort": "WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent",
+      "approvalRequired": true,
+      "executionCandidateAllowed": false
+    }
+  ],
+  "findings": [
+    {
+      "id": "gateway.schema_identity",
+      "passed": true,
+      "severity": "info",
+      "actual": "schema=2026-06-04.agent.controlled-write-intent-gateway.v1;gateway=agent_controlled_write_intent_gateway;mode=REVIEW_ONLY_COMMAND_INTENT",
+      "expected": "controlled write intent gateway v1, agent_controlled_write_intent_gateway, REVIEW_ONLY_COMMAND_INTENT",
+      "remediation": "Keep this gateway as a review-only command intent boundary until a later SDD enables real execution."
+    },
+    {
+      "id": "gateway.intent_allowlist",
+      "passed": true,
+      "severity": "info",
+      "actual": "draft_teaching_quiz:TeachingAgent:TeachingDraftCommandPort.submitQuizDraftIntent:approval=true:execute=false;draft_archive_material:TeachingAgent:TeachingDraftCommandPort.submitArchiveMaterialDraftIntent:approval=true:execute=false;draft_workflow_plugin:WorkflowAgent:WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent:approval=true:execute=false",
+      "expected": "draft_teaching_quiz,draft_archive_material,draft_workflow_plugin",
+      "remediation": "Only teaching quiz drafts, archive material drafts, and workflow/plugin drafts are accepted in this slice."
+    },
+    {
+      "id": "boundary.no_immediate_business_writes",
+      "passed": true,
+      "severity": "info",
+      "actual": "record=true;businessWrite=false;directDb=false;localTool=false;finalGrading=false;workflowPublish=false;modelTraining=false;rejection=DENY_OR_REVIEW_WITH_EVIDENCE",
+      "expected": "record command intent only; no direct DB, business write, final grading, workflow publish, model training, or local mutation",
+      "remediation": "Agent write paths must create reviewable command intent evidence, not immediate business side effects."
+    },
+    {
+      "id": "admission.guards_required",
+      "passed": true,
+      "severity": "info",
+      "actual": "principalContextRequired=true;sharedContextRequired=true;guardrailResultRequired=true;routeDecisionRequired=true;humanApprovalRequiredForEveryIntent=true;denyUnknownIntent=true;denyOnMissingRollbackPlan=true;denyOnCrossScopeData=true;denyOnDirectDatabaseRequest=true;denyOnFinalEvaluationWrite=true;denyOnWorkflowPublish=true;denyOnLocalToolMutation=true",
+      "expected": "principal/shared/guardrail/route/human approval and denial guards all true",
+      "remediation": "Controlled writes need identity, context, guardrail, route, approval, scope, and rollback checks."
+    },
+    {
+      "id": "harness.review_only_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "harness=true;artifact=true;decision=true;candidate=false;viewCount=0;viewMax=0;reason=real local execution is disabled by current SDD",
+      "expected": "approval artifacts required and execution candidates remain disabled",
+      "remediation": "This slice may submit approval artifacts but must not expose executable local or business-write candidates."
+    },
+    {
+      "id": "evidence.full_trace_required",
+      "passed": true,
+      "severity": "info",
+      "actual": "permissionTraceRequired=true;guardrailTraceRequired=true;routeDecisionRequired=true;inputHashRequired=true;outputSummaryRequired=true;commandIntentRecordRequired=true;approvalArtifactRefRequired=true;eventEnvelopeRequired=true;rollbackPlanRequired=true;idempotencyKeyRequired=true;auditTraceRequired=true",
+      "expected": "permission, guardrail, route, input, output, command, approval, event, rollback, idempotency, and audit trace evidence",
+      "remediation": "Every Agent write intent must be explainable, deduplicated, reviewable, and reversible before execution can be considered."
+    },
+    {
+      "id": "eventing.outbox_before_execution",
+      "passed": true,
+      "severity": "info",
+      "actual": "appendOnly=true;outbox=true;beforeExecution=true;types=AGENT_WRITE_INTENT_SUBMITTED|AGENT_WRITE_INTENT_REVIEW_REQUIRED|AGENT_WRITE_INTENT_REJECTED",
+      "expected": "AGENT_WRITE_INTENT_SUBMITTED,AGENT_WRITE_INTENT_REVIEW_REQUIRED,AGENT_WRITE_INTENT_REJECTED",
+      "remediation": "Write intent must emit append-only outbox events before any future execution path."
+    },
+    {
+      "id": "rollback.preconditions_required",
+      "passed": true,
+      "severity": "info",
+      "actual": "rollbackPlanRequired=true;dryRunDiffRequired=true;compensatingActionRequiredBeforeExecution=true;humanRollbackReviewRequired=true",
+      "expected": "rollback plan, dry-run diff, compensating action, and human rollback review all required",
+      "remediation": "Do not promote write execution until every write intent has a rollback story humans can inspect."
+    },
+    {
+      "id": "agent_tasks.write_intent_requires_approval",
+      "passed": true,
+      "severity": "info",
+      "actual": "agent_task_lesson_quiz_001:kind=TEACHING:write=true:approval=true:anchors=教学模式|随堂测验|统筹智能体;agent_task_system_perf_triage_001:kind=ANALYSIS:write=false:approval=false:anchors=人类评估性能与效果|统筹智能体",
+      "expected": "a Teaching writeIntent task requires human approval and maps to root quiz anchors",
+      "remediation": "AgentTask examples must show that teaching write intents are approval-gated."
+    },
+    {
+      "id": "skill_manifest.dangerous_skills_harnessed",
+      "passed": true,
+      "severity": "info",
+      "actual": "run_benchmark:harness=true:directDb=false:rollback=true;draft_workflow:harness=true:directDb=false:rollback=true;external_app_action:harness=true:directDb=false:rollback=true;draft_model_job:harness=true:directDb=false:rollback=true",
+      "expected": "dangerous/write-capable skills require Harness, deny direct DB writes, and include ROLLBACK evidence",
+      "remediation": "Skills that can write, publish, launch processes, or mutate local tools must remain Harness-gated and rollback-evidenced."
+    },
+    {
+      "id": "promotion.no_execution_claims",
+      "passed": true,
+      "severity": "info",
+      "actual": "class=CONTRACT_REVIEW_ONLY_NO_EXECUTION;root=true;businessWrite=false;finalGrading=false;workflowPublish=false;localTool=false",
+      "expected": "contract review-only evidence; no business write, final grading, workflow publish, or local mutation claims",
+      "remediation": "Keep this report honest: it is a controlled write-intent contract, not working write execution."
+    }
+  ],
+  "nextAction": "Use this as the shared Agent write-intent safety contract; next implementation slice can wire one Teaching draft command port without enabling real execution candidates."
+}

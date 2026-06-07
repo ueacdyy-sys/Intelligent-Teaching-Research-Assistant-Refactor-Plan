@@ -669,14 +669,15 @@
       <div>
         <h1>智能教研助手重构架构板</h1>
         <p class="subtitle">
-          目标架构：平台化模块单体优先，核心能力由 Agent Harness 统一管控；智能体借鉴成熟 Agent 项目的 Skills-Agent、Agent Loop、Swarm、记忆和 Harness Engineering 模式，但转译为教育场景：LeadAgent 负责任务分解和风险分诊，Worker Agents 承接教学、学生辅导、科研、学习分析、工作流和工具操控，并通过原子 Skills、SharedContext、路由决策、失败降级和证据链闭环。医疗诊断、多模态训练、Milvus、Mem0、vLLM、SFT/RL 等只作为未来可选插件或实验 Worker，不进入基线依赖。多语言用于边界治理和学习扩展，不用于一次性重写。当前实测读路径约 4.3k RPS，高档持续混合读写约 2.1k RPS，纯写约 1.0k RPS；优先治理写路径、契约、队列和权限，再按边界引入 Go/Rust。
+          目标架构：平台化模块单体优先，核心能力由 Agent Harness 统一管控；智能体借鉴成熟 Agent 项目的 Skills-Agent、Agent Loop、Swarm、记忆和 Harness Engineering 模式，但转译为教育场景：LeadAgent 负责任务分解和风险分诊，Worker Agents 承接教学、学生辅导、科研、学习分析、工作流和工具操控，并通过原子 Skills、SharedContext、路由决策、失败降级和证据链闭环。医疗诊断、多模态训练、Milvus、Mem0、vLLM、SFT/RL 等只作为未来可选插件或实验 Worker，不进入基线依赖。多语言用于边界治理和学习扩展，不用于一次性重写。当前重构仓库 production10k 证据支持 22,435.1 read/write RPS、P99 44.44ms、0 errors；50ms 达标，10ms 未达标。性能优化暂时收口，本轮从重复压测转为根需求功能切片推进：三条只读 Agent Runtime Adapter、统一 read-only dispatcher、只读 Agent API Runtime、受控写入意图网关和 Workflow 管理/审批链路已进入可审计状态；ResearchAgent.deep_research 已推进到 student archive physical row verification runtime；Student App AI Tutor 已推进到受控来源归档物理行验证；Teaching Archive 资料草稿链路已从 review-only draft intent、人审授权、storage precommit、controlled storage commit、physical row verification、student product read、publication precheck、publication approval、publication delivery envelope、publication persistence command、publication storage commit、publication row verification、publication student app read 推进到 teaching_archive_material_publication_projection_hardening_runtime。当前 10.78/10 证明教学资料发布后，学生端 archive-items 产品入口已通过 Go/SQL 发布投影硬化，只从 teaching_archive_publications 中筛选 COMMITTED_TO_PUBLICATION_STORE + STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED + STUDENT_APP + STUDENT_OWN_ARCHIVE 的资料，并排除未发布、草稿和跨学生资料；10.45/10、10.48/10、10.51/10、10.54/10、10.57/10、10.60/10、10.63/10、10.66/10、10.69/10、10.72/10、10.75/10 仍保留为 precommit、commit、physical row verification、student product read、publication precheck、publication approval、publication delivery envelope、publication persistence command、publication storage commit、publication row verification 与 publication student app read 历史证据。它仍不由 JS 直连数据库或执行 HTTP，不启动 OCR/RAG，不写 AI 批改状态，不调用模型，不启用 Swarm；真实多模型融合、OCR/RAG 富化、AI 批改联动和完整资料检索系统仍后置。本轮不新增 production10k 大压测。
         </p>
       </div>
       <div class="top-meta" aria-label="Architecture summary">
         <div class="metric"><strong>目标形态</strong><span>工作台 + 子系统 + 平台能力</span></div>
         <div class="metric"><strong>语言策略</strong><span>TS/Python 保留，Go/Rust 按边界引入</span></div>
-        <div class="metric"><strong>迁移策略</strong><span>Legacy 隔离，按垂直切片替换</span></div>
-        <div class="metric"><strong>性能门槛</strong><span>新语言和新 Agent 能力必须带基准、回滚和契约测试</span></div>
+        <div class="metric"><strong>重构进度</strong><span>约 10.78/10：根需求架构证据主干已覆盖 Agent 只读调度、受控写入、Workflow 审批、Research deep_research 到学生档案行验证、Student App AI Tutor 到受控来源归档物理行验证，并新增 Teaching Archive 资料草稿人审授权、storage precommit、controlled storage commit、physical row verification、student product read、publication precheck、publication approval、publication delivery envelope、publication persistence command、publication storage commit、publication row verification、publication student app read 和 publication projection hardening。10.45/10 对应 0303：archive material draft storage precommit 只准备 CreateArchiveItem 命令；10.48/10 对应 0304：提交为 TEACHING_ARCHIVE_MATERIAL_DRAFT_STORAGE_COMMITTED；10.51/10 对应 0305：验证 TEACHING_ARCHIVE_MATERIAL_DRAFT_STORAGE_PHYSICAL_ROW_VERIFIED；10.54/10 对应 0306：通过学生端 archive-items 产品入口验证 TEACHING_ARCHIVE_MATERIAL_DRAFT_STUDENT_PRODUCT_READ_VERIFIED；10.57/10 对应 0307：记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PRECHECK_READY；10.60/10 对应 0308：记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_APPROVED_NOT_PUBLISHED；10.63/10 对应 0309：生成 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_DELIVERY_ENVELOPE_READY_NOT_PERSISTED；10.66/10 对应 0310：记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED；10.69/10 对应 0311：通过注入端口提交 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_STORAGE_COMMITTED；10.72/10 对应 0312：通过注入发布行读端口验证 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PHYSICAL_ROW_VERIFIED；10.75/10 对应 0313：通过学生端 archive-items 产品入口验证 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_STUDENT_APP_READ_VERIFIED；10.78/10 对应 0314：通过 Go/SQL 发布投影硬化记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PROJECTION_HARDENED；不表示真正多模型融合、完整 AI Tutor、OCR/RAG 富化、AI 批改联动或完整资料检索系统已完成。</span></div>
+        <div class="metric"><strong>当前证据</strong><span>10k/50ms 支持；10ms 仍是优秀目标</span></div>
+        <div class="metric"><strong>本轮切片</strong><span>Teaching Archive material publication projection hardening 10.78/10；消费 0313 publication student app read READY 证据，把 Student App archive-items 用例从泛用 ArchiveReader.List 改为 StudentAppPublishedArchiveMaterialReader.ListPublishedForStudentApp，PostgreSQL 端用 teaching_archive_publications 的可见发布白名单过滤，只返回 archive_material_publication_commit_001 对应的 tarch_archive_material_001，并排除未发布、草稿和跨学生资料，状态为 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PROJECTION_HARDENED；本轮不由 JS 执行 SQL/HTTP、不启动 OCR/RAG、不写 AI 批改状态、不调用模型、不远控设备、不启用 Swarm，完整资料检索仍后置；未重复 production10k</span></div>
       </div>
     </header>
 
@@ -1677,69 +1678,69 @@
       <table class="matrix">
         <thead>
           <tr>
-            <th>测试对象</th>
+            <th>证据层级</th>
             <th>并发</th>
             <th>RPS</th>
-            <th>P95</th>
+            <th>尾延迟</th>
             <th>判读</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>当前 FastAPI health（参考）</td>
+            <td>原项目 FastAPI health（历史参考）</td>
             <td>800</td>
             <td>4232</td>
             <td>237ms</td>
             <td>只证明 HTTP 外壳，不能作为换语言依据。</td>
           </tr>
           <tr>
-            <td>当前真实读路径</td>
+            <td>原项目真实读路径（历史参考）</td>
             <td>800</td>
             <td>4333</td>
             <td>244ms</td>
-            <td>读路径已经能吃高并发，主要风险是 P99 尾延迟。</td>
+            <td>读路径不差，但尾延迟和写入混入后的退化明显。</td>
           </tr>
           <tr>
-            <td>当前混合读写</td>
+            <td>原项目混合读写（历史参考）</td>
             <td>800</td>
             <td>1895</td>
             <td>1337ms</td>
-            <td>写入一混入，队列和数据库等待明显上升。</td>
+            <td>这是触发架构级优化的早期证据，不再代表当前重构仓库上限。</td>
           </tr>
           <tr>
-            <td>当前纯写路径</td>
+            <td>原项目纯写路径（历史参考）</td>
             <td>800</td>
             <td>1011</td>
             <td>1034ms</td>
-            <td>完整业务端点下，后端 CPU 约 1093%，PostgreSQL 约 160%。瓶颈主要在应用热路径。</td>
+            <td>说明原项目写热路径、对象构造、同步缓存和事务持有时间是主要问题。</td>
           </tr>
           <tr>
-            <td>Go 同库同表读取</td>
-            <td>800</td>
-            <td>4554</td>
-            <td>220ms</td>
-            <td>停掉后端后，32 DB 连接直接跑 count + 最新 20 条；数据库 CPU 可到约 918%。</td>
+            <td>重构仓库 production10k 混合读写</td>
+            <td>Identity 80 / Conversation 320 / Teaching 80</td>
+            <td>22,435.1</td>
+            <td>P99 44.44ms</td>
+            <td>当前最重要证据：10k read/write RPS 已达标，50ms SLO 通过，0 errors。</td>
           </tr>
           <tr>
-            <td>Go 同库同表写入</td>
-            <td>800</td>
-            <td>5515</td>
-            <td>186ms</td>
-            <td>同表 insert 上限远高于当前业务写入；说明数据库原始写入能力不是第一瓶颈。</td>
+            <td>重构仓库最慢工作负载</td>
+            <td>Teaching 80</td>
+            <td>3157.34</td>
+            <td>P99 44.44ms</td>
+            <td>瓶颈集中在教学写入：batch wait 21.12ms、DB insert 15.68ms、响应编码 4.64ms。</td>
           </tr>
           <tr>
-            <td>Go 静态 JSON（参考）</td>
-            <td>800</td>
-            <td>6113</td>
-            <td>151ms</td>
-            <td>Go 适合高并发平台 API，但收益要落在真实业务路径。</td>
+            <td>重构仓库对话写入</td>
+            <td>Conversation 320</td>
+            <td>16,805.53</td>
+            <td>P99 33.47ms</td>
+            <td>durable-log 接受路径 server P99 6.38ms，但 client/server gap 30.83ms 是 10ms 目标的主要差距。</td>
           </tr>
           <tr>
-            <td>Rust 静态 JSON（参考）</td>
-            <td>800</td>
-            <td>5517</td>
-            <td>159ms</td>
-            <td>Rust 适合低资源本机 runtime，不应拿来重写普通 CRUD。</td>
+            <td>重构仓库身份访问</td>
+            <td>Identity 80</td>
+            <td>2472.23</td>
+            <td>P99 43.57ms</td>
+            <td>登录/刷新/撤销写路径受 write limiter 和连接等待影响；50ms 够用，10ms 不够。</td>
           </tr>
         </tbody>
       </table>
@@ -1748,27 +1749,27 @@
 
       <div class="grid three">
         <div class="card red">
-          <h3>先拆写路径</h3>
-          <p>完整 POST 与 Go 同表 insert 的差距约 5 倍。优先审计 FastAPI/Pydantic/SQLAlchemy/Redis dirty marker/响应 DTO 这条热路径，减少对象构造、重复提交、同步缓存写和事务持有时间。</p>
+          <h3>性能收口判断</h3>
+          <p>当前不是“不到万 RPS”的状态。重构仓库已经有 production10k 证据：22,435.1 read/write RPS、P99 44.44ms、0 errors，Root SLO 当前支持 50ms 生产级目标。</p>
           <div class="mini-list">
-            <span>目标：完整写入 P95 先降到 500ms 内</span>
-            <span>验收：write 800c 超过 2000 RPS，mixed 800c 超过 2500 RPS</span>
+            <span>已达标：10k RPS / P99 < 50ms</span>
+            <span>未达标：P99 < 10ms 只能作为优秀目标</span>
           </div>
         </div>
         <div class="card green">
-          <h3>Go 的真实收益</h3>
-          <p>Go 的价值不是空接口快，而是能把高频写入、任务 API、事件消费者做成低开销、强契约、连接数可控的服务。它适合承接新的热切片或重写一个窄的 Command/Job 边界。</p>
+          <h3>当前瓶颈</h3>
+          <p>50ms 内的主要消耗不是语言本身，而是教学写入批等待、数据库 insert、响应编码、身份写限流等待，以及对话路径的客户端到服务端差距。继续盲测收益低，应该转入功能重构。</p>
           <div class="mini-list">
-            <span>第一个 Go 切片：Conversation Write Gateway 或 Quiz Submit API</span>
-            <span>必须：OpenAPI、影子流量、双写校验、回滚路由、压测报告</span>
+            <span>10ms 路线：减少批等待、预编码响应、缩短写事务</span>
+            <span>真实 AI/RAG/OCR 还未纳入生产10k基线</span>
           </div>
         </div>
         <div class="card amber">
-          <h3>配置是硬门槛</h3>
-          <p>当前实际 PostgreSQL 是默认配置：max_connections=100、shared_buffers=128MB。24 worker 高压后会扩到 96 条 idle 连接，几乎没有余量给新服务。不上连接预算，Go 服务会把数据库顶满。</p>
+          <h3>下一步不再卡性能</h3>
+          <p>性能优化已经完成到“能支撑重构继续前进”的门槛。后续性能工作只在新模块落地时随切片验证，不再长期停留在反复压测。</p>
           <div class="mini-list">
-            <span>连接预算：workers × 每 worker 池数 + 新服务池数 <= max_connections × 70%</span>
-            <span>必须：PgBouncer 或提高 max_connections，并设置 idle_in_transaction_timeout</span>
+            <span>已推进：Agent 契约 -> Teaching/StudentTutor/Research 只读 SLO 证据 -> Teaching + StudentTutor + Research 真实只读 Adapter -> dispatcher 实际调用三条只读快路径 -> 只读 Agent API Runtime 接入产品层控制面</span>
+            <span>每个新切片附带 SLO、质量门禁和回滚证据</span>
           </div>
         </div>
       </div>
@@ -1778,36 +1779,36 @@
       <table class="matrix">
         <thead>
           <tr>
-            <th>深度优化项</th>
-            <th>现象证据</th>
-            <th>处理方式</th>
-            <th>验收指标</th>
+            <th>当前瓶颈点</th>
+            <th>production10k 证据</th>
+            <th>还能怎么优化</th>
+            <th>是否继续卡在性能上</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>连接池乘法</td>
-            <td>24 worker 高压后 PostgreSQL 看到 96 idle 连接。</td>
-            <td>统一 async/sync DB engine，或把 sync engine 改为 NullPool/PgBouncer transaction pooling。</td>
-            <td>压测后 idle 连接不超过连接预算，不能挤满 PostgreSQL。</td>
+            <td>教学写入批等待</td>
+            <td>Teaching Archive P99 44.44ms，其中 dbBatchWait P99 21.12ms。</td>
+            <td>按命令类型拆批、降低小批等待、热点读取本地事实缓存、减少同步响应体。</td>
+            <td>不阻塞重构；只在教学只读/写入通道切片中继续优化。</td>
           </tr>
           <tr>
-            <td>写入热路径</td>
-            <td>同表 Go insert 5515 RPS，完整 FastAPI POST 1011 RPS。</td>
-            <td>减少 ORM/DTO 往返，短事务，必要时为高频写入建立 Go Gateway。</td>
-            <td>write 800c P95 小于 500ms，P99 小于 1000ms。</td>
+            <td>数据库 insert 与响应编码</td>
+            <td>Teaching dbInsert P99 15.68ms，responseEncode P99 4.64ms。</td>
+            <td>缩短事务、预编译/复用响应结构、把非关键投影异步化。</td>
+            <td>50ms 已达标；10ms 目标需要业务语义取舍。</td>
           </tr>
           <tr>
-            <td>缓存一致性</td>
-            <td>写入后仍同步标记读缓存，Redis 在写压测时有可见 CPU。</td>
-            <td>保留版本 marker，但把非关键读缓存刷新事件化；严禁 wildcard scan。</td>
-            <td>写压测下 Redis 不成为 P95 主因。</td>
+            <td>身份写限流等待</td>
+            <td>passwordLogin P99 43.57ms，write limiter 平均等待 15.7ms。</td>
+            <td>分离登录写入、令牌查询和撤销路径；对只读 principal lookup 做更明确的快通道。</td>
+            <td>不再盲调 worker；后续随身份/远程入口模块验收。</td>
           </tr>
           <tr>
-            <td>PostgreSQL 配置</td>
-            <td>实际运行 shared_buffers 128MB，不是 perf compose 里的 1GB。</td>
-            <td>性能环境固定使用 perf compose 或显式 postgres command；开启 pg_stat_statements。</td>
-            <td>每次压测报告记录 max_connections、shared_buffers、连接状态、等待事件。</td>
+            <td>客户端到服务端差距</td>
+            <td>Conversation serverTiming P99 6.38ms，但 clientServerGap P99 30.83ms。</td>
+            <td>固定连接预热、压测端 runtime 分离、减少跨环境网络抖动；生产用独立入口网关复测。</td>
+            <td>这是 10ms 优秀目标的差距，不影响 50ms 达标判断。</td>
           </tr>
         </tbody>
       </table>
@@ -1853,7 +1854,7 @@
 
       <div style="height: 12px"></div>
       <div class="callout">
-        深测后的判断：当前系统值得引入 Go，但不值得全量换语言；Go 应该先吃掉一个高频写入/任务事件边界，Rust 继续吃本机 Harness 边界。对 vibecoder 来说，多语言是经验加速器；对这个项目来说，多语言必须同时是风险隔离器和性能证据链。
+        深测后的判断：当前系统值得继续保留 Go/Rust 的边界式重构，但不值得为了语言学习全量重写。Go 已证明适合高并发平台切片，Rust 继续负责本机 Harness 和可信执行边界；Python 保留在 AI/RAG/OCR/训练 worker。当前性能已达到 10k RPS / 50ms 的重构推进门槛，后续重点回到根需求、功能闭环和安全边界。
       </div>
     </section>
 
@@ -1882,6 +1883,201 @@
 
       <div style="height: 12px"></div>
 
+      <div class="callout">
+        本轮已落地 Agent 契约门禁和 Student App AI Tutor 10.31/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck，到 controlled scoring artifact 的非持久化评分工件均有审计入口。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
+      </div>
+      <div class="callout">
+        8.4/10 到 9.1/10 历史里程碑保留：8.4/10 是 ResearchAgent.deep_research approved retrieval planning，只记录目录索引优先、引用和 sourceHash 必填的检索计划，不执行检索；8.5/10 是 approved retrieval execution，通过注入 DeepResearchRetrievalReadPort.retrieveApprovedSources 返回 cited source evidence，不做 RAG 综合；8.6/10 是 approved reasoning/synthesis draft，通过注入 DeepResearchReasoningPort.composeEvidenceGroundedDraft 生成证据约束草稿，不发布最终答案；8.7/10 是 final-answer review gate，只记录人审结论；8.8/10 是 finalization runtime，封存 FINALIZED_NOT_PUBLISHED artifact envelope；8.9/10 是 render preview runtime，生成教师可审阅 SAFE_TEXT_BLOCKS 预览；9.0/10 是 publication precheck runtime，只记录发布前审查；9.1/10 是 teacher delivery runtime，生成教师科研工作区证据交付包。这些里程碑仍然不代表真正多模型融合、公开发布、学生档案主库写入或完整 AI Tutor worker 已完成。
+      </div>
+      <div class="callout">
+        9.2/10 补充：ResearchAgent.deep_research 已新增 student visibility review runtime。它只通过 DeepResearchStudentVisibilityReviewPort.recordStudentVisibilityReview 记录学生可见前人审票据，消费 9.1/10 teacher delivery 输出，并保留 9.0/10 publication precheck、render preview、citation、sourceHash、limitations 和风险证据；这仍不是学生端交付，不写主库，不写学生档案，不调用外部模型，不远控设备，不启用 Swarm。
+      </div>
+      <div class="callout">
+        9.3/10 补充：ResearchAgent.deep_research 已新增 student delivery runtime。它只通过 DeepResearchStudentDeliveryPort.recordStudentDeliveryEnvelope 消费 9.2/10 student visibility review 输出，生成学生端可渲染 student delivery envelope，并保留 citation、sourceHash、limitations、risk、scopeRef 和 review record 证据；这一步允许受控学生端可见信封，但 studentDeliveryPersisted=false，仍不写主库、不写学生档案、不调用外部模型、不远控设备、不启用 Swarm。
+      </div>
+      <div class="callout">
+        9.4/10 补充：ResearchAgent.deep_research 已新增 student archive persistence command runtime。它只通过 DeepResearchStudentArchivePersistencePort.recordStudentArchivePersistenceCommand 消费 9.3/10 student delivery 输出，记录 append-only 学生档案持久化命令，并保留 delivery envelope、citation、sourceHash、limitations、risk、scopeRef、teacher package 和 student visibility review 证据；这一步只是进入未来学生档案投影队列的审计命令，studentArchiveProjectionWritten=false，仍不写主库、不写最终学生档案、不调用外部模型、不远控设备、不启用 Swarm。
+      </div>
+      <div class="callout">
+        9.5/10 补充：ResearchAgent.deep_research 已新增 student archive projection review runtime。它只通过 DeepResearchStudentArchiveProjectionReviewPort.recordStudentArchiveProjectionReview 消费 9.4/10 student archive persistence command 输出，记录 durable projection 前的人审授权票据，并保留 persistence command、citation、sourceHash、limitations、risk、scopeRef、teacher package 和 student visibility review 证据；这一步只是允许未来 durable projection runtime 读取审核票据，studentArchiveProjectionWritten=false，仍不写主库、不写最终学生档案、不调用外部模型、不远控设备、不启用 Swarm。
+      </div>
+      <div class="callout">
+        9.6/10 补充：ResearchAgent.deep_research 已新增 student archive projection runtime。它只通过 DeepResearchStudentArchiveProjectionPort.projectReviewedStudentArchiveEntry 消费 9.5/10 student archive projection review 输出，写入 append-only 学生档案投影证据，并保留 projection review、persistence command、citation、sourceHash、limitations、risk、scopeRef、teacher package 和 student visibility review 证据；这一步设置 studentArchiveProjectionWritten=true 和 studentArchivePersisted=true，但仍不写主库、不公开发布、不调用外部模型、不远控设备、不启用 Swarm，主库集成继续作为单独 reviewed storage slice。
+      </div>
+      <div class="callout">
+        9.7/10 补充：ResearchAgent.deep_research 已新增 student archive storage precommit runtime。它只通过 DeepResearchStudentArchiveStoragePrecommitPort.prepareTeachingArchiveCreateCommand 消费 9.6/10 durable projection 输出，把投影记录准备成 Teaching Archive Gateway 的 createTeachingArchiveItem 命令，目标用例为 CreateArchiveItem.ExecuteWithPersistence，目标表为 teaching_archive_items，并要求 AGENT_INTERNAL 服务身份具备 STUDENT_ARCHIVE_WRITE 与目标学生范围；这一步设置 mainDatabaseWritePrepared=true，但 mainDatabaseWriteStarted=false、mainDatabaseWriteCommitted=false，仍不执行 HTTP、不直连数据库、不公开发布、不调用外部模型、不远控设备、不启用 Swarm。完整 claims/citations/sourceHashes/limitations/risk 继续保留在 append-only 投影证据中，下一步才是受审主库提交与已落库行验证。
+      </div>
+      <div class="callout">
+        9.8/10 补充：ResearchAgent.deep_research 已新增 student archive storage commit runtime。它只通过 DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand 消费 9.7/10 storage precommit 输出，并通过注入的 TeachingArchiveCreateItemPort.createArchiveItem 提交到 CreateArchiveItem.ExecuteWithPersistence；这一步要求返回 persisted、archive item 使用 tarch_ 前缀，并设置 mainDatabaseWritePrepared=true、mainDatabaseWriteStarted=true、mainDatabaseWriteCommitted=true。JS runtime 仍不直连数据库、不执行 HTTP、不公开发布、不调用外部模型、不远控设备、不启用 Swarm；物理行验证已在 9.9/10 作为独立证据切片补齐。
+      </div>
+      <div class="callout">
+        9.9/10 补充：ResearchAgent.deep_research 已新增 student archive physical row verification runtime。它只通过 DeepResearchStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow 消费 9.8/10 storage commit 输出，并通过注入的 TeachingArchiveRowReadPort.getArchiveItemById 验证 ArchiveRepository.GetByID 从 teaching_archive_items 按 id 读回的物理行形状；这一步要求 committed archive item 与物理行的 id、ownerType、studentId、materialType、title、source、contentRef、tags、analysisIntents、ocrStatus、createdAt 完全匹配，并设置 physicalDatabaseRowVerified=true。JS runtime 仍不直连数据库、不执行 HTTP、不公开发布、不调用外部模型、不远控设备、不启用 Swarm；本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.0/10 补充：Student App AI Tutor request runtime 已新增。它只通过 StudentAppAITutorRequestPort.createStudentAppAITutorRequest 消费学生端 tutor_student 请求，并要求 PrincipalContext 为 STUDENT + STUDENT_APP + STUDENT_OWN_READ + TEACHING_READ，studentArchiveScope.mode=OWN，archiveItemId 使用 tarch_ 前缀；注入端口必须落到 CreateStudentAppAITutorRequest.Execute，Go 用例先通过 ArchiveRepository.GetByID 验证学生本人档案，再通过 ArchiveRepository.CreateTutoringAnalysisRequest 写入 teaching_tutoring_analysis_requests，返回 tutor_req_ 队列请求。该切片设置 questionBankDraftDeferred=true、asyncAnalysisRequired=true，不做模型推理、不做最终评价、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors。
+      </div>
+      <div class="callout">
+        10.1/10 补充：Student App AI Tutor worker claim runtime 已新增。它只通过 StudentAppAITutorWorkerClaimPort.claimTutoringAnalysisRequest 消费内部 StudentTutorAgent 本地 worker 的领取请求，并要求 SERVICE + AGENT_INTERNAL 身份、TEACHING_WRITE、STUDENT_ARCHIVE_WRITE 和 AGENT_COMMAND_SUBMIT；注入端口必须落到 ClaimTutoringAnalysisRequest.Execute，Go 仓库操作必须是 ArchiveRepository.ClaimNextTutoringAnalysisRequest，并用 FOR UPDATE SKIP LOCKED 对 teaching_tutoring_analysis_requests 做原子领取和租约记录。该切片是 worker claim 控制面，不做模型推理、不记录分析结果、不生成题库草稿、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors。
+      </div>
+      <div class="callout">
+        10.2/10 补充：Student App AI Tutor result runtime 已新增。它只通过 StudentAppAITutorResultPort.recordTutoringAnalysisResult 消费已领取 worker 的受控分析结果，并要求 SERVICE + AGENT_INTERNAL 身份、TEACHING_WRITE、本地 StudentTutorAgent worker、requestId 使用 tutor_req_ 前缀、claim 状态仍为 IN_PROGRESS 且 claimedByWorkerId 与 workerId 一致；注入端口必须落到 RecordTutoringAnalysisResult.Execute，Go 用例先通过 ArchiveRepository.GetTutoringAnalysisRequestByID 读取请求，再通过 ArchiveRepository.RecordTutoringAnalysisResult 更新 teaching_tutoring_analysis_requests，并要求 claimed_by_worker_id 与 claim_expires_at 条件仍然成立。该切片只记录结果，不做模型推理、不生成题库草稿、不发布学生可见结果、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors。
+      </div>
+      <div class="callout">
+        10.3/10 补充：Student App AI Tutor question-bank draft visibility runtime 已新增。它只通过 StudentAppAITutorQuestionBankDraftVisibilityPort.listStudentAppQuestionBankDrafts 调用 ListStudentAppQuestionBankDrafts.Execute，要求 STUDENT + STUDENT_APP + STUDENT_OWN_READ + OWN student access，并通过 ArchiveRepository.ListTutoringAnalysisRequests 只列出本人、SUCCEEDED、question_bank_draft_ref IS NOT NULL 的草稿元数据。该切片不读题库内容、不生成题目、不答题评分、不发布学生可见内容、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。
+      </div>
+      <div class="callout">
+        10.4/10 补充：Student App AI Tutor question-bank draft content precheck runtime 已新增。它只通过 StudentAppAITutorQuestionBankDraftContentPrecheckPort.recordContentRetrievalPrecheck 消费 10.3/10 visibility evidence，确认 selectedDraft 来自学生本人可见草稿页，然后返回 BLOCK_UNTIL_CONTENT_STORE。这个状态是刻意的安全兜底：10.5/10 已把真实题库内容仓储和 own-student 内容读取用例拆成独立 reviewed slice，0264 precheck 仍用于未接入内容仓储的客户端或异常路径；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.5/10 补充：Student App AI Tutor question-bank draft content read foundation 已新增。Go 侧现在有 QuestionBankDraftContent/QuestionBankDraftItem 领域模型、ReadStudentAppQuestionBankDraftContent.Execute 用例、teaching_question_bank_draft_contents 表、ArchiveRepository.SaveQuestionBankDraftContent、ArchiveRepository.GetQuestionBankDraftContentForStudent，以及 GET /v1/student-app/question-bank-draft-content 学生端读取接口。读取必须同时按 question_bank_draft_ref 和 student_id 过滤，并要求 STUDENT + STUDENT_APP + STUDENT_OWN_READ + OWN；响应不暴露 studentId、worker 租约、score、发布字段、expectedAnswer 或 explanation，答案钥匙只留给后续评分切片。该切片只是内容存储/读取基础，不做题库生成、答题评分、学生可见发布、模型推理或完整 AI Tutor 闭环。
+      </div>
+      <div class="callout">
+        10.6/10 补充：Student App AI Tutor question-bank draft answer submission foundation 已新增。Go 侧现在有 QuestionBankDraftAnswerSubmission 领域模型、SubmitStudentAppQuestionBankDraftAnswer.ExecuteWithPersistence 用例、teaching_question_bank_draft_answer_submissions 表、ArchiveRepository.SubmitQuestionBankDraftAnswerSubmission，以及 POST /v1/student-app/question-bank-draft-answer-submissions 学生端提交接口。提交前必须先按 question_bank_draft_ref 和 student_id 读取本人草稿内容，并要求 STUDENT + STUDENT_APP + STUDENT_OWN_READ + STUDENT_OWN_WRITE + OWN；重复 itemId 和草稿中不存在的 itemId 会在持久化前拒绝。响应只返回提交元数据和 answerCount，不回传 answerText、expectedAnswer、explanation 或 score。该切片只是答题提交基础，不做题库生成、答题评分、学生可见反馈、模型推理或完整 AI Tutor 闭环。
+      </div>
+      <div class="callout">
+        10.7/10 补充：Student App AI Tutor question-bank draft answer scoring request foundation 已新增。Go 侧现在有 CreateStudentAppQuestionBankDraftAnswerScoringRequestInput、ValidateQuestionBankDraftAnswerScoringSource、CreateStudentAppQuestionBankDraftAnswerScoringRequest.Execute，以及 POST /v1/student-app/question-bank-draft-answer-submissions/{submissionId}/ai-grading-requests 学生端评分请求接口。请求必须按 submissionId + studentID 读取本人提交，再按 question_bank_draft_ref + student_id 读取本人草稿内容并校验 archiveItemId、tutoringAnalysisRequestId 和答案 item linkage；随后复用现有 AIGradingRequest 队列写入 sourceQuestionBankDraftRef 和 sourceQuestionBankAnswerSubmissionId，worker claim 可拿到这两个 source ref。响应只返回元数据，不回传 answerText、expectedAnswer、explanation、scoreSummary、resultRef、模型结果或 feedback。该切片只是受控排队基础，不做真实模型评分、学生可见反馈、发布或完整 AI Tutor 闭环；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.8/10 补充：Student App AI Tutor question-bank draft answer scoring input foundation 已新增。Go 侧现在有 ReadQuestionBankDraftAnswerScoringInputInput、BuildQuestionBankDraftAnswerScoringInput、ReadQuestionBankDraftAnswerScoringInput.Execute，以及 POST /v1/teaching/ai-grading-requests/{requestId}/question-bank-answer-scoring-input 内部 worker 输入接口。读取必须使用 SERVICE + AGENT_INTERNAL + TEACHING_WRITE 身份，request 必须是 IN_PROGRESS、由同一 workerId 领取且 claim lease 未过期；随后按 sourceQuestionBankAnswerSubmissionId + studentId 读取本人提交，按 sourceQuestionBankDraftRef + studentId 读取本人草稿内容，并校验 request/submission/content/archiveItem/material/tutoringAnalysisRequest/item linkage。该内部接口会给 worker 返回 answerText、expectedAnswer 和 explanation，但不运行模型推理、不计算分数、不持久化结果、不生成 feedback、不发布学生可见内容，也不把答案钥匙放到 Student App 接口；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.9/10 补充：Student App AI Tutor question-bank draft answer scoring result foundation 已新增。Go 侧现在有 ReadStudentAppQuestionBankDraftAnswerScoringResultInput、BuildStudentAppQuestionBankDraftAnswerScoringResult、ReadStudentAppQuestionBankDraftAnswerScoringResult.Execute，以及 GET /v1/student-app/question-bank-draft-answer-submissions/{submissionId}/ai-grading-result 学生端读取接口。读取必须使用 STUDENT + STUDENT_APP + STUDENT_OWN_READ + OWN 身份，并按 submissionId + studentId 查询本人提交和最新 question-bank answer scoring request；响应只返回 submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId、archiveItemId、status、成功时 scoreSummary、失败时 errorCode 和时间戳，不暴露 answerText、expectedAnswer、explanation、resultRef、errorMessage、worker、claim、raw model output 或 publication 字段。该切片只是学生本人安全结果读取基础，不运行模型推理、不生成详细反馈、不发布学生可见内容；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.10/10 补充：Student App AI Tutor question-bank draft answer scoring completion bridge 已新增。它不新建 question-bank 专用结果写入 API，而是把 10.8 的内部 worker scoring input、既有 POST /v1/teaching/ai-grading-requests/{requestId}/worker-result 和 10.9 的学生本人安全结果读取串成同一个请求闭环。内部 worker 可读取 answerText、expectedAnswer 和 explanation，并通过 RecordAIGradingResult.Execute 写回 scoreSummary/resultRef；Student App 只能读取状态、成功分数摘要、失败错误码和时间戳，不暴露答案钥匙、worker、claim、resultRef、raw model output 或内部错误。该桥接仍不实现模型推理、真实评分生成、详细反馈、发布或公开交付；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.11/10 补充：Student App AI Tutor question-bank draft answer feedback publication precheck 已新增。它消费 10.10 的 completion bridge READY 证据和 Student App safe scoring result，只记录 BLOCK_UNTIL_REVIEWED_FEEDBACK：评分完成不等于反馈可发布，必须先有审核后的 feedback artifact、人工复核和发布批准。该切片拒绝 answerText、expectedAnswer、explanation、resultRef、worker、claim、raw model output、详细反馈正文、publication 字段和内部错误进入学生端反馈发布预检；不生成详细反馈、不调用模型、不写数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.12/10 补充：Student App AI Tutor question-bank draft answer reviewed feedback artifact 已新增。它消费 10.11 的 feedback publication precheck READY 证据和 safe scoring result，只允许 TEACHER/ADMIN 以 FEEDBACK_REVIEW 或 ADMIN_SYSTEM 权限录入人工复核后的 learner feedback artifact，状态为 READY_NOT_PUBLISHED。工件必须匹配 submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId 和 archiveItemId，并证明 ageAppropriate、studentOwnScopeConfirmed、answerKeyRemoved、workerMetadataRemoved、rawModelOutputRemoved、internalErrorsRemoved、publicationApprovalRequired；仍不发布给学生、不调用模型、不写数据库、不执行 HTTP、不远控设备、不启用 Swarm。该切片补齐“有可审核反馈工件”这一环，发布审批已在 10.13 补齐，学生可见交付仍是后续 reviewed slice；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.13/10 补充：Student App AI Tutor question-bank draft answer feedback publication approval 已新增。它消费 10.12 的 reviewed feedback artifact READY_NOT_PUBLISHED 证据，只允许 TEACHER/ADMIN 以 FEEDBACK_PUBLISH_APPROVE 或 ADMIN_SYSTEM 权限记录人工发布审批，状态为 APPROVED_FOR_STUDENT_VISIBLE_DELIVERY_NOT_PERSISTED。审批必须匹配 artifactId、submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId 和 archiveItemId，并证明 learnerFeedbackReviewed、ageAppropriateConfirmed、studentOwnScopeConfirmed、answerKeyDisclosureBlocked、workerMetadataDisclosureBlocked、rawModelOutputDisclosureBlocked、internalErrorsDisclosureBlocked 和 futureStudentVisibleDeliveryRuntimeRequired；仍不生成学生可见交付包、不发布给学生、不写数据库、不持久化学生档案、不调用模型、不执行 HTTP、不远控设备、不启用 Swarm。该切片补齐“发布审批证据”这一环，学生可见交付包与 durable archive persistence 仍是后续 reviewed slices；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.14/10 补充：Student App AI Tutor question-bank draft answer feedback delivery envelope 已新增。它消费 10.13 的 APPROVED_FOR_STUDENT_VISIBLE_DELIVERY_NOT_PERSISTED 发布审批证据，只允许受控 STUDENT_DELIVERY_RUNTIME 服务身份以 STUDENT_DELIVERY_ENVELOPE 和 STUDENT_APP_DELIVERY 权限生成 STUDENT_VISIBLE_FEEDBACK_DELIVERY_ENVELOPE_NOT_PERSISTED 的学生端可渲染反馈信封。交付请求必须匹配 approvalRecordId、approvalId、artifactId、submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId 和 archiveItemId，并强制 studentOwnScopeConfirmed=true 与 student: scopeRef；信封只包含 scoreSummary 与安全 learnerFeedback。该切片允许学生端渲染反馈，但 durableStudentArchivePersistenceStarted=false、mainDatabaseWriteStarted=false、studentArchiveWriteStarted=false，仍不写数据库、不持久化学生档案、不调用模型、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.15/10 补充：Student App AI Tutor question-bank draft answer feedback archive persistence command 已新增。它消费 10.14 的 STUDENT_VISIBLE_FEEDBACK_DELIVERY_ENVELOPE_NOT_PERSISTED 学生端反馈交付信封，只允许受控 STUDENT_ARCHIVE_PERSISTENCE_RUNTIME 服务身份以 TEACHING_READ、STUDENT_ARCHIVE_WRITE 和 STUDENT_APP_DELIVERY 权限记录 PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED 的归档持久化命令。命令必须匹配 deliveryEnvelopeRecordId、deliveryEnvelopeId、approvedFeedbackArtifactId、submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId、archiveItemId 和 student: scopeRef；它保留 scoreSummary 与安全 learnerFeedback，但 commitState=NOT_COMMITTED_TO_STUDENT_ARCHIVE，durableStudentArchiveCommitStarted=false，studentArchivePersisted=false，仍不写数据库、不真正提交学生档案、不调用模型、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.16/10 补充：Student App AI Tutor question-bank draft answer feedback archive storage commit 已新增。它消费 10.15 的 PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED 命令，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackArchiveStorageCommitPort.commitTeachingArchiveCreateCommand 注入 TeachingArchiveCreateItemPort.createArchiveItem，并以 CreateArchiveItem.ExecuteWithPersistence 提交到 teaching_archive_items；结果为 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_FEEDBACK_ARCHIVE_STORAGE_COMMITTED、mainDatabaseWriteCommitted=true、studentArchivePersisted=true。该切片允许受控主库写入，但仍禁止 JS 直连数据库、执行 HTTP、调用模型、泄露答案/worker/raw model/resultRef、远控设备、本地工具突变和 Swarm；物理行验证已在 10.17/10 补齐，真实模型评分、完整 AI Tutor 和公开发布仍后置。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.17/10 补充：Student App AI Tutor question-bank draft answer feedback archive row verification 已新增。它消费 10.16 的 STORAGE_COMMITTED 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow 注入 TeachingArchiveRowReadPort.getArchiveItemById，并要求 Go 侧 ArchiveRepository.GetByID 从 teaching_archive_items 按 id 读回 tarch_student_feedback_001 物理行。该切片验证 committed archive item 与物理行的 id、ownerType、studentId、materialType、title、source、contentRef、tags、analysisIntents、ocrStatus、createdAt 完全匹配，记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_FEEDBACK_ARCHIVE_PHYSICAL_ROW_VERIFIED，并设置 physicalDatabaseRowVerified=true；仍禁止 JS 直连数据库、执行 HTTP、调用模型、泄露答案/worker/raw model/resultRef、远控设备、本地工具突变和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.18/10 补充：Student App AI Tutor question-bank draft generation plan 已新增。它消费 10.2 的 STUDENT_APP_AI_TUTOR_RESULT_RECORDED 证据和本地 questionBankDraftRef，只允许通过 StudentAppAITutorQuestionBankDraftGenerationPlanPort.recordQuestionBankDraftGenerationPlan 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_PLAN_RECORDED，并把 learning objectives、planned items、budget、prompt blueprint 和 evidence refs 固化为可复查计划。该切片只做生成计划控制面，generationPlanOnly=true；仍不执行模型推理、不生成题目内容、不写 teaching_question_bank_draft_contents、不允许学生答题或评分、不发布学生可见内容、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.19/10 补充：Student App AI Tutor question-bank draft generation worker claim precheck 已新增。它消费 10.18 的 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_PLAN_RECORDED 和 PLAN_RECORDED_NOT_GENERATED 证据，只允许通过 StudentAppAITutorQuestionBankDraftGenerationWorkerClaimPrecheckPort.recordGenerationWorkerClaimPrecheck 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_WORKER_CLAIM_PRECHECKED，并检查 SERVICE + AGENT_INTERNAL、generate_question_bank_draft worker、lease、并发上限、计划题量预算和 evidence refs。该切片只做 worker 领取前置检查，precheckOnly=true；仍不真正 claim 计划、不执行模型推理、不生成题目内容、不写 teaching_question_bank_draft_contents、不允许学生答题或评分、不发布学生可见内容、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.20/10 补充：Student App AI Tutor question-bank draft generation worker claim 已新增。它消费 10.19 的 WORKER_CLAIM_PRECHECKED 证据，只允许通过 StudentAppAITutorQuestionBankDraftGenerationWorkerClaimPort.claimGenerationPlan 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_WORKER_CLAIMED，并把执行状态固定为 CLAIMED_NOT_GENERATED。该切片记录受控 atomic/skip-locked lease claim、workerId、claimInvocationId、lease、并发预算和 evidence refs；仍不执行模型推理、不生成题目内容、不写 teaching_question_bank_draft_contents、不允许学生答题或评分、不发布学生可见内容、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.21/10 补充：Student App AI Tutor question-bank draft generation input envelope 已新增。它消费 10.18 的 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_PLAN_RECORDED 和 10.20 的 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_WORKER_CLAIMED 证据，只允许通过 StudentAppAITutorQuestionBankDraftGenerationInputEnvelopePort.recordGenerationInputEnvelope 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_INPUT_ENVELOPE_RECORDED，并把执行状态固定为 INPUT_ENVELOPE_RECORDED_NOT_GENERATED。该切片只准备安全 model-input envelope 和 prompt blueprints，保留 learning objectives、item metadata、预算、worker claim evidence 和 student own scope；answer key、expected answer、raw model output、generated content 和 content rows 均被排除。模型执行、题库内容生成、teaching_question_bank_draft_contents 写入、学生答题、评分、发布、直连数据库、HTTP、本地工具突变、远控设备和 Swarm 仍全部后置到 future reviewed slices。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.22/10 补充：Student App AI Tutor question-bank draft generation model execution precheck 已新增。它消费 10.21 的 INPUT_ENVELOPE_RECORDED_NOT_GENERATED 证据，只允许通过 StudentAppAITutorQuestionBankDraftGenerationModelExecutionPrecheckPort.recordModelExecutionPrecheck 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_MODEL_EXECUTION_PRECHECKED，并把执行状态固定为 MODEL_EXECUTION_PRECHECKED_NOT_STARTED。该切片只做受控模型队列准入预检，要求 SERVICE + AGENT_INTERNAL、teacher/admin 审批、prompt blueprint 审核、预算审核、学生本人范围确认和 answer key 排除确认；仍不执行模型推理、不生成题目内容、不写 teaching_question_bank_draft_contents、不允许学生答题或评分、不发布学生可见内容、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.23/10 补充：Student App AI Tutor question-bank draft generation controlled draft 已新增。它消费 10.21 的 INPUT_ENVELOPE_RECORDED_NOT_GENERATED 安全输入信封和 10.22 的 MODEL_EXECUTION_PRECHECKED_NOT_STARTED 模型执行预检，只允许通过 StudentAppAITutorQuestionBankDraftGenerationControlledDraftPort.recordControlledDraftGeneration 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_CONTROLLED_DRAFT_RECORDED，并把执行状态固定为 CONTROLLED_DRAFT_RECORDED_NOT_STORED。该切片只记录 sanitized generated question draft artifact，允许 questionContentGenerated=true 作为待复核草稿证据；仍不存 raw model output、不生成 answer key/expected answer、不写 teaching_question_bank_draft_contents、不允许学生答题或评分、不发布学生可见内容、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。教师复核已在 10.24/10 补齐，受控内容落库已由 10.25/10 承接；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.24/10 补充：Student App AI Tutor question-bank draft generation teacher review 已新增。它消费 10.23 的 CONTROLLED_DRAFT_RECORDED_NOT_STORED 受控草稿，只允许 TEACHER/ADMIN 以 TEACHING_WRITE + QUESTION_BANK_DRAFT_REVIEW 或 ADMIN_SYSTEM 权限，通过 StudentAppAITutorQuestionBankDraftGenerationTeacherReviewPort.recordGeneratedDraftTeacherReview 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_TEACHER_REVIEW_RECORDED、APPROVED_FOR_CONTENT_STORAGE_NOT_COMMITTED 和 TEACHER_REVIEW_RECORDED_NOT_STORED。该切片允许教师复核后的 question text、teacher-authored rubric 和 scoring explanation 成为后续内容落库证据，但仍禁止 teaching_question_bank_draft_contents 写入、学生答题、评分、发布、raw model output、model-generated answer key、JS 直连数据库、HTTP、本地工具突变、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.25/10 补充：Student App AI Tutor question-bank draft generation content storage commit 已新增。它消费 10.24 teacher review、10.21 input envelope、10.18 generation plan 和 10.0 source request，只允许 SERVICE + AGENT_INTERNAL + TEACHING_WRITE + STUDENT_ARCHIVE_WRITE + QUESTION_BANK_DRAFT_STORAGE_COMMIT 身份，通过 StudentAppAITutorQuestionBankDraftGenerationContentStorageCommitPort.saveReviewedQuestionBankDraftContent 调用 ArchiveRepository.SaveQuestionBankDraftContent，把教师复核后的题库草稿内容提交到 teaching_question_bank_draft_contents，并记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_CONTENT_STORAGE_COMMITTED。该切片允许 questionBankContentWriteCommitted=true 和 contentStored=true，但仍不做物理行验证、不做学生读取验证、不发布、不答题评分、不存 raw model output、不生成 model answer key、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.26/10 补充：Student App AI Tutor question-bank draft generation content row verification 已新增。它消费 10.25 content storage commit，只允许通过 StudentAppAITutorQuestionBankDraftGenerationContentRowVerificationPort.verifyQuestionBankDraftContentPhysicalRow 注入 QuestionBankDraftContentRowReadPort.getQuestionBankDraftContentForStudent，按 questionBankDraftRef + studentId 做 scoped row read，验证 ArchiveRepository.GetQuestionBankDraftContentForStudent / teaching_question_bank_draft_contents 物理行，并记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_GENERATION_CONTENT_PHYSICAL_ROW_VERIFIED。该切片允许确认内部 scoring material 存在，但学生端输出仍不披露 expectedAnswer/explanation；仍不做学生读取验证、不发布、不答题评分、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.27/10 补充：Student App AI Tutor question-bank draft content student read verification 已新增。它消费 10.26 content row verification 和 10.5 content read foundation，只允许通过 StudentAppAITutorQuestionBankDraftContentStudentReadVerificationPort.verifyStudentSafeQuestionBankDraftContentRead 注入 StudentQuestionBankDraftContentReadPort.readStudentAppQuestionBankDraftContent，以 STUDENT + STUDENT_APP + STUDENT_OWN_READ + OWN 身份读取本人题库草稿内容，并验证响应与 0286 safe preview 完全匹配。该切片记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_CONTENT_STUDENT_READ_VERIFIED，明确不披露 studentId、worker state、score、expectedAnswer、explanation、answer key、raw model output 或 internal error；仍不做真实答题评分、不发布、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.28/10 补充：Student App AI Tutor question-bank draft answer submission verification 已新增。它消费 10.27 content student read verification 和 10.6 answer submission foundation，只允许通过 StudentAppAITutorQuestionBankDraftAnswerSubmissionVerificationPort.verifyStudentSafeQuestionBankDraftAnswerSubmission 注入 StudentQuestionBankDraftAnswerSubmissionPort.submitStudentAppQuestionBankDraftAnswer，以 STUDENT + STUDENT_APP + STUDENT_OWN_READ + STUDENT_OWN_WRITE + OWN 身份提交本人已安全读取题目的答案，并验证 submitted item ids 与 10.27 safe read items 匹配。该切片记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SUBMISSION_VERIFIED，响应只保留 submissionId、answerCount、submittedAnswerItemIds、questionBankDraftRef 等元数据；不回传 answerText、expectedAnswer、explanation、answer key、score、worker state、raw model output 或 internal error；仍不做真实评分、不发布反馈、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.29/10 补充：Student App AI Tutor question-bank draft answer scoring request verification 已新增。它消费 10.28 answer submission verification 和 10.7 answer scoring request foundation，只允许通过 StudentAppAITutorQuestionBankDraftAnswerScoringRequestVerificationPort.verifyStudentSafeQuestionBankDraftAnswerScoringRequest 注入 StudentQuestionBankDraftAnswerScoringRequestPort.createStudentAppQuestionBankDraftAnswerScoringRequest，以 STUDENT + STUDENT_APP + STUDENT_OWN_READ + STUDENT_OWN_WRITE + OWN 身份把本人已验证提交的答案排入既有 AIGradingRequest 队列，并验证 submissionId、questionBankDraftRef、tutoringAnalysisRequestId、archiveItemId 和 submitted item ids 均来自 10.28。该切片记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SCORING_REQUEST_VERIFIED，响应只保留 requestId、submissionId、questionBankDraftRef、source refs、submitted item ids 等元数据；不回传 answerText、expectedAnswer、explanation、answer key、score、resultRef、worker state、raw model output 或 internal error；仍不执行真实评分、不领取 worker、不发布反馈、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.30/10 补充：Student App AI Tutor question-bank draft answer scoring model execution precheck 已新增。它消费 10.29 answer scoring request verification 和 10.8 worker-only answer scoring input foundation，只允许通过 StudentAppAITutorQuestionBankDraftAnswerScoringModelExecutionPrecheckPort.recordAnswerScoringModelExecutionPrecheck 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SCORING_MODEL_EXECUTION_PRECHECKED，并把执行状态固定为 MODEL_EXECUTION_PRECHECKED_NOT_STARTED。该切片只做受控模型评分队列准入预检，要求 SERVICE + AGENT_INTERNAL、教师/管理员审批、预算审核、prompt/route 审核、worker 输入边界未泄露和 submitted item linkage 一致；仍不执行模型推理、不计算 score、不写 AIGradingResult、不生成 learner feedback、不发布学生可见内容、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.31/10 补充：Student App AI Tutor question-bank draft answer controlled scoring artifact 已新增。它消费 10.30 answer scoring model execution precheck 和 10.8 worker-only scoring input foundation，只允许通过 StudentAppAITutorQuestionBankDraftAnswerControlledScoringArtifactPort.recordControlledScoringArtifact 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_CONTROLLED_SCORING_ARTIFACT_RECORDED，并把执行状态固定为 SCORING_ARTIFACT_RECORDED_NOT_PERSISTED。该切片允许受控 StudentTutorAgent worker 产生脱敏 itemScores 与 scoreSummary，但只作为可审计评分工件；仍不写 AIGradingResult、不更新 ai_grading_requests、不生成 learner feedback、不发布学生可见内容、不回显 answerText、expectedAnswer、explanation、answer key 或 rawModelOutput、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.32/10 补充：Student App AI Tutor question-bank draft answer scoring result persistence bridge 已新增。它消费 10.31 controlled scoring artifact，只允许通过 StudentAppAITutorQuestionBankDraftAnswerScoringResultPersistenceBridgePort.recordAIGradingResult 注入既有 RecordAIGradingResult.Execute / recordTeachingAIGradingWorkerResult 边界，记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SCORING_RESULT_PERSISTED，并把执行状态固定为 SCORING_RESULT_PERSISTED_VIA_RECORD_AI_GRADING_RESULT。该切片允许 metadata-only scoreSummary 和 controlled score artifact resultRef 进入 AIGradingResult 结果状态机；仍不生成 learner feedback、不发布学生可见内容、不回显 answerText、expectedAnswer、explanation、answer key 或 rawModelOutput、不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.33/10 补充：Student App AI Tutor question-bank draft answer feedback publication precheck 已升级为 persisted scoring source v2。它不再只依赖 10.10/0270 completion bridge，而是消费 10.32/0292 scoring result persistence bridge READY 证据，并校验 persisted scoring result 与 Student App safe scoring result 的 requestId、submissionId 一致；仍只记录 BLOCK_UNTIL_REVIEWED_FEEDBACK，要求后续 reviewed feedback artifact、人工复核和发布批准。该切片拒绝 answerText、expectedAnswer、explanation、resultRef、worker、claim、raw model output、详细反馈正文、publication 字段和内部错误进入学生端反馈发布预检；不生成详细反馈、不调用模型、不写数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.34/10 补充：Student App AI Tutor question-bank draft answer feedback generation model execution precheck 已新增。它消费 10.33/0293 feedback publication precheck READY 证据，并要求 0293 已验证 10.32 persisted scoring source 与安全学生评分结果一致；只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackGenerationModelExecutionPrecheckPort.recordFeedbackGenerationModelExecutionPrecheck 记录 StudentTutorAgent.generate_question_bank_answer_feedback 的 queue-admission-only 预检。该切片需要 SERVICE + AGENT_INTERNAL 和教师/管理员审批，记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_FEEDBACK_GENERATION_MODEL_EXECUTION_PRECHECKED；仍不执行模型、不生成反馈草稿、不记录 reviewed artifact、不发布学生可见内容、不泄露 resultRef、answerText、expectedAnswer、explanation、answer key、raw model output 或内部错误，不直连数据库、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.35/10 补充：Student App AI Tutor question-bank draft answer feedback controlled draft 已新增。它消费 10.34/0294 feedback generation model execution precheck READY 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackControlledDraftPort.recordControlledFeedbackDraft 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_FEEDBACK_CONTROLLED_DRAFT_RECORDED。该切片允许受控 StudentTutorAgent worker 基于安全评分摘要生成脱敏 draftFeedback，但执行状态固定为 CONTROLLED_FEEDBACK_DRAFT_RECORDED_NOT_REVIEWED；仍不记录 reviewed feedback artifact、不进行发布批准、不发布学生可见内容、不写数据库、不泄露 resultRef、answerText、expectedAnswer、explanation、answer key、raw model output、worker trace 或内部错误，不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.36/10 补充：Student App AI Tutor question-bank draft answer reviewed feedback artifact controlled draft source 已新增。它消费 10.35/0295 controlled feedback draft READY 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerReviewedFeedbackArtifactControlledDraftSourcePort.recordReviewedFeedbackArtifactFromControlledDraft 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_REVIEWED_FEEDBACK_ARTIFACT_FROM_CONTROLLED_DRAFT_RECORDED。该切片要求 TEACHER/ADMIN 人工复核，并在 reviewed artifact 中保留 sourceControlledDraft 的 runtimeId、recordId、artifactId、generationAttemptId、inputHash 和 draftFeedbackHash；复核清单必须证明 controlledDraftSourceVerified、answerKeyRemoved、workerMetadataRemoved、rawModelOutputRemoved、resultRefRemoved、internalErrorsRemoved 和 publicationApprovalRequired。它仍不进行发布批准、不发布学生可见内容、不写数据库、不泄露 resultRef、answerText、expectedAnswer、explanation、answer key、raw model output、worker trace 或内部错误，不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.37/10 补充：Student App AI Tutor question-bank draft answer feedback publication approval controlled draft source 已新增。它消费 10.36/0296 reviewed feedback artifact controlled draft source READY 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackPublicationApprovalControlledDraftSourcePort.recordFeedbackPublicationApprovalFromControlledDraftSource 记录 STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_FEEDBACK_PUBLICATION_APPROVED_FROM_CONTROLLED_DRAFT_SOURCE_FOR_STUDENT_VISIBLE_DELIVERY_NOT_PERSISTED。审批必须匹配 reviewedFeedbackArtifactId、sourceControlledDraftArtifactId、submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId 和 archiveItemId，并证明 controlledDraftSourceVerified、learnerFeedbackReviewed、ageAppropriateConfirmed、studentOwnScopeConfirmed、answerKeyDisclosureBlocked、workerMetadataDisclosureBlocked、rawModelOutputDisclosureBlocked、resultRefDisclosureBlocked、internalErrorsDisclosureBlocked 和 futureStudentVisibleDeliveryRuntimeRequired。它仍不生成学生可见交付包、不发布学生可见内容、不写数据库、不持久化学生档案、不调用模型、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.38/10 补充：Student App AI Tutor question-bank draft answer feedback delivery envelope controlled draft source 已新增。它消费 10.37/0297 feedback publication approval controlled draft source READY 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackDeliveryEnvelopeControlledDraftSourcePort.recordFeedbackDeliveryEnvelopeFromControlledDraftSource 生成 STUDENT_VISIBLE_FEEDBACK_DELIVERY_ENVELOPE_FROM_CONTROLLED_DRAFT_SOURCE_NOT_PERSISTED 的 Student App 可渲染反馈信封。交付请求必须匹配 approvalRecordId、approvalId、sourceControlledDraftArtifactId、approvedFeedbackArtifactId、submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId、archiveItemId 和 student: scopeRef，并证明 controlledDraftSourceVerified、publicationApprovalVerified、safeLearnerFeedbackOnly、studentOwnScopeEnforced 和 sourceControlledDraftEvidencePreserved。它允许学生端渲染安全 scoreSummary 与 learnerFeedback，但 durableStudentArchivePersistenceStarted=false、mainDatabaseWriteStarted=false、studentArchiveWriteStarted=false，仍不直连数据库、不持久化学生档案、不调用模型、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.39/10 补充：Student App AI Tutor question-bank draft answer feedback archive persistence command controlled draft source 已新增。它消费 10.38/0298 feedback delivery envelope controlled draft source READY 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackArchivePersistenceCommandControlledDraftSourcePort.recordFeedbackArchivePersistenceCommandFromControlledDraftSource 记录 PERSISTENCE_COMMAND_FROM_CONTROLLED_DRAFT_SOURCE_RECORDED_NOT_COMMITTED 的 append-only 学生档案归档命令。持久化请求必须匹配 deliveryEnvelopeRecordId、deliveryEnvelopeId、approvalRecordId、approvalId、sourceControlledDraftArtifactId、approvedFeedbackArtifactId、submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId、archiveItemId 和 student: scopeRef，并证明 feedbackDeliveryEnvelopeControlledDraftSourceVerified、controlledDraftSourceVerified、safeLearnerFeedbackOnly、studentOwnScopeEnforced 和 sourceControlledDraftEvidencePreserved。它保存 sourcePublicationApproval、sourceControlledFeedbackDraft、scoreSummary 与 learnerFeedback，但 durableStudentArchiveCommitStarted=false、studentArchivePersisted=false、mainDatabaseWriteStarted=false、studentArchiveWriteStarted=false，仍不直连数据库、不提交学生档案、不调用模型、不执行 HTTP、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+      <div class="callout">
+        10.40/10 补充：Student App AI Tutor question-bank draft answer feedback archive storage commit controlled draft source 已新增。它消费 10.39/0299 archive persistence command controlled draft source READY 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackArchiveStorageCommitControlledDraftSourcePort.commitTeachingArchiveCreateCommandFromControlledDraftSource 注入 TeachingArchiveCreateItemPort.createArchiveItem，并以 CreateArchiveItem.ExecuteWithPersistence 提交到 Teaching Archive。提交必须保留 sourcePublicationApproval、sourceControlledFeedbackDraft、sourceControlledDraftArtifactId、approvedFeedbackArtifactId、deliveryEnvelopeId、approvalId、submissionId、requestId、questionBankDraftRef、tutoringAnalysisRequestId、archiveItemId、student scope、scoreSummary 与 learnerFeedback，并证明 archivePersistenceCommandControlledDraftSourceVerified、controlledDraftSourceVerified、sourceControlledDraftEvidencePreserved、safeLearnerFeedbackOnly、mainDatabaseWriteCommitted 和 studentArchivePersisted。它允许受控用例端口写入，但 JS runtime 仍不直连数据库、不执行 SQL/HTTP、不调用模型、不泄漏答案/worker/raw model/resultRef/internal error、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步是 archive row verification controlled draft source 消费 0300。
+      </div>
+      <div class="callout">
+        10.41/10 补充：Student App AI Tutor question-bank draft answer feedback archive row verification controlled draft source 已新增。它消费 10.40/0300 archive storage commit controlled draft source READY 证据，只允许通过 StudentAppAITutorQuestionBankDraftAnswerFeedbackArchiveRowVerificationControlledDraftSourcePort.verifyTeachingArchivePhysicalRowFromControlledDraftSource 注入 TeachingArchiveRowReadPort.getArchiveItemById，并要求 Go 侧 ArchiveRepository.GetByID 从 teaching_archive_items 按 id 读回 tarch_student_feedback_controlled_source_001 物理行。该切片验证 committed archive item 与物理行的 id、ownerType、studentId、materialType、title、source、contentRef、tags、analysisIntents、ocrStatus、createdAt 完全匹配，并保留 sourcePublicationApproval、sourceControlledFeedbackDraft、sourcePersistenceCommand、scoreSummary 与 learnerFeedback；仍禁止 JS 直连数据库、执行 SQL/HTTP、调用模型、泄漏答案/worker/raw model/resultRef/internal error、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步转入下一个根需求模块或继续补教学资料/测验/科研知识闭环。
+      </div>
+      <div class="callout">
+        10.45/10 补充：Teaching Archive material draft storage precommit 已新增。它消费 0302 的 TEACHING_ARCHIVE_MATERIAL_DRAFT_HUMAN_REVIEW_APPROVED_FOR_PRECOMMIT 人审证据，只允许通过 TeachingArchiveMaterialDraftStoragePrecommitPort.prepareArchiveMaterialDraftStorageCommand 准备 createTeachingArchiveItem / CreateArchiveItem.ExecuteWithPersistence 命令，目标为 ArchiveRepository.Create 和 teaching_archive_items。该切片验证教师/管理员权限、学生档案写入范围、draftIntentSnapshot、contentRef、ARCHIVE_ONLY 和幂等键，并记录 TEACHING_ARCHIVE_MATERIAL_DRAFT_STORAGE_PRECOMMIT_READY；仍不创建最终档案、不提交主库、不启动 OCR/RAG、不写 AI 批改状态、不执行 HTTP、不直连数据库、不远控设备、不启用 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应继续 Teaching Archive material storage commit / row verification 或转入教学资料检索产品入口。
+      </div>
+      <div class="callout">
+        10.48/10 补充：Teaching Archive material draft storage commit 已新增。它消费 10.45/0303 的 storage precommit READY 证据，只允许通过 TeachingArchiveMaterialDraftStorageCommitPort.commitArchiveMaterialDraftStorageCommand 注入 TeachingArchiveCreateItemPort.createArchiveItem，提交 createTeachingArchiveItem / CreateArchiveItem.ExecuteWithPersistence 命令并返回 persisted archive item，状态为 TEACHING_ARCHIVE_MATERIAL_DRAFT_STORAGE_COMMITTED。该切片允许 mainDatabaseWriteCommitted=true 只代表用例端口受控提交成功，仍禁止 JS 直连数据库、执行 HTTP、启动 OCR/RAG、写 AI 批改状态、远控设备、本地工具突变和 Swarm；物理行验证作为独立 10.51/0305 切片补齐。
+      </div>
+      <div class="callout">
+        10.51/10 补充：Teaching Archive material draft storage row verification 已新增。它消费 10.48/0304 的 storage commit READY 证据，只允许通过 TeachingArchiveMaterialDraftStorageRowVerificationPort.verifyTeachingArchivePhysicalRow 注入 TeachingArchiveRowReadPort.getArchiveItemById，并要求 Go 侧 ArchiveRepository.GetByID 从 teaching_archive_items 按 id 读回 tarch_archive_material_001 物理行。该切片验证 committed archive item 与物理行的 id、ownerType、studentId、materialType、title、source、contentRef、tags、analysisIntents、ocrStatus、createdAt 完全匹配，并记录 TEACHING_ARCHIVE_MATERIAL_DRAFT_STORAGE_PHYSICAL_ROW_VERIFIED；仍禁止 JS 直连数据库、执行 SQL/HTTP、启动 OCR/RAG、写 AI 批改状态、调用模型、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入教学资料检索产品入口或继续测验/教学资料发布闭环。
+      </div>
+      <div class="callout">
+        10.54/10 补充：Teaching Archive material draft student product read 已新增。它消费 10.51/0305 的 physical row verification READY 证据，只允许通过 TeachingArchiveMaterialDraftStudentProductReadPort.verifyStudentAppArchiveItemsRead 注入 StudentAppArchiveItemsProductReadPort.listStudentAppArchiveItems，并要求 Go 侧 /v1/student-app/archive-items、ListStudentAppArchiveItems.Execute、ArchiveRepository.List 能以 student_001 own-student scope 返回 tarch_archive_material_001。该切片验证学生端产品入口返回的 id、ownerType、studentId、materialType、title、source、contentRef、tags、analysisIntents、ocrStatus、createdAt 与 0305 物理行匹配，并记录 TEACHING_ARCHIVE_MATERIAL_DRAFT_STUDENT_PRODUCT_READ_VERIFIED；仍禁止 JS 直连数据库、执行 HTTP、启动 OCR/RAG、写 AI 批改状态、调用模型、发布资料、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入教学资料发布、OCR/RAG 富化或资料检索产品闭环。
+      </div>
+      <div class="callout">
+        10.57/10 补充：Teaching Archive material publication precheck 已新增。它消费 10.54/0306 的 student product read READY 证据，只允许通过 TeachingArchiveMaterialPublicationPrecheckPort.recordTeachingArchiveMaterialPublicationPrecheck 记录教师/管理员发布前检查，要求 tarch_archive_material_001、student_001、HANDOUT、title 与 contentRef 全部匹配，并把候选项限制在 TEACHER_PUBLICATION_APPROVAL_QUEUE。该切片记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PRECHECK_READY 和 READY_FOR_PUBLICATION_APPROVAL，但 publicationCommitted=false、studentVisiblePublished=false；仍禁止 JS 直连数据库、执行 HTTP、启动 OCR/RAG、写 AI 批改状态、调用模型、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入正式 publication approval 或 OCR/RAG 富化前置检查。
+      </div>
+      <div class="callout">
+        10.60/10 补充：Teaching Archive material publication approval 已新增。它消费 10.57/0307 的 publication precheck READY 证据，只允许通过 TeachingArchiveMaterialPublicationApprovalPort.recordTeachingArchiveMaterialPublicationApproval 记录教师/管理员人工发布审批，要求 archive_material_pub_precheck_001、tarch_archive_material_001、student_001、HANDOUT、title 与 contentRef 全部匹配。该切片记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_APPROVED_NOT_PUBLISHED 和 APPROVED_FOR_PUBLICATION_DELIVERY，但 publicationCommitted=false、studentVisiblePublished=false、deliveryEnvelopeCreated=false；仍禁止 JS 直连数据库、执行 HTTP、启动 OCR/RAG、写 AI 批改状态、调用模型、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入真实 publication delivery、OCR/RAG 富化前置检查或教学资料检索产品闭环。
+      </div>
+      <div class="callout">
+        10.63/10 补充：Teaching Archive material publication delivery envelope 已新增。它消费 10.60/0308 的 publication approval READY 证据，只允许通过 TeachingArchiveMaterialPublicationDeliveryPort.recordTeachingArchiveMaterialPublicationDeliveryEnvelope 生成学生端可渲染资料投递信封，要求 archive_material_publication_approval_001、archive_material_pub_precheck_001、tarch_archive_material_001、student_001、HANDOUT、title 与 contentRef 全部匹配。该切片记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_DELIVERY_ENVELOPE_READY_NOT_PERSISTED 和 READY_FOR_STUDENT_APP_MATERIAL_RENDER_NOT_ARCHIVED，允许学生端渲染受控信封，但 durablePublicationPersistenceStarted=false、publicationCommitted=false、mainDatabaseWriteStarted=false、studentArchiveWriteStarted=false；仍禁止 JS 直连数据库、执行 HTTP、启动 OCR/RAG、写 AI 批改状态、调用模型、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入 durable publication persistence、OCR/RAG 富化前置检查或教学资料检索产品闭环。
+      </div>
+      <div class="callout">
+        10.66/10 补充：Teaching Archive material publication persistence command 已新增。它消费 10.63/0309 的 publication delivery READY 证据，只允许通过 TeachingArchiveMaterialPublicationPersistenceCommandPort.recordTeachingArchiveMaterialPublicationPersistenceCommand 记录 append-only 持久化命令，要求 archive_material_delivery_env_001、archive_material_publication_approval_001、archive_material_pub_precheck_001、tarch_archive_material_001、student_001、HANDOUT、title 与 contentRef 全部匹配。该切片记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED 和 NOT_COMMITTED_TO_PUBLICATION_STORE，可作为后续 durable publication commit 的受控输入，但 durablePublicationPersistenceStarted=false、publicationCommitted=false、mainDatabaseWriteStarted=false、studentArchiveWriteStarted=false；仍禁止 JS 直连数据库、执行 HTTP、启动 OCR/RAG、写 AI 批改状态、调用模型、远控设备和 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入 durable publication commit、OCR/RAG 富化前置检查或教学资料检索产品闭环。
+      </div>
+      <div class="callout">
+        10.69/10 补充：Teaching Archive material publication storage commit 已新增。它消费 10.66/0310 的 publication persistence command READY 证据，只允许通过 TeachingArchiveMaterialPublicationStorageCommitPort.commitTeachingArchiveMaterialPublication 注入 TeachingArchivePublicationCommitPort.commitPublication，把 archive_material_publication_persist_cmd_001 对应的学生资料发布记录提交到 TEACHING_ARCHIVE_PUBLICATION_STORE。该切片记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_STORAGE_COMMITTED、COMMITTED_TO_PUBLICATION_STORE、studentVisiblePublished=true、mainDatabaseWriteCommitted=true 和 studentArchiveWriteCommitted=true；JS runtime 仍不直连数据库、不执行 SQL/HTTP、不启动 OCR/RAG、不写 AI 批改状态、不调用模型、不远控设备、不启用 Swarm，物理发布行验证与学生端 published-material read 仍是后续切片。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入 publication row verification、Student App published material read、OCR/RAG 富化前置检查或教学资料检索产品闭环。
+      </div>
+      <div class="callout">
+        10.72/10 补充：Teaching Archive material publication row verification 已新增。它消费 10.69/0311 的 publication storage commit READY 证据，只允许通过 TeachingArchiveMaterialPublicationRowVerificationPort.verifyTeachingArchivePublicationPhysicalRow 注入 TeachingArchivePublicationRowReadPort.getPublicationById，验证 archive_material_publication_commit_001 在 TEACHING_ARCHIVE_PUBLICATION_STORE / teaching_archive_publications 中的发布物理行与 0311 committed publication record 完全一致。该切片记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_PHYSICAL_ROW_VERIFIED、PublicationRepository.GetByID、publicationPhysicalRowVerified=true、mainDatabaseReadAllowed=true；JS runtime 仍不直连数据库、不执行 SQL/HTTP、不启动 OCR/RAG、不写 AI 批改状态、不调用模型、不远控设备、不启用 Swarm，Student App published-material read 仍是后续切片。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入 Student App published material read、OCR/RAG 富化前置检查或教学资料检索产品闭环。
+      </div>
+      <div class="callout">
+        10.75/10 补充：Teaching Archive material publication student app read 已新增。它消费 10.72/0312 的 publication row verification READY 证据，只允许通过 TeachingArchiveMaterialPublicationStudentAppReadPort.verifyStudentAppPublishedMaterialRead 注入 StudentAppPublishedArchiveMaterialsReadPort.listStudentAppPublishedArchiveMaterials，验证 student_001 通过 GET /v1/student-app/archive-items / ListStudentAppArchiveItems.Execute / ArchiveRepository.List 能读到与 0312 发布行匹配的 tarch_archive_material_001。该切片记录 TEACHING_ARCHIVE_MATERIAL_PUBLICATION_STUDENT_APP_READ_VERIFIED、studentAppPublishedMaterialReadVerified=true、productResponseMatchedPublicationRow=true、publicationMetadataLeakPrevented=true；它不代表发布投影已经按 publication store 硬过滤，也不代表 OCR/RAG 富化、AI 批改、模型推理、完整资料检索或 Swarm 已完成。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测；下一步应进入发布投影硬化、OCR/RAG 富化前置检查或教学资料检索产品闭环。
+      </div>
+      <div class="callout">
+        10.78/10 补充：Teaching Archive material publication projection hardening 已新增。它消费 10.75/0313 的 Student App published-material read READY 证据，把学生端 GET /v1/student-app/archive-items 的用例依赖从泛用 ArchiveReader.List 收窄为 StudentAppPublishedArchiveMaterialReader.ListPublishedForStudentApp，并由 ArchiveRepository.ListPublishedForStudentApp 通过 teaching_archive_publications 做可见发布白名单过滤。该切片要求 publication_state=COMMITTED_TO_PUBLICATION_STORE、visibility_state=STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED、channel=STUDENT_APP、scope_type=STUDENT_OWN_ARCHIVE，并证明 unpublishedArchiveItemsExcluded=true、draftOnlyArchiveItemsExcluded=true、crossStudentArchiveItemsExcluded=true、publicationMetadataLeakPrevented=true。它仍不代表 OCR/RAG 富化、AI 批改联动、模型推理、完整资料检索或 Swarm 已完成；整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+      </div>
+
+      <div style="height: 12px"></div>
+
       <table class="matrix">
         <thead>
           <tr>
@@ -1899,9 +2095,9 @@
             <td>LeadAgentTriage 记录领域数量、风险、证据需求和路由原因。</td>
           </tr>
           <tr>
-            <td>7 个原子 Skills 支撑上层 Agent。</td>
+            <td>原子 Skills 支撑上层 Agent。</td>
             <td>不复制医学 skill 名称和医学知识库。</td>
-            <td>建设教育版 skill 家族：教学检索、出题、批改、学情风险、错因分析、练习推荐、科研检索、引用、配置检查、压测、工作流草稿、工具调用。</td>
+            <td>建设教育版 skill 家族：当前 8 个示例已覆盖教学检索、练习推荐、科研检索、深度研究、配置检查、压测、工作流草稿、工具调用等方向。</td>
             <td>每个 Skill 必须有 manifest、schema、权限、示例、Evidence 字段和禁止行为。</td>
           </tr>
           <tr>
@@ -2230,14 +2426,14 @@
             <td>学生端答疑、错题解释、个性化练习、学习档案反馈专家。</td>
             <td>tutor_student、explain_mistake、recommend_practice、read_student_profile。</td>
             <td>不能泄露其他学生信息，不能把建议当成绩结论，不能绕过家校/教师策略。</td>
-            <td>必须记录依据材料、学生范围、建议置信度和教师可复核摘要。</td>
+            <td>recommend_practice 快路径已要求学生范围、证据、无跨学生数据、无最终评价和 50ms SLO；完整 AI Tutor 仍需后续 async 证据。</td>
           </tr>
           <tr>
             <td>ResearchAgent</td>
             <td>科研对话、知识检索、节点选择、资料整理专家。</td>
             <td>search_knowledge、deep_research、compare_nodes、cite_sources、bookmark_result。</td>
             <td>不能把私密资料发给未授权云模型，不能直接生成训练任务。</td>
-            <td>回答必须带来源、节点运行证据、知识范围审计。</td>
+            <td>search_knowledge 快路径已要求来源、知识范围审计和 50ms SLO；deep_research 现在已接入异步受控意图、异步 worker 生命周期、approved retrieval planning、approved retrieval execution 和 approved reasoning/synthesis draft 证据。</td>
           </tr>
           <tr>
             <td>AnalysisAgent</td>
@@ -2464,9 +2660,9 @@
           </tr>
           <tr>
             <td>A1 单 Agent 只读通道</td>
-            <td>TeachingAgent、StudentTutorAgent、ResearchAgent 先只做检索、解释、引用和建议。</td>
-            <td>最快形成可用体验，同时风险最低，能验证 Skill 选择、引用和上下文裁剪。</td>
-            <td>P95/P99、引用命中、错误率、无越权读取。</td>
+            <td>TeachingAgent 的 search_teaching_material、StudentTutorAgent 的 recommend_practice 与 ResearchAgent 的 search_knowledge 已全部推进到真实只读 Adapter、dispatcher 和只读 Agent API Runtime；deep_research 现在先以异步受控意图和 worker 生命周期落地，完整 RAG 执行、综合生成和模型推理仍在后续 approved async/reasoning 路线，不进入 50ms 快路径承诺。</td>
+            <td>先形成低风险可用体验，验证 Skill 选择、引用、上下文裁剪和越权防护，再接实际 Agent Runtime。</td>
+            <td>P95/P99、引用命中、错误率、无越权读取、无外部模型、无直接写库。</td>
             <td>一开始就启动 Swarm 或写主库。</td>
           </tr>
           <tr>
@@ -2751,23 +2947,23 @@
       <div class="timeline">
         <div class="phase">
           <strong>P0a<br />冻结与观测</strong>
-          <div>原项目进入 Legacy Zone。导出 OpenAPI、数据库模型、功能清单、测试基线；固定 perf compose、记录 PostgreSQL 配置、连接状态、CPU、P95/P99，先把性能证据链补齐。</div>
+          <div>已完成核心证据链：原项目进入 Legacy Zone，重构仓库建立 Root Workflow Coverage、性能证据注册表、Cross-module diagnostics、Root SLO promotion review 和严格质量门禁。后续只补新增切片证据，不再反复重做早期基线。</div>
         </div>
         <div class="phase">
-          <strong>P0b<br />连接与写路径</strong>
-          <div>统一连接预算，处理 async/sync engine 乘法；优化高频 POST 热路径。目标先让当前系统 write 800c P95 进入 500ms 内，再决定是否迁移该切片。</div>
+          <strong>P0b<br />性能收口</strong>
+          <div>已收口到 production10k：22,435.1 read/write RPS、P99 44.44ms、0 errors，50ms 达标。10ms 以下仍是优秀目标，但不再阻塞当前重构主线。</div>
         </div>
         <div class="phase">
           <strong>P1<br />合约先行</strong>
-          <div>建立 OpenAPI 合约和 TypeScript SDK。前端不再散乱 fetch；Go 只承接拥有真实逻辑的新切片，不做单纯 FastAPI 转发壳。</div>
+          <div>已落地 Agent/Skill/SharedContext 契约门禁，并补齐 TeachingAgent search_teaching_material、StudentTutorAgent recommend_practice 与 ResearchAgent search_knowledge 只读输入/输出契约；Teaching、StudentTutor 与 Research 三条只读快路径已有真实只读 Adapter、dispatcher 和只读 Agent API Runtime 证据。继续补 OpenAPI 合约和 TypeScript SDK。前端不再散乱 fetch；Go 只承接拥有真实逻辑的新切片，不做单纯 FastAPI 转发壳。</div>
         </div>
         <div class="phase">
           <strong>P2<br />Go 热切片</strong>
-          <div>选择 Conversation Write Gateway、Quiz Submit API 或 Job API 做第一个 Go 切片。必须具备影子流量、双写校验、回滚路由、压测报告。</div>
+          <div>Identity、Conversation、Teaching 的 Go 性能切片已经形成可审计证据，TeachingAgent、StudentTutorAgent 与 ResearchAgent 三条只读快路径已接到真实 Adapter、dispatcher 和只读 Agent API Runtime；ResearchAgent deep_research 已推进到 student archive physical row verification；Student App AI Tutor 已推进到 request、worker claim、result、question-bank draft generation plan、generation worker claim precheck、generation worker claim、generation input envelope、generation model execution precheck、generation controlled draft、generation teacher review、generation content storage commit、generation content row verification、content student read verification、answer submission verification、answer scoring request verification、question-bank draft visibility、content precheck、storage-backed own-student content read foundation、own-student answer submission foundation、answer scoring request/input/result foundation、answer scoring completion bridge、controlled scoring artifact、scoring result persistence bridge、answer feedback publication precheck persisted scoring source、feedback generation model execution precheck、feedback controlled draft、reviewed feedback artifact controlled draft source、feedback publication approval controlled draft source、feedback delivery envelope controlled draft source、feedback archive persistence command controlled draft source、feedback archive storage commit controlled draft source、feedback archive row verification controlled draft source、reviewed feedback artifact、legacy feedback publication approval、legacy feedback delivery envelope、feedback archive persistence command、feedback archive storage commit 和 feedback archive row verification；Teaching Archive 资料草稿链路已推进到 publication storage commit，已经允许受控 durable publication commit 消费 0310 命令并提交发布存储，但物理发布行验证和学生端 published-material read 仍未完成。下一步不再盲目扩 worker，也不再重复 production10k，而是优先补 publication row verification、Student App published material read、教学资料检索、OCR/RAG 富化前置检查、测验草稿或科研知识检索闭环。</div>
         </div>
         <div class="phase">
           <strong>P3<br />Harness 先落地</strong>
-          <div>Rust Harness 接管命令、文件、Office、浏览器、CLI、插件、工作流执行。旧系统所有危险接口改为调用 Harness，不再直接执行。</div>
+          <div>Agent Harness 与 Skill 权限契约已 ready；受控写入意图网关已 ready，但真实执行仍关闭。Rust Harness 后续接管命令、文件、Office、浏览器、CLI、插件、工作流执行，所有危险动作默认审批、留痕、可回滚。</div>
         </div>
         <div class="phase">
           <strong>P4<br />教学核心</strong>
@@ -2775,11 +2971,11 @@
         </div>
         <div class="phase">
           <strong>P5<br />科研核心</strong>
-          <div>迁移节点、对话、知识库、收藏、多模型融合。RAG 和训练继续放 Python worker，但输入输出契约化。</div>
+          <div>迁移节点、对话、知识库、收藏、多模型融合。ResearchAgent search_knowledge 快路径已有真实只读 Adapter 和 dispatcher 调用证据；deep_research 现在先以异步受控意图运行时、异步 worker 生命周期、approved retrieval planning、approved retrieval execution、approved reasoning/synthesis draft、final-answer review gate、finalization runtime、render preview runtime、publication precheck runtime、teacher delivery runtime、student visibility review runtime、student delivery runtime、student archive persistence command runtime、student archive projection runtime、student archive storage precommit runtime、student archive storage commit runtime 和 student archive physical row verification runtime 落地，已经能封存未发布的 FINALIZED_NOT_PUBLISHED artifact envelope，生成教师可审阅 SAFE_TEXT_BLOCKS 预览，记录发布前人审票据，生成教师科研工作区证据交付包，记录学生可见前人审票据，生成学生端可渲染 delivery envelope，记录 append-only 学生档案持久化命令，把 reviewed projection 映射成 Teaching Archive createArchiveItem 命令，通过注入用例端口提交成 persisted archive item，并通过注入 row read port 验证 teaching_archive_items 物理行；真正多模型融合和训练继续放后续 Python/async/integration worker，但输入输出、审批、租约、检索计划、引用证据、综合草稿、复核、最终化、预览、发布前审查、教师交付、学生交付和失败安全都要契约化。</div>
         </div>
         <div class="phase">
           <strong>P6<br />Agent 产品化</strong>
-          <div>先产品化可审计的单 Agent 快速通道：LeadAgent 分诊、Worker Role Manifest、Skill Manifest、SharedContext、Memory Port、Evidence 和 Fallback。再开放受限 Swarm，最后让工作流生成、插件生成、外部应用操控进入 Beta；默认关闭高风险能力，逐项通过权限、审批、测试、回滚和性能证据验收。</div>
+          <div>A0 契约骨架已完成，TeachingAgent、StudentTutorAgent 与 ResearchAgent 只读 Skill 输入/输出契约、只读运行时适配器契约和小型 SLO 证据已推进到可审计状态；TeachingAgent.search_teaching_material、StudentTutorAgent.recommend_practice 与 ResearchAgent.search_knowledge 已补真实只读 Runtime Adapter，分别只能通过注入的 TeachingArchiveReadPort.searchTeachingMaterials、StudentLearningReadPort.recommendPracticeContext 与 KnowledgeQueryReadPort.searchKnowledge 返回证据，统一 read-only dispatcher 已能实际调用三条只读快路径，且只读 Agent API Runtime 已把 AgentTask、PrincipalContext、SharedContext、GuardrailResult、RouteDecision 与 SkillInput 接到 dispatcher。ResearchAgent.deep_research 现在则走异步受控意图运行时、异步 worker 生命周期、approved retrieval planning、approved retrieval execution、approved reasoning/synthesis draft、final-answer review gate、finalization runtime、render preview runtime、publication precheck runtime、teacher delivery runtime、student visibility review runtime、student delivery runtime、student archive persistence command runtime、student archive projection runtime、student archive storage precommit runtime、student archive storage commit runtime 和 student archive physical row verification runtime，先提交 reviewable job intent，再记录 APPROVED_FOR_ASYNC 后的本地 worker claim，随后记录目录索引优先、引用必填、sourceHash 必填的检索计划，再通过注入的 DeepResearchRetrievalReadPort.retrieveApprovedSources 执行已批准的本地检索并返回 cited source evidence，通过注入的 DeepResearchReasoningPort.composeEvidenceGroundedDraft 生成每条 claim 都绑定 citation/sourceHash 的证据约束综合草稿，经人工复核后再封存 FINALIZED_NOT_PUBLISHED artifact envelope、生成教师预览、记录发布前审查、生成教师交付包、记录学生可见审票据、生成学生端 delivery envelope、记录 append-only 学生档案持久化命令、写入 durable projection、准备 Teaching Archive createArchiveItem 命令，通过注入 TeachingArchiveCreateItemPort.createArchiveItem 提交为 persisted archive item，并通过注入 TeachingArchiveRowReadPort.getArchiveItemById 验证 physicalDatabaseRowVerified=true；Student App AI Tutor 反馈链路也已从学生端 delivery envelope、archive persistence command、Teaching Archive persisted commit 推进到通过注入 TeachingArchiveRowReadPort.getArchiveItemById 验证 physicalDatabaseRowVerified=true；仍不公开发布、不直连数据库、不执行 HTTP、不开放真正多模型融合。受控写入意图网关已把测验草稿、资料草稿和工作流/插件草稿锁进审批/事件/回滚边界，并已接通 TeachingDraftCommandPort.submitQuizDraftIntent、TeachingDraftCommandPort.submitArchiveMaterialDraftIntent、WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent、WorkflowSandboxCommandPort.recordWorkflowPluginSandboxRunResult、WorkflowApprovalCommandPort.recordWorkflowPluginHumanApproval、WorkflowRegistryCommandPort.recordWorkflowPluginRegistryAdmission、WorkflowExecutionIsolationCommandPort.recordWorkflowPluginExecutionIsolationPrecheck、WorkflowPublicationCommandPort.recordWorkflowPluginPublicationDisabledPrecheck、WorkflowManagementViewCommandPort.recordWorkflowPluginManagementDisabledView、WorkflowManagementReadPort.renderWorkflowPluginManagementAuditDetail 与 WorkflowManagementReadPort.renderWorkflowPluginManagementReadonlyList。下一步推进下一个根需求模块；受限 Swarm 后置，工作流生成、插件生成、外部应用操控只能进入 Beta，默认关闭高风险能力。</div>
         </div>
         <div class="phase">
           <strong>P7<br />开源版本</strong>

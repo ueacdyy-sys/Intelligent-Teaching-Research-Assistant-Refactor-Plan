@@ -1,0 +1,165 @@
+{
+  "generatedAt": "2026-06-07T12:28:47.477Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_WORKER_CLAIM_RUNTIME",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_worker_claim_runtime",
+    "commandPort": "StudentAppAITutorWorkerClaimPort.claimTutoringAnalysisRequest",
+    "asyncQueue": "student_app_ai_tutor"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STUDENT_APP_AI_TUTOR_WORKER_CLAIM_PROBE"
+  },
+  "safetyInvariants": {
+    "internalServiceOnly": true,
+    "atomicSkipLockedClaimRequired": true,
+    "leaseRecorded": true,
+    "modelExecutionStarted": false,
+    "resultRecorded": false,
+    "questionBankDraftCreated": false,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorWorkerClaim": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.student-app.ai-tutor-worker-claim-recorded.v1",
+        "runtimeId": "student_app_ai_tutor_worker_claim_runtime",
+        "commandPort": "StudentAppAITutorWorkerClaimPort.claimTutoringAnalysisRequest",
+        "status": "STUDENT_APP_AI_TUTOR_WORKER_CLAIMED",
+        "queue": {
+          "queueName": "student_app_ai_tutor",
+          "queueTable": "teaching_tutoring_analysis_requests",
+          "targetUseCase": "ClaimTutoringAnalysisRequest.Execute",
+          "repositoryOperation": "ArchiveRepository.ClaimNextTutoringAnalysisRequest"
+        },
+        "claim": {
+          "found": true,
+          "requestId": "tutor_req_student_app_001",
+          "archiveItemId": "tarch_student_quiz_001",
+          "sourceArchiveStudentId": "student_001",
+          "questionBankIntent": "GENERATE_PERSONALIZED_CHECK",
+          "status": "IN_PROGRESS",
+          "workerId": "worker_student_tutor_local_01",
+          "leaseSeconds": 120,
+          "claimExpiresAt": "2026-06-05T00:02:00.000Z"
+        },
+        "boundary": {
+          "internalServiceOnly": true,
+          "atomicSkipLockedClaimRequired": true,
+          "leaseRecorded": true,
+          "modelExecutionStarted": false,
+          "resultRecorded": false,
+          "questionBankDraftCreated": false,
+          "directDatabaseAccessAllowed": false,
+          "executeHttpRequestAllowed": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "evidenceRefs": [
+          "evidence:student-app-ai-tutor-request:tutor_req_student_app_001"
+        ],
+        "runtimeSlo": {
+          "targetP99Ms": 50,
+          "p99Ms": 6,
+          "totalErrors": 0,
+          "operations": 1,
+          "evidenceClass": "STUDENT_APP_AI_TUTOR_WORKER_CLAIM_PROBE"
+        },
+        "idempotentReplay": false
+      },
+      "portCalls": 1,
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "STUDENT_APP_AI_TUTOR_WORKER_CLAIM_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "actual": "STUDENT_APP_AI_TUTOR_WORKER_CLAIMED=true;StudentAppAITutorWorkerClaimPort.claimTutoringAnalysisRequest=true;ClaimTutoringAnalysisRequest.Execute=true;ArchiveRepository.ClaimNextTutoringAnalysisRequest=true",
+      "expected": "contracts define internal StudentTutorAgent worker claim through the injected Go use case port",
+      "remediation": "Keep this slice as worker claim control plane, not model inference or result recording."
+    },
+    {
+      "severity": "info",
+      "id": "request_admission.source_ready",
+      "passed": true,
+      "actual": "READY",
+      "expected": "READY Student App AI Tutor request admission evidence",
+      "remediation": "Worker claim evidence must build on a ready Student App AI Tutor request admission report."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "actual": "student_app_ai_tutor_worker_claim_runtime=true;StudentAppAITutorWorkerClaimPort.claimTutoringAnalysisRequest=true;STUDENT_APP_AI_TUTOR_WORKER_CLAIMED=true",
+      "expected": "runtime uses a named injected worker claim port and idempotent claim record",
+      "remediation": "Do not turn this runtime into an untracked direct worker executor."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.safety_boundaries",
+      "passed": true,
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;executeModelNowAllowed: true=false;recordResultNowAllowed: true=false;questionBankDraftNowAllowed: true=false;directDatabaseAccessAllowed: true=false;executeHttpRequestAllowed: true=false;remoteDeviceControlAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;dangerouslySetInnerHTML=false;innerHTML=false",
+      "expected": "runtime claims only through the injected port and blocks raw DB, HTTP, model execution, result recording, question-bank drafts, tools, and Swarm",
+      "remediation": "AI Tutor analysis/result/question-bank generation must stay in later async worker slices."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.probe_claims_worker_lease",
+      "passed": true,
+      "actual": "status=STUDENT_APP_AI_TUTOR_WORKER_CLAIMED;request=tutor_req_student_app_001;calls=1;p99=6",
+      "expected": "probe claims one leased worker request through the injected use case port",
+      "remediation": "Worker claim must prove the port call, lease shape, and no model/result execution."
+    },
+    {
+      "severity": "info",
+      "id": "tests.cover_worker_claim_negative_paths",
+      "passed": true,
+      "actual": "runtime tests scanned",
+      "expected": "positive, idempotency, empty queue, missing port, non-service, remote worker, mismatch, and unsafe policy tests",
+      "remediation": "Add regression coverage before using this as Student App AI Tutor worker claim evidence."
+    },
+    {
+      "severity": "info",
+      "id": "teaching_archive.go_claim_usecase_and_repository_evidence_exists",
+      "passed": true,
+      "actual": "func (uc *ClaimTutoringAnalysisRequest) Execute=true;AuthorizeClaimTutoringAnalysisRequest=true;FOR UPDATE SKIP LOCKED=true;TestClaimNextTutoringAnalysisRequestUsesAtomicSkipLockedUpdate=true",
+      "expected": "Go domain/use case/repository evidence proves internal-service lease claim with SKIP LOCKED",
+      "remediation": "Keep real Go claim use case and PostgreSQL atomic claim evidence attached to this runtime."
+    },
+    {
+      "severity": "info",
+      "id": "quality_and_root_hooks_track_runtime",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-worker-claim=true;Student App AI Tutor worker claim runtime audit=true;studentAppAiTutorWorkerClaim=true",
+      "expected": "package script, strict quality, and root workflow coverage include Student App AI Tutor worker claim runtime",
+      "remediation": "Wire the new runtime into package scripts, quality gate, and root workflow coverage."
+    },
+    {
+      "severity": "info",
+      "id": "structure_sdd_and_board_track_runtime",
+      "passed": true,
+      "actual": "Student App AI Tutor worker claim runtime=true;10.1/10=true;FOR UPDATE SKIP LOCKED=true",
+      "expected": "structure verifier, SDD, and architecture board show Student App AI Tutor worker claim as current progress",
+      "remediation": "Update structure, SDD, and architecture board after completing this slice."
+    }
+  ],
+  "nextAction": "Use this as Student App AI Tutor worker claim evidence; continue with analysis-result review and question-bank draft slices without repeating production10k."
+}

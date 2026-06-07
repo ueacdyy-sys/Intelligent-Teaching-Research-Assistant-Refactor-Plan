@@ -1,0 +1,78 @@
+{
+  "generatedAt": "2026-06-07T12:28:43.153Z",
+  "readiness": "READY",
+  "workloadType": "TEACHING_AGENT_READONLY_RUNTIME_SLO",
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p95Ms": 11,
+    "p99Ms": 11,
+    "totalErrors": 0,
+    "operations": 4,
+    "rps": 222.22,
+    "sourcePhase": "listArchiveItems",
+    "sourceReportPath": "reports/teaching-archive-benchmark.current.json"
+  },
+  "safetyInvariants": {
+    "skillContractReady": true,
+    "adapterContractReady": true,
+    "sourceBenchmarkPassed": true,
+    "sourceBenchmarkKind": "teaching_archive_gateway",
+    "sourceWorkloadType": "HTTP_BENCHMARK",
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false,
+    "studentDataReturned": false,
+    "externalModelUsed": false,
+    "evidenceClass": "RUNTIME_SLO_FROM_TEACHING_ARCHIVE_READ_PHASE"
+  },
+  "findings": [
+    {
+      "id": "contract.skill_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "TeachingAgent search_teaching_material input/output contracts must be READY before runtime SLO evidence can count."
+    },
+    {
+      "id": "contract.adapter_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "TeachingAgent read-only adapter contract must keep read port, guards, and evidence/SLO checks ready."
+    },
+    {
+      "id": "source.teaching_archive_read_phase_passed",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=true;kind=teaching_archive_gateway;workload=HTTP_BENCHMARK;ops=4",
+      "expected": "PASSED teaching_archive_gateway HTTP_BENCHMARK with listArchiveItems operations>0",
+      "remediation": "Regenerate Teaching Archive read-phase evidence before using it for TeachingAgent read-only runtime SLO."
+    },
+    {
+      "id": "runtime.errors_zero",
+      "passed": true,
+      "severity": "info",
+      "actual": 0,
+      "expected": 0,
+      "remediation": "TeachingAgent read-only runtime evidence must have zero listArchiveItems errors."
+    },
+    {
+      "id": "runtime.p99_within_target",
+      "passed": true,
+      "severity": "info",
+      "actual": 11,
+      "expected": "<=50",
+      "remediation": "TeachingAgent read-only adapter must remain within the 50ms runtime SLO before promotion."
+    },
+    {
+      "id": "safety.readonly_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "directDb=false;write=false;studentData=false;externalModel=false",
+      "expected": "directDb=false;write=false;studentData=false;externalModel=false",
+      "remediation": "Read-only runtime evidence must not expand into database writes, student data, or external model calls."
+    }
+  ],
+  "nextAction": "Use this as small TeachingAgent read-only adapter runtime SLO evidence; keep broad production10k claims tied to root SLO review."
+}

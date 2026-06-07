@@ -3,7 +3,9 @@ package platform
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"time"
+	"unicode"
 )
 
 type Clock struct{}
@@ -12,32 +14,56 @@ func (Clock) Now() time.Time {
 	return time.Now().UTC()
 }
 
-type TokenIssuer struct{}
+type TokenIssuer struct {
+	OwnerID string
+}
 
 func (TokenIssuer) NewSessionID() string {
 	return "sess_" + randomToken()
 }
 
-func (TokenIssuer) NewAccessToken() string {
-	return "access_" + randomToken()
+func (issuer TokenIssuer) NewAccessToken() string {
+	return issuer.tokenWithOwner("access", randomToken())
 }
 
-func (TokenIssuer) NewRefreshToken() string {
-	return "refresh_" + randomToken()
+func (issuer TokenIssuer) NewRefreshToken() string {
+	return issuer.tokenWithOwner("refresh", randomToken())
 }
 
 func (TokenIssuer) NewGrantToken() string {
 	return "grant_" + randomToken()
 }
 
-func (TokenIssuer) NewUserSessionTokens() (string, string, string) {
+func (issuer TokenIssuer) NewUserSessionTokens() (string, string, string) {
 	tokens := randomTokens(3)
-	return "sess_" + tokens[0], "access_" + tokens[1], "refresh_" + tokens[2]
+	return "sess_" + tokens[0], issuer.tokenWithOwner("access", tokens[1]), issuer.tokenWithOwner("refresh", tokens[2])
 }
 
-func (TokenIssuer) NewAccessRefreshTokens() (string, string) {
+func (issuer TokenIssuer) NewAccessRefreshTokens() (string, string) {
 	tokens := randomTokens(2)
-	return "access_" + tokens[0], "refresh_" + tokens[1]
+	return issuer.tokenWithOwner("access", tokens[0]), issuer.tokenWithOwner("refresh", tokens[1])
+}
+
+func (issuer TokenIssuer) tokenWithOwner(prefix string, token string) string {
+	owner := normalizeTokenOwner(issuer.OwnerID)
+	if owner == "" {
+		return prefix + "_" + token
+	}
+	return prefix + "_" + owner + "_" + token
+}
+
+func normalizeTokenOwner(owner string) string {
+	owner = strings.TrimSpace(owner)
+	if owner == "" {
+		return ""
+	}
+	var builder strings.Builder
+	for _, char := range owner {
+		if unicode.IsLetter(char) || unicode.IsDigit(char) {
+			builder.WriteRune(unicode.ToLower(char))
+		}
+	}
+	return builder.String()
 }
 
 func randomToken() string {

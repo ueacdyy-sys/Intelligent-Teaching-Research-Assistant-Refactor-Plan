@@ -1,0 +1,174 @@
+{
+  "generatedAt": "2026-06-07T12:29:40.017Z",
+  "readiness": "READY",
+  "workloadType": "WORKFLOW_PLUGIN_EXECUTION_ISOLATION_RUNTIME",
+  "commandPort": "WorkflowExecutionIsolationCommandPort.recordWorkflowPluginExecutionIsolationPrecheck",
+  "boundary": {
+    "status": "EXECUTION_CANDIDATE_BLOCKED_BY_ISOLATION",
+    "executionCandidateAllowed": false,
+    "executionCandidateCount": 0,
+    "localExecutionEnabled": false,
+    "workflowPublishAllowed": false,
+    "processLaunchAllowed": false,
+    "hostWriteAllowed": false,
+    "networkPolicy": "DEFAULT_DENY",
+    "localGeneratedCodeExecuted": false,
+    "requiresFutureSdd": true
+  },
+  "runtimeProbes": {
+    "blocked": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.workflow-plugin.execution-isolation-recorded.v1",
+        "commandPort": "WorkflowExecutionIsolationCommandPort.recordWorkflowPluginExecutionIsolationPrecheck",
+        "status": "EXECUTION_CANDIDATE_BLOCKED_BY_ISOLATION",
+        "recordId": "workflow_plugin_execution_isolation_audit-workflow-execution-isolation",
+        "recordedAt": "2026-06-05T04:00:00.000Z",
+        "idempotencyKey": "audit-workflow-execution-isolation",
+        "idempotentReplay": false,
+        "registryEntry": {
+          "registryEntryId": "workflow_registry_lesson_archive_review",
+          "draftId": "workflow_draft_lesson_archive_review",
+          "artifactKind": "WORKFLOW",
+          "capabilityKind": "WORKFLOW",
+          "executionMode": "DRY_RUN_ONLY",
+          "localExecutionEnabled": false
+        },
+        "isolationPolicy": {
+          "schemaVersion": "2026-06-05.workflow-plugin.execution-isolation-policy.v1",
+          "policyId": "workflow_plugin_execution_policy_lesson_archive_review",
+          "registryEntryId": "workflow_registry_lesson_archive_review",
+          "mode": "BLOCK_HOST_EXECUTION",
+          "hostWritePolicy": "DENY",
+          "networkPolicy": "DEFAULT_DENY",
+          "processLaunchAllowed": false,
+          "candidateExposure": "DISABLED",
+          "requiresFutureSdd": true,
+          "maxRuntimeMs": 1000,
+          "maxMemoryMb": 64,
+          "auditLogRequired": true
+        },
+        "executionCandidateView": {
+          "candidateCount": 0,
+          "blockedReason": "real local execution is disabled by current SDD",
+          "blockedPreconditions": [
+            "future SDD must explicitly enable execution candidates"
+          ]
+        },
+        "evidence": {
+          "registryAdmissionRecordRef": "workflow-registry-admission:audit-registry-admission",
+          "humanApprovalRecordRef": "workflow-human-approval:audit-human-approval",
+          "sandboxResultRecordRef": "workflow-sandbox-result:audit-sandbox-result",
+          "sharedContextRef": "shared-context:audit-workflow-execution-isolation",
+          "guardrailResultRef": "guardrail:audit-workflow-execution-isolation",
+          "routeDecisionRef": "route:audit-workflow-execution-isolation",
+          "inputHash": "sha256:audit-workflow-execution-isolation",
+          "outputSummary": "Audit execution isolation preflight blocked candidates.",
+          "rollbackPlanRef": "rollback:audit-workflow-execution-isolation",
+          "auditTraceRef": "audit:audit-workflow-execution-isolation",
+          "idempotencyKey": "audit-workflow-execution-isolation"
+        },
+        "boundary": {
+          "executionIsolationRecorded": true,
+          "registryEntryPrechecked": true,
+          "executionMode": "DRY_RUN_ONLY",
+          "localExecutionEnabled": false,
+          "workflowPublishAllowed": false,
+          "executionCandidateAllowed": false,
+          "executionCandidateCount": 0,
+          "localGeneratedCodeExecuted": false,
+          "generatedCodeExecutedOnHost": false,
+          "processLaunchAllowed": false,
+          "hostWriteAllowed": false,
+          "networkPolicy": "DEFAULT_DENY",
+          "requiresFutureSdd": true
+        },
+        "nextAction": "Keep workflow/plugin execution candidates disabled; a future SDD must explicitly introduce executable isolation before publishing or host execution."
+      },
+      "logRecordCount": 1
+    }
+  },
+  "findings": [
+    {
+      "id": "isolation_policy.default_blocks_host_execution",
+      "passed": true,
+      "severity": "info",
+      "actual": "mode=BLOCK_HOST_EXECUTION;hostWrite=DENY;network=DEFAULT_DENY;process=false;candidate=DISABLED;futureSdd=true",
+      "expected": "policy blocks host execution, host writes, network, process launch, candidate exposure, and requires future SDD",
+      "remediation": "Execution preflight must stay deny-by-default until a future executable isolation SDD exists."
+    },
+    {
+      "id": "candidate_view.contract_blocks_candidates",
+      "passed": true,
+      "severity": "info",
+      "actual": "candidateCount=0;maxItems=0;blockedReason=real local execution is disabled by current SDD",
+      "expected": "candidateCount=0, maxItems=0, and blockedReason=current SDD disabled",
+      "remediation": "Execution candidate views must remain empty before executable isolation is explicitly introduced."
+    },
+    {
+      "id": "runtime.requires_internal_admin_and_evidence",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime authorization and evidence symbols scanned",
+      "expected": "internal service/admin with ADMIN_SYSTEM plus registry, human approval, sandbox, context, rollback, audit, and idempotency evidence",
+      "remediation": "Execution preflight should only be recorded by trusted writers with full evidence."
+    },
+    {
+      "id": "runtime.enforces_dry_run_registry_policy_and_empty_candidates",
+      "passed": true,
+      "severity": "info",
+      "actual": "DRY_RUN_ONLY=true;localExecutionEnabled=false=true;future SDD=true;DEFAULT_DENY=true",
+      "expected": "runtime rejects executable registry entries, unsafe policies, and non-empty candidate views",
+      "remediation": "Do not allow registry entries to become execution candidates without a future SDD and executable isolation."
+    },
+    {
+      "id": "runtime.append_only_no_execution_or_publish",
+      "passed": true,
+      "severity": "info",
+      "actual": "appendFileSync=true;executionCandidateAllowed: true=false;processLaunchAllowed: true=false;execSync(=false",
+      "expected": "append-only preflight evidence; no publish, candidate exposure, process launch, host write, or generated code execution",
+      "remediation": "Execution isolation runtime must record blocking evidence only."
+    },
+    {
+      "id": "runtime.blocked_probe_records_zero_candidates",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=EXECUTION_CANDIDATE_BLOCKED_BY_ISOLATION;candidates=0;records=1;process=false",
+      "expected": "preflight records a blocked decision with zero candidates and no process launch",
+      "remediation": "Execution isolation preflight should block executable candidates and persist exactly one command record."
+    },
+    {
+      "id": "tests.cover_policy_candidate_and_idempotency_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime test negative paths scanned",
+      "expected": "blocked precheck, executable entry, unsafe policy, exposed candidate, unauthorized principal, and idempotency replay are tested",
+      "remediation": "Keep execution isolation safety regressions covered."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_audit",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:workflow-plugin-execution-isolation=true;Workflow plugin execution isolation runtime audit=true",
+      "expected": "npm script and strict quality command include workflow plugin execution isolation audit",
+      "remediation": "Add this runtime audit to the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_execution_isolation_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "workflowPluginExecutionIsolation=true;workflow-plugin-execution-isolation.current.json=true",
+      "expected": "workflow_plugin_self_evolution root coverage requires execution isolation preflight report",
+      "remediation": "Root workflow coverage should include execution isolation preflight evidence."
+    },
+    {
+      "id": "quality.structure_tracks_slice",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires policy contract, runtime, audit, tests, and SDD",
+      "remediation": "Add the execution isolation slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as execution-candidate isolation preflight evidence; publishing and host execution remain future gated slices."
+}

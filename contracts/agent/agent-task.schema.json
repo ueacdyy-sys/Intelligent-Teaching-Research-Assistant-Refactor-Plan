@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/agent-task.schema.json",
+  "title": "Agent Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "taskId",
+    "requestedByPrincipalId",
+    "principalContextRef",
+    "userIntent",
+    "taskKind",
+    "rootRequirementAnchors",
+    "riskLevel",
+    "writeIntent",
+    "requiresHumanApproval",
+    "routePolicy",
+    "budgets"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "2026-06-04.agent.task.v1" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "requestedByPrincipalId": { "type": "string", "minLength": 1 },
+    "principalContextRef": { "type": "string", "minLength": 1 },
+    "userIntent": { "type": "string", "minLength": 4 },
+    "taskKind": {
+      "type": "string",
+      "enum": ["TEACHING", "STUDENT_TUTORING", "RESEARCH", "ANALYSIS", "WORKFLOW", "TOOL_CONTROL", "MODEL_EXPERIMENT"]
+    },
+    "rootRequirementAnchors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "riskLevel": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+    "writeIntent": { "type": "boolean" },
+    "requiresHumanApproval": { "type": "boolean" },
+    "routePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedModes", "preferSingleWorker", "swarmRequiredWhen"],
+      "properties": {
+        "allowedModes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["SINGLE_WORKER", "SWARM"] }
+        },
+        "preferSingleWorker": { "type": "boolean" },
+        "swarmRequiredWhen": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["CROSS_DOMAIN", "HIGH_RISK", "TOOL_MUTATION", "CONFLICTING_EVIDENCE", "MODEL_EXPERIMENT"]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxAgentLoops", "maxSkillCalls", "maxTokens", "p99BudgetMs"],
+      "properties": {
+        "maxAgentLoops": { "type": "integer", "minimum": 1 },
+        "maxSkillCalls": { "type": "integer", "minimum": 1 },
+        "maxTokens": { "type": "integer", "minimum": 1 },
+        "p99BudgetMs": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

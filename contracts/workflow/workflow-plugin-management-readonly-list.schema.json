@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/workflow/workflow-plugin-management-readonly-list.schema.json",
+  "title": "Workflow Plugin Management Read-Only List",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "listId",
+    "generatedAt",
+    "surface",
+    "summary",
+    "entries",
+    "boundary"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.workflow-plugin.management-readonly-list.v1"
+    },
+    "listId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "surface": {
+      "type": "string",
+      "const": "ADMIN_WORKFLOW_PLUGIN_MANAGEMENT_LIST"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "listReadiness",
+        "itemCount",
+        "allEntriesReadOnly",
+        "allActionsDisabled",
+        "executionStatus",
+        "publicationStatus",
+        "nextRequiredSdd"
+      ],
+      "properties": {
+        "listReadiness": { "type": "string", "const": "READONLY_LIST_READY" },
+        "itemCount": { "type": "integer", "minimum": 1 },
+        "allEntriesReadOnly": { "type": "boolean", "const": true },
+        "allActionsDisabled": { "type": "boolean", "const": true },
+        "executionStatus": { "type": "string", "const": "EXECUTION_CANDIDATES_DISABLED" },
+        "publicationStatus": { "type": "string", "const": "PUBLICATION_DISABLED" },
+        "nextRequiredSdd": { "type": "string", "const": "EXECUTABLE_ISOLATION_SIGNING_ROLLOUT_ROLLBACK" }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rowId",
+          "detailRef",
+          "registryEntry",
+          "statuses",
+          "evidenceStageCount",
+          "disabledActionCount",
+          "blockedActionIds",
+          "controlActions",
+          "boundary"
+        ],
+        "properties": {
+          "rowId": { "type": "string", "minLength": 1 },
+          "detailRef": { "type": "string", "minLength": 1 },
+          "registryEntry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "registryEntryId",
+              "draftId",
+              "artifactKind",
+              "capabilityKind",
+              "status",
+              "executionMode",
+              "localExecutionEnabled"
+            ],
+            "properties": {
+              "registryEntryId": { "type": "string", "minLength": 1 },
+              "draftId": { "type": "string", "minLength": 1 },
+              "artifactKind": { "type": "string", "minLength": 1 },
+              "capabilityKind": { "type": "string", "minLength": 1 },
+              "status": { "type": "string", "const": "ACTIVE" },
+              "executionMode": { "type": "string", "const": "DRY_RUN_ONLY" },
+              "localExecutionEnabled": { "type": "boolean", "const": false }
+            }
+          },
+          "statuses": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "detailReadiness",
+              "executionStatus",
+              "publicationStatus",
+              "managementStatus",
+              "nextRequiredSdd"
+            ],
+            "properties": {
+              "detailReadiness": { "type": "string", "const": "READONLY_AUDIT_READY" },
+              "executionStatus": { "type": "string", "const": "EXECUTION_CANDIDATES_DISABLED" },
+              "publicationStatus": { "type": "string", "const": "PUBLICATION_DISABLED" },
+              "managementStatus": { "type": "string", "const": "ALL_ACTIONS_DISABLED" },
+              "nextRequiredSdd": { "type": "string", "const": "EXECUTABLE_ISOLATION_SIGNING_ROLLOUT_ROLLBACK" }
+            }
+          },
+          "evidenceStageCount": { "type": "integer", "const": 7 },
+          "disabledActionCount": { "type": "integer", "const": 4 },
+          "blockedActionIds": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "enum": [
+                "publish",
+                "enableLocalExecution",
+                "createExecutionCandidate",
+                "exposeMarketplace"
+              ]
+            }
+          },
+          "controlActions": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "actionId",
+                "enabled",
+                "disabledReason",
+                "evidenceRef"
+              ],
+              "properties": {
+                "actionId": {
+                  "type": "string",
+                  "enum": [
+                    "publish",
+                    "enableLocalExecution",
+                    "createExecutionCandidate",
+                    "exposeMarketplace"
+                  ]
+                },
+                "enabled": { "type": "boolean", "const": false },
+                "disabledReason": { "type": "string", "minLength": 1 },
+                "evidenceRef": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "boundary": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "readOnly",
+              "managementListRendered",
+              "allActionsDisabled",
+              "workflowPublishAllowed",
+              "pluginMarketplaceExposureAllowed",
+              "executionCandidateAllowed",
+              "localExecutionEnabled",
+              "processLaunchAllowed",
+              "hostWriteAllowed",
+              "productionHotPathChanged",
+              "requiresFutureSdd"
+            ],
+            "properties": {
+              "readOnly": { "type": "boolean", "const": true },
+              "managementListRendered": { "type": "boolean", "const": true },
+              "allActionsDisabled": { "type": "boolean", "const": true },
+              "workflowPublishAllowed": { "type": "boolean", "const": false },
+              "pluginMarketplaceExposureAllowed": { "type": "boolean", "const": false },
+              "executionCandidateAllowed": { "type": "boolean", "const": false },
+              "localExecutionEnabled": { "type": "boolean", "const": false },
+              "processLaunchAllowed": { "type": "boolean", "const": false },
+              "hostWriteAllowed": { "type": "boolean", "const": false },
+              "productionHotPathChanged": { "type": "boolean", "const": false },
+              "requiresFutureSdd": { "type": "boolean", "const": true }
+            }
+          }
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "managementListRendered",
+        "allEntriesReadOnly",
+        "allActionsDisabled",
+        "workflowPublishAllowed",
+        "pluginMarketplaceExposureAllowed",
+        "executionCandidateAllowed",
+        "localExecutionEnabled",
+        "processLaunchAllowed",
+        "hostWriteAllowed",
+        "productionHotPathChanged",
+        "requiresFutureSdd"
+      ],
+      "properties": {
+        "readOnly": { "type": "boolean", "const": true },
+        "managementListRendered": { "type": "boolean", "const": true },
+        "allEntriesReadOnly": { "type": "boolean", "const": true },
+        "allActionsDisabled": { "type": "boolean", "const": true },
+        "workflowPublishAllowed": { "type": "boolean", "const": false },
+        "pluginMarketplaceExposureAllowed": { "type": "boolean", "const": false },
+        "executionCandidateAllowed": { "type": "boolean", "const": false },
+        "localExecutionEnabled": { "type": "boolean", "const": false },
+        "processLaunchAllowed": { "type": "boolean", "const": false },
+        "hostWriteAllowed": { "type": "boolean", "const": false },
+        "productionHotPathChanged": { "type": "boolean", "const": false },
+        "requiresFutureSdd": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

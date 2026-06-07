@@ -164,10 +164,19 @@ function teachingReport() {
       archiveCreateBatchSize: 64,
       archiveCreateBatchDelayMs: 1,
       archiveCreateBatchWorkers: 2,
+      archiveCreateBatchMode: "copy",
       quizSubmissionBatchingEnabled: true,
-      quizSubmissionBatchSize: 64,
-      quizSubmissionBatchDelayMs: 1,
-      quizSubmissionBatchWorkers: 2,
+      quizSubmissionBatchSize: 16,
+      quizSubmissionBatchDelayMs: 0,
+      quizSubmissionBatchWorkers: 8,
+    },
+    gatewayReadProfile: {
+      archiveListCacheEnabled: true,
+      archiveListCacheTtlMs: 250,
+      archiveListCacheMaxEntries: 4096,
+    },
+    gatewaySchemaProfile: {
+      archiveSchemaIndexProfile: "hot_write",
     },
     gatewayDatabaseDiagnostics: {
       after: {
@@ -214,6 +223,7 @@ function phase(name, p95, p99, rps, serverP99 = null, dbInsertP99 = null, handle
       ...(preUsecaseP99 !== null ? { "pre.usecase": { p99: preUsecaseP99 } } : {}),
       "db.batch_wait": { p99: 7 },
       "db.insert": { p99: dbInsertP99 },
+      "response.encode": { p99: 2 },
     };
   }
   return report;

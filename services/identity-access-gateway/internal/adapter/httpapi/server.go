@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -182,6 +183,7 @@ func (s *Server) sessionDBPoolDiagnostics(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) createPasswordSession(w http.ResponseWriter, r *http.Request) {
+	handlerStart := time.Now()
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
@@ -190,16 +192,19 @@ func (s *Server) createPasswordSession(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &request) {
 		return
 	}
+	preUsecaseDuration := time.Since(handlerStart)
+	appStart := time.Now()
 	session, err := s.identity.CreatePasswordSession(r.Context(), domain.PasswordSessionInput{
 		Identifier:    request.Identifier,
 		Password:      request.Password,
 		RequestedRole: request.RequestedRole,
 		EntryPoint:    request.EntryPoint,
 	})
+	appDuration := time.Since(appStart)
 	if handleUsecaseError(w, err) {
 		return
 	}
-	writeJSON(w, http.StatusCreated, toSessionResponse(session))
+	writeIdentityJSON(w, http.StatusCreated, toSessionResponse(session), handlerStart, preUsecaseDuration, appDuration)
 }
 
 func (s *Server) startWeChatSession(w http.ResponseWriter, r *http.Request) {
@@ -246,6 +251,7 @@ func (s *Server) completeWeChatSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshSession(w http.ResponseWriter, r *http.Request) {
+	handlerStart := time.Now()
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
@@ -254,14 +260,18 @@ func (s *Server) refreshSession(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &request) {
 		return
 	}
+	preUsecaseDuration := time.Since(handlerStart)
+	appStart := time.Now()
 	session, err := s.identity.RefreshSession(r.Context(), request.RefreshToken)
+	appDuration := time.Since(appStart)
 	if handleUsecaseError(w, err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, toSessionResponse(session))
+	writeIdentityJSON(w, http.StatusOK, toSessionResponse(session), handlerStart, preUsecaseDuration, appDuration)
 }
 
 func (s *Server) sessionByID(w http.ResponseWriter, r *http.Request) {
+	handlerStart := time.Now()
 	sessionID := strings.TrimPrefix(r.URL.Path, "/v1/identity/sessions/")
 	if sessionID == "" || strings.Contains(sessionID, "/") {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "session not found")
@@ -276,13 +286,17 @@ func (s *Server) sessionByID(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "missing bearer token")
 		return
 	}
+	preUsecaseDuration := time.Since(handlerStart)
+	appStart := time.Now()
 	if err := s.identity.RevokeSession(r.Context(), token, sessionID); handleUsecaseError(w, err) {
 		return
 	}
+	writeIdentityServerTiming(w, time.Since(handlerStart), preUsecaseDuration, time.Since(appStart), 0)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) getPrincipal(w http.ResponseWriter, r *http.Request) {
+	handlerStart := time.Now()
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
@@ -292,11 +306,14 @@ func (s *Server) getPrincipal(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "missing bearer token")
 		return
 	}
+	preUsecaseDuration := time.Since(handlerStart)
+	appStart := time.Now()
 	principal, err := s.identity.GetPrincipal(r.Context(), token)
+	appDuration := time.Since(appStart)
 	if handleUsecaseError(w, err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, principalResponse{Principal: toPrincipalDTO(principal)})
+	writeIdentityJSON(w, http.StatusOK, principalResponse{Principal: toPrincipalDTO(principal)}, handlerStart, preUsecaseDuration, appDuration)
 }
 
 func (s *Server) createRemoteCommandGrant(w http.ResponseWriter, r *http.Request) {
@@ -434,9 +451,51 @@ func formatTime(value time.Time) string {
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
+	body, err := encodeJSONPayload(payload)
+	if err != nil {
+		writeResponseEncodingError(w)
+		return
+	}
+	writeJSONBytes(w, status, body)
+}
+
+func writeIdentityJSON(
+	w http.ResponseWriter,
+	status int,
+	payload any,
+	handlerStart time.Time,
+	preUsecaseDuration time.Duration,
+	appDuration time.Duration,
+) {
+	encodeStart := time.Now()
+	body, err := encodeJSONPayload(payload)
+	responseEncodeDuration := observableDuration(time.Since(encodeStart))
+	writeIdentityServerTiming(w, time.Since(handlerStart), preUsecaseDuration, appDuration, responseEncodeDuration)
+	if err != nil {
+		writeResponseEncodingError(w)
+		return
+	}
+	writeJSONBytes(w, status, body)
+}
+
+func encodeJSONPayload(payload any) ([]byte, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return append(body, '\n'), nil
+}
+
+func writeJSONBytes(w http.ResponseWriter, status int, body []byte) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
+	_, _ = w.Write(body)
+}
+
+func writeResponseEncodingError(w http.ResponseWriter) {
+	body := []byte(`{"error":{"code":"INTERNAL_ERROR","message":"failed to encode response"}}` + "\n")
+	writeJSONBytes(w, http.StatusInternalServerError, body)
 }
 
 func writeError(w http.ResponseWriter, status int, code string, message string) {

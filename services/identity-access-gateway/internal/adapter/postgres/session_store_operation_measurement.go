@@ -45,10 +45,14 @@ func (s *SessionStore) queryRowMeasured(
 	dest []any,
 	args ...any,
 ) (DBOperationMeasurement, error) {
-	if measuredDB, ok := s.db.(MeasuredQueryRowDB); ok {
+	readDB := s.readDB
+	if readDB == nil {
+		readDB = s.db
+	}
+	if measuredDB, ok := readDB.(MeasuredQueryRowDB); ok {
 		return measuredDB.QueryRowMeasured(ctx, sql, args...).ScanMeasured(dest...)
 	}
-	return DBOperationMeasurement{}, s.db.QueryRow(ctx, sql, args...).Scan(dest...)
+	return DBOperationMeasurement{}, readDB.QueryRow(ctx, sql, args...).Scan(dest...)
 }
 
 func measureRowsAffected(tag CommandTag, measurement DBOperationMeasurement) DBOperationMeasurement {

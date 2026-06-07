@@ -1,0 +1,1082 @@
+{
+  "generatedAt": "2026-06-07T12:29:47.498Z",
+  "readiness": "READY",
+  "workloadType": "AGENT_READONLY_RUNTIME_DISPATCHER",
+  "dispatcher": {
+    "dispatcherId": "agent_readonly_runtime_dispatcher",
+    "routeMode": "SINGLE_WORKER_ONLY",
+    "adapterCount": 3,
+    "evidenceClass": "AGGREGATED_RUNTIME_SLO_FROM_READONLY_FAST_PATHS"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "aggregateStrategy": "MAX_COMPONENT_P99",
+    "p99Ms": 11,
+    "totalErrors": 0,
+    "components": [
+      {
+        "workerAgent": "TeachingAgent",
+        "skillId": "search_teaching_material",
+        "reportRef": "reports/teaching-agent-readonly-runtime-slo.current.json",
+        "ready": true,
+        "p99Ms": 11,
+        "totalErrors": 0,
+        "targetP99Ms": 50
+      },
+      {
+        "workerAgent": "StudentTutorAgent",
+        "skillId": "recommend_practice",
+        "reportRef": "reports/student-tutor-agent-readonly-runtime-slo.current.json",
+        "ready": true,
+        "p99Ms": 11,
+        "totalErrors": 0,
+        "targetP99Ms": 50
+      },
+      {
+        "workerAgent": "ResearchAgent",
+        "skillId": "search_knowledge",
+        "reportRef": "reports/research-agent-readonly-runtime-slo.current.json",
+        "ready": true,
+        "p99Ms": 2.55,
+        "totalErrors": 0,
+        "targetP99Ms": 50
+      }
+    ]
+  },
+  "runtimeInvocation": {
+    "status": "PASS",
+    "runtimeSlo": {
+      "targetP99Ms": 50,
+      "p99Ms": 11,
+      "totalErrors": 0,
+      "operations": 3,
+      "evidenceClass": "REAL_TEACHING_STUDENT_TUTOR_RESEARCH_AGENT_ADAPTER_DISPATCH_PROBES"
+    },
+    "probes": {
+      "teachingAgentSearchTeachingMaterial": {
+        "status": "PASS",
+        "output": {
+          "schemaVersion": "2026-06-05.agent.readonly-runtime-dispatcher.output.v1",
+          "dispatchId": "agent_readonly_dispatch_001",
+          "dispatcherId": "agent_readonly_runtime_dispatcher",
+          "taskId": "agent_task_lesson_quiz_001",
+          "workerAgent": "TeachingAgent",
+          "skillId": "search_teaching_material",
+          "adapterId": "teaching_agent_search_material_readonly_adapter",
+          "decision": "DISPATCHED",
+          "skillOutput": {
+            "schemaVersion": "2026-06-04.agent.skill.search-teaching-material.output.v1",
+            "invocationId": "skill_call_search_teaching_material_001",
+            "taskId": "agent_task_lesson_quiz_001",
+            "contextRef": "ctx_lesson_quiz_triage_001",
+            "decision": "FOUND",
+            "summary": "Found 1 teaching material item(s) through the injected read port.",
+            "items": [
+              {
+                "archiveItemId": "tarch_teaching_material_001",
+                "ownerType": "TEACHING",
+                "materialType": "TEACHING_MATERIAL",
+                "title": "函数单调性导学案",
+                "contentRef": "teaching-materials/functions/monotonicity/guide-v1.md",
+                "matchedSnippets": [
+                  {
+                    "text": "函数单调性教学目标、例题和课堂练习安排。",
+                    "score": 0.92,
+                    "sourceRef": "teaching-materials/functions/monotonicity/guide-v1.md#section-2"
+                  }
+                ],
+                "sourceEvidenceRefs": [
+                  "evidence:source:tarch_teaching_material_001"
+                ]
+              }
+            ],
+            "evidenceRefs": [
+              "evidence:permission:teaching-read",
+              "evidence:lesson-material:index-hash-001",
+              "evidence:shared-context:ctx_lesson_quiz_triage_001",
+              "evidence:source:tarch_teaching_material_001",
+              "evidence:input-hash:a44b7b33a2d3e9f88dac8a38",
+              "evidence:adapter:teaching_agent_search_material_readonly_adapter",
+              "evidence:read-port:TeachingArchiveReadPort.searchTeachingMaterials",
+              "evidence:runtime-ms:6"
+            ],
+            "safety": {
+              "directDatabaseWriteAllowed": false,
+              "studentDataReturned": false,
+              "privateKnowledgeReturned": false,
+              "externalModelUsed": false
+            },
+            "slo": {
+              "p99BudgetMs": 50,
+              "runtimeEvidenceClass": "CONTRACT_ONLY",
+              "runtimeEvidenceRequiredBeforePromotion": true
+            }
+          },
+          "evidenceRefs": [
+            "evidence:dispatcher-admission:readonly-001",
+            "evidence:permission:teaching-read",
+            "evidence:lesson-material:index-hash-001",
+            "evidence:shared-context:ctx_lesson_quiz_triage_001",
+            "evidence:source:tarch_teaching_material_001",
+            "evidence:input-hash:a44b7b33a2d3e9f88dac8a38",
+            "evidence:adapter:teaching_agent_search_material_readonly_adapter",
+            "evidence:read-port:TeachingArchiveReadPort.searchTeachingMaterials",
+            "evidence:runtime-ms:6",
+            "evidence:dispatcher:agent_readonly_runtime_dispatcher",
+            "evidence:dispatch-input-hash:4ebcd2efb7c5ceb8de706052",
+            "evidence:dispatch-runtime-ms:9"
+          ],
+          "safety": {
+            "directDatabaseAccessAllowed": false,
+            "writeOperationAllowed": false,
+            "externalModelCallAllowed": false,
+            "localToolMutationAllowed": false,
+            "swarmAllowed": false
+          },
+          "slo": {
+            "p99BudgetMs": 50,
+            "runtimeEvidenceClass": "REAL_AGENT_READONLY_ADAPTER_INVOCATION",
+            "runtimeEvidenceRequiredBeforePromotion": true
+          }
+        },
+        "readPortRequest": {
+          "portName": "TeachingArchiveReadPort",
+          "operation": "searchTeachingMaterials",
+          "invocationId": "skill_call_search_teaching_material_001",
+          "taskId": "agent_task_lesson_quiz_001",
+          "contextRef": "ctx_lesson_quiz_triage_001",
+          "principal": {
+            "principalId": "teacher_001",
+            "role": "TEACHER",
+            "scopes": [
+              "TEACHING_READ",
+              "KNOWLEDGE_PUBLIC_READ"
+            ]
+          },
+          "query": "函数单调性随堂测验教学资料",
+          "filters": {
+            "ownerType": "TEACHING",
+            "materialTypes": [
+              "TEACHING_MATERIAL",
+              "HANDOUT"
+            ],
+            "tags": [
+              "函数单调性",
+              "随堂测验"
+            ],
+            "includeStudentArchive": false
+          },
+          "limits": {
+            "maxResults": 5,
+            "maxSnippetChars": 240
+          },
+          "evidenceRefs": [
+            "evidence:permission:teaching-read",
+            "evidence:lesson-material:index-hash-001",
+            "evidence:shared-context:ctx_lesson_quiz_triage_001",
+            "evidence:guardrail:guardrail_allow_read_teaching_001",
+            "evidence:route:route_lesson_quiz_single_001",
+            "evidence:input-hash:a44b7b33a2d3e9f88dac8a38"
+          ],
+          "safety": {
+            "directDatabaseAccessAllowed": false,
+            "writeOperationAllowed": false,
+            "studentDataAccess": "NONE",
+            "externalModelAllowed": false
+          }
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 50,
+          "p99Ms": 11,
+          "totalErrors": 0,
+          "operations": 1,
+          "evidenceClass": "REAL_TEACHING_AGENT_ADAPTER_DISPATCH_PROBE"
+        }
+      },
+      "studentTutorRecommendPractice": {
+        "status": "PASS",
+        "output": {
+          "schemaVersion": "2026-06-05.agent.readonly-runtime-dispatcher.output.v1",
+          "dispatchId": "agent_readonly_dispatch_student_tutor_001",
+          "dispatcherId": "agent_readonly_runtime_dispatcher",
+          "taskId": "agent_task_student_tutor_001",
+          "workerAgent": "StudentTutorAgent",
+          "skillId": "recommend_practice",
+          "adapterId": "student_tutor_recommend_practice_readonly_adapter",
+          "decision": "DISPATCHED",
+          "skillOutput": {
+            "schemaVersion": "2026-06-04.agent.skill.recommend-practice.output.v1",
+            "invocationId": "skill_call_recommend_practice_001",
+            "taskId": "agent_task_student_tutor_001",
+            "contextRef": "ctx_student_tutor_001",
+            "decision": "FOUND",
+            "summary": "Found 1 scoped practice recommendation(s) through the injected read port.",
+            "recommendations": [
+              {
+                "practiceId": "practice_function_monotonicity_001",
+                "title": "函数单调性基础巩固练习",
+                "sourceType": "TEACHING_MATERIAL",
+                "knowledgePointIds": [
+                  "kp_function_monotonicity"
+                ],
+                "reason": "Recent mistakes point to interval judgment and monotonicity definition confusion.",
+                "sourceEvidenceRefs": [
+                  "evidence:source:tarch_teaching_material_001",
+                  "evidence:student-scope:student_001"
+                ],
+                "expiresAt": "2026-06-11T00:00:00.000Z"
+              }
+            ],
+            "evidenceRefs": [
+              "evidence:permission:student-own-read",
+              "evidence:student-app-flow:current",
+              "evidence:shared-context:ctx_student_tutor_001",
+              "evidence:source:tarch_teaching_material_001",
+              "evidence:student-scope:student_001",
+              "evidence:input-hash:c51324d465ff8f5ced3cdfbf",
+              "evidence:adapter:student_tutor_recommend_practice_readonly_adapter",
+              "evidence:read-port:StudentLearningReadPort.recommendPracticeContext",
+              "evidence:runtime-ms:5"
+            ],
+            "safety": {
+              "directDatabaseWriteAllowed": false,
+              "crossStudentDataReturned": false,
+              "rawStudentArchiveReturned": false,
+              "finalEvaluationReturned": false,
+              "externalModelUsed": false,
+              "localToolMutationAllowed": false,
+              "returnedWithinStudentScope": true
+            },
+            "slo": {
+              "p99BudgetMs": 50,
+              "runtimeEvidenceClass": "CONTRACT_ONLY",
+              "runtimeEvidenceRequiredBeforePromotion": true
+            }
+          },
+          "evidenceRefs": [
+            "evidence:dispatcher-admission:student-tutor-readonly-001",
+            "evidence:permission:student-own-read",
+            "evidence:student-app-flow:current",
+            "evidence:shared-context:ctx_student_tutor_001",
+            "evidence:source:tarch_teaching_material_001",
+            "evidence:student-scope:student_001",
+            "evidence:input-hash:c51324d465ff8f5ced3cdfbf",
+            "evidence:adapter:student_tutor_recommend_practice_readonly_adapter",
+            "evidence:read-port:StudentLearningReadPort.recommendPracticeContext",
+            "evidence:runtime-ms:5",
+            "evidence:dispatcher:agent_readonly_runtime_dispatcher",
+            "evidence:dispatch-input-hash:f500c515e4dc0c86b681384a",
+            "evidence:dispatch-runtime-ms:6"
+          ],
+          "safety": {
+            "directDatabaseAccessAllowed": false,
+            "writeOperationAllowed": false,
+            "externalModelCallAllowed": false,
+            "localToolMutationAllowed": false,
+            "swarmAllowed": false
+          },
+          "slo": {
+            "p99BudgetMs": 50,
+            "runtimeEvidenceClass": "REAL_AGENT_READONLY_ADAPTER_INVOCATION",
+            "runtimeEvidenceRequiredBeforePromotion": true
+          }
+        },
+        "readPortRequest": {
+          "portName": "StudentLearningReadPort",
+          "operation": "recommendPracticeContext",
+          "invocationId": "skill_call_recommend_practice_001",
+          "taskId": "agent_task_student_tutor_001",
+          "contextRef": "ctx_student_tutor_001",
+          "principal": {
+            "principalId": "student_001",
+            "role": "STUDENT",
+            "scopes": [
+              "STUDENT_OWN_READ",
+              "TEACHING_READ",
+              "KNOWLEDGE_PUBLIC_READ"
+            ]
+          },
+          "query": "根据我最近函数单调性错题推荐练习",
+          "targetStudentScope": {
+            "mode": "OWN",
+            "studentIds": [
+              "student_001"
+            ],
+            "crossStudentComparisonAllowed": false
+          },
+          "learningSignals": {
+            "knowledgePointIds": [
+              "kp_function_monotonicity"
+            ],
+            "recentMistakeRefs": [
+              "mistake_ref_quiz_001_q3"
+            ],
+            "archiveItemRefs": [
+              "tarch_student_archive_001"
+            ]
+          },
+          "filters": {
+            "includeTeachingMaterials": true,
+            "includeStudentArchive": true,
+            "includeOtherStudents": false
+          },
+          "limits": {
+            "maxRecommendations": 3,
+            "maxReasonChars": 240
+          },
+          "evidenceRefs": [
+            "evidence:permission:student-own-read",
+            "evidence:student-app-flow:current",
+            "evidence:shared-context:ctx_student_tutor_001",
+            "evidence:guardrail:guardrail_allow_student_tutor_001",
+            "evidence:route:route_student_tutor_single_001",
+            "evidence:student-scope:student_001",
+            "evidence:input-hash:c51324d465ff8f5ced3cdfbf"
+          ],
+          "safety": {
+            "directDatabaseAccessAllowed": false,
+            "writeOperationAllowed": false,
+            "crossStudentComparisonAllowed": false,
+            "rawStudentArchiveAllowed": false,
+            "finalEvaluationAllowed": false,
+            "externalModelAllowed": false,
+            "localToolMutationAllowed": false
+          }
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 50,
+          "p99Ms": 6,
+          "totalErrors": 0,
+          "operations": 1,
+          "evidenceClass": "REAL_STUDENT_TUTOR_AGENT_ADAPTER_DISPATCH_PROBE"
+        }
+      },
+      "researchAgentSearchKnowledge": {
+        "status": "PASS",
+        "output": {
+          "schemaVersion": "2026-06-05.agent.readonly-runtime-dispatcher.output.v1",
+          "dispatchId": "agent_readonly_dispatch_research_001",
+          "dispatcherId": "agent_readonly_runtime_dispatcher",
+          "taskId": "agent_task_research_query_001",
+          "workerAgent": "ResearchAgent",
+          "skillId": "search_knowledge",
+          "adapterId": "research_agent_search_knowledge_readonly_adapter",
+          "decision": "DISPATCHED",
+          "skillOutput": {
+            "schemaVersion": "2026-06-04.agent.skill.search-knowledge.output.v1",
+            "invocationId": "agent_inv_research_search_001",
+            "taskId": "agent_task_research_query_001",
+            "contextRef": "shared_ctx_research_001",
+            "decision": "FOUND",
+            "summary": "Found 1 policy-scoped knowledge item(s) through the injected read port.",
+            "items": [
+              {
+                "documentId": "private_research_notes_rag",
+                "chunkId": "private_research_notes_rag_chunk_001",
+                "classification": "PRIVATE",
+                "title": "Private research notes: RAG intent directory index",
+                "citation": "private/research/rag/intent-directory-index#private_research_notes_rag_chunk_001",
+                "matchedSnippets": [
+                  {
+                    "text": "private research note compares chunk retrieval with intent directory index",
+                    "score": 0.92,
+                    "sourceRef": "knowledge_chunk_private_research_notes_rag_001"
+                  }
+                ],
+                "sourceEvidenceRefs": [
+                  "knowledge_benchmark_local_private_rag_notes"
+                ]
+              }
+            ],
+            "evidenceRefs": [
+              "knowledge_policy_current",
+              "root_req_research_mode",
+              "evidence:shared-context:research-001",
+              "knowledge_benchmark_local_private_rag_notes",
+              "evidence:input-hash:4ddc3686d4c25c42051643b2",
+              "evidence:adapter:research_agent_search_knowledge_readonly_adapter",
+              "evidence:read-port:KnowledgeQueryReadPort.searchKnowledge",
+              "evidence:runtime-ms:3"
+            ],
+            "safety": {
+              "directDatabaseWriteAllowed": false,
+              "studentArchiveReturned": false,
+              "studentDataReturned": false,
+              "returnedWithinPolicy": true,
+              "externalModelUsed": false,
+              "localToolMutationAllowed": false
+            },
+            "slo": {
+              "p99BudgetMs": 50,
+              "runtimeEvidenceClass": "CONTRACT_ONLY",
+              "runtimeEvidenceRequiredBeforePromotion": true
+            }
+          },
+          "evidenceRefs": [
+            "evidence:dispatcher-admission:research-readonly-001",
+            "knowledge_policy_current",
+            "root_req_research_mode",
+            "evidence:shared-context:research-001",
+            "knowledge_benchmark_local_private_rag_notes",
+            "evidence:input-hash:4ddc3686d4c25c42051643b2",
+            "evidence:adapter:research_agent_search_knowledge_readonly_adapter",
+            "evidence:read-port:KnowledgeQueryReadPort.searchKnowledge",
+            "evidence:runtime-ms:3",
+            "evidence:dispatcher:agent_readonly_runtime_dispatcher",
+            "evidence:dispatch-input-hash:822c1b633a3bd00e5477776d",
+            "evidence:dispatch-runtime-ms:4"
+          ],
+          "safety": {
+            "directDatabaseAccessAllowed": false,
+            "writeOperationAllowed": false,
+            "externalModelCallAllowed": false,
+            "localToolMutationAllowed": false,
+            "swarmAllowed": false
+          },
+          "slo": {
+            "p99BudgetMs": 50,
+            "runtimeEvidenceClass": "REAL_AGENT_READONLY_ADAPTER_INVOCATION",
+            "runtimeEvidenceRequiredBeforePromotion": true
+          }
+        },
+        "readPortRequest": {
+          "portName": "KnowledgeQueryReadPort",
+          "operation": "searchKnowledge",
+          "invocationId": "agent_inv_research_search_001",
+          "taskId": "agent_task_research_query_001",
+          "contextRef": "shared_ctx_research_001",
+          "principal": {
+            "principalId": "teacher_001",
+            "role": "TEACHER",
+            "scopes": [
+              "RESEARCH_READ",
+              "KNOWLEDGE_PUBLIC_READ",
+              "KNOWLEDGE_PRIVATE_READ"
+            ]
+          },
+          "query": "private research rag intent directory index",
+          "filters": {
+            "nodeType": "LOCAL",
+            "allowedClassifications": [
+              "PUBLIC",
+              "PRIVATE"
+            ],
+            "intentTags": [
+              "private_research",
+              "intent_directory_index"
+            ],
+            "includeStudentArchive": false
+          },
+          "limits": {
+            "maxResults": 5,
+            "maxSnippetChars": 320
+          },
+          "evidenceRefs": [
+            "knowledge_policy_current",
+            "root_req_research_mode",
+            "evidence:shared-context:research-001",
+            "evidence:guardrail:guardrail_allow_research_001",
+            "evidence:route:route_research_single_001",
+            "evidence:classification-scope:PUBLIC+PRIVATE",
+            "evidence:input-hash:4ddc3686d4c25c42051643b2"
+          ],
+          "safety": {
+            "directDatabaseAccessAllowed": false,
+            "writeOperationAllowed": false,
+            "studentArchiveAllowed": false,
+            "studentDataAccess": "NONE",
+            "externalModelAllowed": false,
+            "synthesisAllowed": false,
+            "localToolMutationAllowed": false,
+            "allowedClassifications": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          }
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 50,
+          "p99Ms": 4,
+          "totalErrors": 0,
+          "operations": 1,
+          "evidenceClass": "REAL_RESEARCH_AGENT_ADAPTER_DISPATCH_PROBE"
+        }
+      }
+    }
+  },
+  "runtimeInvocations": {
+    "teachingAgentSearchTeachingMaterial": {
+      "status": "PASS",
+      "output": {
+        "schemaVersion": "2026-06-05.agent.readonly-runtime-dispatcher.output.v1",
+        "dispatchId": "agent_readonly_dispatch_001",
+        "dispatcherId": "agent_readonly_runtime_dispatcher",
+        "taskId": "agent_task_lesson_quiz_001",
+        "workerAgent": "TeachingAgent",
+        "skillId": "search_teaching_material",
+        "adapterId": "teaching_agent_search_material_readonly_adapter",
+        "decision": "DISPATCHED",
+        "skillOutput": {
+          "schemaVersion": "2026-06-04.agent.skill.search-teaching-material.output.v1",
+          "invocationId": "skill_call_search_teaching_material_001",
+          "taskId": "agent_task_lesson_quiz_001",
+          "contextRef": "ctx_lesson_quiz_triage_001",
+          "decision": "FOUND",
+          "summary": "Found 1 teaching material item(s) through the injected read port.",
+          "items": [
+            {
+              "archiveItemId": "tarch_teaching_material_001",
+              "ownerType": "TEACHING",
+              "materialType": "TEACHING_MATERIAL",
+              "title": "函数单调性导学案",
+              "contentRef": "teaching-materials/functions/monotonicity/guide-v1.md",
+              "matchedSnippets": [
+                {
+                  "text": "函数单调性教学目标、例题和课堂练习安排。",
+                  "score": 0.92,
+                  "sourceRef": "teaching-materials/functions/monotonicity/guide-v1.md#section-2"
+                }
+              ],
+              "sourceEvidenceRefs": [
+                "evidence:source:tarch_teaching_material_001"
+              ]
+            }
+          ],
+          "evidenceRefs": [
+            "evidence:permission:teaching-read",
+            "evidence:lesson-material:index-hash-001",
+            "evidence:shared-context:ctx_lesson_quiz_triage_001",
+            "evidence:source:tarch_teaching_material_001",
+            "evidence:input-hash:a44b7b33a2d3e9f88dac8a38",
+            "evidence:adapter:teaching_agent_search_material_readonly_adapter",
+            "evidence:read-port:TeachingArchiveReadPort.searchTeachingMaterials",
+            "evidence:runtime-ms:6"
+          ],
+          "safety": {
+            "directDatabaseWriteAllowed": false,
+            "studentDataReturned": false,
+            "privateKnowledgeReturned": false,
+            "externalModelUsed": false
+          },
+          "slo": {
+            "p99BudgetMs": 50,
+            "runtimeEvidenceClass": "CONTRACT_ONLY",
+            "runtimeEvidenceRequiredBeforePromotion": true
+          }
+        },
+        "evidenceRefs": [
+          "evidence:dispatcher-admission:readonly-001",
+          "evidence:permission:teaching-read",
+          "evidence:lesson-material:index-hash-001",
+          "evidence:shared-context:ctx_lesson_quiz_triage_001",
+          "evidence:source:tarch_teaching_material_001",
+          "evidence:input-hash:a44b7b33a2d3e9f88dac8a38",
+          "evidence:adapter:teaching_agent_search_material_readonly_adapter",
+          "evidence:read-port:TeachingArchiveReadPort.searchTeachingMaterials",
+          "evidence:runtime-ms:6",
+          "evidence:dispatcher:agent_readonly_runtime_dispatcher",
+          "evidence:dispatch-input-hash:4ebcd2efb7c5ceb8de706052",
+          "evidence:dispatch-runtime-ms:9"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "externalModelCallAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "slo": {
+          "p99BudgetMs": 50,
+          "runtimeEvidenceClass": "REAL_AGENT_READONLY_ADAPTER_INVOCATION",
+          "runtimeEvidenceRequiredBeforePromotion": true
+        }
+      },
+      "readPortRequest": {
+        "portName": "TeachingArchiveReadPort",
+        "operation": "searchTeachingMaterials",
+        "invocationId": "skill_call_search_teaching_material_001",
+        "taskId": "agent_task_lesson_quiz_001",
+        "contextRef": "ctx_lesson_quiz_triage_001",
+        "principal": {
+          "principalId": "teacher_001",
+          "role": "TEACHER",
+          "scopes": [
+            "TEACHING_READ",
+            "KNOWLEDGE_PUBLIC_READ"
+          ]
+        },
+        "query": "函数单调性随堂测验教学资料",
+        "filters": {
+          "ownerType": "TEACHING",
+          "materialTypes": [
+            "TEACHING_MATERIAL",
+            "HANDOUT"
+          ],
+          "tags": [
+            "函数单调性",
+            "随堂测验"
+          ],
+          "includeStudentArchive": false
+        },
+        "limits": {
+          "maxResults": 5,
+          "maxSnippetChars": 240
+        },
+        "evidenceRefs": [
+          "evidence:permission:teaching-read",
+          "evidence:lesson-material:index-hash-001",
+          "evidence:shared-context:ctx_lesson_quiz_triage_001",
+          "evidence:guardrail:guardrail_allow_read_teaching_001",
+          "evidence:route:route_lesson_quiz_single_001",
+          "evidence:input-hash:a44b7b33a2d3e9f88dac8a38"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "studentDataAccess": "NONE",
+          "externalModelAllowed": false
+        }
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 11,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "REAL_TEACHING_AGENT_ADAPTER_DISPATCH_PROBE"
+      }
+    },
+    "studentTutorRecommendPractice": {
+      "status": "PASS",
+      "output": {
+        "schemaVersion": "2026-06-05.agent.readonly-runtime-dispatcher.output.v1",
+        "dispatchId": "agent_readonly_dispatch_student_tutor_001",
+        "dispatcherId": "agent_readonly_runtime_dispatcher",
+        "taskId": "agent_task_student_tutor_001",
+        "workerAgent": "StudentTutorAgent",
+        "skillId": "recommend_practice",
+        "adapterId": "student_tutor_recommend_practice_readonly_adapter",
+        "decision": "DISPATCHED",
+        "skillOutput": {
+          "schemaVersion": "2026-06-04.agent.skill.recommend-practice.output.v1",
+          "invocationId": "skill_call_recommend_practice_001",
+          "taskId": "agent_task_student_tutor_001",
+          "contextRef": "ctx_student_tutor_001",
+          "decision": "FOUND",
+          "summary": "Found 1 scoped practice recommendation(s) through the injected read port.",
+          "recommendations": [
+            {
+              "practiceId": "practice_function_monotonicity_001",
+              "title": "函数单调性基础巩固练习",
+              "sourceType": "TEACHING_MATERIAL",
+              "knowledgePointIds": [
+                "kp_function_monotonicity"
+              ],
+              "reason": "Recent mistakes point to interval judgment and monotonicity definition confusion.",
+              "sourceEvidenceRefs": [
+                "evidence:source:tarch_teaching_material_001",
+                "evidence:student-scope:student_001"
+              ],
+              "expiresAt": "2026-06-11T00:00:00.000Z"
+            }
+          ],
+          "evidenceRefs": [
+            "evidence:permission:student-own-read",
+            "evidence:student-app-flow:current",
+            "evidence:shared-context:ctx_student_tutor_001",
+            "evidence:source:tarch_teaching_material_001",
+            "evidence:student-scope:student_001",
+            "evidence:input-hash:c51324d465ff8f5ced3cdfbf",
+            "evidence:adapter:student_tutor_recommend_practice_readonly_adapter",
+            "evidence:read-port:StudentLearningReadPort.recommendPracticeContext",
+            "evidence:runtime-ms:5"
+          ],
+          "safety": {
+            "directDatabaseWriteAllowed": false,
+            "crossStudentDataReturned": false,
+            "rawStudentArchiveReturned": false,
+            "finalEvaluationReturned": false,
+            "externalModelUsed": false,
+            "localToolMutationAllowed": false,
+            "returnedWithinStudentScope": true
+          },
+          "slo": {
+            "p99BudgetMs": 50,
+            "runtimeEvidenceClass": "CONTRACT_ONLY",
+            "runtimeEvidenceRequiredBeforePromotion": true
+          }
+        },
+        "evidenceRefs": [
+          "evidence:dispatcher-admission:student-tutor-readonly-001",
+          "evidence:permission:student-own-read",
+          "evidence:student-app-flow:current",
+          "evidence:shared-context:ctx_student_tutor_001",
+          "evidence:source:tarch_teaching_material_001",
+          "evidence:student-scope:student_001",
+          "evidence:input-hash:c51324d465ff8f5ced3cdfbf",
+          "evidence:adapter:student_tutor_recommend_practice_readonly_adapter",
+          "evidence:read-port:StudentLearningReadPort.recommendPracticeContext",
+          "evidence:runtime-ms:5",
+          "evidence:dispatcher:agent_readonly_runtime_dispatcher",
+          "evidence:dispatch-input-hash:f500c515e4dc0c86b681384a",
+          "evidence:dispatch-runtime-ms:6"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "externalModelCallAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "slo": {
+          "p99BudgetMs": 50,
+          "runtimeEvidenceClass": "REAL_AGENT_READONLY_ADAPTER_INVOCATION",
+          "runtimeEvidenceRequiredBeforePromotion": true
+        }
+      },
+      "readPortRequest": {
+        "portName": "StudentLearningReadPort",
+        "operation": "recommendPracticeContext",
+        "invocationId": "skill_call_recommend_practice_001",
+        "taskId": "agent_task_student_tutor_001",
+        "contextRef": "ctx_student_tutor_001",
+        "principal": {
+          "principalId": "student_001",
+          "role": "STUDENT",
+          "scopes": [
+            "STUDENT_OWN_READ",
+            "TEACHING_READ",
+            "KNOWLEDGE_PUBLIC_READ"
+          ]
+        },
+        "query": "根据我最近函数单调性错题推荐练习",
+        "targetStudentScope": {
+          "mode": "OWN",
+          "studentIds": [
+            "student_001"
+          ],
+          "crossStudentComparisonAllowed": false
+        },
+        "learningSignals": {
+          "knowledgePointIds": [
+            "kp_function_monotonicity"
+          ],
+          "recentMistakeRefs": [
+            "mistake_ref_quiz_001_q3"
+          ],
+          "archiveItemRefs": [
+            "tarch_student_archive_001"
+          ]
+        },
+        "filters": {
+          "includeTeachingMaterials": true,
+          "includeStudentArchive": true,
+          "includeOtherStudents": false
+        },
+        "limits": {
+          "maxRecommendations": 3,
+          "maxReasonChars": 240
+        },
+        "evidenceRefs": [
+          "evidence:permission:student-own-read",
+          "evidence:student-app-flow:current",
+          "evidence:shared-context:ctx_student_tutor_001",
+          "evidence:guardrail:guardrail_allow_student_tutor_001",
+          "evidence:route:route_student_tutor_single_001",
+          "evidence:student-scope:student_001",
+          "evidence:input-hash:c51324d465ff8f5ced3cdfbf"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "crossStudentComparisonAllowed": false,
+          "rawStudentArchiveAllowed": false,
+          "finalEvaluationAllowed": false,
+          "externalModelAllowed": false,
+          "localToolMutationAllowed": false
+        }
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "REAL_STUDENT_TUTOR_AGENT_ADAPTER_DISPATCH_PROBE"
+      }
+    },
+    "researchAgentSearchKnowledge": {
+      "status": "PASS",
+      "output": {
+        "schemaVersion": "2026-06-05.agent.readonly-runtime-dispatcher.output.v1",
+        "dispatchId": "agent_readonly_dispatch_research_001",
+        "dispatcherId": "agent_readonly_runtime_dispatcher",
+        "taskId": "agent_task_research_query_001",
+        "workerAgent": "ResearchAgent",
+        "skillId": "search_knowledge",
+        "adapterId": "research_agent_search_knowledge_readonly_adapter",
+        "decision": "DISPATCHED",
+        "skillOutput": {
+          "schemaVersion": "2026-06-04.agent.skill.search-knowledge.output.v1",
+          "invocationId": "agent_inv_research_search_001",
+          "taskId": "agent_task_research_query_001",
+          "contextRef": "shared_ctx_research_001",
+          "decision": "FOUND",
+          "summary": "Found 1 policy-scoped knowledge item(s) through the injected read port.",
+          "items": [
+            {
+              "documentId": "private_research_notes_rag",
+              "chunkId": "private_research_notes_rag_chunk_001",
+              "classification": "PRIVATE",
+              "title": "Private research notes: RAG intent directory index",
+              "citation": "private/research/rag/intent-directory-index#private_research_notes_rag_chunk_001",
+              "matchedSnippets": [
+                {
+                  "text": "private research note compares chunk retrieval with intent directory index",
+                  "score": 0.92,
+                  "sourceRef": "knowledge_chunk_private_research_notes_rag_001"
+                }
+              ],
+              "sourceEvidenceRefs": [
+                "knowledge_benchmark_local_private_rag_notes"
+              ]
+            }
+          ],
+          "evidenceRefs": [
+            "knowledge_policy_current",
+            "root_req_research_mode",
+            "evidence:shared-context:research-001",
+            "knowledge_benchmark_local_private_rag_notes",
+            "evidence:input-hash:4ddc3686d4c25c42051643b2",
+            "evidence:adapter:research_agent_search_knowledge_readonly_adapter",
+            "evidence:read-port:KnowledgeQueryReadPort.searchKnowledge",
+            "evidence:runtime-ms:3"
+          ],
+          "safety": {
+            "directDatabaseWriteAllowed": false,
+            "studentArchiveReturned": false,
+            "studentDataReturned": false,
+            "returnedWithinPolicy": true,
+            "externalModelUsed": false,
+            "localToolMutationAllowed": false
+          },
+          "slo": {
+            "p99BudgetMs": 50,
+            "runtimeEvidenceClass": "CONTRACT_ONLY",
+            "runtimeEvidenceRequiredBeforePromotion": true
+          }
+        },
+        "evidenceRefs": [
+          "evidence:dispatcher-admission:research-readonly-001",
+          "knowledge_policy_current",
+          "root_req_research_mode",
+          "evidence:shared-context:research-001",
+          "knowledge_benchmark_local_private_rag_notes",
+          "evidence:input-hash:4ddc3686d4c25c42051643b2",
+          "evidence:adapter:research_agent_search_knowledge_readonly_adapter",
+          "evidence:read-port:KnowledgeQueryReadPort.searchKnowledge",
+          "evidence:runtime-ms:3",
+          "evidence:dispatcher:agent_readonly_runtime_dispatcher",
+          "evidence:dispatch-input-hash:822c1b633a3bd00e5477776d",
+          "evidence:dispatch-runtime-ms:4"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "externalModelCallAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "slo": {
+          "p99BudgetMs": 50,
+          "runtimeEvidenceClass": "REAL_AGENT_READONLY_ADAPTER_INVOCATION",
+          "runtimeEvidenceRequiredBeforePromotion": true
+        }
+      },
+      "readPortRequest": {
+        "portName": "KnowledgeQueryReadPort",
+        "operation": "searchKnowledge",
+        "invocationId": "agent_inv_research_search_001",
+        "taskId": "agent_task_research_query_001",
+        "contextRef": "shared_ctx_research_001",
+        "principal": {
+          "principalId": "teacher_001",
+          "role": "TEACHER",
+          "scopes": [
+            "RESEARCH_READ",
+            "KNOWLEDGE_PUBLIC_READ",
+            "KNOWLEDGE_PRIVATE_READ"
+          ]
+        },
+        "query": "private research rag intent directory index",
+        "filters": {
+          "nodeType": "LOCAL",
+          "allowedClassifications": [
+            "PUBLIC",
+            "PRIVATE"
+          ],
+          "intentTags": [
+            "private_research",
+            "intent_directory_index"
+          ],
+          "includeStudentArchive": false
+        },
+        "limits": {
+          "maxResults": 5,
+          "maxSnippetChars": 320
+        },
+        "evidenceRefs": [
+          "knowledge_policy_current",
+          "root_req_research_mode",
+          "evidence:shared-context:research-001",
+          "evidence:guardrail:guardrail_allow_research_001",
+          "evidence:route:route_research_single_001",
+          "evidence:classification-scope:PUBLIC+PRIVATE",
+          "evidence:input-hash:4ddc3686d4c25c42051643b2"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "studentArchiveAllowed": false,
+          "studentDataAccess": "NONE",
+          "externalModelAllowed": false,
+          "synthesisAllowed": false,
+          "localToolMutationAllowed": false,
+          "allowedClassifications": [
+            "PUBLIC",
+            "PRIVATE"
+          ]
+        }
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 4,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "REAL_RESEARCH_AGENT_ADAPTER_DISPATCH_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "singleWorkerOnly": true,
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false,
+    "externalModelCallAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false,
+    "fullAgentLoopClaimAllowed": false
+  },
+  "findings": [
+    {
+      "id": "dispatcher.schema_identity",
+      "passed": true,
+      "severity": "info",
+      "actual": "schema=2026-06-04.agent.readonly-runtime-dispatcher.v1;dispatcher=agent_readonly_runtime_dispatcher;route=SINGLE_WORKER_ONLY",
+      "expected": "readonly runtime dispatcher v1, agent_readonly_runtime_dispatcher, SINGLE_WORKER_ONLY",
+      "remediation": "Keep this dispatcher as the narrow read-only single-worker entry until the full Agent Loop is implemented."
+    },
+    {
+      "id": "dispatcher.adapters_allowlist",
+      "passed": true,
+      "severity": "info",
+      "actual": "TeachingAgent.search_teaching_material:TeachingArchiveReadPort.searchTeachingMaterials:p99=50;StudentTutorAgent.recommend_practice:StudentLearningReadPort.recommendPracticeContext:p99=50;ResearchAgent.search_knowledge:KnowledgeQueryReadPort.searchKnowledge:p99=50",
+      "expected": "TeachingAgent.search_teaching_material,StudentTutorAgent.recommend_practice,ResearchAgent.search_knowledge",
+      "remediation": "Dispatcher must only expose TeachingAgent, StudentTutorAgent, and ResearchAgent read-only fast paths."
+    },
+    {
+      "id": "dispatcher.boundary_readonly_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "write=false;directDb=false;model=false;localTool=false;swarm=false;deepResearch=false;finalEval=false;rejection=DENY_WITH_EVIDENCE",
+      "expected": "no writes, no direct DB, no model calls, no local mutation, no swarm, no deep research, no final evaluation",
+      "remediation": "Read-only runtime dispatcher must deny unsafe requests with evidence instead of silently routing them."
+    },
+    {
+      "id": "dispatcher.admission_guards",
+      "passed": true,
+      "severity": "info",
+      "actual": "principalContextRequired=true;sharedContextRequired=true;guardrailResultRequired=true;adapterAllowlistRequired=true;denyUnknownSkill=true;denyOnWriteIntent=true;denyOnCrossScopeData=true;denyOnExternalModelRequest=true;denyOnLocalToolMutation=true",
+      "expected": "principal/shared/guardrail/allowlist and denial guards all true",
+      "remediation": "Dispatcher admission must keep identity, context, guardrail, and allowlist checks mandatory."
+    },
+    {
+      "id": "dispatcher.evidence_required",
+      "passed": true,
+      "severity": "info",
+      "actual": "routeDecisionRequired=true;skillInvocationTraceRequired=true;inputHashRequired=true;outputSummaryRequired=true;adapterDecisionRequired=true;sourceSloReportRequired=true;runtimeTimingRequired=true",
+      "expected": "route, invocation, input hash, output summary, adapter decision, source SLO, and timing evidence all true",
+      "remediation": "Every dispatch must be traceable before this can become a real runtime entry."
+    },
+    {
+      "id": "dispatcher.aggregate_slo_contract",
+      "passed": true,
+      "severity": "info",
+      "actual": "p99=50;strategy=MAX_COMPONENT_P99;zeroErrors=true;min=3",
+      "expected": "p99<=50, MAX_COMPONENT_P99, requiredZeroErrors=true, minComponentCount=3",
+      "remediation": "Aggregate SLO must be based on the slowest component and require all three read-only paths."
+    },
+    {
+      "id": "runtime.components_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "TeachingAgent:ready=true:p99=11:errors=0;StudentTutorAgent:ready=true:p99=11:errors=0;ResearchAgent:ready=true:p99=2.55:errors=0",
+      "expected": "all three component runtime SLO reports READY",
+      "remediation": "Regenerate TeachingAgent, StudentTutorAgent, and ResearchAgent read-only runtime SLO reports before promoting dispatcher evidence."
+    },
+    {
+      "id": "runtime.aggregate_p99_within_target",
+      "passed": true,
+      "severity": "info",
+      "actual": 11,
+      "expected": "<=50",
+      "remediation": "The dispatcher cannot claim 50ms if any read-only component exceeds 50ms P99."
+    },
+    {
+      "id": "runtime.aggregate_errors_zero",
+      "passed": true,
+      "severity": "info",
+      "actual": 0,
+      "expected": 0,
+      "remediation": "The dispatcher cannot promote while any component reports runtime errors."
+    },
+    {
+      "id": "runtime.implementation_invokes_teaching_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "decision=DISPATCHED;skill=TeachingAgent.search_teaching_material;p99=11;errors=0",
+      "expected": "dispatcher invokes the real TeachingAgent runtime adapter through the injected read port with p99<=50 and zero errors",
+      "remediation": "Wire the dispatcher to a real adapter implementation before claiming more than contract-level dispatcher evidence."
+    },
+    {
+      "id": "runtime.implementation_invokes_student_tutor_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "decision=DISPATCHED;skill=StudentTutorAgent.recommend_practice;p99=6;errors=0",
+      "expected": "dispatcher invokes the real StudentTutorAgent runtime adapter through the injected read port with p99<=50 and zero errors",
+      "remediation": "Wire StudentTutorAgent.recommend_practice through the real read-only runtime adapter before using it as student workflow evidence."
+    },
+    {
+      "id": "runtime.implementation_invokes_research_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "decision=DISPATCHED;skill=ResearchAgent.search_knowledge;p99=4;errors=0",
+      "expected": "dispatcher invokes the real ResearchAgent runtime adapter through the injected read port with p99<=50 and zero errors",
+      "remediation": "Wire ResearchAgent.search_knowledge through the real read-only runtime adapter before using it as research workflow evidence."
+    },
+    {
+      "id": "runtime.implementation_boundary_scanned",
+      "passed": true,
+      "severity": "info",
+      "actual": "dispatcher runtime and tests scanned",
+      "expected": "TeachingAgent, StudentTutorAgent, and ResearchAgent real runtimes wired; unsafe paths are tested",
+      "remediation": "Keep the runtime implementation and negative tests registered so the dispatcher cannot drift back into a prose-only contract."
+    },
+    {
+      "id": "promotion.no_full_agent_claims",
+      "passed": true,
+      "severity": "info",
+      "actual": "class=AGGREGATED_RUNTIME_SLO_FROM_READONLY_FAST_PATHS;root=true;loop=false;swarm=false;model=false",
+      "expected": "aggregated read-only evidence only; no full Agent Loop, Swarm, or model reasoning claims",
+      "remediation": "Keep this report honest: it is a dispatcher for read-only fast paths, not a completed Agent product."
+    }
+  ],
+  "nextAction": "Use this as the shared read-only Agent Runtime Dispatcher evidence with real TeachingAgent, StudentTutorAgent, and ResearchAgent adapter calls; next slice can expose the higher Agent API without repeating broad production10k tests."
+}

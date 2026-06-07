@@ -9,16 +9,17 @@ import (
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 	"ita-refactor/services/teaching-archive-gateway/internal/platform"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
-func (r *ArchiveRepository) Create(ctx context.Context, item domain.ArchiveItem) error {
+func (r *ArchiveRepository) Create(ctx context.Context, item domain.ArchiveItem) (usecase.WritePersistenceOutcome, error) {
 	tags, err := json.Marshal(item.Tags)
 	if err != nil {
-		return err
+		return usecase.WritePersistenceOutcome{}, err
 	}
 	intents, err := json.Marshal(item.AnalysisIntents)
 	if err != nil {
-		return err
+		return usecase.WritePersistenceOutcome{}, err
 	}
 
 	insertStart := time.Now()
@@ -50,7 +51,10 @@ func (r *ArchiveRepository) Create(ctx context.Context, item domain.ArchiveItem)
 		item.CreatedAt,
 	)
 	recordDBInsertTiming(ctx, observableDuration(time.Since(insertStart)))
-	return err
+	if err != nil {
+		return usecase.WritePersistenceOutcome{}, err
+	}
+	return usecase.PersistedWriteOutcome(), nil
 }
 
 func recordDBInsertTiming(ctx context.Context, duration time.Duration) {
@@ -145,6 +149,76 @@ func (r *ArchiveRepository) List(ctx context.Context, query domain.ArchiveItemQu
 		FROM teaching_archive_items
 		WHERE `+strings.Join(clauses, " AND ")+`
 		ORDER BY created_at DESC, id DESC
+		LIMIT `+limitArg,
+		args...,
+	)
+	if err != nil {
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
+		return nil, err
+	}
+	defer func() {
+		rows.Close()
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
+	}()
+
+	items := make([]domain.ArchiveItem, 0, query.FetchLimit)
+	for rows.Next() {
+		item, err := scanArchiveItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (r *ArchiveRepository) ListPublishedForStudentApp(ctx context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
+	args := make([]any, 0, 6)
+	clauses := []string{"item.owner_type = " + nextArg(&args, string(domain.OwnerTypeStudent))}
+
+	if query.StudentID != "" {
+		clauses = append(clauses, "item.student_id = "+nextArg(&args, query.StudentID))
+	}
+	if query.MaterialType != "" {
+		clauses = append(clauses, "item.material_type = "+nextArg(&args, string(query.MaterialType)))
+	}
+	if query.Cursor != nil {
+		createdAtArg := nextArg(&args, query.Cursor.CreatedAt)
+		idArg := nextArg(&args, query.Cursor.ID)
+		clauses = append(clauses, fmt.Sprintf("(item.created_at, item.id) < (%s, %s)", createdAtArg, idArg))
+	}
+	limitArg := nextArg(&args, query.FetchLimit)
+
+	queryStart := time.Now()
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			item.id,
+			item.owner_type,
+			item.student_id,
+			item.material_type,
+			item.title,
+			item.source,
+			item.content_ref,
+			item.tags,
+			item.analysis_intents,
+			item.ocr_status,
+			item.created_at
+		FROM teaching_archive_items AS item
+		WHERE `+strings.Join(clauses, " AND ")+`
+			AND EXISTS (
+				SELECT 1
+				FROM teaching_archive_publications AS publication
+				WHERE publication.archive_item_id = item.id
+					AND publication.student_id = item.student_id
+					AND publication.scope_type = 'STUDENT_OWN_ARCHIVE'
+					AND publication.publication_state = 'COMMITTED_TO_PUBLICATION_STORE'
+					AND publication.visibility_state = 'STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED'
+					AND publication.channel = 'STUDENT_APP'
+			)
+		ORDER BY item.created_at DESC, item.id DESC
 		LIMIT `+limitArg,
 		args...,
 	)

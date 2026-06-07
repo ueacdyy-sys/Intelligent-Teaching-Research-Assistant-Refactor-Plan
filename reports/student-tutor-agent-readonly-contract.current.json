@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-06-07T12:28:44.545Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_TUTOR_AGENT_READONLY_CONTRACT_AUDIT",
+  "summary": {
+    "studentTutorReadOnlySkill": {
+      "skillId": "recommend_practice",
+      "workerAgent": "StudentTutorAgent",
+      "schemaRefsReady": true,
+      "inputBoundaryReady": true,
+      "outputBoundaryReady": true
+    },
+    "studentTutorReadOnlyAdapter": {
+      "adapterId": "student_tutor_recommend_practice_readonly_adapter",
+      "readPortReady": true,
+      "guardsReady": true,
+      "evidenceSloReady": true
+    }
+  },
+  "findings": [
+    {
+      "id": "student_tutor_readonly_skill.manifest",
+      "passed": true,
+      "severity": "info",
+      "actual": "skill=recommend_practice;worker=StudentTutorAgent;p99=50;scopes=PUBLIC/ASSIGNED/READ/NONE/NONE;perms=STUDENT_OWN_READ|STUDENT_ASSIGNED_READ|TEACHING_READ;directDb=false;harness=false",
+      "expected": "StudentTutorAgent recommend_practice read-only manifest, p99<=50, own/assigned student scope",
+      "remediation": "StudentTutorAgent needs a low-latency read-only recommend_practice Skill before AI tutor runtime work."
+    },
+    {
+      "id": "student_tutor_readonly_skill.input_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "version=2026-06-04.agent.skill.recommend-practice.input.v1;p99=50;write=false;student=OWN_OR_ASSIGNED;externalModel=false;finalEval=false;crossStudent=false;includeOther=false",
+      "expected": "contextRef required, p99<=50, no write, own/assigned only, no cross-student, no external model",
+      "remediation": "StudentTutorAgent fast-path input must stay scoped to own/assigned learning signals."
+    },
+    {
+      "id": "student_tutor_readonly_skill.output_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "version=2026-06-04.agent.skill.recommend-practice.output.v1;directDb=false;crossStudent=false;rawArchive=false;finalEval=false;externalModel=false;localTool=false;withinScope=true;p99=50",
+      "expected": "practice recommendations only, no raw archive, no cross-student data, no final evaluation, p99<=50",
+      "remediation": "StudentTutorAgent output must not leak raw student archive data or final evaluations."
+    },
+    {
+      "id": "student_tutor_readonly_skill.examples_safe_fast_path",
+      "passed": true,
+      "severity": "info",
+      "actual": "inputVersion=2026-06-04.agent.skill.recommend-practice.input.v1;write=false;crossStudent=false;includeOther=false;studentAccess=OWN_OR_ASSIGNED;externalModel=false;finalEval=false;inputP99=50;outputVersion=2026-06-04.agent.skill.recommend-practice.output.v1;outputP99=50;evidenceRefs=3",
+      "expected": "examples are read-only, scoped, evidence-backed, no model, and <=50ms",
+      "remediation": "StudentTutorAgent examples must prove safe scoped recommendations before runtime adapter promotion."
+    },
+    {
+      "id": "student_tutor_readonly_adapter.identity_and_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion=2026-06-04.agent.student-tutor-readonly-adapter.v1;adapter=student_tutor_recommend_practice_readonly_adapter;worker=StudentTutorAgent;skill=recommend_practice;port=StudentLearningReadPort;operation=recommendPracticeContext;directDb=false;write=false",
+      "expected": "StudentTutorAgent SINGLE_WORKER adapter bound to StudentLearningReadPort.recommendPracticeContext",
+      "remediation": "StudentTutorAgent read-only adapter must call a read port instead of direct database or write adapters."
+    },
+    {
+      "id": "student_tutor_readonly_adapter.guards_evidence_slo",
+      "passed": true,
+      "severity": "info",
+      "actual": "denyWrite=true;denyCross=true;denyRaw=true;denyFinal=true;denyModel=true;denyTool=true;scopes=PUBLIC/ASSIGNED/READ/NONE/NONE;studentScopeEvidence=true;timing=true;p99=50;promotion=true;schemaGuards=7",
+      "expected": "guards/evidence/student-scope/SLO/root-workflow promotion all required",
+      "remediation": "StudentTutorAgent read-only adapter must keep privacy guards, student-scope evidence, and timing gates."
+    }
+  ]
+}

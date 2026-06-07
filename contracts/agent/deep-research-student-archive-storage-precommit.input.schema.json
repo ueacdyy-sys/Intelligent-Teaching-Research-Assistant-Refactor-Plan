@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-teaching-assistant.local/contracts/agent/deep-research-student-archive-storage-precommit.input.schema.json",
+  "title": "Research deep_research student archive storage precommit input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "precommitInvocationId",
+    "principal",
+    "studentArchiveProjectionOutput",
+    "studentArchiveStoragePolicy",
+    "studentArchiveStorageRequest",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2026-06-05.research.deep-research-student-archive-storage-precommit.v1"
+    },
+    "precommitInvocationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "principal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "principalId",
+        "subjectType",
+        "role",
+        "entryPoint",
+        "scopes",
+        "knowledgeAccess",
+        "studentAccess",
+        "requiresHarnessApproval",
+        "sessionId",
+        "issuedAt",
+        "expiresAt"
+      ],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "subjectType": { "const": "SERVICE" },
+        "role": { "const": "SERVICE" },
+        "entryPoint": { "const": "AGENT_INTERNAL" },
+        "scopes": {
+          "type": "array",
+          "contains": { "const": "STUDENT_ARCHIVE_WRITE" },
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "knowledgeAccess": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["public", "private"],
+          "properties": {
+            "public": { "const": true },
+            "private": { "enum": ["NONE", "OWN", "ASSIGNED", "ALL"] }
+          }
+        },
+        "studentAccess": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": { "enum": ["ASSIGNED", "ALL"] },
+            "studentIds": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "uniqueItems": true
+            }
+          }
+        },
+        "requiresHarnessApproval": { "const": false },
+        "sessionId": { "type": "string", "minLength": 1 },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "studentArchiveProjectionOutput": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schemaVersion",
+        "runtimeId",
+        "commandPort",
+        "status",
+        "recordId",
+        "studentArchiveProjectionRecord",
+        "boundary"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "2026-06-05.research.deep-research-student-archive-projection-recorded.v1"
+        },
+        "runtimeId": {
+          "const": "research_deep_research_student_archive_projection_runtime"
+        },
+        "commandPort": {
+          "const": "DeepResearchStudentArchiveProjectionPort.projectReviewedStudentArchiveEntry"
+        },
+        "status": {
+          "const": "STUDENT_ARCHIVE_PROJECTION_WRITTEN"
+        },
+        "studentArchiveProjectionRecord": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["projectionId", "projectionKind", "projectionState", "targetArchiveKind", "title", "claims"],
+          "properties": {
+            "projectionKind": { "const": "DURABLE_STUDENT_ARCHIVE_PROJECTION_RECORD" },
+            "projectionState": { "const": "PROJECTED_TO_STUDENT_ARCHIVE" },
+            "targetArchiveKind": { "const": "STUDENT_LEARNING_ARCHIVE" },
+            "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "claims": { "type": "array", "minItems": 1 }
+          }
+        },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "studentArchiveProjectionWritten": { "const": true },
+            "studentArchivePersisted": { "const": true },
+            "mainDatabaseWriteStarted": { "const": false }
+          }
+        }
+      }
+    },
+    "studentArchiveStoragePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projectionOutputRequired",
+        "teachingArchiveCreateItemPrecommitAllowed",
+        "teachingArchiveDomainValidationRequired",
+        "preserveProjectionEvidenceRequired",
+        "idempotentStorageCommandRequired",
+        "studentArchiveWritePrincipalRequired",
+        "studentAudienceScopeRequired",
+        "mainDatabaseWriteAllowed",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "directPublicationAllowed",
+        "externalModelCallAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "projectionOutputRequired": { "const": true },
+        "teachingArchiveCreateItemPrecommitAllowed": { "const": true },
+        "teachingArchiveDomainValidationRequired": { "const": true },
+        "preserveProjectionEvidenceRequired": { "const": true },
+        "idempotentStorageCommandRequired": { "const": true },
+        "studentArchiveWritePrincipalRequired": { "const": true },
+        "studentAudienceScopeRequired": { "const": true },
+        "mainDatabaseWriteAllowed": { "const": false },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "directPublicationAllowed": { "const": false },
+        "externalModelCallAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "studentArchiveStorageRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetStudentId",
+        "materialType",
+        "analysisIntents",
+        "tags",
+        "contentRefPrefix",
+        "ocrReserved",
+        "sourceProjectionId"
+      ],
+      "properties": {
+        "targetStudentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "materialType": { "enum": ["QUIZ", "PAPER", "HANDOUT", "HOMEWORK"] },
+        "analysisIntents": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": { "enum": ["ARCHIVE_ONLY", "TUTORING"] },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "uniqueItems": true
+        },
+        "contentRefPrefix": { "const": "research-deep-research-projection" },
+        "ocrReserved": { "type": "boolean" },
+        "sourceProjectionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 240,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 240
+    }
+  }
+}

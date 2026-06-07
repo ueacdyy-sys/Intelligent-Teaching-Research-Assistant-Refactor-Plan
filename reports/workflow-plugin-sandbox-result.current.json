@@ -1,0 +1,200 @@
+{
+  "generatedAt": "2026-06-07T12:29:37.645Z",
+  "readiness": "READY",
+  "workloadType": "WORKFLOW_PLUGIN_SANDBOX_RESULT_RUNTIME",
+  "commandPort": "WorkflowSandboxCommandPort.recordWorkflowPluginSandboxRunResult",
+  "boundary": {
+    "passingStatus": "SANDBOX_PASSED_REVIEW_REQUIRED",
+    "failingStatus": "SANDBOX_FAILED_REVISION_REQUIRED",
+    "registrySaveAllowed": false,
+    "workflowPublishAllowed": false,
+    "executionCandidateAllowed": false,
+    "localGeneratedCodeExecuted": false,
+    "humanApprovalRequiredBeforeRegistry": true
+  },
+  "runtimeProbes": {
+    "pass": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.workflow-plugin.sandbox-result-recorded.v1",
+        "commandPort": "WorkflowSandboxCommandPort.recordWorkflowPluginSandboxRunResult",
+        "status": "SANDBOX_PASSED_REVIEW_REQUIRED",
+        "recordId": "workflow_plugin_sandbox_result_audit-workflow-sandbox-result-pass",
+        "recordedAt": "2026-06-05T01:00:00.000Z",
+        "idempotencyKey": "audit-workflow-sandbox-result-pass",
+        "idempotentReplay": false,
+        "draft": {
+          "draftId": "workflow_draft_lesson_archive_review",
+          "artifactKind": "WORKFLOW",
+          "capabilityKind": "WORKFLOW",
+          "origin": "USER_REQUEST"
+        },
+        "sandboxRun": {
+          "runId": "sandbox_run_lesson_archive_review_001",
+          "draftId": "workflow_draft_lesson_archive_review",
+          "status": "PASS",
+          "p95Ms": 40,
+          "maxMemoryMb": 64,
+          "failedTestCount": 0
+        },
+        "revisionRequired": false,
+        "revisionRequest": null,
+        "boundary": {
+          "sandboxResultRecorded": true,
+          "generatedCodeExecutedInSandbox": true,
+          "localGeneratedCodeExecuted": false,
+          "noHostWriteRequired": true,
+          "networkPolicyRequired": "DEFAULT_DENY",
+          "humanApprovalRequiredBeforeRegistry": true,
+          "registrySaveAllowed": false,
+          "workflowPublishAllowed": false,
+          "executionCandidateAllowed": false,
+          "directDatabaseWriteAllowed": false
+        },
+        "nextAction": "Request human performance/effect review before registry admission."
+      },
+      "logRecordCount": 1
+    },
+    "fail": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.workflow-plugin.sandbox-result-recorded.v1",
+        "commandPort": "WorkflowSandboxCommandPort.recordWorkflowPluginSandboxRunResult",
+        "status": "SANDBOX_FAILED_REVISION_REQUIRED",
+        "recordId": "workflow_plugin_sandbox_result_audit-workflow-sandbox-result-fail",
+        "recordedAt": "2026-06-05T01:00:00.000Z",
+        "idempotencyKey": "audit-workflow-sandbox-result-fail",
+        "idempotentReplay": false,
+        "draft": {
+          "draftId": "workflow_draft_lesson_archive_review",
+          "artifactKind": "WORKFLOW",
+          "capabilityKind": "WORKFLOW",
+          "origin": "USER_REQUEST"
+        },
+        "sandboxRun": {
+          "runId": "sandbox_run_lesson_archive_review_001_fail",
+          "draftId": "workflow_draft_lesson_archive_review",
+          "status": "FAIL",
+          "p95Ms": 40,
+          "maxMemoryMb": 64,
+          "failedTestCount": 1
+        },
+        "revisionRequired": true,
+        "revisionRequest": {
+          "schemaVersion": "2026-05-30.workflow-plugin.revision-request.v1",
+          "generatedAt": "2026-06-05T01:00:00.000Z",
+          "draftId": "workflow_draft_lesson_archive_review",
+          "sourceKind": "SANDBOX_FAILURE",
+          "sourceEvidenceId": "sandbox_run_lesson_archive_review_001_fail",
+          "revisionDecision": "REVISION_REQUIRED",
+          "saveBlocked": true,
+          "issues": [
+            "Sandbox failure blocked registry save.",
+            "sandbox test failed: workflow dry-run contract test"
+          ],
+          "recommendedActions": [
+            "Revise generated files using the preserved sandbox feedback.",
+            "Re-run sandbox tests before requesting human approval again."
+          ]
+        },
+        "boundary": {
+          "sandboxResultRecorded": true,
+          "generatedCodeExecutedInSandbox": true,
+          "localGeneratedCodeExecuted": false,
+          "noHostWriteRequired": true,
+          "networkPolicyRequired": "DEFAULT_DENY",
+          "humanApprovalRequiredBeforeRegistry": true,
+          "registrySaveAllowed": false,
+          "workflowPublishAllowed": false,
+          "executionCandidateAllowed": false,
+          "directDatabaseWriteAllowed": false
+        },
+        "nextAction": "Revise generated files from sandbox feedback, then submit a new review-only draft intent."
+      },
+      "logRecordCount": 1
+    }
+  },
+  "findings": [
+    {
+      "id": "sandbox_contract.default_deny_no_host_write",
+      "passed": true,
+      "severity": "info",
+      "actual": "executed=true;noHostWrite=true;network=DEFAULT_DENY;required=tests,performanceSummary,feedback",
+      "expected": "executedInSandbox=true, noHostWrite=true, networkPolicy=DEFAULT_DENY, tests/performance/feedback required",
+      "remediation": "Sandbox result evidence must prove isolation before it can feed human review."
+    },
+    {
+      "id": "runtime.requires_internal_recorder_and_evidence",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime recorder and evidence symbols scanned",
+      "expected": "internal service/admin recorder plus sandbox manifest, context, guardrail, route, rollback, audit, and idempotency evidence",
+      "remediation": "Sandbox results should not be accepted from students, remote channels, or untraceable callers."
+    },
+    {
+      "id": "runtime.append_only_no_registry_publish",
+      "passed": true,
+      "severity": "info",
+      "actual": "appendFileSync=true;ALLOW_SAVE=false;registrySaveAllowed: true=false;execSync(=false",
+      "expected": "append-only sandbox evidence; no registry save, publish, local execution, or execution candidate",
+      "remediation": "This runtime records sandbox results only; registry admission remains a later human-approved gate."
+    },
+    {
+      "id": "runtime.revision_feedback_wired",
+      "passed": true,
+      "severity": "info",
+      "actual": "buildWorkflowPluginRevisionRequest=true;revisionDecision=true;REVISION_REQUIRED=true",
+      "expected": "failing sandbox results use the revision feedback builder and block save",
+      "remediation": "Wire failed sandbox results into revision feedback instead of silently recording failures."
+    },
+    {
+      "id": "runtime.pass_probe_requires_human_review",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=SANDBOX_PASSED_REVIEW_REQUIRED;revision=false;records=1;registry=false",
+      "expected": "passing sandbox result is recorded and still requires human review before registry save",
+      "remediation": "Passing sandbox evidence must not bypass human performance/effect review."
+    },
+    {
+      "id": "runtime.fail_probe_blocks_save_with_revision",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=SANDBOX_FAILED_REVISION_REQUIRED;revision=true;saveBlocked=true;records=1",
+      "expected": "failing sandbox result creates blocking revision feedback",
+      "remediation": "Failed sandbox tests must produce revision feedback instead of moving toward registry save."
+    },
+    {
+      "id": "tests.cover_safety_and_idempotency_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime test negative paths scanned",
+      "expected": "failed sandbox, non-service recorder, host write rejection, and idempotency replay are tested",
+      "remediation": "Keep sandbox failure and authorization regressions covered before adding any real execution runner."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_audit",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:workflow-plugin-sandbox-result=true;Workflow plugin sandbox result runtime audit=true",
+      "expected": "npm script and strict quality command include workflow plugin sandbox result audit",
+      "remediation": "Add this runtime audit to the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_sandbox_result_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "workflowPluginSandboxResult=true;workflow-plugin-sandbox-result.current.json=true",
+      "expected": "workflow_plugin_self_evolution root coverage requires sandbox result runtime report",
+      "remediation": "Root workflow coverage should include the sandbox result runtime evidence."
+    },
+    {
+      "id": "quality.structure_tracks_slice",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires runtime, audit, tests, and SDD",
+      "remediation": "Add the sandbox result slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as workflow/plugin sandbox result runtime evidence; next slice can connect human performance/effect approval without enabling registry execution."
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "2026-06-04.agent.shared-context.v1",
+  "contextId": "ctx_lesson_quiz_triage_001",
+  "principalContextRef": "contracts/auth/principal-context.schema.json#teacher_assigned_class",
+  "sessionId": "session_teacher_001",
+  "taskId": "agent_task_lesson_quiz_001",
+  "rootRequirementAnchors": ["教学模式", "随堂测验", "学生端", "统筹智能体"],
+  "dataScopes": {
+    "principal": "teacher:assigned-class",
+    "teaching": "WRITE",
+    "student": "ASSIGNED",
+    "research": "NONE",
+    "knowledge": "PUBLIC",
+    "tool": "NONE"
+  },
+  "evidenceRefs": ["evidence:lesson-material:hash-001", "evidence:permission:teaching-write"],
+  "redactionState": {
+    "mode": "PARTIAL",
+    "studentDataRedacted": true,
+    "privateKnowledgeRedacted": true,
+    "externalModelAllowed": false
+  },
+  "tokenBudget": { "maxInputTokens": 6000, "maxOutputTokens": 1200 },
+  "latencyBudgetMs": 50,
+  "memoryRefs": [
+    {
+      "memoryId": "run-memory-lesson-quiz-001",
+      "scope": "RUN",
+      "sourceEvidenceRef": "evidence:lesson-material:hash-001"
+    }
+  ],
+  "expirationPolicy": {
+    "expiresAt": "2026-06-04T12:00:00.000Z",
+    "retentionClass": "RUN_ONLY",
+    "deleteOnRevoke": true
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "generatedAt": "2026-06-07T12:29:19.160Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_AGENT_READONLY_RUNTIME_ADAPTER",
+  "adapter": {
+    "adapterId": "research_agent_search_knowledge_readonly_adapter",
+    "workerAgent": "ResearchAgent",
+    "skillId": "search_knowledge",
+    "readPort": "KnowledgeQueryReadPort.searchKnowledge"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "RUNTIME_ADAPTER_PROBE_WITH_INJECTED_KNOWLEDGE_READ_PORT"
+  },
+  "safetyInvariants": {
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false,
+    "studentArchiveReturned": false,
+    "studentDataReturned": false,
+    "returnedWithinPolicy": true,
+    "externalModelUsed": false,
+    "localToolMutationAllowed": false,
+    "synthesisAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "invoke": {
+      "status": "PASS",
+      "output": {
+        "schemaVersion": "2026-06-04.agent.skill.search-knowledge.output.v1",
+        "invocationId": "agent_inv_research_search_001",
+        "taskId": "agent_task_research_query_001",
+        "contextRef": "shared_ctx_research_001",
+        "decision": "FOUND",
+        "summary": "Found 1 policy-scoped knowledge item(s) through the injected read port.",
+        "items": [
+          {
+            "documentId": "private_research_notes_rag",
+            "chunkId": "private_research_notes_rag_chunk_001",
+            "classification": "PRIVATE",
+            "title": "Private research notes: RAG intent directory index",
+            "citation": "private/research/rag/intent-directory-index#private_research_notes_rag_chunk_001",
+            "matchedSnippets": [
+              {
+                "text": "private research note compares chunk retrieval with intent directory index",
+                "score": 0.92,
+                "sourceRef": "knowledge_chunk_private_research_notes_rag_001"
+              }
+            ],
+            "sourceEvidenceRefs": [
+              "knowledge_benchmark_local_private_rag_notes"
+            ]
+          }
+        ],
+        "evidenceRefs": [
+          "knowledge_policy_current",
+          "root_req_research_mode",
+          "evidence:shared-context:research-001",
+          "knowledge_benchmark_local_private_rag_notes",
+          "evidence:input-hash:4ddc3686d4c25c42051643b2",
+          "evidence:adapter:research_agent_search_knowledge_readonly_adapter",
+          "evidence:read-port:KnowledgeQueryReadPort.searchKnowledge",
+          "evidence:runtime-ms:3"
+        ],
+        "safety": {
+          "directDatabaseWriteAllowed": false,
+          "studentArchiveReturned": false,
+          "studentDataReturned": false,
+          "returnedWithinPolicy": true,
+          "externalModelUsed": false,
+          "localToolMutationAllowed": false
+        },
+        "slo": {
+          "p99BudgetMs": 50,
+          "runtimeEvidenceClass": "CONTRACT_ONLY",
+          "runtimeEvidenceRequiredBeforePromotion": true
+        }
+      },
+      "readPortRequest": {
+        "portName": "KnowledgeQueryReadPort",
+        "operation": "searchKnowledge",
+        "invocationId": "agent_inv_research_search_001",
+        "taskId": "agent_task_research_query_001",
+        "contextRef": "shared_ctx_research_001",
+        "principal": {
+          "principalId": "teacher_001",
+          "role": "TEACHER",
+          "scopes": [
+            "RESEARCH_READ",
+            "KNOWLEDGE_PUBLIC_READ",
+            "KNOWLEDGE_PRIVATE_READ"
+          ]
+        },
+        "query": "private research rag intent directory index",
+        "filters": {
+          "nodeType": "LOCAL",
+          "allowedClassifications": [
+            "PUBLIC",
+            "PRIVATE"
+          ],
+          "intentTags": [
+            "private_research",
+            "intent_directory_index"
+          ],
+          "includeStudentArchive": false
+        },
+        "limits": {
+          "maxResults": 5,
+          "maxSnippetChars": 320
+        },
+        "evidenceRefs": [
+          "knowledge_policy_current",
+          "root_req_research_mode",
+          "evidence:shared-context:research-001",
+          "evidence:guardrail:guardrail_allow_research_001",
+          "evidence:route:route_research_single_001",
+          "evidence:classification-scope:PUBLIC+PRIVATE",
+          "evidence:input-hash:4ddc3686d4c25c42051643b2"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "studentArchiveAllowed": false,
+          "studentDataAccess": "NONE",
+          "externalModelAllowed": false,
+          "synthesisAllowed": false,
+          "localToolMutationAllowed": false,
+          "allowedClassifications": [
+            "PUBLIC",
+            "PRIVATE"
+          ]
+        }
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "RUNTIME_ADAPTER_PROBE_WITH_INJECTED_KNOWLEDGE_READ_PORT"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.adapter_identity_and_read_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "adapter=research_agent_search_knowledge_readonly_adapter;worker=ResearchAgent;skill=search_knowledge;route=SINGLE_WORKER;port=KnowledgeQueryReadPort.searchKnowledge;directDb=false;write=false",
+      "expected": "ResearchAgent.search_knowledge SINGLE_WORKER via KnowledgeQueryReadPort.searchKnowledge with no direct DB or writes",
+      "remediation": "Keep the Research runtime adapter bound to the checked knowledge read port rather than a database, write repository, or model call."
+    },
+    {
+      "id": "contract.skill_input_output_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "write=false;student=NONE;external=false;synthesis=false;studentArchive=false;p99=50;outputWrite=false;outputStudentArchive=false;outputWithinPolicy=true",
+      "expected": "input denies write/student/model/synthesis; output is policy-scoped and safety=false",
+      "remediation": "ResearchAgent search_knowledge boundaries must stay retrieval-only before runtime invocation can count as research workflow evidence."
+    },
+    {
+      "id": "runtime.requires_injected_read_port_and_context_guards",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime guard symbols scanned",
+      "expected": "injected read port plus principal/shared context/guardrail/route gates",
+      "remediation": "The runtime adapter must validate every upstream control-plane artifact before it invokes the knowledge read port."
+    },
+    {
+      "id": "runtime.no_side_effects_direct_db_model_or_student_archive",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:fs=false;readFileSync=false;writeFileSync=false;appendFileSync=false;mkdirSync=false;node:child_process=false;execSync(=false;spawn(=false;execFile(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;directDatabaseAccessAllowed: true=false;writeOperationAllowed: true=false;studentArchiveReturned: true=false;studentDataReturned: true=false;returnedWithinPolicy: false=false;externalModelUsed: true=false;localToolMutationAllowed: true=false",
+      "expected": "runtime is pure adapter logic with no fs writes, process launch, direct SQL, fetch, model call, student archive, or local mutation",
+      "remediation": "Keep persistence, model, file, process, and student archive details behind outer read-port adapters."
+    },
+    {
+      "id": "runtime.probe_maps_policy_scoped_read_port_output",
+      "passed": true,
+      "severity": "info",
+      "actual": "decision=FOUND;items=1;p99=5;errors=0",
+      "expected": "probe returns FOUND policy-scoped knowledge through injected read port with p99<=50 and zero errors",
+      "remediation": "Runtime adapter must produce executable ResearchAgent retrieval evidence, not contract-only prose."
+    },
+    {
+      "id": "tests.cover_runtime_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "happy path, no-match, unsafe input, principal scope, context, guardrail, route, read-port, and limit tests",
+      "remediation": "Keep runtime regression tests broad enough to catch research privacy and policy-boundary drift."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:research-agent-readonly-runtime-adapter=true;ResearchAgent read-only runtime adapter audit=true",
+      "expected": "npm script and strict quality command include the real ResearchAgent read-only runtime adapter audit",
+      "remediation": "Add this runtime adapter slice to the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_runtime_adapter_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "researchAgentReadonlyRuntimeAdapter=true;research-agent-readonly-runtime-adapter.current.json=true;research_agent_readonly_runtime_adapter=true",
+      "expected": "research root workflow requires the real ResearchAgent runtime adapter report",
+      "remediation": "Root workflow coverage should not claim this adapter is real unless its report is required."
+    },
+    {
+      "id": "quality.structure_tracks_runtime_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires runtime adapter, tests, audit, audit test, and SDD",
+      "remediation": "Add the real ResearchAgent adapter slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as the real ResearchAgent read-only runtime adapter evidence; next Agent slice can expose the higher Agent API without repeating broad production10k tests."
+}

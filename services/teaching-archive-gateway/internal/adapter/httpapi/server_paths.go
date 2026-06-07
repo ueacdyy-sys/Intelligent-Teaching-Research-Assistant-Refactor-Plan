@@ -55,6 +55,32 @@ func parseQuizSubmissionAIGradingRequestPath(path string) (string, string, bool)
 	return parts[0], parts[2], true
 }
 
+func parseStudentAppQuestionBankDraftAnswerSubmissionAIGradingRequestPath(path string) (string, bool) {
+	const prefix = "/v1/student-app/question-bank-draft-answer-submissions/"
+	const suffix = "/ai-grading-requests"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	submissionID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if submissionID == "" || strings.Contains(submissionID, "/") {
+		return "", false
+	}
+	return submissionID, true
+}
+
+func parseStudentAppQuestionBankDraftAnswerSubmissionAIGradingResultPath(path string) (string, bool) {
+	const prefix = "/v1/student-app/question-bank-draft-answer-submissions/"
+	const suffix = "/ai-grading-result"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	submissionID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if submissionID == "" || strings.Contains(submissionID, "/") {
+		return "", false
+	}
+	return submissionID, true
+}
+
 func parseAttendanceSessionRecordsPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/attendance-sessions/"
 	const suffix = "/records"
@@ -127,6 +153,19 @@ func parseAIGradingWorkerClaimPath(path string) bool {
 func parseAIGradingWorkerResultPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/ai-grading-requests/"
 	const suffix = "/worker-result"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	requestID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if requestID == "" || strings.Contains(requestID, "/") {
+		return "", false
+	}
+	return requestID, true
+}
+
+func parseAIGradingQuestionBankAnswerScoringInputPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/ai-grading-requests/"
+	const suffix = "/question-bank-answer-scoring-input"
 	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
 		return "", false
 	}

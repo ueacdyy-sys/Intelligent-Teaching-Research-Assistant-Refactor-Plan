@@ -41,3 +41,16 @@ func TestTokenIssuerBatchedAccessRefreshTokensKeepPrefixesAndDistinctValues(t *t
 		t.Fatalf("batched access and refresh tokens must be distinct: %q", accessToken)
 	}
 }
+
+func TestTokenIssuerAddsSanitizedOwnerPrefixWhenConfigured(t *testing.T) {
+	issuer := platform.TokenIssuer{OwnerID: " G-01 "}
+
+	_, accessToken, refreshToken := issuer.NewUserSessionTokens()
+
+	if !strings.HasPrefix(accessToken, "access_g01_") {
+		t.Fatalf("access token owner prefix = %q", accessToken)
+	}
+	if !strings.HasPrefix(refreshToken, "refresh_g01_") {
+		t.Fatalf("refresh token owner prefix = %q", refreshToken)
+	}
+}

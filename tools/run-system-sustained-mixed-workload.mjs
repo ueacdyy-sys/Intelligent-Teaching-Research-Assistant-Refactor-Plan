@@ -1,15 +1,33 @@
-import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 import {
+  assertNonNegativeInteger,
+  assertPositiveInteger,
+  countCommandErrors,
+  kebabToCamel,
+  maskSensitive,
+  maxFinite,
+  minFinite,
+  numberOrNull,
+  numberOrZero,
+  parseBoolean,
+  parseInteger,
+  removeReports,
+  round,
+  sanitizeCommandResult,
+  writeJsonReport,
+} from "./benchmark-runner-utils.mjs";
+import {
+  buildMixedWorkloadPersistenceProfile,
   buildMixedWorkloadIdentityIngressProfile,
   buildMixedWorkloadConversationBenchmarkRuntimeProfile,
   buildMixedWorkloadTeachingBenchmarkRuntimeProfile,
   buildMixedWorkloadTransportProfile,
   defaults as mixedDefaults,
+  dockerStack,
+  dockerStackScript,
   runSystemMixedWorkloadBenchmark,
 } from "./run-system-mixed-workload-benchmark.mjs";
 import { buildSystemIdentityBenchmarkRuntimeProfile } from "./system-identity-benchmark-runtime-profile.mjs";
@@ -17,7 +35,16 @@ import {
   defaultSessionTablePersistence,
   normalizeSessionTablePersistence,
 } from "./identity-http-benchmark-session-profile.mjs";
+import {
+  teachingQuizSubmissionBatchDelayMs,
+  teachingQuizSubmissionBatchSize,
+  teachingQuizSubmissionBatchWorkers,
+} from "./system-teaching-benchmark-runtime-profile.mjs";
 import { assertConversationFastLaneOptions, conversationFastLaneOptionDefaults, conversationFastLaneProfile } from "./conversation-fast-lane-options.mjs";
+import {
+  cleanupDocker,
+  runSync,
+} from "./run-system-sustained-mixed-workload-scaleup-helpers.mjs";
 
 const readWriteWorkloadNames = new Set(["identity_http", "conversation_write", "teaching_archive"]);
 
@@ -26,6 +53,7 @@ export const defaults = {
   samplePrefix: "reports/system-sustained-mixed-workload",
   profile: "SUSTAINED_SMOKE",
   manageDocker: "true",
+  dockerStack: mixedDefaults.dockerStack,
   dockerCleanup: "reset",
   stopOnFailure: "true",
   samples: "2",
@@ -33,8 +61,12 @@ export const defaults = {
   identityBaseUrl: mixedDefaults.identityBaseUrl,
   conversationBaseUrl: mixedDefaults.conversationBaseUrl,
   teachingBaseUrl: mixedDefaults.teachingBaseUrl,
+  identityDsn: mixedDefaults.identityDsn,
+  conversationDsn: mixedDefaults.conversationDsn,
+  teachingDsn: mixedDefaults.teachingDsn,
   identityConcurrency: "4",
   identityOperations: "8",
+  identityWarmupOperations: mixedDefaults.identityWarmupOperations,
   conversationConcurrency: "16",
   conversationOperations: "32",
   teachingConcurrency: "4",
@@ -43,7 +75,14 @@ export const defaults = {
   conversationGatewayCount: "1",
   teachingGatewayCount: "1",
   identitySessionDbMaxConns: "4",
+  identitySessionDbMinConns: mixedDefaults.identitySessionDbMinConns,
+  identitySessionDbPrewarmConns: mixedDefaults.identitySessionDbPrewarmConns,
+  identitySessionDbReadMaxConns: mixedDefaults.identitySessionDbReadMaxConns,
+  identitySessionDbReadMinConns: mixedDefaults.identitySessionDbReadMinConns,
+  identitySessionDbReadPrewarmConns: mixedDefaults.identitySessionDbReadPrewarmConns,
   identitySessionDbWriteConcurrency: "0",
+  identitySessionAccessCacheMaxEntries: mixedDefaults.identitySessionAccessCacheMaxEntries,
+  identitySessionAccessCacheTtlMs: mixedDefaults.identitySessionAccessCacheTtlMs,
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "1",
   teachingDbMaxConns: "1",
@@ -63,6 +102,9 @@ export const defaults = {
   identityBenchmarkRuntime: mixedDefaults.identityBenchmarkRuntime,
   identityBenchmarkDockerImage: mixedDefaults.identityBenchmarkDockerImage,
   identityBenchmarkDockerHost: mixedDefaults.identityBenchmarkDockerHost,
+  identityBenchmarkWslDistro: mixedDefaults.identityBenchmarkWslDistro,
+  identityBenchmarkWslHost: mixedDefaults.identityBenchmarkWslHost,
+  identityBenchmarkWslWorkspace: mixedDefaults.identityBenchmarkWslWorkspace,
   teachingBenchmarkRuntime: mixedDefaults.teachingBenchmarkRuntime,
   teachingBenchmarkDockerImage: mixedDefaults.teachingBenchmarkDockerImage,
   teachingBenchmarkDockerHost: mixedDefaults.teachingBenchmarkDockerHost,
@@ -77,6 +119,20 @@ export const defaults = {
   teachingArchiveCreateBatchSize: mixedDefaults.teachingArchiveCreateBatchSize,
   teachingArchiveCreateBatchDelayMs: mixedDefaults.teachingArchiveCreateBatchDelayMs,
   teachingArchiveCreateBatchWorkers: mixedDefaults.teachingArchiveCreateBatchWorkers,
+  teachingArchiveCreateBatchMode: mixedDefaults.teachingArchiveCreateBatchMode,
+  teachingQuizSubmissionBatchSize: mixedDefaults.teachingQuizSubmissionBatchSize,
+  teachingQuizSubmissionBatchDelayMs: mixedDefaults.teachingQuizSubmissionBatchDelayMs,
+  teachingQuizSubmissionBatchWorkers: mixedDefaults.teachingQuizSubmissionBatchWorkers,
+  teachingWriteAcceptanceMode: mixedDefaults.teachingWriteAcceptanceMode,
+  teachingCommandLogPath: mixedDefaults.teachingCommandLogPath,
+  teachingCommandLogAppendBatchSize: mixedDefaults.teachingCommandLogAppendBatchSize,
+  teachingCommandLogQueueCapacity: mixedDefaults.teachingCommandLogQueueCapacity,
+  teachingCommandLogProjectionWorkers: mixedDefaults.teachingCommandLogProjectionWorkers,
+  teachingCommandLogSync: mixedDefaults.teachingCommandLogSync,
+  teachingCommandLogSettleTimeoutMs: mixedDefaults.teachingCommandLogSettleTimeoutMs,
+  teachingArchiveListCacheTtlMs: mixedDefaults.teachingArchiveListCacheTtlMs,
+  teachingArchiveListCacheMaxEntries: mixedDefaults.teachingArchiveListCacheMaxEntries,
+  teachingArchiveSchemaIndexProfile: mixedDefaults.teachingArchiveSchemaIndexProfile,
   identityMaxConnsPerHost: mixedDefaults.identityMaxConnsPerHost,
   identityWarmConnectionsPerHost: mixedDefaults.identityWarmConnectionsPerHost,
   identityIngressProxy: mixedDefaults.identityIngressProxy,
@@ -138,6 +194,7 @@ export function buildSampleRuns(options) {
         ...mixedDefaults,
         profile: `${options.profile}_SAMPLE_${sampleNumber}`,
         manageDocker: "false",
+        dockerStack: options.dockerStack,
         dockerCleanup: "none",
         out: `${reportPrefix}.json`,
         identityOut: `${reportPrefix}.identity-http.json`,
@@ -148,8 +205,12 @@ export function buildSampleRuns(options) {
         identityBaseUrl: options.identityBaseUrl,
         conversationBaseUrl: options.conversationBaseUrl,
         teachingBaseUrl: options.teachingBaseUrl,
+        identityDsn: options.identityDsn,
+        conversationDsn: options.conversationDsn,
+        teachingDsn: options.teachingDsn,
         identityConcurrency: options.identityConcurrency,
         identityOperations: options.identityOperations,
+        identityWarmupOperations: options.identityWarmupOperations,
         conversationConcurrency: options.conversationConcurrency,
         conversationOperations: options.conversationOperations,
         teachingConcurrency: options.teachingConcurrency,
@@ -158,7 +219,14 @@ export function buildSampleRuns(options) {
         conversationGatewayCount: options.conversationGatewayCount,
         teachingGatewayCount: options.teachingGatewayCount,
         identitySessionDbMaxConns: options.identitySessionDbMaxConns,
+        identitySessionDbMinConns: options.identitySessionDbMinConns,
+        identitySessionDbPrewarmConns: options.identitySessionDbPrewarmConns,
+        identitySessionDbReadMaxConns: options.identitySessionDbReadMaxConns,
+        identitySessionDbReadMinConns: options.identitySessionDbReadMinConns,
+        identitySessionDbReadPrewarmConns: options.identitySessionDbReadPrewarmConns,
         identitySessionDbWriteConcurrency: options.identitySessionDbWriteConcurrency,
+        identitySessionAccessCacheMaxEntries: options.identitySessionAccessCacheMaxEntries,
+        identitySessionAccessCacheTtlMs: options.identitySessionAccessCacheTtlMs,
         identitySessionDbSessionTablePersistence: identitySessionTablePersistence(options),
         conversationDbMaxConns: options.conversationDbMaxConns,
         teachingDbMaxConns: options.teachingDbMaxConns,
@@ -183,6 +251,9 @@ export function buildSampleRuns(options) {
         identityBenchmarkRuntime: options.identityBenchmarkRuntime,
         identityBenchmarkDockerImage: options.identityBenchmarkDockerImage,
         identityBenchmarkDockerHost: options.identityBenchmarkDockerHost,
+        identityBenchmarkWslDistro: options.identityBenchmarkWslDistro,
+        identityBenchmarkWslHost: options.identityBenchmarkWslHost,
+        identityBenchmarkWslWorkspace: options.identityBenchmarkWslWorkspace,
         teachingBenchmarkRuntime: options.teachingBenchmarkRuntime,
         teachingBenchmarkDockerImage: options.teachingBenchmarkDockerImage,
         teachingBenchmarkDockerHost: options.teachingBenchmarkDockerHost,
@@ -197,6 +268,20 @@ export function buildSampleRuns(options) {
         teachingArchiveCreateBatchSize: options.teachingArchiveCreateBatchSize,
         teachingArchiveCreateBatchDelayMs: options.teachingArchiveCreateBatchDelayMs,
         teachingArchiveCreateBatchWorkers: options.teachingArchiveCreateBatchWorkers,
+        teachingArchiveCreateBatchMode: options.teachingArchiveCreateBatchMode,
+        teachingQuizSubmissionBatchSize: options.teachingQuizSubmissionBatchSize,
+        teachingQuizSubmissionBatchDelayMs: options.teachingQuizSubmissionBatchDelayMs,
+        teachingQuizSubmissionBatchWorkers: options.teachingQuizSubmissionBatchWorkers,
+        teachingWriteAcceptanceMode: options.teachingWriteAcceptanceMode,
+        teachingCommandLogPath: options.teachingCommandLogPath,
+        teachingCommandLogAppendBatchSize: options.teachingCommandLogAppendBatchSize,
+        teachingCommandLogQueueCapacity: options.teachingCommandLogQueueCapacity,
+        teachingCommandLogProjectionWorkers: options.teachingCommandLogProjectionWorkers,
+        teachingCommandLogSync: options.teachingCommandLogSync,
+        teachingCommandLogSettleTimeoutMs: options.teachingCommandLogSettleTimeoutMs,
+        teachingArchiveListCacheTtlMs: options.teachingArchiveListCacheTtlMs,
+        teachingArchiveListCacheMaxEntries: options.teachingArchiveListCacheMaxEntries,
+        teachingArchiveSchemaIndexProfile: options.teachingArchiveSchemaIndexProfile,
         identityMaxConnsPerHost: options.identityMaxConnsPerHost,
         identityWarmConnectionsPerHost: options.identityWarmConnectionsPerHost,
         identityIngressProxy: options.identityIngressProxy,
@@ -245,9 +330,9 @@ export async function runSystemSustainedMixedWorkload(options = parseArgs(proces
     validateOptions(options, sampleRuns);
     removeReports(root, [options.out, ...sampleRuns.map((sample) => sample.reportPath)]);
     if (parseBoolean(options.manageDocker)) {
-      setup.push({ phase: "setup-reset", ...runSyncFn("npm", ["run", "perf:identity-session:reset"], root) });
+      setup.push({ phase: "setup-reset", ...runSyncFn("npm", ["run", dockerStackScript(options, "reset")], root) });
       if (setup.at(-1).exitCode !== 0) throw new Error("managed Docker reset failed before sustained mixed workload");
-      setup.push({ phase: "setup-up", ...runSyncFn("npm", ["run", "perf:identity-session:up"], root) });
+      setup.push({ phase: "setup-up", ...runSyncFn("npm", ["run", dockerStackScript(options, "up")], root) });
       if (setup.at(-1).exitCode !== 0) throw new Error("managed Docker setup failed before sustained mixed workload");
     }
 
@@ -323,9 +408,18 @@ export function buildSystemSustainedMixedWorkloadReport({
     },
     transportProfile: buildSustainedMixedWorkloadTransportProfile(options),
     identityIngressProfile: buildSustainedMixedWorkloadIdentityIngressProfile(options),
+    persistenceProfile: buildSustainedMixedWorkloadPersistenceProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
+      identitySessionDbMinConns: parseInteger(options.identitySessionDbMinConns),
+      identitySessionDbPrewarmConns: parseInteger(options.identitySessionDbPrewarmConns),
+      identitySessionDbReadMaxConns: parseInteger(options.identitySessionDbReadMaxConns),
+      identitySessionDbReadMinConns: parseInteger(options.identitySessionDbReadMinConns),
+      identitySessionDbReadPrewarmConns: parseInteger(options.identitySessionDbReadPrewarmConns),
       identitySessionDbWriteConcurrency: parseInteger(options.identitySessionDbWriteConcurrency),
+      identityWarmupOperations: parseInteger(options.identityWarmupOperations),
+      identitySessionAccessCacheMaxEntries: parseInteger(options.identitySessionAccessCacheMaxEntries),
+      identitySessionAccessCacheTtlMs: parseInteger(options.identitySessionAccessCacheTtlMs),
       identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
@@ -338,10 +432,22 @@ export function buildSystemSustainedMixedWorkloadReport({
       teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
       teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
       teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
+      teachingArchiveCreateBatchMode: options.teachingArchiveCreateBatchMode,
+      teachingQuizSubmissionBatchSize: parseInteger(teachingQuizSubmissionBatchSize(options)),
+      teachingQuizSubmissionBatchDelayMs: parseInteger(teachingQuizSubmissionBatchDelayMs(options)),
+      teachingQuizSubmissionBatchWorkers: parseInteger(teachingQuizSubmissionBatchWorkers(options)),
+      teachingWriteAcceptanceMode: options.teachingWriteAcceptanceMode,
+      teachingCommandLogAppendBatchSize: parseInteger(options.teachingCommandLogAppendBatchSize),
+      teachingCommandLogQueueCapacity: parseInteger(options.teachingCommandLogQueueCapacity),
+      teachingCommandLogProjectionWorkers: parseInteger(options.teachingCommandLogProjectionWorkers),
+      teachingCommandLogSync: parseBoolean(options.teachingCommandLogSync),
+      teachingCommandLogSettleTimeoutMs: parseInteger(options.teachingCommandLogSettleTimeoutMs),
+      teachingArchiveSchemaIndexProfile: options.teachingArchiveSchemaIndexProfile,
     },
     runtimeProfile: {
       executor: "LOCAL_NODE_SUSTAINED_ORCHESTRATOR",
       managedDocker: parseBoolean(options.manageDocker),
+      dockerStack: dockerStack(options),
       dockerCleanup: options.dockerCleanup,
     },
     diagnosticsProfile: buildSustainedMixedWorkloadDiagnosticsProfile(options),
@@ -357,6 +463,10 @@ export function buildSystemSustainedMixedWorkloadReport({
       ? "Treat this as sustained mixed workload smoke evidence only; increase duration, concurrency, and workflow coverage before any full-system capacity promotion."
       : "Fix the first failed sustained mixed workload sample before increasing duration or concurrency.",
   };
+}
+
+export function buildSustainedMixedWorkloadPersistenceProfile(options) {
+  return buildMixedWorkloadPersistenceProfile(options);
 }
 
 export function buildSustainedMixedWorkloadTransportProfile(options) {
@@ -525,15 +635,43 @@ function validateOptions(options, sampleRuns) {
   assertNonNegativeInteger(options.sampleIntervalMs, "sample-interval-ms");
   assertPositiveInteger(options.identityConcurrency, "identity-concurrency");
   assertPositiveInteger(options.identityOperations, "identity-operations");
+  assertNonNegativeInteger(options.identityWarmupOperations, "identity-warmup-operations");
   assertPositiveInteger(options.conversationConcurrency, "conversation-concurrency");
   assertPositiveInteger(options.conversationOperations, "conversation-operations");
   assertPositiveInteger(options.teachingConcurrency, "teaching-concurrency");
   assertPositiveInteger(options.teachingOperations, "teaching-operations");
+  buildSustainedMixedWorkloadPersistenceProfile(options);
+  dockerStack(options);
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
   assertPositiveInteger(options.conversationGatewayCount, "conversation-gateway-count");
   assertPositiveInteger(options.identitySessionDbMaxConns, "identity-session-db-max-conns");
+  assertNonNegativeInteger(options.identitySessionDbMinConns, "identity-session-db-min-conns");
+  assertNonNegativeInteger(options.identitySessionDbPrewarmConns, "identity-session-db-prewarm-conns");
+  assertNonNegativeInteger(options.identitySessionDbReadMaxConns, "identity-session-db-read-max-conns");
+  assertNonNegativeInteger(options.identitySessionDbReadMinConns, "identity-session-db-read-min-conns");
+  assertNonNegativeInteger(options.identitySessionDbReadPrewarmConns, "identity-session-db-read-prewarm-conns");
   assertNonNegativeInteger(options.identitySessionDbWriteConcurrency, "identity-session-db-write-concurrency");
+  assertNonNegativeInteger(options.identitySessionAccessCacheMaxEntries, "identity-session-access-cache-max-entries");
+  assertNonNegativeInteger(options.identitySessionAccessCacheTtlMs, "identity-session-access-cache-ttl-ms");
   identitySessionTablePersistence(options);
+  if (parseInteger(options.identitySessionDbMinConns) > parseInteger(options.identitySessionDbMaxConns)) {
+    throw new Error("identity-session-db-min-conns must be <= identity-session-db-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbPrewarmConns) > parseInteger(options.identitySessionDbMaxConns)) {
+    throw new Error("identity-session-db-prewarm-conns must be <= identity-session-db-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbReadMaxConns) === 0 &&
+    (parseInteger(options.identitySessionDbReadMinConns) > 0 || parseInteger(options.identitySessionDbReadPrewarmConns) > 0)) {
+    throw new Error("identity-session-db-read-min-conns and identity-session-db-read-prewarm-conns require identity-session-db-read-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbReadMaxConns) > 0 &&
+    parseInteger(options.identitySessionDbReadMinConns) > parseInteger(options.identitySessionDbReadMaxConns)) {
+    throw new Error("identity-session-db-read-min-conns must be <= identity-session-db-read-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbReadMaxConns) > 0 &&
+    parseInteger(options.identitySessionDbReadPrewarmConns) > parseInteger(options.identitySessionDbReadMaxConns)) {
+    throw new Error("identity-session-db-read-prewarm-conns must be <= identity-session-db-read-max-conns");
+  }
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertNonNegativeInteger(options.teachingDbMinConns, "teaching-db-min-conns");
@@ -562,132 +700,12 @@ function conversationWriteBatchMode(options) {
   return normalized;
 }
 
-function cleanupDocker(options, root, runSyncFn) {
-  if (options.dockerCleanup === "none") return [];
-  const script = options.dockerCleanup === "down" ? "perf:identity-session:down" : "perf:identity-session:reset";
-  return [{ phase: "cleanup", ...runSyncFn("npm", ["run", script], root) }];
-}
-
-function runSync(command, args, root) {
-  const startedAt = Date.now();
-  const runnable = toRunnableCommand(command, args);
-  const result = spawnSync(runnable.command, runnable.args, {
-    cwd: root,
-    encoding: "utf8",
-    shell: false,
-  });
-  return {
-    command,
-    args,
-    exitCode: result.status ?? 1,
-    elapsedMs: Date.now() - startedAt,
-    outputTail: tailText(maskSensitive(`${result.stdout ?? ""}${result.stderr ?? ""}`), 40),
-    error: result.error?.message,
-  };
-}
-
-function toRunnableCommand(command, args) {
-  if (process.platform === "win32" && command === "npm") {
-    return {
-      command: process.env.ComSpec || "cmd.exe",
-      args: ["/d", "/s", "/c", ["npm", ...args].join(" ")],
-    };
-  }
-  return { command, args };
-}
-
-function removeReports(root, relativePaths) {
-  for (const relativePath of relativePaths) {
-    const absolute = path.join(root, relativePath);
-    if (fs.existsSync(absolute)) fs.rmSync(absolute);
-  }
-}
-
-function writeJsonReport(absolutePath, report) {
-  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-  fs.writeFileSync(absolutePath, `${JSON.stringify(report, null, 2)}\n`);
-}
-
-function sanitizeCommandResult(result) {
-  return {
-    phase: result.phase,
-    command: result.command,
-    args: result.args,
-    exitCode: result.exitCode ?? 1,
-    elapsedMs: result.elapsedMs ?? null,
-    outputTail: tailText(maskSensitive(result.outputTail ?? ""), 80),
-    error: result.error ? maskSensitive(result.error) : undefined,
-  };
-}
-
-function maskSensitive(value) {
-  return String(value ?? "")
-    .replace(/postgres(?:ql)?:\/\/[^\s"']+/giu, "[database-url]")
-    .replaceAll("ueacd", "***");
-}
-
-function tailText(value, maxLines = 80) {
-  const text = String(value ?? "").replace(/\s+$/u, "");
-  if (!text) return "";
-  return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
-}
-
-function assertPositiveInteger(value, name) {
-  const parsed = parseInteger(value);
-  if (parsed <= 0) throw new Error(`${name} must be a positive integer`);
-}
-
-function assertNonNegativeInteger(value, name) {
-  if (!/^\d+$/u.test(String(value))) throw new Error(`${name} must be a non-negative integer`);
-}
-
-function parseInteger(value) {
-  if (!/^-?\d+$/u.test(String(value))) return 0;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseBoolean(value) {
-  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
-}
-
 function identitySessionTablePersistence(options) {
   return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence);
 }
 
-function numberOrNull(value) {
-  return Number.isFinite(value) ? value : null;
-}
-
-function numberOrZero(value) {
-  return Number.isFinite(value) ? value : 0;
-}
-
-function maxFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.max(...finite) : null;
-}
-
-function minFinite(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? Math.min(...finite) : null;
-}
-
 function firstFinite(...values) {
   return values.find(Number.isFinite) ?? null;
-}
-
-function round(value, digits) {
-  const multiplier = 10 ** digits;
-  return Math.round(value * multiplier) / multiplier;
-}
-
-function countCommandErrors(results) {
-  return results.filter((result) => result.exitCode !== 0).length;
-}
-
-function kebabToCamel(value) {
-  return value.replace(/-([a-z])/gu, (_match, letter) => letter.toUpperCase());
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

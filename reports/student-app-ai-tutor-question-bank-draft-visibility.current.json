@@ -1,0 +1,180 @@
+{
+  "generatedAt": "2026-06-07T12:28:56.031Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_RUNTIME",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_question_bank_draft_visibility_runtime",
+    "readPort": "StudentAppAITutorQuestionBankDraftVisibilityPort.listStudentAppQuestionBankDrafts",
+    "openApiOperation": "listStudentAppQuestionBankDrafts"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_PROBE"
+  },
+  "safetyInvariants": {
+    "ownStudentOnly": true,
+    "succeededAnalysisOnly": true,
+    "questionBankDraftRefRequired": true,
+    "draftContentRead": false,
+    "questionGenerationStarted": false,
+    "studentAnsweringStarted": false,
+    "scoringStarted": false,
+    "studentVisiblePublished": false,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorQuestionBankDraftVisibility": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.student-app.ai-tutor-question-bank-draft-visibility-listed.v1",
+        "runtimeId": "student_app_ai_tutor_question_bank_draft_visibility_runtime",
+        "readPort": "StudentAppAITutorQuestionBankDraftVisibilityPort.listStudentAppQuestionBankDrafts",
+        "status": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_LISTED",
+        "source": {
+          "targetUseCase": "ListStudentAppQuestionBankDrafts.Execute",
+          "repositoryOperation": "ArchiveRepository.ListTutoringAnalysisRequests",
+          "openApiOperation": "listStudentAppQuestionBankDrafts",
+          "sourceStatusRequired": "SUCCEEDED",
+          "sourceOwnerTypeRequired": "STUDENT",
+          "ownStudentOnly": true,
+          "questionBankDraftRefRequired": true
+        },
+        "draftVisibilityPage": {
+          "items": [
+            {
+              "tutoringAnalysisRequestId": "tutor_req_student_app_001",
+              "archiveItemId": "tarch_student_quiz_001",
+              "sourceArchiveMaterial": "QUIZ_SUBMISSION",
+              "resultSummary": "The student understands fractions but needs more mixed-operation practice.",
+              "resultRef": "local://student-app-ai-tutor/tutor_req_student_app_001/result.json",
+              "questionBankDraftRef": "local://question-bank-drafts/tutor_req_student_app_001.json",
+              "createdAt": "2026-06-05T00:00:00.000Z",
+              "completedAt": "2026-06-05T00:01:00.000Z"
+            }
+          ],
+          "pageInfo": {
+            "pageSize": 20,
+            "hasMore": false,
+            "nextCursor": ""
+          }
+        },
+        "boundary": {
+          "ownStudentOnly": true,
+          "succeededAnalysisOnly": true,
+          "questionBankDraftRefRequired": true,
+          "draftContentRead": false,
+          "questionGenerationStarted": false,
+          "studentAnsweringStarted": false,
+          "scoringStarted": false,
+          "studentVisiblePublished": false,
+          "directDatabaseAccessAllowed": false,
+          "executeHttpRequestAllowed": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "evidenceRefs": [
+          "evidence:student-app-ai-tutor-result:tutor_req_student_app_001"
+        ],
+        "runtimeSlo": {
+          "targetP99Ms": 50,
+          "p99Ms": 8,
+          "totalErrors": 0,
+          "operations": 1,
+          "evidenceClass": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_PROBE"
+        },
+        "idempotentReplay": false
+      },
+      "portCalls": 1,
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 4,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "actual": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_LISTED=true;StudentAppAITutorQuestionBankDraftVisibilityPort.listStudentAppQuestionBankDrafts=true;ListStudentAppQuestionBankDrafts.Execute=true;ArchiveRepository.ListTutoringAnalysisRequests=true",
+      "expected": "contracts define Student App own-student read-only question-bank draft metadata visibility",
+      "remediation": "Keep this slice as draft metadata listing, not draft content retrieval, generation, answering, scoring, or publication."
+    },
+    {
+      "severity": "info",
+      "id": "result.source_ready",
+      "passed": true,
+      "actual": "READY",
+      "expected": "READY Student App AI Tutor result evidence",
+      "remediation": "Draft visibility must build on recorded AI Tutor result evidence."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "actual": "student_app_ai_tutor_question_bank_draft_visibility_runtime=true;StudentAppAITutorQuestionBankDraftVisibilityPort.listStudentAppQuestionBankDrafts=true;STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_LISTED=true",
+      "expected": "runtime uses a named injected visibility port and idempotent visibility record",
+      "remediation": "Do not turn this runtime into direct persistence, HTTP fetch, draft generation, or UI publication."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.safety_boundaries",
+      "passed": true,
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;draftContentReadAllowed: true=false;questionGenerationAllowed: true=false;studentAnsweringAllowed: true=false;scoringAllowed: true=false;studentVisiblePublishAllowed: true=false;directDatabaseAccessAllowed: true=false;executeHttpRequestAllowed: true=false;remoteDeviceControlAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;dangerouslySetInnerHTML=false;innerHTML=false",
+      "expected": "runtime lists only metadata through the injected port and blocks raw DB, HTTP, draft content, generation, answering, scoring, publication, tools, and Swarm",
+      "remediation": "Question-bank content and student-visible exercise flows must remain separate reviewed slices."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.probe_lists_visibility",
+      "passed": true,
+      "actual": "status=STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_LISTED;items=1;calls=1;p99=4",
+      "expected": "probe lists one own succeeded question-bank draft metadata page through the injected use case port",
+      "remediation": "Visibility runtime must prove own-student filters, metadata-only shape, and no draft content or publication execution."
+    },
+    {
+      "severity": "info",
+      "id": "tests.cover_visibility_negative_paths",
+      "passed": true,
+      "actual": "runtime tests scanned",
+      "expected": "positive, idempotency, auth, pagination, unsafe policy, and leaked-field tests",
+      "remediation": "Add regression coverage before using this as Student App question-bank draft visibility evidence."
+    },
+    {
+      "severity": "info",
+      "id": "teaching_archive.go_visibility_usecase_repository_and_http_evidence_exists",
+      "passed": true,
+      "actual": "func (uc *ListStudentAppQuestionBankDrafts) Execute=true;AuthorizeListStudentAppQuestionBankDrafts=true;question_bank_draft_ref IS NOT NULL=true;operationId: listStudentAppQuestionBankDrafts=true",
+      "expected": "Go domain/use case/repository/HTTP/OpenAPI evidence proves own-student succeeded draft metadata listing",
+      "remediation": "Keep real Go use case and PostgreSQL filtered read evidence attached to this runtime."
+    },
+    {
+      "severity": "info",
+      "id": "quality_and_root_hooks_track_runtime",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-question-bank-draft-visibility=true;Student App AI Tutor question-bank draft visibility runtime audit=true;studentAppAiTutorQuestionBankDraftVisibility=true",
+      "expected": "package script, strict quality, and root workflow coverage include question-bank draft visibility runtime",
+      "remediation": "Wire the new runtime into package scripts, quality gate, and root workflow coverage."
+    },
+    {
+      "severity": "info",
+      "id": "structure_sdd_and_board_track_runtime",
+      "passed": true,
+      "actual": "Student App AI Tutor question-bank draft visibility runtime=true;10.3/10=true;ArchiveRepository.ListTutoringAnalysisRequests=true",
+      "expected": "structure verifier, SDD, and architecture board show Student App question-bank draft visibility as current progress",
+      "remediation": "Update structure, SDD, and architecture board after completing this slice."
+    }
+  ],
+  "nextAction": "Use this as Student App AI Tutor question-bank draft metadata visibility evidence; continue with draft content, review, answering, scoring, or publication only as separate reviewed slices."
+}

@@ -1,0 +1,92 @@
+{
+  "generatedAt": "2026-06-07T12:28:45.235Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_TUTOR_AGENT_READONLY_RUNTIME_SLO",
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p95Ms": 11,
+    "p99Ms": 11,
+    "totalErrors": 0,
+    "operations": 4,
+    "rps": 222.22,
+    "sourcePhase": "studentAppScopedTeachingArchiveRead",
+    "sourceReportPaths": [
+      "reports/student-app-flow.current.json",
+      "reports/teaching-archive-benchmark.current.json"
+    ]
+  },
+  "safetyInvariants": {
+    "skillContractReady": true,
+    "adapterContractReady": true,
+    "studentAppFlowReady": true,
+    "sourceBenchmarkPassed": true,
+    "sourceBenchmarkKind": "teaching_archive_gateway",
+    "sourceWorkloadType": "HTTP_BENCHMARK",
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false,
+    "crossStudentDataReturned": false,
+    "rawStudentArchiveReturned": false,
+    "finalEvaluationReturned": false,
+    "externalModelUsed": false,
+    "evidenceClass": "RUNTIME_SLO_FROM_STUDENT_APP_AND_TEACHING_READ_PHASE"
+  },
+  "findings": [
+    {
+      "id": "contract.skill_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "StudentTutorAgent recommend_practice input/output contracts must be READY before runtime SLO evidence can count."
+    },
+    {
+      "id": "contract.adapter_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "StudentTutorAgent read-only adapter contract must keep read port, guards, and evidence/SLO checks ready."
+    },
+    {
+      "id": "source.student_app_flow_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "Student App flow evidence must be READY before StudentTutorAgent read-only SLO evidence can count."
+    },
+    {
+      "id": "source.teaching_archive_read_phase_passed",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=true;kind=teaching_archive_gateway;workload=HTTP_BENCHMARK;ops=4",
+      "expected": "PASSED teaching_archive_gateway HTTP_BENCHMARK with listArchiveItems operations>0",
+      "remediation": "Regenerate Teaching Archive read-phase evidence before using it for StudentTutorAgent read-only runtime SLO."
+    },
+    {
+      "id": "runtime.errors_zero",
+      "passed": true,
+      "severity": "info",
+      "actual": 0,
+      "expected": 0,
+      "remediation": "StudentTutorAgent read-only runtime evidence must have zero scoped read errors."
+    },
+    {
+      "id": "runtime.p99_within_target",
+      "passed": true,
+      "severity": "info",
+      "actual": 11,
+      "expected": "<=50",
+      "remediation": "StudentTutorAgent read-only recommendation planning must stay within the 50ms fast-path SLO."
+    },
+    {
+      "id": "safety.readonly_student_scope",
+      "passed": true,
+      "severity": "info",
+      "actual": "directDb=false;write=false;crossStudent=false;rawArchive=false;finalEval=false;externalModel=false",
+      "expected": "directDb=false;write=false;crossStudent=false;rawArchive=false;finalEval=false;externalModel=false",
+      "remediation": "Read-only recommendation evidence must not expand into cross-student data, raw archives, writes, or model calls."
+    }
+  ],
+  "nextAction": "Use this as small StudentTutorAgent read-only recommendation evidence; keep full AI tutor reasoning and profile writes outside the 50ms fast-path claim."
+}

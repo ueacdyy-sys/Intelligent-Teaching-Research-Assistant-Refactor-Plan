@@ -114,6 +114,21 @@ describe("performance evidence registry audit", () => {
     assert.match(String(coverage.expected), /workflow-plugin-runtime-slo\.current\.json/u);
   });
 
+  it("requires the Agent read-only runtime dispatcher evidence", () => {
+    const inputs = loadCurrentInputs();
+    const registry = clone(inputs.registry);
+    registry.entries = registry.entries.filter(
+      (entry) => entry.sourceReportPath !== "reports/agent-readonly-runtime-dispatcher.current.json",
+    );
+
+    const report = auditPerformanceEvidenceRegistry({ ...inputs, registry });
+    const coverage = report.findings.find((finding) => finding.id === "registry.required_report_coverage");
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(coverage.passed, false);
+    assert.match(String(coverage.expected), /agent-readonly-runtime-dispatcher\.current\.json/u);
+  });
+
   it("requires the PgBouncer production headroom evidence", () => {
     const inputs = loadCurrentInputs();
     const registry = clone(inputs.registry);

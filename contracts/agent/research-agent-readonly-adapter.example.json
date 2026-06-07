@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "2026-06-04.agent.research-readonly-adapter.v1",
+  "adapterId": "research_agent_search_knowledge_readonly_adapter",
+  "workerAgent": "ResearchAgent",
+  "skillId": "search_knowledge",
+  "routeMode": "SINGLE_WORKER",
+  "inputSchemaRef": "contracts/agent/skills/search-knowledge.input.schema.json",
+  "outputSchemaRef": "contracts/agent/skills/search-knowledge.output.schema.json",
+  "readPort": {
+    "portName": "KnowledgeQueryReadPort",
+    "operation": "searchKnowledge",
+    "transport": "HTTP",
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false
+  },
+  "guards": {
+    "principalContextRequired": true,
+    "sharedContextRequired": true,
+    "guardrailResultRequired": true,
+    "denyOnWriteIntent": true,
+    "denyOnStudentArchiveRequest": true,
+    "denyOnExternalModelRequest": true,
+    "denyOnLocalToolMutation": true,
+    "dataScopes": {
+      "knowledge": "PRIVATE_ASSIGNED",
+      "student": "NONE",
+      "teaching": "NONE",
+      "research": "READ",
+      "localTool": "NONE"
+    }
+  },
+  "evidence": {
+    "skillInvocationTraceRequired": true,
+    "inputHashRequired": true,
+    "outputSummaryRequired": true,
+    "sourceEvidenceRefsRequired": true,
+    "runtimeTimingRequired": true
+  },
+  "slo": {
+    "p99BudgetMs": 50,
+    "maxResults": 5,
+    "maxSnippetChars": 320
+  },
+  "promotion": {
+    "currentEvidenceClass": "CONTRACT_ONLY",
+    "runtimeEvidenceRequiredBeforePromotion": true,
+    "rootWorkflowRequired": true
+  }
+}

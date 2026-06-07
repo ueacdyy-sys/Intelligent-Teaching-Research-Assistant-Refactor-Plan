@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/student-app-ai-tutor-request.output.schema.json",
+  "title": "Student App AI Tutor Request Runtime Output",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "queue",
+    "tutoringAnalysisRequest",
+    "boundary",
+    "runtimeSlo"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.student-app.ai-tutor-request-queued.v1"
+    },
+    "runtimeId": {
+      "type": "string",
+      "const": "student_app_ai_tutor_request_runtime"
+    },
+    "commandPort": {
+      "type": "string",
+      "const": "StudentAppAITutorRequestPort.createStudentAppAITutorRequest"
+    },
+    "status": {
+      "type": "string",
+      "const": "STUDENT_APP_AI_TUTOR_REQUEST_QUEUED"
+    },
+    "queue": {
+      "type": "object",
+      "required": ["queueName", "queueTable", "targetUseCase", "readRepository", "writeRepository"],
+      "properties": {
+        "queueName": { "const": "student_app_ai_tutor" },
+        "queueTable": { "const": "teaching_tutoring_analysis_requests" },
+        "targetUseCase": { "const": "CreateStudentAppAITutorRequest.Execute" },
+        "readRepository": { "const": "ArchiveRepository.GetByID" },
+        "writeRepository": { "const": "ArchiveRepository.CreateTutoringAnalysisRequest" }
+      }
+    },
+    "tutoringAnalysisRequest": {
+      "type": "object",
+      "required": ["id", "archiveItemId", "requestedByPrincipalId", "status", "sourceArchiveOwnerType", "sourceArchiveStudentId"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^tutor_req_" },
+        "archiveItemId": { "type": "string", "pattern": "^tarch_" },
+        "requestedByPrincipalId": { "type": "string", "minLength": 1 },
+        "status": { "const": "QUEUED" },
+        "sourceArchiveOwnerType": { "const": "STUDENT" },
+        "sourceArchiveStudentId": { "type": "string", "minLength": 1 },
+        "questionBankIntent": {
+          "enum": ["NONE", "GENERATE_PERSONALIZED_CHECK"]
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": [
+        "studentOwnArchiveScopeEnforced",
+        "teachingArchiveReadVerified",
+        "tutoringAnalysisRequestQueued",
+        "questionBankDraftDeferred",
+        "asyncAnalysisRequired",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "externalModelCallNowAllowed",
+        "finalEvaluationNowAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "studentOwnArchiveScopeEnforced": { "const": true },
+        "teachingArchiveReadVerified": { "const": true },
+        "tutoringAnalysisRequestQueued": { "const": true },
+        "questionBankDraftDeferred": { "const": true },
+        "asyncAnalysisRequired": { "const": true },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "externalModelCallNowAllowed": { "const": false },
+        "finalEvaluationNowAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "properties": {
+        "targetP99Ms": { "const": 50 }
+      }
+    }
+  }
+}

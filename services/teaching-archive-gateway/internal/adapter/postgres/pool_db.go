@@ -91,6 +91,10 @@ func (conn poolConn) Exec(ctx context.Context, sql string, args ...any) (Command
 	return conn.conn.Exec(ctx, sql, args...)
 }
 
+func (conn poolConn) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	return conn.conn.CopyFrom(ctx, tableName, columnNames, rowSrc)
+}
+
 func (conn poolConn) Release() {
 	conn.conn.Release()
 }

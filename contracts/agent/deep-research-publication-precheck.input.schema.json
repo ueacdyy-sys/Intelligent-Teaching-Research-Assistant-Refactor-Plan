@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-publication-precheck.input.schema.json",
+  "title": "Deep Research Publication Precheck Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "precheckInvocationId",
+    "principal",
+    "renderPreviewRecord",
+    "publicationPrecheckPolicy",
+    "precheck",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-publication-precheck.v1"
+    },
+    "precheckInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["TEACHER", "ADMIN"] },
+        "subjectType": { "type": "string", "const": "USER" },
+        "entryPoint": { "type": "string", "enum": ["DESKTOP_RESEARCH", "DESKTOP_TEACHER"] },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["RESEARCH_READ", "RESEARCH_WRITE", "KNOWLEDGE_PRIVATE_READ", "ADMIN_SYSTEM"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "renderPreviewRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "runtimeId", "commandPort", "status", "recordId", "job", "preview", "evidenceRefs", "boundary"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-06-05.research.deep-research-render-preview-recorded.v1"
+        },
+        "runtimeId": { "type": "string", "const": "research_deep_research_render_preview_runtime" },
+        "commandPort": {
+          "type": "string",
+          "const": "DeepResearchRenderPreviewPort.recordDeepResearchRenderPreview"
+        },
+        "status": { "type": "string", "const": "RENDER_PREVIEW_READY_NOT_PUBLISHED" },
+        "recordId": { "type": "string", "minLength": 1 },
+        "job": { "$ref": "#/$defs/researchJob" },
+        "preview": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["previewId", "previewKind", "audience", "format", "deliveryState", "claims", "limitations", "review", "finalization", "integrity"],
+          "properties": {
+            "previewId": { "type": "string", "minLength": 1 },
+            "previewKind": { "type": "string", "const": "EVIDENCE_GROUNDED_RESEARCH_PREVIEW" },
+            "audience": { "type": "string", "const": "TEACHER_REVIEW" },
+            "format": { "type": "string", "const": "SAFE_TEXT_BLOCKS" },
+            "deliveryState": { "type": "string", "const": "PREVIEW_READY_NOT_PUBLISHED" },
+            "claims": { "type": "array", "minItems": 1 },
+            "limitations": { "type": "array", "minItems": 1 }
+          }
+        },
+        "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+        "boundary": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "publicationPrecheckPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "renderPreviewRequired",
+        "humanPublicationReviewRequired",
+        "evidenceIntegrityRequired",
+        "safetyReviewRequired",
+        "studentVisibilityReviewRequired",
+        "deliveryRuntimeRequired",
+        "directPublicationAllowed",
+        "studentVisibleDeliveryAllowed",
+        "directDatabaseAccessAllowed",
+        "mainDatabaseWriteAllowed",
+        "studentArchiveWriteAllowed",
+        "externalModelCallAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "renderPreviewRequired": { "type": "boolean", "const": true },
+        "humanPublicationReviewRequired": { "type": "boolean", "const": true },
+        "evidenceIntegrityRequired": { "type": "boolean", "const": true },
+        "safetyReviewRequired": { "type": "boolean", "const": true },
+        "studentVisibilityReviewRequired": { "type": "boolean", "const": true },
+        "deliveryRuntimeRequired": { "type": "boolean", "const": true },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "studentVisibleDeliveryAllowed": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "mainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentArchiveWriteAllowed": { "type": "boolean", "const": false },
+        "externalModelCallAllowed": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "precheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "precheckId",
+        "reviewerPrincipalId",
+        "decision",
+        "reviewedAt",
+        "evidenceIntegrityReviewed",
+        "safetyReviewed",
+        "studentVisibilityReviewed",
+        "limitationsReviewed",
+        "risk",
+        "comments"
+      ],
+      "properties": {
+        "precheckId": { "type": "string", "minLength": 1 },
+        "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+        "decision": {
+          "type": "string",
+          "enum": ["APPROVED_FOR_DELIVERY_RUNTIME", "REVISION_REQUIRED", "REJECTED"]
+        },
+        "reviewedAt": { "type": "string", "minLength": 1 },
+        "evidenceIntegrityReviewed": { "type": "boolean", "const": true },
+        "safetyReviewed": { "type": "boolean", "const": true },
+        "studentVisibilityReviewed": { "type": "boolean", "const": true },
+        "limitationsReviewed": { "type": "boolean", "const": true },
+        "risk": { "type": "object" },
+        "comments": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 }
+  },
+  "$defs": {
+    "researchJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

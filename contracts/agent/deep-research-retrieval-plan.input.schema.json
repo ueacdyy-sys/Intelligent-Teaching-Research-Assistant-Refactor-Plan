@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-retrieval-plan.input.schema.json",
+  "title": "Deep Research Retrieval Plan Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "planningInvocationId",
+    "principal",
+    "workerLifecycle",
+    "sourcePolicy",
+    "retrievalPolicy",
+    "researchQuestion",
+    "objectives",
+    "sourcePlan",
+    "budget",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-retrieval-plan.v1"
+    },
+    "planningInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["SERVICE", "ADMIN"] },
+        "subjectType": { "type": "string", "enum": ["SERVICE", "USER"] },
+        "entryPoint": { "type": "string", "enum": ["AGENT_INTERNAL", "DESKTOP_ADMIN"] },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["AGENT_COMMAND_SUBMIT", "RESEARCH_READ", "KNOWLEDGE_PRIVATE_READ", "ADMIN_SYSTEM"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "workerLifecycle": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schemaVersion",
+        "runtimeId",
+        "status",
+        "job",
+        "approval",
+        "worker",
+        "lifecycle",
+        "boundary"
+      ],
+      "properties": {
+        "schemaVersion": { "type": "string", "const": "2026-06-05.research.deep-research-worker-lifecycle-recorded.v1" },
+        "runtimeId": { "type": "string", "const": "research_deep_research_worker_lifecycle_runtime" },
+        "status": { "type": "string", "const": "CLAIMED_FOR_ASYNC_EXECUTION" },
+        "job": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["taskId", "contextRef", "jobId", "queueName"],
+          "properties": {
+            "taskId": { "type": "string", "minLength": 1 },
+            "contextRef": { "type": "string", "minLength": 1 },
+            "jobId": { "type": "string", "minLength": 1 },
+            "queueName": { "type": "string", "const": "research_deep_research" }
+          }
+        },
+        "approval": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["approvalId", "approvalRecordRef", "reviewerPrincipalId", "decision"],
+          "properties": {
+            "approvalId": { "type": "string", "minLength": 1 },
+            "approvalRecordRef": { "type": "string", "minLength": 1 },
+            "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+            "decision": { "type": "string", "const": "APPROVED_FOR_ASYNC" }
+          }
+        },
+        "worker": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["workerId", "nodeType", "capabilityKinds"],
+          "properties": {
+            "workerId": { "type": "string", "minLength": 1 },
+            "nodeType": { "type": "string", "const": "LOCAL" },
+            "capabilityKinds": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["toStatus"],
+          "properties": {
+            "toStatus": { "type": "string", "const": "CLAIMED" }
+          }
+        },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "approvalVerified",
+            "workerClaimRecorded",
+            "executionStarted",
+            "ragRetrievalStarted",
+            "externalModelCallStarted",
+            "finalAnswerGenerated",
+            "requiresFutureExecutionSlice"
+          ],
+          "properties": {
+            "approvalVerified": { "type": "boolean", "const": true },
+            "workerClaimRecorded": { "type": "boolean", "const": true },
+            "executionStarted": { "type": "boolean", "const": false },
+            "ragRetrievalStarted": { "type": "boolean", "const": false },
+            "externalModelCallStarted": { "type": "boolean", "const": false },
+            "finalAnswerGenerated": { "type": "boolean", "const": false },
+            "requiresFutureExecutionSlice": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "sourcePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowedClassifications",
+        "includeStudentArchive",
+        "includeRemoteDeviceSources",
+        "directDatabaseAccessAllowed",
+        "knowledgeBaseRefs"
+      ],
+      "properties": {
+        "allowedClassifications": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["PUBLIC", "PRIVATE"] }
+        },
+        "includeStudentArchive": { "type": "boolean", "const": false },
+        "includeRemoteDeviceSources": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "knowledgeBaseRefs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+        }
+      }
+    },
+    "retrievalPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planningOnly",
+        "executeRetrievalNow",
+        "directoryIndexFirst",
+        "vectorSearchNow",
+        "externalModelCallNow",
+        "ragSynthesisNow",
+        "finalAnswerNowAllowed",
+        "citationRequired",
+        "sourceHashRequired"
+      ],
+      "properties": {
+        "planningOnly": { "type": "boolean", "const": true },
+        "executeRetrievalNow": { "type": "boolean", "const": false },
+        "directoryIndexFirst": { "type": "boolean", "const": true },
+        "vectorSearchNow": { "type": "boolean", "const": false },
+        "externalModelCallNow": { "type": "boolean", "const": false },
+        "ragSynthesisNow": { "type": "boolean", "const": false },
+        "finalAnswerNowAllowed": { "type": "boolean", "const": false },
+        "citationRequired": { "type": "boolean", "const": true },
+        "sourceHashRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "researchQuestion": { "type": "string", "minLength": 8, "maxLength": 1200 },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+    },
+    "sourcePlan": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "planItemId",
+          "knowledgeBaseRef",
+          "classification",
+          "retrievalMode",
+          "plannedQuery",
+          "directoryScopeRefs",
+          "maxChunks",
+          "maxSourceRefs",
+          "citationRequired",
+          "sourceHashRequired"
+        ],
+        "properties": {
+          "planItemId": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "knowledgeBaseRef": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "classification": { "type": "string", "enum": ["PUBLIC", "PRIVATE"] },
+          "retrievalMode": {
+            "type": "string",
+            "enum": ["DIRECTORY_THEN_VECTOR", "DIRECTORY_ONLY", "VECTOR_ONLY", "KEYWORD_FALLBACK"]
+          },
+          "plannedQuery": { "type": "string", "minLength": 1, "maxLength": 800 },
+          "directoryScopeRefs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+          },
+          "maxChunks": { "type": "integer", "minimum": 1, "maximum": 40 },
+          "maxSourceRefs": { "type": "integer", "minimum": 1, "maximum": 20 },
+          "citationRequired": { "type": "boolean", "const": true },
+          "sourceHashRequired": { "type": "boolean", "const": true }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxPlannedQueries", "maxRetrievedChunks", "maxSourceRefs", "p99PlanningBudgetMs"],
+      "properties": {
+        "maxPlannedQueries": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "maxRetrievedChunks": { "type": "integer", "minimum": 3, "maximum": 120 },
+        "maxSourceRefs": { "type": "integer", "minimum": 3, "maximum": 50 },
+        "p99PlanningBudgetMs": { "type": "integer", "minimum": 1, "maximum": 50 }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 }
+  }
+}

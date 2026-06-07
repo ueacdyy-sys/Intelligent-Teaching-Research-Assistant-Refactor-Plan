@@ -3,10 +3,10 @@
 ## Problem
 
 SDD 0203 moved the Root SLO review onto target-bearing production10k evidence.
-That evidence already proves throughput: `22836.8` mixed read/write RPS with
-zero errors and target status `MET`. Promotion is still blocked by one latency
-finding: `production_target.max_p99_ms=310.78`, above the root interactive
-P99 target of `300ms`.
+At this historical slice, that evidence already proved throughput: `22836.8`
+mixed read/write RPS with zero errors and target status `MET`. Promotion was
+still blocked by one latency finding: `production_target.max_p99_ms=310.78`,
+above the then-active root interactive P99 target of `300ms`.
 
 The slowest production10k sample is Teaching Archive sample 1. Its
 `createArchiveItem` P99 is `310.78ms`, and its `db.insert` P99 is `270.08ms`.
@@ -20,6 +20,20 @@ The current Teaching gateway sets `MinConns=0` and calls `pool.Ping`, which
 only proves one lazy pgxpool connection. Under production10k pressure each
 gateway can still create the remaining connections during the first write
 burst.
+
+## Current Status
+
+This SDD records the historical Teaching tail-latency remediation slice. It has
+been superseded by later production10k default-final sustained evidence:
+
+- `reports/system-sustained-mixed-workload-scaleup.production10k-default-final-sustained.current.json`
+- `reports/root-slo-promotion-review.current.json`
+- `reports/system-capacity-claim.current.json`
+
+Current result: 22,435.1 read/write RPS, max P99 44.44 ms, zero errors, and
+Root SLO `APPROVE_PROMOTION` for the 10k/50ms claim. The remaining Teaching
+Archive latency cost is now a 10ms-excellent-target optimization topic, not a
+blocker for continuing the whole-system refactor.
 
 ## Scope
 

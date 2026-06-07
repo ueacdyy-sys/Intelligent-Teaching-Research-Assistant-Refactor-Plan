@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "2026-06-05.workflow-plugin.management-audit-detail.v1",
+  "detailId": "workflow_plugin_management_audit_detail_lesson_archive_review",
+  "generatedAt": "2026-06-05T07:00:00.000Z",
+  "surface": "ADMIN_WORKFLOW_PLUGIN_AUDIT_DETAIL",
+  "registryEntry": {
+    "registryEntryId": "workflow_registry_lesson_archive_review",
+    "draftId": "workflow_draft_lesson_archive_review",
+    "artifactKind": "WORKFLOW",
+    "capabilityKind": "WORKFLOW",
+    "status": "ACTIVE",
+    "executionMode": "DRY_RUN_ONLY",
+    "localExecutionEnabled": false
+  },
+  "summary": {
+    "detailReadiness": "READONLY_AUDIT_READY",
+    "executionStatus": "EXECUTION_CANDIDATES_DISABLED",
+    "publicationStatus": "PUBLICATION_DISABLED",
+    "managementStatus": "ALL_ACTIONS_DISABLED",
+    "nextRequiredSdd": "EXECUTABLE_ISOLATION_SIGNING_ROLLOUT_ROLLBACK"
+  },
+  "evidenceTimeline": [
+    {
+      "stage": "DRAFT_INTENT",
+      "status": "REVIEW_REQUIRED",
+      "reportRef": "reports/workflow-plugin-draft-intent.current.json",
+      "recordRef": "workflow_plugin_draft_intent_audit-workflow-plugin-draft-intent",
+      "allowedToAdvance": true
+    },
+    {
+      "stage": "SANDBOX_RESULT",
+      "status": "SANDBOX_PASSED_REVIEW_REQUIRED",
+      "reportRef": "reports/workflow-plugin-sandbox-result.current.json",
+      "recordRef": "workflow_plugin_sandbox_result_audit-workflow-sandbox-result-pass",
+      "allowedToAdvance": true
+    },
+    {
+      "stage": "HUMAN_APPROVAL",
+      "status": "HUMAN_APPROVED_REGISTRY_ADMISSION_READY",
+      "reportRef": "reports/workflow-plugin-human-approval.current.json",
+      "recordRef": "workflow_plugin_human_approval_audit-workflow-human-approval-approved",
+      "allowedToAdvance": true
+    },
+    {
+      "stage": "REGISTRY_ADMISSION",
+      "status": "REGISTRY_ADMISSION_SAVED_DRY_RUN_ONLY",
+      "reportRef": "reports/workflow-plugin-registry-admission-runtime.current.json",
+      "recordRef": "workflow_plugin_registry_admission_audit-workflow-registry-admission-allow",
+      "allowedToAdvance": true
+    },
+    {
+      "stage": "EXECUTION_ISOLATION",
+      "status": "EXECUTION_CANDIDATE_BLOCKED_BY_ISOLATION",
+      "reportRef": "reports/workflow-plugin-execution-isolation.current.json",
+      "recordRef": "workflow_plugin_execution_isolation_audit-workflow-execution-isolation",
+      "allowedToAdvance": false
+    },
+    {
+      "stage": "PUBLICATION_DISABLED",
+      "status": "WORKFLOW_PLUGIN_PUBLICATION_BLOCKED_BY_POLICY",
+      "reportRef": "reports/workflow-plugin-publication-disabled.current.json",
+      "recordRef": "workflow_plugin_publication_disabled_audit_workflow_publication_disabled",
+      "allowedToAdvance": false
+    },
+    {
+      "stage": "MANAGEMENT_DISABLED_VIEW",
+      "status": "WORKFLOW_PLUGIN_MANAGEMENT_VIEW_DISABLED",
+      "reportRef": "reports/workflow-plugin-management-disabled-view.current.json",
+      "recordRef": "workflow_plugin_management_disabled_view_audit_workflow_management_disabled_view",
+      "allowedToAdvance": false
+    }
+  ],
+  "controlActions": [
+    {
+      "actionId": "publish",
+      "enabled": false,
+      "disabledReason": "Publication is blocked by the current SDD.",
+      "evidenceRef": "workflow-plugin-publication-disabled:workflow_plugin_publication_disabled_audit_workflow_publication_disabled"
+    },
+    {
+      "actionId": "enableLocalExecution",
+      "enabled": false,
+      "disabledReason": "Local execution requires a future executable isolation SDD.",
+      "evidenceRef": "workflow-plugin-execution-isolation:workflow_plugin_execution_isolation_audit-workflow-execution-isolation"
+    },
+    {
+      "actionId": "createExecutionCandidate",
+      "enabled": false,
+      "disabledReason": "Execution candidates are disabled by the current SDD.",
+      "evidenceRef": "workflow-plugin-execution-isolation:workflow_plugin_execution_isolation_audit-workflow-execution-isolation"
+    },
+    {
+      "actionId": "exposeMarketplace",
+      "enabled": false,
+      "disabledReason": "Marketplace exposure is blocked by the current SDD.",
+      "evidenceRef": "workflow-plugin-publication-disabled:workflow_plugin_publication_disabled_audit_workflow_publication_disabled"
+    }
+  ],
+  "boundary": {
+    "readOnly": true,
+    "managementDetailRendered": true,
+    "allActionsDisabled": true,
+    "workflowPublishAllowed": false,
+    "pluginMarketplaceExposureAllowed": false,
+    "executionCandidateAllowed": false,
+    "localExecutionEnabled": false,
+    "processLaunchAllowed": false,
+    "hostWriteAllowed": false,
+    "productionHotPathChanged": false,
+    "requiresFutureSdd": true
+  }
+}

@@ -13,8 +13,9 @@ import (
 )
 
 func runCreateArchiveItemPhase(ctx context.Context, client *http.Client, baseURLs []string, config benchmarkConfig) (phaseReport, []string) {
+	expectedStatus, _ := expectedWriteStatus(config)
 	execution := runPhase("createArchiveItem", config.Concurrency, config.Operations, func(_ int, opIndex int) (operationResult, error) {
-		return createArchiveItem(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, opIndex, config.ClientTrace)
+		return createArchiveItem(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, opIndex, expectedStatus, config.ClientTrace)
 	})
 	if execution.firstErr != nil {
 		execution.report.FirstError = execution.firstErr.Error()
@@ -29,12 +30,13 @@ func runCreateQuizSubmissionPhase(
 	config benchmarkConfig,
 	archiveItemIDs []string,
 ) phaseReport {
+	expectedStatus, _ := expectedWriteStatus(config)
 	if len(archiveItemIDs) == 0 {
 		return failedPhase("createQuizSubmission", config.Operations, "createArchiveItem produced no archive item ids")
 	}
 	execution := runPhase("createQuizSubmission", config.Concurrency, config.Operations, func(_ int, opIndex int) (operationResult, error) {
 		archiveItemID := archiveItemIDs[opIndex%len(archiveItemIDs)]
-		return createQuizSubmission(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, archiveItemID, opIndex, config.ClientTrace)
+		return createQuizSubmission(ctx, client, baseURLForOperation(baseURLs, opIndex), config.AgentAPIKey, archiveItemID, opIndex, expectedStatus, config.ClientTrace)
 	})
 	if execution.firstErr != nil {
 		execution.report.FirstError = execution.firstErr.Error()

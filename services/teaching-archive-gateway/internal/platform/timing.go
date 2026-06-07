@@ -6,11 +6,16 @@ import (
 )
 
 type TeachingArchiveTiming struct {
-	DBBatchWait time.Duration
-	DBAcquire   time.Duration
-	DBExec      time.Duration
-	DBQuery     time.Duration
-	DBInsert    time.Duration
+	DBBatchWait       time.Duration
+	DBAcquire         time.Duration
+	DBExec            time.Duration
+	DBQuery           time.Duration
+	DBInsert          time.Duration
+	CommandAppend     time.Duration
+	ProjectionEnqueue time.Duration
+	ResponseEncode    time.Duration
+	CacheHit          bool
+	CacheSharedWait   time.Duration
 }
 
 type teachingArchiveTimingContextKey struct{}

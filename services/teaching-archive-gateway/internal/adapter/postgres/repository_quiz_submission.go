@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
 func (r *ArchiveRepository) CreateQuizSubmission(
 	ctx context.Context,
 	submission domain.QuizSubmission,
-) error {
+) (usecase.WritePersistenceOutcome, error) {
 	insertStart := time.Now()
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO teaching_quiz_submissions (
@@ -32,13 +33,16 @@ func (r *ArchiveRepository) CreateQuizSubmission(
 		submission.SubmittedAt,
 	)
 	recordDBInsertTiming(ctx, observableDuration(time.Since(insertStart)))
-	return err
+	if err != nil {
+		return usecase.WritePersistenceOutcome{}, err
+	}
+	return usecase.PersistedWriteOutcome(), nil
 }
 
 func (r *ArchiveRepository) CreateQuizSubmissionForExistingTeachingQuiz(
 	ctx context.Context,
 	submission domain.QuizSubmission,
-) (bool, error) {
+) (bool, usecase.WritePersistenceOutcome, error) {
 	insertStart := time.Now()
 	tag, err := r.db.Exec(ctx, `
 		INSERT INTO teaching_quiz_submissions (
@@ -75,7 +79,10 @@ func (r *ArchiveRepository) CreateQuizSubmissionForExistingTeachingQuiz(
 	)
 	recordDBInsertTiming(ctx, observableDuration(time.Since(insertStart)))
 	if err != nil {
-		return false, err
+		return false, usecase.WritePersistenceOutcome{}, err
 	}
-	return tag.RowsAffected() > 0, nil
+	if tag.RowsAffected() == 0 {
+		return false, usecase.WritePersistenceOutcome{}, nil
+	}
+	return true, usecase.PersistedWriteOutcome(), nil
 }

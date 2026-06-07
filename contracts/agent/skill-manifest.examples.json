@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "2026-06-04.agent.skill-manifest.examples.v1",
+  "skills": [
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "search_teaching_material",
+      "domain": "Teaching",
+      "summary": "Search assigned teaching materials and return cited evidence for lesson planning.",
+      "inputSchemaRef": "contracts/agent/skills/search-teaching-material.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/search-teaching-material.output.schema.json",
+      "requiredPermissions": ["TEACHING_READ", "KNOWLEDGE_PUBLIC_READ"],
+      "dataScopes": {
+        "knowledge": "PUBLIC",
+        "student": "NONE",
+        "teaching": "READ",
+        "research": "NONE",
+        "localTool": "NONE"
+      },
+      "costHint": { "tokenClass": "LOW", "runtimeClass": "INLINE", "externalCost": "NONE" },
+      "latencyBudgetMs": 80,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["SOURCE", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO"],
+        "citationRequired": true,
+        "traceRequired": true
+      },
+      "disclosureLevel": "SUMMARY_FIRST",
+      "harnessRequired": false,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "LOW",
+      "allowedWorkerAgents": ["TeachingAgent"]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "recommend_practice",
+      "domain": "StudentTutor",
+      "summary": "Recommend scoped practice items from own or assigned student learning traces without exposing other students.",
+      "inputSchemaRef": "contracts/agent/skills/recommend-practice.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/recommend-practice.output.schema.json",
+      "requiredPermissions": ["STUDENT_OWN_READ", "STUDENT_ASSIGNED_READ", "TEACHING_READ"],
+      "dataScopes": {
+        "knowledge": "PUBLIC",
+        "student": "ASSIGNED",
+        "teaching": "READ",
+        "research": "NONE",
+        "localTool": "NONE"
+      },
+      "costHint": { "tokenClass": "LOW", "runtimeClass": "INLINE", "externalCost": "NONE" },
+      "latencyBudgetMs": 50,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["SOURCE", "PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO"],
+        "citationRequired": true,
+        "traceRequired": true
+      },
+      "disclosureLevel": "SUMMARY_FIRST",
+      "harnessRequired": false,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "MEDIUM",
+      "allowedWorkerAgents": ["StudentTutorAgent"]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "search_knowledge",
+      "domain": "Research",
+      "summary": "Search authorized public, private, or remote-owned knowledge sources with citations.",
+      "inputSchemaRef": "contracts/agent/skills/search-knowledge.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/search-knowledge.output.schema.json",
+      "requiredPermissions": ["RESEARCH_READ", "KNOWLEDGE_PRIVATE_READ"],
+      "dataScopes": {
+        "knowledge": "PRIVATE_ASSIGNED",
+        "student": "NONE",
+        "teaching": "NONE",
+        "research": "READ",
+        "localTool": "NONE"
+      },
+      "costHint": { "tokenClass": "LOW", "runtimeClass": "INLINE", "externalCost": "NONE" },
+      "latencyBudgetMs": 50,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["SOURCE", "PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO"],
+        "citationRequired": true,
+        "traceRequired": true
+      },
+      "disclosureLevel": "SUMMARY_FIRST",
+      "harnessRequired": false,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "LOW",
+      "allowedWorkerAgents": ["ResearchAgent"]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "deep_research",
+      "domain": "Research",
+      "summary": "Run bounded research retrieval and synthesis over authorized knowledge sources with citations.",
+      "inputSchemaRef": "contracts/agent/skills/deep-research.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/deep-research.output.schema.json",
+      "requiredPermissions": ["RESEARCH_READ", "KNOWLEDGE_PRIVATE_READ"],
+      "dataScopes": {
+        "knowledge": "PRIVATE_ASSIGNED",
+        "student": "NONE",
+        "teaching": "NONE",
+        "research": "READ",
+        "localTool": "NONE"
+      },
+      "costHint": { "tokenClass": "HIGH", "runtimeClass": "ASYNC_WORKER", "externalCost": "METERED" },
+      "latencyBudgetMs": 3000,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["SOURCE", "PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO"],
+        "citationRequired": true,
+        "traceRequired": true
+      },
+      "disclosureLevel": "MANIFEST_THEN_SCHEMA",
+      "harnessRequired": false,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "MEDIUM",
+      "allowedWorkerAgents": ["ResearchAgent"]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "run_benchmark",
+      "domain": "Analysis",
+      "summary": "Prepare or run approved benchmark commands and bind the result to Root SLO evidence.",
+      "inputSchemaRef": "contracts/agent/skills/run-benchmark.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/run-benchmark.output.schema.json",
+      "requiredPermissions": ["PROCESS_START", "FILE_WRITE"],
+      "dataScopes": {
+        "knowledge": "NONE",
+        "student": "NONE",
+        "teaching": "NONE",
+        "research": "NONE",
+        "localTool": "MUTATING"
+      },
+      "costHint": { "tokenClass": "LOW", "runtimeClass": "ASYNC_WORKER", "externalCost": "NONE" },
+      "latencyBudgetMs": 10000,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO", "ROLLBACK"],
+        "citationRequired": false,
+        "traceRequired": true
+      },
+      "disclosureLevel": "MANIFEST_THEN_SCHEMA",
+      "harnessRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "HIGH",
+      "allowedWorkerAgents": ["AnalysisAgent"]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "draft_workflow",
+      "domain": "Workflow",
+      "summary": "Draft a workflow artifact and keep it disabled until sandbox and human approval pass.",
+      "inputSchemaRef": "contracts/agent/skills/draft-workflow.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/draft-workflow.output.schema.json",
+      "requiredPermissions": ["WORKFLOW_DRAFT", "FILE_WRITE"],
+      "dataScopes": {
+        "knowledge": "NONE",
+        "student": "NONE",
+        "teaching": "READ",
+        "research": "NONE",
+        "localTool": "MUTATING"
+      },
+      "costHint": { "tokenClass": "MEDIUM", "runtimeClass": "ASYNC_WORKER", "externalCost": "NONE" },
+      "latencyBudgetMs": 1000,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO", "ROLLBACK"],
+        "citationRequired": false,
+        "traceRequired": true
+      },
+      "disclosureLevel": "MANIFEST_THEN_SCHEMA",
+      "harnessRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "HIGH",
+      "allowedWorkerAgents": ["WorkflowAgent"]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "external_app_action",
+      "domain": "ToolControl",
+      "summary": "Submit a bounded external application action candidate through Harness approval and evidence capture.",
+      "inputSchemaRef": "contracts/agent/skills/external-app-action.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/external-app-action.output.schema.json",
+      "requiredPermissions": ["EXTERNAL_APP_CONTROL", "BROWSER_NAVIGATE", "PROCESS_START"],
+      "dataScopes": {
+        "knowledge": "NONE",
+        "student": "NONE",
+        "teaching": "NONE",
+        "research": "NONE",
+        "localTool": "MUTATING"
+      },
+      "costHint": { "tokenClass": "LOW", "runtimeClass": "OPTIONAL_PLUGIN", "externalCost": "NONE" },
+      "latencyBudgetMs": 5000,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO", "ROLLBACK"],
+        "citationRequired": false,
+        "traceRequired": true
+      },
+      "disclosureLevel": "MANIFEST_THEN_SCHEMA",
+      "harnessRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "CRITICAL",
+      "allowedWorkerAgents": ["ToolControlAgent"]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.skill-manifest.v1",
+      "skillId": "draft_model_job",
+      "domain": "ModelExperiment",
+      "summary": "Draft an optional model experiment job without installing heavy training dependencies into baseline.",
+      "inputSchemaRef": "contracts/agent/skills/draft-model-job.input.schema.json",
+      "outputSchemaRef": "contracts/agent/skills/draft-model-job.output.schema.json",
+      "requiredPermissions": ["MODEL_EXPERIMENT", "MODEL_TRAINING"],
+      "dataScopes": {
+        "knowledge": "PRIVATE_ASSIGNED",
+        "student": "ASSIGNED",
+        "teaching": "READ",
+        "research": "READ",
+        "localTool": "NONE"
+      },
+      "costHint": { "tokenClass": "HIGH", "runtimeClass": "OPTIONAL_PLUGIN", "externalCost": "METERED" },
+      "latencyBudgetMs": 30000,
+      "evidencePolicy": {
+        "required": true,
+        "requiredEvidenceRefs": ["SOURCE", "PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO", "ROLLBACK"],
+        "citationRequired": true,
+        "traceRequired": true
+      },
+      "disclosureLevel": "MANIFEST_THEN_SCHEMA",
+      "harnessRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "riskLevel": "CRITICAL",
+      "allowedWorkerAgents": ["ModelExperimentAgent"]
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+{
+  "generatedAt": "2026-06-07T12:28:42.472Z",
+  "readiness": "READY",
+  "workloadType": "AGENT_SKILL_CONTRACT_AUDIT",
+  "summary": {
+    "skillCount": 8,
+    "coveredDomains": [
+      "Teaching",
+      "StudentTutor",
+      "Research",
+      "Analysis",
+      "Workflow",
+      "ToolControl",
+      "ModelExperiment"
+    ],
+    "routeModes": [
+      "SINGLE_WORKER",
+      "SWARM"
+    ],
+    "guardrailDecisions": [
+      "ALLOW",
+      "APPROVAL_REQUIRED",
+      "DENY"
+    ],
+    "directDatabaseWriteAllowed": false,
+    "teachingReadOnlySkill": {
+      "skillId": "search_teaching_material",
+      "workerAgent": "TeachingAgent",
+      "schemaRefsReady": true,
+      "inputBoundaryReady": true,
+      "outputBoundaryReady": true
+    },
+    "teachingReadOnlyAdapter": {
+      "adapterId": "teaching_agent_search_material_readonly_adapter",
+      "readPortReady": true,
+      "guardsReady": true,
+      "evidenceSloReady": true
+    }
+  },
+  "findings": [
+    {
+      "id": "skill.schema_version",
+      "passed": true,
+      "severity": "info",
+      "actual": "2026-06-04.agent.skill-manifest.v1",
+      "expected": "2026-06-04.agent.skill-manifest.v1",
+      "remediation": "Keep Skill Manifest on the current v1 contract before adding runtime adapters."
+    },
+    {
+      "id": "skill.no_direct_database_write_schema",
+      "passed": true,
+      "severity": "info",
+      "actual": false,
+      "expected": false,
+      "remediation": "Agent Skills must never advertise direct main-database writes."
+    },
+    {
+      "id": "skill.domain_coverage",
+      "passed": true,
+      "severity": "info",
+      "actual": "Teaching,StudentTutor,Research,Analysis,Workflow,ToolControl,ModelExperiment",
+      "expected": "Teaching,StudentTutor,Research,Analysis,Workflow,ToolControl,ModelExperiment",
+      "remediation": "Cover Teaching, StudentTutor, Research, Analysis, Workflow, ToolControl, and ModelExperiment skills."
+    },
+    {
+      "id": "skill.examples_no_direct_database_write",
+      "passed": true,
+      "severity": "info",
+      "actual": "search_teaching_material:false;recommend_practice:false;search_knowledge:false;deep_research:false;run_benchmark:false;draft_workflow:false;external_app_action:false;draft_model_job:false",
+      "expected": "all directDatabaseWriteAllowed=false",
+      "remediation": "Every example Skill must return through ports, events, or Harness rather than writing the main database directly."
+    },
+    {
+      "id": "skill.dangerous_permissions_require_harness",
+      "passed": true,
+      "severity": "info",
+      "actual": "run_benchmark:harness=true:permissions=PROCESS_START|FILE_WRITE;draft_workflow:harness=true:permissions=WORKFLOW_DRAFT|FILE_WRITE;external_app_action:harness=true:permissions=EXTERNAL_APP_CONTROL|BROWSER_NAVIGATE|PROCESS_START;draft_model_job:harness=true:permissions=MODEL_EXPERIMENT|MODEL_TRAINING",
+      "expected": "dangerous permissions require harnessRequired=true",
+      "remediation": "File writes, process starts, browser/app control, workflow publish, model experiments, and business writes must pass Harness."
+    },
+    {
+      "id": "skill.evidence_policy_required",
+      "passed": true,
+      "severity": "info",
+      "actual": "search_teaching_material:required=true:trace=true:refs=4;recommend_practice:required=true:trace=true:refs=5;search_knowledge:required=true:trace=true:refs=5;deep_research:required=true:trace=true:refs=5;run_benchmark:required=true:trace=true:refs=5;draft_workflow:required=true:trace=true:refs=5;external_app_action:required=true:trace=true:refs=5;draft_model_job:required=true:trace=true:refs=6",
+      "expected": "required=true traceRequired=true refs>0",
+      "remediation": "Every Skill must leave source, permission, SLO, or rollback evidence for later audit."
+    },
+    {
+      "id": "skill.progressive_disclosure",
+      "passed": true,
+      "severity": "info",
+      "actual": "SUMMARY_FIRST,MANIFEST_THEN_SCHEMA",
+      "expected": "SUMMARY_FIRST or MANIFEST_THEN_SCHEMA",
+      "remediation": "Skill discovery must stay summary-first to avoid loading every tool schema into the prompt."
+    },
+    {
+      "id": "teaching_readonly_skill.schema_refs",
+      "passed": true,
+      "severity": "info",
+      "actual": "inputRef=contracts/agent/skills/search-teaching-material.input.schema.json outputRef=contracts/agent/skills/search-teaching-material.output.schema.json inputVersion=2026-06-04.agent.skill.search-teaching-material.input.v1 outputVersion=2026-06-04.agent.skill.search-teaching-material.output.v1",
+      "expected": "manifest refs resolve to search-teaching-material input/output v1 schemas",
+      "remediation": "TeachingAgent search_teaching_material must point to concrete input/output schemas before runtime code can invoke it."
+    },
+    {
+      "id": "teaching_readonly_skill.input_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "contextRef=true p99Max=50 writeIntent=false studentDataAccess=NONE externalModelAllowed=false ownerType=TEACHING includeStudentArchive=false",
+      "expected": "contextRef required, p99<=50, writeIntent=false, no student archive, no external model",
+      "remediation": "TeachingAgent read-only search must be bound to SharedContext and must not request writes, student archives, or external model calls."
+    },
+    {
+      "id": "teaching_readonly_skill.output_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "evidenceRefs=true ownerType=TEACHING directDb=false studentData=false externalModel=false p99Max=50 runtimeEvidenceRequired=true",
+      "expected": "teaching-only results, evidence refs, no direct DB writes, no student data, no external model, runtime evidence required",
+      "remediation": "TeachingAgent read-only search output must return cited teaching materials and safety/SLO evidence only."
+    },
+    {
+      "id": "teaching_readonly_skill.examples_safe_fast_path",
+      "passed": true,
+      "severity": "info",
+      "actual": "inputVersion=2026-06-04.agent.skill.search-teaching-material.input.v1 outputVersion=2026-06-04.agent.skill.search-teaching-material.output.v1 write=false owner=TEACHING studentArchive=false studentAccess=NONE externalModelAllowed=false inputP99=50 outputDirectDb=false outputStudentData=false outputExternalModel=false outputP99=50 evidenceRefs=3",
+      "expected": "examples are read-only, teaching-only, evidence-backed, and <=50ms budget",
+      "remediation": "TeachingAgent read-only examples must prove the fast path is safe before runtime adapters are added."
+    },
+    {
+      "id": "teaching_readonly_adapter.schema_and_identity",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion=2026-06-04.agent.teaching-readonly-adapter.v1 adapterId=teaching_agent_search_material_readonly_adapter worker=TeachingAgent skill=search_teaching_material route=SINGLE_WORKER",
+      "expected": "TeachingAgent SINGLE_WORKER adapter bound to search_teaching_material input/output schemas",
+      "remediation": "TeachingAgent read-only runtime adapters must stay bound to the checked search_teaching_material contracts."
+    },
+    {
+      "id": "teaching_readonly_adapter.read_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "port=TeachingArchiveReadPort operation=searchTeachingMaterials directDb=false write=false",
+      "expected": "read port is TeachingArchiveReadPort.searchTeachingMaterials with no direct DB access or writes",
+      "remediation": "TeachingAgent search_teaching_material must call a read port instead of reaching into database or write adapters."
+    },
+    {
+      "id": "teaching_readonly_adapter.guards_and_scopes",
+      "passed": true,
+      "severity": "info",
+      "actual": "principal=true shared=true guardrail=true denyWrite=true denyStudentArchive=true denyExternalModel=true scopes=PUBLIC/NONE/READ/NONE/NONE",
+      "expected": "principal/shared context/guardrail required; write, student archive, and external model requests denied",
+      "remediation": "TeachingAgent read-only adapters must keep Teaching READ only, Student NONE, and LocalTool NONE."
+    },
+    {
+      "id": "teaching_readonly_adapter.evidence_slo_promotion",
+      "passed": true,
+      "severity": "info",
+      "actual": "trace=true inputHash=true outputSummary=true sourceRefs=true timing=true p99=50 promotion=true",
+      "expected": "trace/input/output/source/timing evidence, p99<=50, and runtime evidence required before promotion",
+      "remediation": "TeachingAgent read-only adapters need runtime timing and evidence gates before promotion beyond contract-only."
+    },
+    {
+      "id": "shared_context.required_boundary_fields",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion,contextId,principalContextRef,sessionId,taskId,rootRequirementAnchors,dataScopes,evidenceRefs,redactionState,tokenBudget,latencyBudgetMs,memoryRefs,expirationPolicy",
+      "expected": "principal/session/task/root anchors/data scopes/evidence/redaction/budget/memory/expiration",
+      "remediation": "SharedContext must carry identity, evidence, privacy, budget, and expiry information across Agent boundaries."
+    },
+    {
+      "id": "shared_context.example_root_and_budget",
+      "passed": true,
+      "severity": "info",
+      "actual": "anchors=4;p99=50;deleteOnRevoke=true",
+      "expected": "root anchors present, latencyBudgetMs<=50, deleteOnRevoke=true",
+      "remediation": "SharedContext examples must stay tied to immutable root requirements and the production 50ms target."
+    },
+    {
+      "id": "task.required_routing_fields",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion,taskId,requestedByPrincipalId,principalContextRef,userIntent,taskKind,rootRequirementAnchors,riskLevel,writeIntent,requiresHumanApproval,routePolicy,budgets",
+      "expected": "principal/intent/kind/risk/write/approval/route/budget",
+      "remediation": "AgentTask must expose the fields LeadAgent needs before routing work."
+    },
+    {
+      "id": "task.write_intent_requires_approval_example",
+      "passed": true,
+      "severity": "info",
+      "actual": "agent_task_lesson_quiz_001:write=true:approval=true;agent_task_system_perf_triage_001:write=false:approval=false",
+      "expected": "at least one writeIntent=true example with requiresHumanApproval=true",
+      "remediation": "Teaching writes and generated artifacts must show the approval path in examples."
+    },
+    {
+      "id": "route.schema_modes",
+      "passed": true,
+      "severity": "info",
+      "actual": "SINGLE_WORKER,SWARM",
+      "expected": "SINGLE_WORKER,SWARM",
+      "remediation": "RouteDecision must support both single-worker fast path and Swarm coordination."
+    },
+    {
+      "id": "route.examples_single_and_swarm",
+      "passed": true,
+      "severity": "info",
+      "actual": "route_lesson_quiz_single_001:SINGLE_WORKER:workers=1:p99=50;route_perf_swarm_001:SWARM:workers=3:p99=50",
+      "expected": "SINGLE_WORKER and SWARM examples; SWARM has >=2 workers, rationale, fallback, and p99 budget",
+      "remediation": "Swarm must be explicit, budgeted, and fallback-aware rather than the default chat path."
+    },
+    {
+      "id": "guardrail.decision_vocabulary",
+      "passed": true,
+      "severity": "info",
+      "actual": "ALLOW,APPROVAL_REQUIRED,DENY",
+      "expected": "ALLOW,APPROVAL_REQUIRED,DENY",
+      "remediation": "GuardrailResult must express allow, approval-required, and deny outcomes."
+    },
+    {
+      "id": "guardrail.examples_decision_coverage",
+      "passed": true,
+      "severity": "info",
+      "actual": "ALLOW,APPROVAL_REQUIRED,DENY",
+      "expected": "ALLOW,APPROVAL_REQUIRED,DENY",
+      "remediation": "Examples must prove the three guardrail outcomes before runtime implementation."
+    },
+    {
+      "id": "guardrail.no_direct_database_write",
+      "passed": true,
+      "severity": "info",
+      "actual": "guardrail_allow_read_teaching_001:false;guardrail_approval_benchmark_001:false;guardrail_deny_direct_db_001:false",
+      "expected": "schema const false and all examples false",
+      "remediation": "Guardrails must keep direct database writes impossible even for denied attempts."
+    },
+    {
+      "id": "guardrail.high_risk_requires_harness_or_deny",
+      "passed": true,
+      "severity": "info",
+      "actual": "guardrail_allow_read_teaching_001:ALLOW:harness=false;guardrail_approval_benchmark_001:APPROVAL_REQUIRED:harness=true;guardrail_deny_direct_db_001:DENY:harness=true",
+      "expected": "non-ALLOW decisions require Harness action",
+      "remediation": "Approval and denial paths must bind to Harness evidence and rollback decisions."
+    }
+  ]
+}

@@ -10,7 +10,7 @@ import (
 	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
-func TestListStudentAppArchiveItemsScopesOwnStudentBeforeRepository(t *testing.T) {
+func TestListStudentAppArchiveItemsScopesOwnStudentBeforePublishedProjectionRead(t *testing.T) {
 	reader := &fakeReader{
 		items: []domain.ArchiveItem{
 			archiveItem("tarch_own", "student_001", time.Date(2026, 5, 30, 11, 0, 0, 0, time.UTC)),
@@ -26,14 +26,20 @@ func TestListStudentAppArchiveItemsScopesOwnStudentBeforeRepository(t *testing.T
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
 	}
-	if reader.query.OwnerType != domain.OwnerTypeStudent {
-		t.Fatalf("OwnerType = %q", reader.query.OwnerType)
+	if reader.reads != 0 {
+		t.Fatalf("generic reads = %d, want 0", reader.reads)
 	}
-	if reader.query.StudentID != "student_001" {
-		t.Fatalf("StudentID = %q", reader.query.StudentID)
+	if reader.publishedReads != 1 {
+		t.Fatalf("published reads = %d, want 1", reader.publishedReads)
 	}
-	if reader.query.MaterialType != domain.MaterialTypeQuiz {
-		t.Fatalf("MaterialType = %q", reader.query.MaterialType)
+	if reader.publishedQuery.OwnerType != domain.OwnerTypeStudent {
+		t.Fatalf("OwnerType = %q", reader.publishedQuery.OwnerType)
+	}
+	if reader.publishedQuery.StudentID != "student_001" {
+		t.Fatalf("StudentID = %q", reader.publishedQuery.StudentID)
+	}
+	if reader.publishedQuery.MaterialType != domain.MaterialTypeQuiz {
+		t.Fatalf("MaterialType = %q", reader.publishedQuery.MaterialType)
 	}
 	if len(page.Items) != 1 {
 		t.Fatalf("items = %d", len(page.Items))
@@ -51,6 +57,9 @@ func TestListStudentAppArchiveItemsRejectsForbiddenWithoutRepositoryRead(t *test
 		t.Fatalf("error = %v, want ErrForbidden", err)
 	}
 	if reader.reads != 0 {
-		t.Fatalf("reader reads = %d", reader.reads)
+		t.Fatalf("generic reads = %d", reader.reads)
+	}
+	if reader.publishedReads != 0 {
+		t.Fatalf("published reads = %d", reader.publishedReads)
 	}
 }

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "2026-06-04.agent.teaching-readonly-adapter.v1",
+  "adapterId": "teaching_agent_search_material_readonly_adapter",
+  "workerAgent": "TeachingAgent",
+  "skillId": "search_teaching_material",
+  "routeMode": "SINGLE_WORKER",
+  "inputSchemaRef": "contracts/agent/skills/search-teaching-material.input.schema.json",
+  "outputSchemaRef": "contracts/agent/skills/search-teaching-material.output.schema.json",
+  "readPort": {
+    "portName": "TeachingArchiveReadPort",
+    "operation": "searchTeachingMaterials",
+    "transport": "HTTP",
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false
+  },
+  "guards": {
+    "principalContextRequired": true,
+    "sharedContextRequired": true,
+    "guardrailResultRequired": true,
+    "denyOnWriteIntent": true,
+    "denyOnStudentArchiveRequest": true,
+    "denyOnExternalModelRequest": true,
+    "dataScopes": {
+      "knowledge": "PUBLIC",
+      "student": "NONE",
+      "teaching": "READ",
+      "research": "NONE",
+      "localTool": "NONE"
+    }
+  },
+  "evidence": {
+    "skillInvocationTraceRequired": true,
+    "inputHashRequired": true,
+    "outputSummaryRequired": true,
+    "sourceEvidenceRefsRequired": true,
+    "runtimeTimingRequired": true
+  },
+  "slo": {
+    "p99BudgetMs": 50,
+    "maxResults": 5,
+    "maxSnippetChars": 240
+  },
+  "promotion": {
+    "currentEvidenceClass": "CONTRACT_ONLY",
+    "runtimeEvidenceRequiredBeforePromotion": true,
+    "rootWorkflowRequired": true
+  }
+}

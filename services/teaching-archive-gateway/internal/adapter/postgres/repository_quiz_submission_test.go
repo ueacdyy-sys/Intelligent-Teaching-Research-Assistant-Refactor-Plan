@@ -17,7 +17,7 @@ func TestCreateQuizSubmissionInsertsMetadataOnly(t *testing.T) {
 	db := &recordingDB{tag: commandTag{rowsAffected: 1}}
 	repository := postgres.NewArchiveRepository(db)
 
-	err := repository.CreateQuizSubmission(context.Background(), domain.QuizSubmission{
+	_, err := repository.CreateQuizSubmission(context.Background(), domain.QuizSubmission{
 		ID:                     "quiz_sub_row",
 		QuizArchiveItemID:      "tarch_quiz",
 		StudentID:              "student_001",
@@ -50,7 +50,7 @@ func TestCreateQuizSubmissionForExistingTeachingQuizConditionallyInsertsMetadata
 	db := &recordingDB{tag: commandTag{rowsAffected: 1}}
 	repository := postgres.NewArchiveRepository(db)
 
-	created, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(
+	created, _, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(
 		context.Background(),
 		domain.QuizSubmission{
 			ID:                     "quiz_sub_row",
@@ -98,7 +98,7 @@ func TestCreateQuizSubmissionForExistingTeachingQuizReturnsFalseWhenNoTeachingQu
 	db := &recordingDB{tag: commandTag{rowsAffected: 0}}
 	repository := postgres.NewArchiveRepository(db)
 
-	created, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(
+	created, _, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(
 		context.Background(),
 		domain.QuizSubmission{
 			ID:                     "quiz_sub_row",
@@ -136,7 +136,7 @@ func TestBatchingQuizSubmissionRepositoryGroupsKnownTeachingQuizCreates(t *testi
 		go func() {
 			<-start
 			ctx := platform.WithTeachingArchiveTiming(context.Background(), timings[index])
-			created, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(ctx, testQuizSubmission(index))
+			created, _, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(ctx, testQuizSubmission(index))
 			results <- quizSubmissionCreateResult{created: created, err: err}
 		}()
 	}
@@ -196,7 +196,7 @@ func TestBatchingQuizSubmissionRepositoryReturnsFalseForMissingTeachingQuiz(t *t
 		index := index
 		go func() {
 			<-start
-			created, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(context.Background(), testQuizSubmission(index))
+			created, _, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(context.Background(), testQuizSubmission(index))
 			results <- quizSubmissionIndexedResult{index: index, created: created, err: err}
 		}()
 	}

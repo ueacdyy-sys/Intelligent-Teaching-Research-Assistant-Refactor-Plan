@@ -105,6 +105,132 @@ func TestCreateArchiveItemAllowsAdminAllStudentArchiveWrite(t *testing.T) {
 	}
 }
 
+func TestCreateArchiveItemAcceptsDeepResearchStorageCommitCommandShape(t *testing.T) {
+	repo := &fakeRepository{}
+	now := time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC)
+	uc := usecase.NewCreateArchiveItem(repo, fixedIDs{id: "tarch_deep_research_001"}, fixedClock{now: now})
+
+	result, err := uc.ExecuteWithPersistence(context.Background(), domain.CreateArchiveItemInput{
+		Principal:       studentArchiveStorageServicePrincipal("student_001"),
+		OwnerType:       domain.OwnerTypeStudent,
+		StudentID:       "student_001",
+		MaterialType:    domain.MaterialTypeHandout,
+		Title:           "Evidence grounded learning support draft",
+		Source:          domain.SourceSystemImport,
+		ContentRef:      "research-deep-research-projection:deep_research_student_archive_projection_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Tags:            []string{"deep_research", "student_archive", "projection", "math_unit"},
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly, domain.AnalysisIntentTutoring},
+		OCRReserved:     false,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteWithPersistence returned error: %v", err)
+	}
+
+	if result.Persistence.Status != usecase.PersistenceStatusPersisted {
+		t.Fatalf("Persistence.Status = %q", result.Persistence.Status)
+	}
+	if result.Item.ID != "tarch_deep_research_001" {
+		t.Fatalf("Item.ID = %q", result.Item.ID)
+	}
+	if result.Item.OwnerType != domain.OwnerTypeStudent || result.Item.StudentID != "student_001" {
+		t.Fatalf("student archive target = %q/%q", result.Item.OwnerType, result.Item.StudentID)
+	}
+	if result.Item.Source != domain.SourceSystemImport {
+		t.Fatalf("Source = %q", result.Item.Source)
+	}
+	if result.Item.OCRStatus != domain.OCRStatusNotRequired {
+		t.Fatalf("OCRStatus = %q", result.Item.OCRStatus)
+	}
+	if repo.created.ContentRef != result.Item.ContentRef {
+		t.Fatal("repository did not receive the committed deep_research storage command")
+	}
+}
+
+func TestCreateArchiveItemAcceptsStudentAppAiTutorFeedbackArchiveStorageCommitCommandShape(t *testing.T) {
+	repo := &fakeRepository{}
+	now := time.Date(2026, 6, 6, 14, 0, 0, 0, time.UTC)
+	uc := usecase.NewCreateArchiveItem(repo, fixedIDs{id: "tarch_student_feedback_001"}, fixedClock{now: now})
+
+	result, err := uc.ExecuteWithPersistence(context.Background(), domain.CreateArchiveItemInput{
+		Principal:       studentAppAiTutorFeedbackArchiveStorageServicePrincipal("student_001"),
+		OwnerType:       domain.OwnerTypeStudent,
+		StudentID:       "student_001",
+		MaterialType:    domain.MaterialTypeHomework,
+		Title:           "Student AI Tutor feedback archive qbank_ans_sub_feedback_001",
+		Source:          domain.SourceSystemImport,
+		ContentRef:      "student-ai-tutor-feedback-archive:feedback_archive_cmd_qbank_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Tags:            []string{"student_app_ai_tutor", "feedback", "question_bank", "archive_commit"},
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly, domain.AnalysisIntentTutoring},
+		OCRReserved:     false,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteWithPersistence returned error: %v", err)
+	}
+
+	if result.Persistence.Status != usecase.PersistenceStatusPersisted {
+		t.Fatalf("Persistence.Status = %q", result.Persistence.Status)
+	}
+	if result.Item.ID != "tarch_student_feedback_001" {
+		t.Fatalf("Item.ID = %q", result.Item.ID)
+	}
+	if result.Item.OwnerType != domain.OwnerTypeStudent || result.Item.StudentID != "student_001" {
+		t.Fatalf("student archive target = %q/%q", result.Item.OwnerType, result.Item.StudentID)
+	}
+	if result.Item.Source != domain.SourceSystemImport {
+		t.Fatalf("Source = %q", result.Item.Source)
+	}
+	if result.Item.OCRStatus != domain.OCRStatusNotRequired {
+		t.Fatalf("OCRStatus = %q", result.Item.OCRStatus)
+	}
+	if repo.created.ContentRef != result.Item.ContentRef {
+		t.Fatal("repository did not receive the committed Student App AI Tutor feedback archive command")
+	}
+}
+
+func TestCreateArchiveItemAcceptsStudentAppAiTutorFeedbackArchiveStorageCommitControlledDraftSourceShape(t *testing.T) {
+	repo := &fakeRepository{}
+	now := time.Date(2026, 6, 7, 5, 50, 0, 0, time.UTC)
+	uc := usecase.NewCreateArchiveItem(repo, fixedIDs{id: "tarch_student_feedback_controlled_source_001"}, fixedClock{now: now})
+
+	result, err := uc.ExecuteWithPersistence(context.Background(), domain.CreateArchiveItemInput{
+		Principal:       studentAppAiTutorFeedbackArchiveStorageServicePrincipal("student_001"),
+		OwnerType:       domain.OwnerTypeStudent,
+		StudentID:       "student_001",
+		MaterialType:    domain.MaterialTypeHomework,
+		Title:           "Student AI Tutor feedback archive controlled source qbank_ans_sub_audit_001",
+		Source:          domain.SourceSystemImport,
+		ContentRef:      "student-ai-tutor-feedback-archive-controlled-draft-source:feedback_archive_cmd_controlled_draft_qbank_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Tags:            []string{"student_app_ai_tutor", "feedback", "question_bank", "archive_commit", "controlled_draft_source"},
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly, domain.AnalysisIntentTutoring},
+		OCRReserved:     false,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteWithPersistence returned error: %v", err)
+	}
+
+	if result.Persistence.Status != usecase.PersistenceStatusPersisted {
+		t.Fatalf("Persistence.Status = %q", result.Persistence.Status)
+	}
+	if result.Item.ID != "tarch_student_feedback_controlled_source_001" {
+		t.Fatalf("Item.ID = %q", result.Item.ID)
+	}
+	if result.Item.OwnerType != domain.OwnerTypeStudent || result.Item.StudentID != "student_001" {
+		t.Fatalf("student archive target = %q/%q", result.Item.OwnerType, result.Item.StudentID)
+	}
+	if result.Item.Source != domain.SourceSystemImport {
+		t.Fatalf("Source = %q", result.Item.Source)
+	}
+	if result.Item.OCRStatus != domain.OCRStatusNotRequired {
+		t.Fatalf("OCRStatus = %q", result.Item.OCRStatus)
+	}
+	if !reflect.DeepEqual(result.Item.Tags, []string{"student_app_ai_tutor", "feedback", "question_bank", "archive_commit", "controlled_draft_source"}) {
+		t.Fatalf("Tags = %#v", result.Item.Tags)
+	}
+	if repo.created.ContentRef != result.Item.ContentRef {
+		t.Fatal("repository did not receive the committed controlled-source Student App AI Tutor feedback archive command")
+	}
+}
+
 func TestCreateArchiveItemAllowsStudentOwnArchiveWriteOnlyForSelf(t *testing.T) {
 	repo := &fakeRepository{}
 	uc := usecase.NewCreateArchiveItem(repo, fixedIDs{id: "tarch_student"}, fixedClock{})
@@ -255,10 +381,10 @@ type fakeRepository struct {
 	creates int
 }
 
-func (f *fakeRepository) Create(_ context.Context, item domain.ArchiveItem) error {
+func (f *fakeRepository) Create(_ context.Context, item domain.ArchiveItem) (usecase.WritePersistenceOutcome, error) {
 	f.created = item
 	f.creates++
-	return nil
+	return usecase.PersistedWriteOutcome(), nil
 }
 
 type fixedIDs struct {

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "2026-06-05.research.deep-research-student-archive-storage-commit-committed.v1",
+  "runtimeId": "research_deep_research_student_archive_storage_commit_runtime",
+  "commandPort": "DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand",
+  "status": "TEACHING_ARCHIVE_MAIN_DB_STORAGE_COMMITTED",
+  "recordId": "research_deep_research_student_archive_storage_commit_deep-research-student-archive-storage-commit_job-001",
+  "recordedAt": "2026-06-05T00:00:00.000Z",
+  "idempotencyKey": "deep-research-student-archive-storage-commit:job-001",
+  "idempotentReplay": false,
+  "sourcePrecommit": {
+    "precommitRecordId": "research_deep_research_student_archive_storage_precommit_deep-research-student-archive-storage-precommit_job-001",
+    "preparedCommandId": "teaching_archive_create_archive_item_deep-research-student-archive-storage-precommit_job-001",
+    "sourceProjection": {
+      "projectionRecordId": "research_deep_research_student_archive_projection_deep-research-student-archive-projection_job-001",
+      "projectionId": "deep_research_student_archive_projection_001",
+      "archiveScopeRef": "classroom_scope:grade8:math:unit-personalized-learning",
+      "claimCount": 1,
+      "citationCount": 1,
+      "sourceHashCount": 1
+    }
+  },
+  "teachingArchiveCommit": {
+    "operationId": "createTeachingArchiveItem",
+    "targetUseCase": "CreateArchiveItem.ExecuteWithPersistence",
+    "targetRepository": "ArchiveRepository.Create",
+    "targetTable": "teaching_archive_items",
+    "archiveItem": {
+      "id": "tarch_deep_research_001",
+      "ownerType": "STUDENT",
+      "studentId": "student_001",
+      "materialType": "HANDOUT",
+      "title": "Evidence grounded learning support draft",
+      "source": "SYSTEM_IMPORT",
+      "contentRef": "research-deep-research-projection:deep_research_student_archive_projection_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "tags": ["deep_research", "student_archive", "projection", "math_unit"],
+      "analysisIntents": ["ARCHIVE_ONLY", "TUTORING"],
+      "ocrStatus": "NOT_REQUIRED",
+      "createdAt": "2026-06-05T00:00:00.000Z"
+    },
+    "persistence": {
+      "status": "persisted",
+      "commandId": ""
+    }
+  },
+  "evidenceRefs": [
+    "evidence:student-archive-storage-commit:precommit-consumed",
+    "evidence:runtime:research_deep_research_student_archive_storage_commit_runtime",
+    "evidence:command-port:DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand",
+    "evidence:student-archive-storage-precommit-record:research_deep_research_student_archive_storage_precommit_deep-research-student-archive-storage-precommit_job-001",
+    "evidence:teaching-archive-item:tarch_deep_research_001"
+  ],
+  "boundary": {
+    "studentArchiveStoragePrecommitVerified": true,
+    "teachingArchiveUseCasePortInvoked": true,
+    "teachingArchiveDomainValidationExecuted": true,
+    "teachingArchiveRepositoryPersisted": true,
+    "projectionEvidencePreserved": true,
+    "studentAudienceScopeEnforced": true,
+    "studentArchiveProjectionWritten": true,
+    "studentArchivePersisted": true,
+    "studentArchiveWriteStarted": true,
+    "mainDatabaseWritePrepared": true,
+    "mainDatabaseWriteStarted": true,
+    "mainDatabaseWriteCommitted": true,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "finalAnswerPublished": false,
+    "publicationCandidateCreated": false,
+    "externalModelCallStarted": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_STORAGE_COMMIT_BOUNDARY"
+  },
+  "nextAction": "Use this committed Teaching Archive item as the source for physical row verification; SDD 0259 verifies the teaching_archive_items row through an injected row read port."
+}

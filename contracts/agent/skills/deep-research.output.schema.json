@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/skills/deep-research.output.schema.json",
+  "title": "Deep Research Skill Intent Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "intentInvocationId",
+    "runtimeId",
+    "taskId",
+    "contextRef",
+    "workerAgent",
+    "skillId",
+    "decision",
+    "job",
+    "evidenceRefs",
+    "safety",
+    "slo"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-intent.output.v1"
+    },
+    "intentInvocationId": { "type": "string", "minLength": 1 },
+    "runtimeId": { "type": "string", "const": "research_deep_research_intent_runtime" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "contextRef": { "type": "string", "minLength": 1 },
+    "workerAgent": { "type": "string", "const": "ResearchAgent" },
+    "skillId": { "type": "string", "const": "deep_research" },
+    "decision": { "type": "string", "enum": ["PENDING_REVIEW", "ACCEPTED_ASYNC"] },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobId", "queueName", "reviewRequired", "executionStarted"],
+      "properties": {
+        "jobId": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "queueName": { "type": "string", "const": "research_deep_research" },
+        "reviewRequired": { "type": "boolean", "const": true },
+        "executionStarted": { "type": "boolean", "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admissionOnly",
+        "writeOperationAllowed",
+        "directDatabaseAccessAllowed",
+        "studentArchiveUsed",
+        "studentDataAccess",
+        "externalModelCallStarted",
+        "ragSynthesisStarted",
+        "finalAnswerGenerated",
+        "directPublicationAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "admissionOnly": { "type": "boolean", "const": true },
+        "writeOperationAllowed": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "studentArchiveUsed": { "type": "boolean", "const": false },
+        "studentDataAccess": { "type": "string", "const": "NONE" },
+        "externalModelCallStarted": { "type": "boolean", "const": false },
+        "ragSynthesisStarted": { "type": "boolean", "const": false },
+        "finalAnswerGenerated": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p99BudgetMs",
+        "asyncRuntimeBudgetMs",
+        "runtimeEvidenceClass",
+        "runtimeEvidenceRequiredBeforePromotion"
+      ],
+      "properties": {
+        "p99BudgetMs": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "asyncRuntimeBudgetMs": { "type": "integer", "minimum": 1000, "maximum": 300000 },
+        "runtimeEvidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_INTENT_ADMISSION_ONLY"
+        },
+        "runtimeEvidenceRequiredBeforePromotion": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-teacher-delivery.output.schema.json",
+  "title": "Deep Research Teacher Delivery Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "job",
+    "teacherDeliveryPackage",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-teacher-delivery-recorded.v1"
+    },
+    "runtimeId": { "type": "string", "const": "research_deep_research_teacher_delivery_runtime" },
+    "commandPort": {
+      "type": "string",
+      "const": "DeepResearchTeacherDeliveryPort.recordTeacherDeliveryPackage"
+    },
+    "status": {
+      "type": "string",
+      "const": "TEACHER_DELIVERY_PACKAGE_READY_NOT_STUDENT_VISIBLE"
+    },
+    "recordId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 },
+    "idempotentReplay": { "type": "boolean" },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "teacherDeliveryPackage": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "packageId",
+        "packageKind",
+        "audience",
+        "channel",
+        "format",
+        "deliveryState",
+        "previewId",
+        "artifactId",
+        "precheckId",
+        "claimCount",
+        "citationCount",
+        "sourceHashCount",
+        "claims",
+        "limitations",
+        "risk"
+      ],
+      "properties": {
+        "packageId": { "type": "string", "minLength": 1 },
+        "packageKind": { "type": "string", "const": "EVIDENCE_GROUNDED_TEACHER_DELIVERY_PACKAGE" },
+        "audience": { "type": "string", "const": "TEACHER_RESEARCH" },
+        "channel": { "type": "string", "const": "DESKTOP_RESEARCH" },
+        "format": { "type": "string", "const": "SAFE_TEXT_BLOCKS" },
+        "deliveryState": { "type": "string", "const": "TEACHER_READY_NOT_STUDENT_VISIBLE" },
+        "previewId": { "type": "string", "minLength": 1 },
+        "artifactId": { "type": "string", "minLength": 1 },
+        "precheckId": { "type": "string", "minLength": 1 },
+        "claimCount": { "type": "integer", "minimum": 1 },
+        "citationCount": { "type": "integer", "minimum": 1 },
+        "sourceHashCount": { "type": "integer", "minimum": 1 },
+        "claims": { "type": "array", "minItems": 1 },
+        "limitations": { "type": "array", "minItems": 1 },
+        "risk": { "type": "object" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "renderPreviewVerified",
+        "publicationPrecheckVerified",
+        "teacherDeliveryPackageRecorded",
+        "teacherAccessible",
+        "evidenceIntegrityPreserved",
+        "sourceHashIntegrityPreserved",
+        "limitationsPreserved",
+        "finalAnswerPublished",
+        "publicationCandidateCreated",
+        "studentVisible",
+        "directPublicationAllowed",
+        "externalModelCallStarted",
+        "mainDatabaseWriteStarted",
+        "studentArchiveWriteStarted",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed",
+        "requiresFutureStudentDeliveryReview",
+        "requiresFuturePersistenceReview"
+      ],
+      "properties": {
+        "renderPreviewVerified": { "type": "boolean", "const": true },
+        "publicationPrecheckVerified": { "type": "boolean", "const": true },
+        "teacherDeliveryPackageRecorded": { "type": "boolean", "const": true },
+        "teacherAccessible": { "type": "boolean", "const": true },
+        "evidenceIntegrityPreserved": { "type": "boolean", "const": true },
+        "sourceHashIntegrityPreserved": { "type": "boolean", "const": true },
+        "limitationsPreserved": { "type": "boolean", "const": true },
+        "finalAnswerPublished": { "type": "boolean", "const": false },
+        "publicationCandidateCreated": { "type": "boolean", "const": false },
+        "studentVisible": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "externalModelCallStarted": { "type": "boolean", "const": false },
+        "mainDatabaseWriteStarted": { "type": "boolean", "const": false },
+        "studentArchiveWriteStarted": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "requiresFutureStudentDeliveryReview": { "type": "boolean", "const": true },
+        "requiresFuturePersistenceReview": { "type": "boolean", "const": true }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetP99Ms", "evidenceClass"],
+      "properties": {
+        "targetP99Ms": { "type": "integer", "minimum": 1, "maximum": 300 },
+        "evidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_TEACHER_DELIVERY_BOUNDARY"
+        }
+      }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

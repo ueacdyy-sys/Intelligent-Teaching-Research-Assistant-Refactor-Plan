@@ -51,6 +51,8 @@ func (r *ArchiveRepository) ListAIGradingRequests(
 			source_archive_content_ref,
 			source_quiz_submission_id,
 			source_answer_ref,
+			source_question_bank_draft_ref,
+			source_question_bank_answer_submission_id,
 			source_archive_material,
 			source_archive_ocr_status,
 			score_summary,
@@ -87,6 +89,65 @@ func (r *ArchiveRepository) ListAIGradingRequests(
 	return requests, nil
 }
 
+func (r *ArchiveRepository) GetLatestQuestionBankDraftAnswerScoringRequestForStudent(
+	ctx context.Context,
+	submissionID string,
+	studentID string,
+) (domain.AIGradingRequest, bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			id,
+			archive_item_id,
+			requested_by_principal_id,
+			grading_instructions,
+			rubric_ref,
+			status,
+			source_archive_owner_type,
+			source_archive_student_id,
+			source_archive_content_ref,
+			source_quiz_submission_id,
+			source_answer_ref,
+			source_question_bank_draft_ref,
+			source_question_bank_answer_submission_id,
+			source_archive_material,
+			source_archive_ocr_status,
+			score_summary,
+			result_ref,
+			error_code,
+			error_message,
+			claimed_by_worker_id,
+			claim_expires_at,
+			created_at,
+			completed_at,
+			updated_at
+		FROM teaching_ai_grading_requests
+		WHERE source_question_bank_answer_submission_id = $1
+			AND source_archive_student_id = $2
+			AND source_question_bank_draft_ref IS NOT NULL
+		ORDER BY created_at DESC, id DESC
+		LIMIT 1
+	`, submissionID, studentID)
+	if err != nil {
+		return domain.AIGradingRequest{}, false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.AIGradingRequest{}, false, err
+		}
+		return domain.AIGradingRequest{}, false, nil
+	}
+	request, err := scanAIGradingRequest(rows)
+	if err != nil {
+		return domain.AIGradingRequest{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.AIGradingRequest{}, false, err
+	}
+	return request, true, nil
+}
+
 func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 	var (
 		request  domain.AIGradingRequest
@@ -96,6 +157,8 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		student  sql.NullString
 		subID    sql.NullString
 		answer   sql.NullString
+		draftRef sql.NullString
+		qbankSub sql.NullString
 		material string
 		ocr      string
 		score    sql.NullString
@@ -118,6 +181,8 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 		&request.SourceArchiveContentRef,
 		&subID,
 		&answer,
+		&draftRef,
+		&qbankSub,
 		&material,
 		&ocr,
 		&score,
@@ -145,6 +210,12 @@ func scanAIGradingRequest(rows Rows) (domain.AIGradingRequest, error) {
 	}
 	if answer.Valid {
 		request.SourceAnswerRef = answer.String
+	}
+	if draftRef.Valid {
+		request.SourceQuestionBankDraftRef = draftRef.String
+	}
+	if qbankSub.Valid {
+		request.SourceQuestionBankAnswerSubmissionID = qbankSub.String
 	}
 	request.SourceArchiveMaterial = domain.MaterialType(material)
 	request.SourceArchiveOCRStatus = domain.OCRStatus(ocr)

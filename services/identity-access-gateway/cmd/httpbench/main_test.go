@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -37,10 +41,49 @@ func TestMaskURL(t *testing.T) {
 }
 
 func TestBuildPhaseReport(t *testing.T) {
-	phase := buildPhaseReport("principalLookup", []time.Duration{10 * time.Millisecond, 10 * time.Millisecond}, 0, 200*time.Millisecond)
+	phase := buildPhaseReport(
+		"principalLookup",
+		[]time.Duration{10 * time.Millisecond, 10 * time.Millisecond},
+		nil,
+		0,
+		200*time.Millisecond,
+	)
 
 	if phase.Name != "principalLookup" || phase.Operations != 2 || phase.Errors != 0 || phase.RPS != 10 {
 		t.Fatalf("phase = %#v", phase)
+	}
+}
+
+func TestBuildPhaseReportAddsServerTimingAndClientServerGap(t *testing.T) {
+	phase := buildPhaseReport(
+		"passwordLogin",
+		[]time.Duration{12 * time.Millisecond, 20 * time.Millisecond, 30 * time.Millisecond},
+		[]map[string]time.Duration{
+			{"app": 8 * time.Millisecond, "response.encode": time.Millisecond},
+			{"app": 10 * time.Millisecond, "response.encode": 2 * time.Millisecond},
+			{"app": 15 * time.Millisecond, "response.encode": 3 * time.Millisecond},
+		},
+		0,
+		60*time.Millisecond,
+	)
+
+	if phase.ServerTimingMS == nil || phase.ServerTimingMS.P99MS != 15 {
+		t.Fatalf("server app timing = %#v", phase.ServerTimingMS)
+	}
+	if phase.ServerTimingSamples != 3 {
+		t.Fatalf("server timing samples = %d want 3", phase.ServerTimingSamples)
+	}
+	if phase.ServerTimingBreakdownMS["response.encode"].P99MS != 3 {
+		t.Fatalf("response.encode timing = %#v", phase.ServerTimingBreakdownMS["response.encode"])
+	}
+	if phase.ServerTimingBreakdownSamples["app"] != 3 {
+		t.Fatalf("app samples = %d want 3", phase.ServerTimingBreakdownSamples["app"])
+	}
+	if phase.ClientServerGapMS == nil || phase.ClientServerGapMS.P99MS != 15 {
+		t.Fatalf("client/server gap = %#v", phase.ClientServerGapMS)
+	}
+	if phase.ClientServerGapSamples != 3 {
+		t.Fatalf("client/server gap samples = %d want 3", phase.ClientServerGapSamples)
 	}
 }
 
@@ -108,10 +151,219 @@ func TestBuildPhaseReportWithStepLatenciesAddsAttribution(t *testing.T) {
 }
 
 func TestBuildPhaseReportWithoutStepLatenciesOmitsAttribution(t *testing.T) {
-	phase := buildPhaseReport("passwordLogin", []time.Duration{10 * time.Millisecond}, 0, 10*time.Millisecond)
+	phase := buildPhaseReport("passwordLogin", []time.Duration{10 * time.Millisecond}, nil, 0, 10*time.Millisecond)
 
 	if phase.StepLatencyAttribution != nil {
 		t.Fatalf("unexpected attribution = %#v", phase.StepLatencyAttribution)
+	}
+}
+
+func TestRunWarmsIdentityWorkflowBeforeMeasuredPhases(t *testing.T) {
+	var warmupLoginCount atomic.Int64
+	var warmupPrincipalCount atomic.Int64
+	var warmupRefreshCount atomic.Int64
+	var warmupRevokeCount atomic.Int64
+	var measuredLoginCount atomic.Int64
+	var sessionCounter atomic.Int64
+	revokedTokens := map[string]bool{}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/health":
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/identity/sessions/password":
+			var request struct {
+				Identifier string `json:"identifier"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Fatalf("decode login request: %v", err)
+			}
+			sessionID := "session-" + strconv.FormatInt(sessionCounter.Add(1), 10)
+			accessToken := "access-" + sessionID
+			refreshToken := "refresh-" + sessionID
+			if strings.HasPrefix(request.Identifier, "teacher-warmup-") {
+				warmupLoginCount.Add(1)
+			} else {
+				measuredLoginCount.Add(1)
+			}
+			w.Header().Set("Server-Timing", "app;dur=1.000")
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"accessToken":  accessToken,
+				"refreshToken": refreshToken,
+				"principal": map[string]string{
+					"sessionId": sessionID,
+				},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/identity/principal":
+			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			if token == "access-session-1" {
+				warmupPrincipalCount.Add(1)
+			}
+			w.Header().Set("Server-Timing", "app;dur=2.000")
+			if revokedTokens[token] {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]string{"role": "TEACHER"})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/identity/sessions/refresh":
+			var request struct {
+				RefreshToken string `json:"refreshToken"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Fatalf("decode refresh request: %v", err)
+			}
+			sessionID := strings.TrimPrefix(request.RefreshToken, "refresh-")
+			if sessionID == "session-1" {
+				warmupRefreshCount.Add(1)
+			}
+			w.Header().Set("Server-Timing", "app;dur=3.000")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"accessToken":  "access-refreshed-" + sessionID,
+				"refreshToken": "refresh-refreshed-" + sessionID,
+				"principal": map[string]string{
+					"sessionId": sessionID,
+				},
+			})
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/v1/identity/sessions/"):
+			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			revokedTokens[token] = true
+			if token == "access-refreshed-session-1" {
+				warmupRevokeCount.Add(1)
+			}
+			w.Header().Set("Server-Timing", "app;dur=4.000")
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	outPath := filepath.Join(t.TempDir(), "identity-http-report.json")
+	err := run(benchmarkConfig{
+		BaseURL:            server.URL,
+		OutPath:            outPath,
+		Concurrency:        1,
+		OperationsPerPhase: 1,
+		Timeout:            5 * time.Second,
+		WarmupOperations:   1,
+	})
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	if warmupLoginCount.Load() != 1 ||
+		warmupPrincipalCount.Load() != 1 ||
+		warmupRefreshCount.Load() != 1 ||
+		warmupRevokeCount.Load() != 1 {
+		t.Fatalf(
+			"warmup counts login=%d principal=%d refresh=%d revoke=%d",
+			warmupLoginCount.Load(),
+			warmupPrincipalCount.Load(),
+			warmupRefreshCount.Load(),
+			warmupRevokeCount.Load(),
+		)
+	}
+	if measuredLoginCount.Load() <= warmupLoginCount.Load() {
+		t.Fatalf("expected measured phases to run after warmup, login count=%d", measuredLoginCount.Load())
+	}
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read report: %v", err)
+	}
+	var report benchmarkReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatalf("decode report: %v", err)
+	}
+	if report.WarmupOperations != 1 {
+		t.Fatalf("WarmupOperations = %d want 1", report.WarmupOperations)
+	}
+	if report.Phases["passwordLogin"].Operations != 1 {
+		t.Fatalf("passwordLogin measured operations = %d want 1", report.Phases["passwordLogin"].Operations)
+	}
+}
+
+func TestRunRevokeCyclePhaseSeedsSessionsOutsideMeasuredSteps(t *testing.T) {
+	var loginCount atomic.Int64
+	var revokeCount atomic.Int64
+	var principalCount atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/identity/sessions/password":
+			index := loginCount.Add(1)
+			w.Header().Set("Server-Timing", "app;dur=1.000")
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"accessToken":  "access-token",
+				"refreshToken": "refresh-token",
+				"principal": map[string]string{
+					"sessionId": "session-" + strconv.FormatInt(index, 10),
+				},
+			})
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/v1/identity/sessions/"):
+			revokeCount.Add(1)
+			w.Header().Set("Server-Timing", "app;dur=2.000")
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/identity/principal":
+			principalCount.Add(1)
+			w.Header().Set("Server-Timing", "app;dur=3.000")
+			w.WriteHeader(http.StatusUnauthorized)
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	phase, err := runRevokeCyclePhase(
+		context.Background(),
+		server.Client(),
+		[]string{server.URL},
+		benchmarkConfig{Concurrency: 2, OperationsPerPhase: 4},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("runRevokeCyclePhase() error = %v", err)
+	}
+
+	if loginCount.Load() != 4 || revokeCount.Load() != 4 || principalCount.Load() != 4 {
+		t.Fatalf("counts login=%d revoke=%d principal=%d", loginCount.Load(), revokeCount.Load(), principalCount.Load())
+	}
+	if _, ok := phase.StepLatencyMS["login"]; ok {
+		t.Fatalf("login setup should not be a measured revokeCycle step: %#v", phase.StepLatencyMS)
+	}
+	if _, ok := phase.StepLatencyMS["revoke"]; !ok {
+		t.Fatalf("missing revoke step latency: %#v", phase.StepLatencyMS)
+	}
+	if _, ok := phase.StepLatencyMS["revokedPrincipalLookup"]; !ok {
+		t.Fatalf("missing revoked lookup step latency: %#v", phase.StepLatencyMS)
+	}
+	if phase.ServerTimingMS == nil || phase.ServerTimingMS.P99MS != 5 {
+		t.Fatalf("server timing should include revoke+lookup only, got %#v", phase.ServerTimingMS)
+	}
+}
+
+func TestParseServerTimingDurations(t *testing.T) {
+	timings := parseServerTimingDurations("handler;dur=7.500, pre.usecase;dur=0.250, app;dur=6.125")
+
+	if got := timings["handler"]; got != 7500*time.Microsecond {
+		t.Fatalf("handler timing = %v", got)
+	}
+	if got := timings["pre.usecase"]; got != 250*time.Microsecond {
+		t.Fatalf("pre.usecase timing = %v", got)
+	}
+	if got := timings["app"]; got != 6125*time.Microsecond {
+		t.Fatalf("app timing = %v", got)
+	}
+}
+
+func TestParseServerTimingDurationsSkipsInvalidMetrics(t *testing.T) {
+	timings := parseServerTimingDurations("app;dur=bad, noDuration, response.encode;dur=1.250")
+
+	if _, ok := timings["app"]; ok {
+		t.Fatalf("invalid app timing should be skipped: %#v", timings)
+	}
+	if got := timings["response.encode"]; got != 1250*time.Microsecond {
+		t.Fatalf("response.encode timing = %v", got)
 	}
 }
 

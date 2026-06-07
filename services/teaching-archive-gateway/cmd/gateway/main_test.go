@@ -5,9 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	teachingcache "ita-refactor/services/teaching-archive-gateway/internal/adapter/cache"
 	teachingpostgres "ita-refactor/services/teaching-archive-gateway/internal/adapter/postgres"
+	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 )
 
 func TestParsePostgresPoolSettingsDefaultsToSingleWarmConnection(t *testing.T) {
@@ -78,6 +81,60 @@ func TestApplyPostgresPoolSettingsMapsToPgxPoolConfig(t *testing.T) {
 	}
 }
 
+func TestArchiveReaderFromConfigDefaultsToDirectReader(t *testing.T) {
+	t.Setenv("TEACHING_ARCHIVE_LIST_CACHE_TTL_MS", "")
+	reader := fakeArchiveReader{}
+
+	configured := archiveReaderFromConfig(reader)
+
+	if configured != reader {
+		t.Fatalf("reader = %T, want direct fakeArchiveReader", configured)
+	}
+}
+
+func TestArchiveReaderFromConfigEnablesCache(t *testing.T) {
+	t.Setenv("TEACHING_ARCHIVE_LIST_CACHE_TTL_MS", "250")
+	t.Setenv("TEACHING_ARCHIVE_LIST_CACHE_MAX_ENTRIES", "4096")
+
+	configured := archiveReaderFromConfig(fakeArchiveReader{})
+
+	if _, ok := configured.(*teachingcache.ArchiveReaderCache); !ok {
+		t.Fatalf("reader = %T, want *cache.ArchiveReaderCache", configured)
+	}
+}
+
+func TestSchemaOptionsFromConfigDefaultsToFullIndexProfile(t *testing.T) {
+	t.Setenv("TEACHING_ARCHIVE_SCHEMA_INDEX_PROFILE", "")
+
+	options, err := schemaOptionsFromConfig()
+	if err != nil {
+		t.Fatalf("schemaOptionsFromConfig returned error: %v", err)
+	}
+	if options.IndexProfile != teachingpostgres.SchemaIndexProfileFull {
+		t.Fatalf("IndexProfile = %q, want full", options.IndexProfile)
+	}
+}
+
+func TestSchemaOptionsFromConfigAcceptsHotWriteIndexProfile(t *testing.T) {
+	t.Setenv("TEACHING_ARCHIVE_SCHEMA_INDEX_PROFILE", "hot_write")
+
+	options, err := schemaOptionsFromConfig()
+	if err != nil {
+		t.Fatalf("schemaOptionsFromConfig returned error: %v", err)
+	}
+	if options.IndexProfile != teachingpostgres.SchemaIndexProfileHotWrite {
+		t.Fatalf("IndexProfile = %q, want hot_write", options.IndexProfile)
+	}
+}
+
+func TestSchemaOptionsFromConfigRejectsUnsupportedIndexProfile(t *testing.T) {
+	t.Setenv("TEACHING_ARCHIVE_SCHEMA_INDEX_PROFILE", "unsafe_fast")
+
+	if _, err := schemaOptionsFromConfig(); err == nil {
+		t.Fatalf("schemaOptionsFromConfig returned nil error")
+	}
+}
+
 func TestRetryPrewarmOperationRetriesTransientFailure(t *testing.T) {
 	attempts := 0
 
@@ -126,6 +183,7 @@ func TestArchiveCreateRepositoryFromConfigEnablesBatchingAboveOne(t *testing.T) 
 	t.Setenv("TEACHING_ARCHIVE_CREATE_BATCH_SIZE", "64")
 	t.Setenv("TEACHING_ARCHIVE_CREATE_BATCH_DELAY_MS", "0")
 	t.Setenv("TEACHING_ARCHIVE_CREATE_BATCH_WORKERS", "2")
+	t.Setenv("TEACHING_ARCHIVE_CREATE_BATCH_MODE", "copy")
 
 	repository := archiveCreateRepositoryFromConfig(fakeAcquireDB{})
 	batching, ok := repository.(*teachingpostgres.BatchingArchiveItemRepository)
@@ -136,6 +194,9 @@ func TestArchiveCreateRepositoryFromConfigEnablesBatchingAboveOne(t *testing.T) 
 
 	if batching.WorkerCount() != 2 {
 		t.Fatalf("WorkerCount = %d, want 2", batching.WorkerCount())
+	}
+	if batching.WriteMode() != teachingpostgres.ArchiveCreateBatchModeCopy {
+		t.Fatalf("WriteMode = %q, want copy", batching.WriteMode())
 	}
 }
 
@@ -187,10 +248,20 @@ func (fakeConn) Exec(context.Context, string, ...any) (teachingpostgres.CommandT
 	return fakeCommandTag{}, nil
 }
 
+func (fakeConn) CopyFrom(context.Context, pgx.Identifier, []string, pgx.CopyFromSource) (int64, error) {
+	return 0, nil
+}
+
 func (fakeConn) Release() {}
 
 type fakeCommandTag struct{}
 
 func (fakeCommandTag) RowsAffected() int64 {
 	return 1
+}
+
+type fakeArchiveReader struct{}
+
+func (fakeArchiveReader) List(context.Context, domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
+	return nil, nil
 }

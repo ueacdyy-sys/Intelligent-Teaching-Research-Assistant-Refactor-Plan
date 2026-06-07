@@ -1,0 +1,193 @@
+{
+  "generatedAt": "2026-06-07T12:29:20.597Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_DEEP_RESEARCH_WORKER_LIFECYCLE",
+  "runtime": {
+    "runtimeId": "research_deep_research_worker_lifecycle_runtime",
+    "commandPort": "DeepResearchWorkerCommandPort.recordDeepResearchWorkerLifecycle",
+    "asyncQueue": "research_deep_research"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_WORKER_LIFECYCLE_PROBE"
+  },
+  "safetyInvariants": {
+    "approvalVerified": true,
+    "executionStarted": false,
+    "ragRetrievalStarted": false,
+    "externalModelCallStarted": false,
+    "finalAnswerGenerated": false,
+    "directPublicationAllowed": false,
+    "localToolMutationAllowed": false,
+    "directMainDatabaseWriteAllowed": false,
+    "studentArchiveUsed": false,
+    "remoteDeviceSourcesUsed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "claim": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.research.deep-research-worker-lifecycle-recorded.v1",
+        "runtimeId": "research_deep_research_worker_lifecycle_runtime",
+        "commandPort": "DeepResearchWorkerCommandPort.recordDeepResearchWorkerLifecycle",
+        "status": "CLAIMED_FOR_ASYNC_EXECUTION",
+        "recordId": "research_deep_research_worker_deep-research-worker-lifecycle_job-001_claim",
+        "recordedAt": "2026-06-05T00:00:00.000Z",
+        "idempotencyKey": "deep-research-worker-lifecycle:job-001:claim",
+        "idempotentReplay": false,
+        "job": {
+          "taskId": "agent_task_research_deep_001",
+          "contextRef": "shared_ctx_research_deep_001",
+          "jobId": "deep_research_job_001",
+          "queueName": "research_deep_research"
+        },
+        "approval": {
+          "approvalId": "deep_research_approval_001",
+          "approvalRecordRef": "evidence:human-approval:deep-research-job-001",
+          "reviewerPrincipalId": "teacher_001",
+          "decision": "APPROVED_FOR_ASYNC"
+        },
+        "worker": {
+          "workerId": "local_research_worker_001",
+          "nodeType": "LOCAL",
+          "capabilityKinds": [
+            "RAG_RETRIEVAL",
+            "MODEL_REASONING"
+          ],
+          "leaseDurationMs": 30000,
+          "maxConcurrentJobs": 4
+        },
+        "lifecycle": {
+          "action": "CLAIM",
+          "fromStatus": "APPROVED_FOR_ASYNC",
+          "toStatus": "CLAIMED",
+          "leaseExpiresAt": "2026-06-05T00:00:30.000Z"
+        },
+        "failure": null,
+        "evidenceRefs": [
+          "evidence:deep-research-intent:job-001",
+          "evidence:human-approval:deep-research-job-001",
+          "evidence:approval:deep_research_approval_001",
+          "evidence:input-hash:sha256:4eb6be1506b865453f7dccc9f50094005f230bb12e4a66c2492baf65eff4a219",
+          "evidence:runtime:research_deep_research_worker_lifecycle_runtime",
+          "evidence:command-port:DeepResearchWorkerCommandPort.recordDeepResearchWorkerLifecycle"
+        ],
+        "boundary": {
+          "approvalVerified": true,
+          "workerClaimRecorded": true,
+          "failedSafeRecorded": false,
+          "executionStarted": false,
+          "ragRetrievalStarted": false,
+          "externalModelCallStarted": false,
+          "finalAnswerGenerated": false,
+          "directPublicationAllowed": false,
+          "localToolMutationAllowed": false,
+          "directMainDatabaseWriteAllowed": false,
+          "studentArchiveUsed": false,
+          "remoteDeviceSourcesUsed": false,
+          "swarmAllowed": false,
+          "requiresFutureExecutionSlice": true
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 50,
+          "evidenceClass": "ASYNC_DEEP_RESEARCH_WORKER_LIFECYCLE_CONTROL_PLANE"
+        },
+        "nextAction": "Use this claim as worker-side lifecycle evidence; retrieval, model reasoning, synthesis, and final answer remain future approved async slices."
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "ASYNC_DEEP_RESEARCH_WORKER_LIFECYCLE_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "severity": "info",
+      "actual": "CLAIM=true;MARK_FAILED_SAFE=true;LOCAL=true;CLAIMED_FOR_ASYNC_EXECUTION=true",
+      "expected": "worker lifecycle schemas and examples define approved local claim/fail-safe control plane only",
+      "remediation": "Keep schema and examples aligned with the approved async worker lifecycle boundary."
+    },
+    {
+      "id": "runtime.identity_and_command_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "RESEARCH_DEEP_RESEARCH_WORKER_LIFECYCLE_RUNTIME_ID=true;DeepResearchWorkerCommandPort.recordDeepResearchWorkerLifecycle=true;CLAIMED_FOR_ASYNC_EXECUTION=true;FAILED_SAFE_RECORDED=true",
+      "expected": "runtime records lifecycle through the deep research worker command port",
+      "remediation": "The worker lifecycle slice must remain a command-port record, not an inline worker executor."
+    },
+    {
+      "id": "runtime.approval_and_safety_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;executeNow: true=false;startRagRetrievalNow: true=false;startExternalModelCallNow: true=false;finalAnswerNowAllowed: true=false;finalAnswerGenerated: true=false;directPublicationAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;directMainDatabaseWriteAllowed: true=false;baselineRuntimeDependencyAllowed: true=false",
+      "expected": "approved local lifecycle control plane with no now-execution, direct DB, model call, RAG, Swarm, publication, or student archive",
+      "remediation": "Do not let worker lifecycle recording collapse into execution or synthesis."
+    },
+    {
+      "id": "runtime.probe_claims_without_execution",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=CLAIMED_FOR_ASYNC_EXECUTION;to=CLAIMED;p99=6",
+      "expected": "probe records claim lifecycle and stops before execution",
+      "remediation": "Worker lifecycle must be a low-latency control-plane record only."
+    },
+    {
+      "id": "tests.cover_lifecycle_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "positive claim, idempotency, failure-safe, and unsafe boundary rejection tests",
+      "remediation": "Add regression coverage before treating the lifecycle path as root evidence."
+    },
+    {
+      "id": "quality.gate_tracks_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:research-deep-research-worker-lifecycle=true;Research deep_research worker lifecycle audit=true",
+      "expected": "npm script and strict quality command include the worker lifecycle audit",
+      "remediation": "Wire the lifecycle slice into the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_lifecycle_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "researchDeepResearchWorkerLifecycle=true;research-deep-research-worker-lifecycle.current.json=true;research_deep_research_worker_lifecycle_runtime=true",
+      "expected": "research root workflow requires deep_research worker lifecycle evidence",
+      "remediation": "Root workflow coverage must explicitly require the new worker lifecycle evidence."
+    },
+    {
+      "id": "structure_tracks_runtime_files",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires lifecycle contracts, SDD, runtime, tests, audit, and audit test",
+      "remediation": "Add the lifecycle slice to structure verification."
+    },
+    {
+      "id": "sdd.explicitly_defers_execution",
+      "passed": true,
+      "severity": "info",
+      "actual": "worker lifecycle=true;does not start RAG retrieval=true;does not call models=true;does not generate a final answer=true;future approved async execution slice=true",
+      "expected": "SDD states this is lifecycle control plane, not execution",
+      "remediation": "Keep the SDD honest about what this slice can and cannot do."
+    },
+    {
+      "id": "architecture_board.reflects_worker_lifecycle_progress",
+      "passed": true,
+      "severity": "info",
+      "actual": "ResearchAgent.deep_research=true;异步 worker 生命周期=true;8.3/10=false;8.4/10=true",
+      "expected": "architecture board shows worker lifecycle progress and refactor progress >= 8.3/10",
+      "remediation": "Update the architecture board so reviewers can see the new deep_research lifecycle boundary."
+    }
+  ],
+  "nextAction": "Use this as deep_research worker lifecycle evidence; next research slice can add approved retrieval planning or another root workflow module without broad production10k retesting."
+}

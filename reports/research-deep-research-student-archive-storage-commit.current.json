@@ -1,0 +1,235 @@
+{
+  "generatedAt": "2026-06-07T12:29:32.114Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_DEEP_RESEARCH_STUDENT_ARCHIVE_STORAGE_COMMIT",
+  "runtime": {
+    "runtimeId": "research_deep_research_student_archive_storage_commit_runtime",
+    "commandPort": "DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand",
+    "asyncQueue": "research_deep_research"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_STORAGE_COMMIT_PROBE"
+  },
+  "safetyInvariants": {
+    "studentArchiveStoragePrecommitVerified": true,
+    "teachingArchiveUseCasePortInvoked": true,
+    "teachingArchiveDomainValidationExecuted": true,
+    "teachingArchiveRepositoryPersisted": true,
+    "projectionEvidencePreserved": true,
+    "mainDatabaseWritePrepared": true,
+    "mainDatabaseWriteStarted": true,
+    "mainDatabaseWriteCommitted": true,
+    "executeHttpRequestAllowed": false,
+    "directDatabaseAccessAllowed": false,
+    "externalModelCallStarted": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "studentArchiveStorageCommit": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.research.deep-research-student-archive-storage-commit-committed.v1",
+        "runtimeId": "research_deep_research_student_archive_storage_commit_runtime",
+        "commandPort": "DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand",
+        "status": "TEACHING_ARCHIVE_MAIN_DB_STORAGE_COMMITTED",
+        "recordId": "research_deep_research_student_archive_storage_commit_deep-research-student-archive-storage-commit_job-001",
+        "recordedAt": "2026-06-05T00:00:00.000Z",
+        "idempotencyKey": "deep-research-student-archive-storage-commit:job-001",
+        "idempotentReplay": false,
+        "sourcePrecommit": {
+          "precommitRecordId": "research_deep_research_student_archive_storage_precommit_deep-research-student-archive-storage-precommit_job-001",
+          "preparedCommandId": "teaching_archive_create_archive_item_deep-research-student-archive-storage-precommit_job-001",
+          "sourceProjection": {
+            "projectionRecordId": "research_deep_research_student_archive_projection_deep-research-student-archive-projection_job-001",
+            "projectionId": "deep_research_student_archive_projection_001",
+            "archiveScopeRef": "classroom_scope:grade8:math:unit-personalized-learning",
+            "claimCount": 1,
+            "citationCount": 1,
+            "sourceHashCount": 1
+          }
+        },
+        "teachingArchiveCommit": {
+          "operationId": "createTeachingArchiveItem",
+          "targetUseCase": "CreateArchiveItem.ExecuteWithPersistence",
+          "targetRepository": "ArchiveRepository.Create",
+          "targetTable": "teaching_archive_items",
+          "archiveItem": {
+            "id": "tarch_deep_research_001",
+            "ownerType": "STUDENT",
+            "studentId": "student_001",
+            "materialType": "HANDOUT",
+            "title": "Evidence grounded learning support draft",
+            "source": "SYSTEM_IMPORT",
+            "contentRef": "research-deep-research-projection:deep_research_student_archive_projection_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "tags": [
+              "deep_research",
+              "student_archive",
+              "projection",
+              "math_unit"
+            ],
+            "analysisIntents": [
+              "ARCHIVE_ONLY",
+              "TUTORING"
+            ],
+            "ocrStatus": "NOT_REQUIRED",
+            "createdAt": "2026-06-05T00:00:00.000Z"
+          },
+          "persistence": {
+            "status": "persisted",
+            "commandId": ""
+          }
+        },
+        "evidenceRefs": [
+          "evidence:student-archive-storage-commit:precommit-consumed",
+          "evidence:student-archive-storage-precommit:projection-consumed",
+          "evidence:runtime:research_deep_research_student_archive_storage_precommit_runtime",
+          "evidence:command-port:DeepResearchStudentArchiveStoragePrecommitPort.prepareTeachingArchiveCreateCommand",
+          "evidence:student-archive-storage-commit-input-hash:sha256:c8a8a15670d7a567058275626ded17c7967d607da444d7847f86bc7b97d6ec48",
+          "evidence:runtime:research_deep_research_student_archive_storage_commit_runtime",
+          "evidence:command-port:DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand",
+          "evidence:student-archive-storage-precommit-record:research_deep_research_student_archive_storage_precommit_deep-research-student-archive-storage-precommit_job-001",
+          "evidence:teaching-archive-item:tarch_deep_research_001"
+        ],
+        "boundary": {
+          "studentArchiveStoragePrecommitVerified": true,
+          "teachingArchiveUseCasePortInvoked": true,
+          "teachingArchiveDomainValidationExecuted": true,
+          "teachingArchiveRepositoryPersisted": true,
+          "projectionEvidencePreserved": true,
+          "studentAudienceScopeEnforced": true,
+          "studentArchiveProjectionWritten": true,
+          "studentArchivePersisted": true,
+          "studentArchiveWriteStarted": true,
+          "mainDatabaseWritePrepared": true,
+          "mainDatabaseWriteStarted": true,
+          "mainDatabaseWriteCommitted": true,
+          "directDatabaseAccessAllowed": false,
+          "executeHttpRequestAllowed": false,
+          "finalAnswerPublished": false,
+          "publicationCandidateCreated": false,
+          "externalModelCallStarted": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 300,
+          "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_STORAGE_COMMIT_BOUNDARY"
+        },
+        "nextAction": "Use this committed Teaching Archive item as the source for physical row verification; SDD 0259 verifies the teaching_archive_items row through an injected row read port."
+      },
+      "portCalls": 1,
+      "runtimeSlo": {
+        "targetP99Ms": 300,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_STORAGE_COMMIT_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "severity": "info",
+      "actual": "TEACHING_ARCHIVE_MAIN_DB_STORAGE_COMMITTED=true;DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand=true;persisted=true;tarch_deep_research_001=true",
+      "expected": "storage commit contracts require an injected Teaching Archive use case port and a persisted tarch_ archive item",
+      "remediation": "Keep commit contracts explicit about use case port execution and persisted outcome."
+    },
+    {
+      "id": "precommit.report_available",
+      "passed": true,
+      "severity": "info",
+      "actual": "readiness=READY;runtime=research_deep_research_student_archive_storage_precommit_runtime",
+      "expected": "storage commit is based on a READY storage precommit report",
+      "remediation": "Regenerate storage precommit evidence before claiming committed storage evidence."
+    },
+    {
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "severity": "info",
+      "actual": "research_deep_research_student_archive_storage_commit_runtime=true;TeachingArchiveCreateItemPort.createArchiveItem=true;TEACHING_ARCHIVE_MAIN_DB_STORAGE_COMMITTED=true",
+      "expected": "runtime records idempotent committed storage evidence through the commit port",
+      "remediation": "The commit slice must stay port-based, persisted, and idempotent."
+    },
+    {
+      "id": "runtime.safety_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;directDatabaseAccessAllowed: true=false;executeHttpRequestAllowed: true=false;externalModelCallAllowed: true=false;externalModelCallStarted: true=false;remoteDeviceControlAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;finalAnswerPublished: true=false;publicationCandidateCreated: true=false;dangerouslySetInnerHTML=false;innerHTML=false",
+      "expected": "runtime commits only through injected use case port and blocks raw DB, HTTP, models, tools, publication, and Swarm",
+      "remediation": "Do not let JS execute SQL or HTTP in the storage commit runtime."
+    },
+    {
+      "id": "runtime.probe_commits_teaching_archive_command",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=TEACHING_ARCHIVE_MAIN_DB_STORAGE_COMMITTED;archive=tarch_deep_research_001;calls=1;p99=5",
+      "expected": "probe commits the prepared command through one injected Teaching Archive use case port call",
+      "remediation": "Commit must prove use case port invocation and persisted archive item evidence."
+    },
+    {
+      "id": "tests.cover_commit_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "positive, idempotency, missing port, non-persisted, bad id, unsafe text, DB/HTTP policy, student scope, and Swarm tests",
+      "remediation": "Add regression coverage before treating storage commit as root evidence."
+    },
+    {
+      "id": "teaching_archive.use_case_bridge_exists",
+      "passed": true,
+      "severity": "info",
+      "actual": "ExecuteWithPersistence=true;INSERT INTO teaching_archive_items=true;TestCreateArchiveItemAcceptsDeepResearchStorageCommitCommandShape=true;studentArchiveStorageServicePrincipal=true",
+      "expected": "Go Teaching Archive use case, repository, SQL table, and bridge test accept the deep_research commit shape",
+      "remediation": "Do not claim committed main storage without Go use case bridge evidence."
+    },
+    {
+      "id": "quality.gate_tracks_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:research-deep-research-student-archive-storage-commit=true;Research deep_research student archive storage commit audit=true",
+      "expected": "npm script and strict quality command include the storage commit audit",
+      "remediation": "Wire storage commit into the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_storage_commit_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "researchDeepResearchStudentArchiveStorageCommit=true;research-deep-research-student-archive-storage-commit.current.json=true;research_deep_research_student_archive_storage_commit_runtime=true",
+      "expected": "research root workflow requires storage commit after storage precommit",
+      "remediation": "Root workflow coverage must require storage commit before later row-verification slices."
+    },
+    {
+      "id": "structure_tracks_runtime_files",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires storage commit contracts, SDD, runtime, tests, audit, and audit test",
+      "remediation": "Add the storage commit slice to structure verification."
+    },
+    {
+      "id": "sdd.defines_commit_without_direct_db",
+      "passed": true,
+      "severity": "info",
+      "actual": "student archive storage commit runtime=true;mainDatabaseWriteCommitted=true=true;not a JS direct database write=true",
+      "expected": "SDD states storage commit uses the injected use case port and does not bypass the service boundary",
+      "remediation": "Keep the SDD honest about committed storage and row-verification boundaries."
+    },
+    {
+      "id": "architecture_board.reflects_storage_commit_progress",
+      "passed": true,
+      "severity": "info",
+      "actual": "student archive storage commit runtime=true;9.8/10=true;mainDatabaseWriteCommitted=true=true",
+      "expected": "architecture board preserves 9.8 storage commit history and shows later 9.9 row verification progress",
+      "remediation": "Update the architecture board with current and historical deep_research milestones."
+    }
+  ],
+  "nextAction": "Use this as deep_research Teaching Archive committed storage evidence; SDD 0259 now verifies the physical row through an injected row read port."
+}

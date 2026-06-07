@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "2026-06-04.agent.student-tutor-readonly-adapter.v1",
+  "adapterId": "student_tutor_recommend_practice_readonly_adapter",
+  "workerAgent": "StudentTutorAgent",
+  "skillId": "recommend_practice",
+  "routeMode": "SINGLE_WORKER",
+  "inputSchemaRef": "contracts/agent/skills/recommend-practice.input.schema.json",
+  "outputSchemaRef": "contracts/agent/skills/recommend-practice.output.schema.json",
+  "readPort": {
+    "portName": "StudentLearningReadPort",
+    "operation": "recommendPracticeContext",
+    "transport": "HTTP",
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false
+  },
+  "guards": {
+    "principalContextRequired": true,
+    "sharedContextRequired": true,
+    "guardrailResultRequired": true,
+    "denyOnWriteIntent": true,
+    "denyOnCrossStudentAccess": true,
+    "denyOnRawStudentArchiveReturn": true,
+    "denyOnFinalEvaluation": true,
+    "denyOnExternalModelRequest": true,
+    "denyOnLocalToolMutation": true,
+    "dataScopes": {
+      "knowledge": "PUBLIC",
+      "student": "ASSIGNED",
+      "teaching": "READ",
+      "research": "NONE",
+      "localTool": "NONE"
+    }
+  },
+  "evidence": {
+    "skillInvocationTraceRequired": true,
+    "inputHashRequired": true,
+    "outputSummaryRequired": true,
+    "sourceEvidenceRefsRequired": true,
+    "studentScopeEvidenceRequired": true,
+    "runtimeTimingRequired": true
+  },
+  "slo": {
+    "p99BudgetMs": 50,
+    "maxRecommendations": 3,
+    "maxReasonChars": 240
+  },
+  "promotion": {
+    "currentEvidenceClass": "CONTRACT_ONLY",
+    "runtimeEvidenceRequiredBeforePromotion": true,
+    "rootWorkflowRequired": true
+  }
+}

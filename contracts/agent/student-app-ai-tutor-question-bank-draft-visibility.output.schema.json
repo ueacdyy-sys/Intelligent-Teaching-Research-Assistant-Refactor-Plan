@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/student-app-ai-tutor-question-bank-draft-visibility.output.schema.json",
+  "title": "Student App AI Tutor Question Bank Draft Visibility Runtime Output",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "readPort",
+    "status",
+    "draftVisibilityPage",
+    "boundary",
+    "runtimeSlo"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.student-app.ai-tutor-question-bank-draft-visibility-listed.v1"
+    },
+    "runtimeId": {
+      "type": "string",
+      "const": "student_app_ai_tutor_question_bank_draft_visibility_runtime"
+    },
+    "readPort": {
+      "type": "string",
+      "const": "StudentAppAITutorQuestionBankDraftVisibilityPort.listStudentAppQuestionBankDrafts"
+    },
+    "status": {
+      "type": "string",
+      "const": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_VISIBILITY_LISTED"
+    },
+    "draftVisibilityPage": {
+      "type": "object",
+      "required": ["items", "pageInfo"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "tutoringAnalysisRequestId",
+              "archiveItemId",
+              "questionBankDraftRef",
+              "resultRef",
+              "resultSummary",
+              "createdAt",
+              "completedAt"
+            ]
+          }
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": [
+        "ownStudentOnly",
+        "succeededAnalysisOnly",
+        "questionBankDraftRefRequired",
+        "draftContentRead",
+        "questionGenerationStarted",
+        "studentAnsweringStarted",
+        "scoringStarted",
+        "studentVisiblePublished",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "ownStudentOnly": { "const": true },
+        "succeededAnalysisOnly": { "const": true },
+        "questionBankDraftRefRequired": { "const": true },
+        "draftContentRead": { "const": false },
+        "questionGenerationStarted": { "const": false },
+        "studentAnsweringStarted": { "const": false },
+        "scoringStarted": { "const": false },
+        "studentVisiblePublished": { "const": false },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "properties": {
+        "targetP99Ms": { "const": 50 }
+      }
+    }
+  }
+}

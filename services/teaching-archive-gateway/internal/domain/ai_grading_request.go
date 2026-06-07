@@ -22,43 +22,47 @@ const (
 )
 
 type AIGradingRequest struct {
-	ID                      string
-	ArchiveItemID           string
-	RequestedByPrincipalID  string
-	GradingInstructions     string
-	RubricRef               string
-	Status                  AIGradingStatus
-	SourceArchiveOwnerType  OwnerType
-	SourceArchiveStudentID  string
-	SourceArchiveContentRef string
-	SourceQuizSubmissionID  string
-	SourceAnswerRef         string
-	SourceArchiveMaterial   MaterialType
-	SourceArchiveOCRStatus  OCRStatus
-	ScoreSummary            string
-	ResultRef               string
-	ErrorCode               string
-	ErrorMessage            string
-	ClaimedByWorkerID       string
-	ClaimExpiresAt          time.Time
-	CreatedAt               time.Time
-	CompletedAt             time.Time
-	UpdatedAt               time.Time
+	ID                                   string
+	ArchiveItemID                        string
+	RequestedByPrincipalID               string
+	GradingInstructions                  string
+	RubricRef                            string
+	Status                               AIGradingStatus
+	SourceArchiveOwnerType               OwnerType
+	SourceArchiveStudentID               string
+	SourceArchiveContentRef              string
+	SourceQuizSubmissionID               string
+	SourceAnswerRef                      string
+	SourceQuestionBankDraftRef           string
+	SourceQuestionBankAnswerSubmissionID string
+	SourceArchiveMaterial                MaterialType
+	SourceArchiveOCRStatus               OCRStatus
+	ScoreSummary                         string
+	ResultRef                            string
+	ErrorCode                            string
+	ErrorMessage                         string
+	ClaimedByWorkerID                    string
+	ClaimExpiresAt                       time.Time
+	CreatedAt                            time.Time
+	CompletedAt                          time.Time
+	UpdatedAt                            time.Time
 }
 
 type CreateAIGradingRequestInput struct {
-	Principal               PrincipalContext
-	ArchiveItemID           string
-	GradingInstructions     string
-	RubricRef               string
-	SourceArchiveOwnerType  OwnerType
-	SourceArchiveStudentID  string
-	SourceArchiveContentRef string
-	SourceQuizSubmissionID  string
-	SourceAnswerRef         string
-	SourceArchiveMaterial   MaterialType
-	SourceArchiveOCRStatus  OCRStatus
-	SourceAnalysisIntents   []AnalysisIntent
+	Principal                            PrincipalContext
+	ArchiveItemID                        string
+	GradingInstructions                  string
+	RubricRef                            string
+	SourceArchiveOwnerType               OwnerType
+	SourceArchiveStudentID               string
+	SourceArchiveContentRef              string
+	SourceQuizSubmissionID               string
+	SourceAnswerRef                      string
+	SourceQuestionBankDraftRef           string
+	SourceQuestionBankAnswerSubmissionID string
+	SourceArchiveMaterial                MaterialType
+	SourceArchiveOCRStatus               OCRStatus
+	SourceAnalysisIntents                []AnalysisIntent
 }
 
 func NewAIGradingRequest(
@@ -76,21 +80,23 @@ func NewAIGradingRequest(
 	createdAt = createdAt.UTC()
 
 	return AIGradingRequest{
-		ID:                      id,
-		ArchiveItemID:           normalized.ArchiveItemID,
-		RequestedByPrincipalID:  strings.TrimSpace(normalized.Principal.PrincipalID),
-		GradingInstructions:     normalized.GradingInstructions,
-		RubricRef:               normalized.RubricRef,
-		Status:                  AIGradingStatusQueued,
-		SourceArchiveOwnerType:  normalized.SourceArchiveOwnerType,
-		SourceArchiveStudentID:  normalized.SourceArchiveStudentID,
-		SourceArchiveContentRef: normalized.SourceArchiveContentRef,
-		SourceQuizSubmissionID:  normalized.SourceQuizSubmissionID,
-		SourceAnswerRef:         normalized.SourceAnswerRef,
-		SourceArchiveMaterial:   normalized.SourceArchiveMaterial,
-		SourceArchiveOCRStatus:  normalized.SourceArchiveOCRStatus,
-		CreatedAt:               createdAt,
-		UpdatedAt:               createdAt,
+		ID:                                   id,
+		ArchiveItemID:                        normalized.ArchiveItemID,
+		RequestedByPrincipalID:               strings.TrimSpace(normalized.Principal.PrincipalID),
+		GradingInstructions:                  normalized.GradingInstructions,
+		RubricRef:                            normalized.RubricRef,
+		Status:                               AIGradingStatusQueued,
+		SourceArchiveOwnerType:               normalized.SourceArchiveOwnerType,
+		SourceArchiveStudentID:               normalized.SourceArchiveStudentID,
+		SourceArchiveContentRef:              normalized.SourceArchiveContentRef,
+		SourceQuizSubmissionID:               normalized.SourceQuizSubmissionID,
+		SourceAnswerRef:                      normalized.SourceAnswerRef,
+		SourceQuestionBankDraftRef:           normalized.SourceQuestionBankDraftRef,
+		SourceQuestionBankAnswerSubmissionID: normalized.SourceQuestionBankAnswerSubmissionID,
+		SourceArchiveMaterial:                normalized.SourceArchiveMaterial,
+		SourceArchiveOCRStatus:               normalized.SourceArchiveOCRStatus,
+		CreatedAt:                            createdAt,
+		UpdatedAt:                            createdAt,
 	}, nil
 }
 
@@ -122,23 +128,34 @@ func NormalizeCreateAIGradingRequestInput(input CreateAIGradingRequestInput) (Cr
 	input.SourceArchiveContentRef = contentRef
 	input.SourceQuizSubmissionID = sourceQuizSubmissionID
 	input.SourceAnswerRef = sourceAnswerRef
+	questionBankDraftRef, questionBankSubmissionID, err := normalizeAIGradingQuestionBankSource(
+		input.SourceQuestionBankDraftRef,
+		input.SourceQuestionBankAnswerSubmissionID,
+	)
+	if err != nil {
+		return CreateAIGradingRequestInput{}, err
+	}
+	input.SourceQuestionBankDraftRef = questionBankDraftRef
+	input.SourceQuestionBankAnswerSubmissionID = questionBankSubmissionID
 	if !eligibleAIGradingArchive(input) {
 		return CreateAIGradingRequestInput{}, validationError("archive item is not eligible for AI grading")
 	}
 
 	return CreateAIGradingRequestInput{
-		Principal:               input.Principal,
-		ArchiveItemID:           archiveItemID,
-		GradingInstructions:     instructions,
-		RubricRef:               rubricRef,
-		SourceArchiveOwnerType:  input.SourceArchiveOwnerType,
-		SourceArchiveStudentID:  input.SourceArchiveStudentID,
-		SourceArchiveContentRef: contentRef,
-		SourceQuizSubmissionID:  sourceQuizSubmissionID,
-		SourceAnswerRef:         sourceAnswerRef,
-		SourceArchiveMaterial:   input.SourceArchiveMaterial,
-		SourceArchiveOCRStatus:  input.SourceArchiveOCRStatus,
-		SourceAnalysisIntents:   append([]AnalysisIntent(nil), input.SourceAnalysisIntents...),
+		Principal:                            input.Principal,
+		ArchiveItemID:                        archiveItemID,
+		GradingInstructions:                  instructions,
+		RubricRef:                            rubricRef,
+		SourceArchiveOwnerType:               input.SourceArchiveOwnerType,
+		SourceArchiveStudentID:               input.SourceArchiveStudentID,
+		SourceArchiveContentRef:              contentRef,
+		SourceQuizSubmissionID:               sourceQuizSubmissionID,
+		SourceAnswerRef:                      sourceAnswerRef,
+		SourceQuestionBankDraftRef:           questionBankDraftRef,
+		SourceQuestionBankAnswerSubmissionID: questionBankSubmissionID,
+		SourceArchiveMaterial:                input.SourceArchiveMaterial,
+		SourceArchiveOCRStatus:               input.SourceArchiveOCRStatus,
+		SourceAnalysisIntents:                append([]AnalysisIntent(nil), input.SourceAnalysisIntents...),
 	}, nil
 }
 
@@ -158,6 +175,14 @@ func AuthorizeCreateAIGradingRequest(principal PrincipalContext, item ArchiveIte
 }
 
 func eligibleAIGradingArchive(input CreateAIGradingRequestInput) bool {
+	if input.SourceQuestionBankDraftRef != "" || input.SourceQuestionBankAnswerSubmissionID != "" {
+		return input.SourceArchiveOwnerType == OwnerTypeStudent &&
+			strings.TrimSpace(input.SourceArchiveStudentID) != "" &&
+			strings.TrimSpace(input.SourceArchiveContentRef) != "" &&
+			input.SourceQuestionBankDraftRef != "" &&
+			input.SourceQuestionBankAnswerSubmissionID != "" &&
+			validMaterialType(input.SourceArchiveMaterial)
+	}
 	if input.SourceQuizSubmissionID != "" || input.SourceAnswerRef != "" {
 		return input.SourceArchiveOwnerType == OwnerTypeTeaching &&
 			input.SourceArchiveMaterial == MaterialTypeQuiz &&
@@ -171,6 +196,26 @@ func eligibleAIGradingArchive(input CreateAIGradingRequestInput) bool {
 		strings.TrimSpace(input.SourceArchiveContentRef) != "" &&
 		validAIGradingMaterial(input.SourceArchiveMaterial) &&
 		hasAIGradingIntent(input.SourceAnalysisIntents)
+}
+
+func normalizeAIGradingQuestionBankSource(
+	sourceQuestionBankDraftRef string,
+	sourceQuestionBankAnswerSubmissionID string,
+) (string, string, error) {
+	sourceQuestionBankDraftRef = strings.TrimSpace(sourceQuestionBankDraftRef)
+	sourceQuestionBankAnswerSubmissionID = strings.TrimSpace(sourceQuestionBankAnswerSubmissionID)
+	if sourceQuestionBankDraftRef == "" && sourceQuestionBankAnswerSubmissionID == "" {
+		return "", "", nil
+	}
+	normalizedDraftRef, err := NormalizeQuestionBankDraftRef(sourceQuestionBankDraftRef)
+	if err != nil {
+		return "", "", err
+	}
+	normalizedSubmissionID, err := NormalizeQuestionBankDraftAnswerSubmissionID(sourceQuestionBankAnswerSubmissionID)
+	if err != nil {
+		return "", "", err
+	}
+	return normalizedDraftRef, normalizedSubmissionID, nil
 }
 
 func normalizeAIGradingSubmissionSource(

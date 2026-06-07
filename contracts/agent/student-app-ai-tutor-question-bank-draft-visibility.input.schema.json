@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/student-app-ai-tutor-question-bank-draft-visibility.input.schema.json",
+  "title": "Student App AI Tutor Question Bank Draft Visibility Runtime Input",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "visibilityInvocationId",
+    "principal",
+    "query",
+    "visibilityPolicy",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.student-app.ai-tutor-question-bank-draft-visibility.v1"
+    },
+    "visibilityInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "required": ["subjectType", "role", "entryPoint", "scopes", "studentAccess"],
+      "properties": {
+        "subjectType": { "const": "USER" },
+        "role": { "const": "STUDENT" },
+        "entryPoint": { "const": "STUDENT_APP" },
+        "scopes": {
+          "type": "array",
+          "contains": { "const": "STUDENT_OWN_READ" }
+        },
+        "studentAccess": {
+          "type": "object",
+          "required": ["mode", "ownStudentId"],
+          "properties": {
+            "mode": { "const": "OWN" },
+            "ownStudentId": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "required": ["pageSize"],
+      "properties": {
+        "pageSize": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "cursor": { "type": "string" }
+      }
+    },
+    "visibilityPolicy": {
+      "type": "object",
+      "required": [
+        "targetUseCase",
+        "repositoryOperation",
+        "openApiOperation",
+        "sourceStatusRequired",
+        "sourceOwnerTypeRequired",
+        "ownStudentOnly",
+        "questionBankDraftRefRequired",
+        "draftContentReadAllowed",
+        "questionGenerationAllowed",
+        "studentAnsweringAllowed",
+        "scoringAllowed",
+        "studentVisiblePublishAllowed",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "targetUseCase": { "const": "ListStudentAppQuestionBankDrafts.Execute" },
+        "repositoryOperation": { "const": "ArchiveRepository.ListTutoringAnalysisRequests" },
+        "openApiOperation": { "const": "listStudentAppQuestionBankDrafts" },
+        "sourceStatusRequired": { "const": "SUCCEEDED" },
+        "sourceOwnerTypeRequired": { "const": "STUDENT" },
+        "ownStudentOnly": { "const": true },
+        "questionBankDraftRefRequired": { "const": true },
+        "draftContentReadAllowed": { "const": false },
+        "questionGenerationAllowed": { "const": false },
+        "studentAnsweringAllowed": { "const": false },
+        "scoringAllowed": { "const": false },
+        "studentVisiblePublishAllowed": { "const": false },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8 }
+  }
+}

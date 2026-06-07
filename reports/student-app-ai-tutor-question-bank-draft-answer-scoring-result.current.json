@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-06-07T12:29:05.416Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SCORING_RESULT_FOUNDATION",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_question_bank_draft_answer_scoring_result_foundation",
+    "useCase": "ReadStudentAppQuestionBankDraftAnswerScoringResult.Execute",
+    "repository": "ArchiveRepository.GetLatestQuestionBankDraftAnswerScoringRequestForStudent",
+    "endpoint": "GET /v1/student-app/question-bank-draft-answer-submissions/{submissionId}/ai-grading-result"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_ANSWER_SCORING_RESULT_FOUNDATION_AUDIT"
+  },
+  "safetyInvariants": {
+    "ownStudentOnly": true,
+    "submissionIdAndStudentScopedLookup": true,
+    "scoreSummaryVisibleOnlyOnSucceeded": true,
+    "errorCodeVisibleOnlyOnFailed": true,
+    "answerTextVisibleToStudent": false,
+    "expectedAnswerVisibleToStudent": false,
+    "explanationVisibleToStudent": false,
+    "resultRefVisibleToStudent": false,
+    "workerFieldsVisibleToStudent": false,
+    "modelInferenceAllowed": false,
+    "studentVisiblePublicationAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "go.student_own_safe_result_gate",
+      "passed": true,
+      "actual": "AuthorizeListStudentAppQuestionBankDrafts=true;primaryOwnStudentID=true;GetLatestQuestionBankDraftAnswerScoringRequestForStudent=true;HidesPendingAndFailedInternals=true",
+      "expected": "domain and use case require Student App own-student read and build only a safe student-visible result summary",
+      "remediation": "Keep result reads behind Student App own-student authorization and the safe result builder."
+    },
+    {
+      "severity": "info",
+      "id": "postgres.submission_student_latest_indexed_lookup",
+      "passed": true,
+      "actual": "source_question_bank_answer_submission_id = $1=true;source_archive_student_id = $2=true;idx_teaching_ai_grading_requests_qbank_answer_student_created=true",
+      "expected": "PostgreSQL reads the latest question-bank answer scoring request by submission id plus student id using a dedicated partial index",
+      "remediation": "Keep the query and index scoped by source_question_bank_answer_submission_id and source_archive_student_id."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_student_safe_result_surface",
+      "passed": true,
+      "actual": "scoreSummary=true;errorCode=true;answerText=false;expectedAnswer=false;resultRef=false;workerId=false;claimExpiresAt=false",
+      "expected": "HTTP/OpenAPI expose only status, scoreSummary on success, errorCode on failure, and timestamps to the owning student",
+      "remediation": "Remove answer/key/model-result/worker/claim fields from the student-facing result endpoint."
+    },
+    {
+      "severity": "info",
+      "id": "scope.read_only_no_model_or_publication",
+      "passed": true,
+      "actual": "AIGradingStatusSucceeded=true;AIGradingStatusFailed=true;RecordAIGradingResultInput=false;Feedback=false;Publish=false",
+      "expected": "0269 is a read-only student-visible result foundation; model scoring, feedback, and publication remain later slices",
+      "remediation": "Keep scoring, feedback generation, and publication out of this read endpoint."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-question-bank-draft-answer-scoring-result=true;studentAppAiTutorQuestionBankDraftAnswerScoringResult=true;10.9/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD, and architecture board track 0269",
+      "remediation": "Wire the scoring result foundation through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the student-visible scoring-result read foundation; keep model scoring, detailed feedback, and publication as later reviewed slices."
+}

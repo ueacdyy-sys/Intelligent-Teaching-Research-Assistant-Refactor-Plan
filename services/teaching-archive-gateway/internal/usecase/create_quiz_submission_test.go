@@ -200,19 +200,22 @@ func (f *fakeQuizSubmissionRepository) GetByID(_ context.Context, id string) (do
 func (f *fakeQuizSubmissionRepository) CreateQuizSubmission(
 	_ context.Context,
 	submission domain.QuizSubmission,
-) error {
+) (usecase.WritePersistenceOutcome, error) {
 	f.submission = submission
 	f.creates++
-	return nil
+	return usecase.PersistedWriteOutcome(), nil
 }
 
 func (f *fakeQuizSubmissionRepository) CreateQuizSubmissionForExistingTeachingQuiz(
 	_ context.Context,
 	submission domain.QuizSubmission,
-) (bool, error) {
+) (bool, usecase.WritePersistenceOutcome, error) {
 	f.fastSubmission = submission
 	f.fastCreates++
-	return f.fastCreateOK, nil
+	if !f.fastCreateOK {
+		return false, usecase.WritePersistenceOutcome{}, nil
+	}
+	return true, usecase.PersistedWriteOutcome(), nil
 }
 
 func (f *fakeQuizSubmissionRepository) GetQuizSubmissionByID(

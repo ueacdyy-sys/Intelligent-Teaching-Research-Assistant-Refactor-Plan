@@ -82,6 +82,12 @@ func TestCreateArchiveItemReturnsServerTiming(t *testing.T) {
 	if !strings.Contains(timing, "db.exec;dur=") {
 		t.Fatalf("Server-Timing = %q, want db.exec duration", timing)
 	}
+	if !strings.Contains(timing, "response.encode;dur=") {
+		t.Fatalf("Server-Timing = %q, want response.encode duration", timing)
+	}
+	if response.Header().Get("Content-Length") == "" {
+		t.Fatalf("Content-Length header is empty")
+	}
 }
 
 func TestCreateArchiveItemRequiresAgentAPIKey(t *testing.T) {
@@ -214,6 +220,12 @@ func TestListArchiveItemsReturnsPaginatedResponse(t *testing.T) {
 	}
 	if !strings.Contains(timing, "db.query;dur=") {
 		t.Fatalf("Server-Timing = %q, want db.query duration", timing)
+	}
+	if !strings.Contains(timing, "response.encode;dur=") {
+		t.Fatalf("Server-Timing = %q, want response.encode duration", timing)
+	}
+	if response.Header().Get("Content-Length") == "" {
+		t.Fatalf("Content-Length header is empty")
 	}
 }
 

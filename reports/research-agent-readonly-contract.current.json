@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-06-07T12:29:18.402Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_AGENT_READONLY_CONTRACT_AUDIT",
+  "summary": {
+    "researchReadOnlySkill": {
+      "skillId": "search_knowledge",
+      "workerAgent": "ResearchAgent",
+      "schemaRefsReady": true,
+      "inputBoundaryReady": true,
+      "outputBoundaryReady": true
+    },
+    "researchReadOnlyAdapter": {
+      "adapterId": "research_agent_search_knowledge_readonly_adapter",
+      "readPortReady": true,
+      "guardsReady": true,
+      "evidenceSloReady": true
+    }
+  },
+  "findings": [
+    {
+      "id": "research_readonly_skill.manifest",
+      "passed": true,
+      "severity": "info",
+      "actual": "skill=search_knowledge;worker=ResearchAgent;p99=50;scopes=PRIVATE_ASSIGNED/NONE/READ/NONE;directDb=false;harness=false",
+      "expected": "ResearchAgent search_knowledge read-only manifest, p99<=50, private-assigned knowledge only",
+      "remediation": "ResearchAgent needs a low-latency read-only search_knowledge Skill before deep_research runtime work."
+    },
+    {
+      "id": "research_readonly_skill.input_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "version=2026-06-04.agent.skill.search-knowledge.input.v1;p99=50;write=false;student=NONE;externalModel=false;synthesis=false;studentArchive=false;classes=PUBLIC|PRIVATE|REMOTE_DEVICE_OWNED",
+      "expected": "contextRef required, p99<=50, no write, no student archive, no external model, no synthesis",
+      "remediation": "ResearchAgent fast-path input must stay retrieval-only and cannot request student archives or model synthesis."
+    },
+    {
+      "id": "research_readonly_skill.output_boundary",
+      "passed": true,
+      "severity": "info",
+      "actual": "version=2026-06-04.agent.skill.search-knowledge.output.v1;classes=PUBLIC|PRIVATE|REMOTE_DEVICE_OWNED;directDb=false;studentArchive=false;studentData=false;withinPolicy=true;externalModel=false;localTool=false;p99=50",
+      "expected": "policy-safe cited knowledge output, no student archive, no model, p99<=50, runtime evidence required",
+      "remediation": "ResearchAgent fast-path output must not return student archive data or bypass SLO promotion evidence."
+    },
+    {
+      "id": "research_readonly_skill.examples_safe_fast_path",
+      "passed": true,
+      "severity": "info",
+      "actual": "inputVersion=2026-06-04.agent.skill.search-knowledge.input.v1;write=false;studentArchive=false;studentAccess=NONE;externalModel=false;synthesis=false;inputP99=50;outputVersion=2026-06-04.agent.skill.search-knowledge.output.v1;outputP99=50;evidenceRefs=3",
+      "expected": "examples are read-only, cited, policy-safe, no model, and <=50ms",
+      "remediation": "ResearchAgent examples must prove the safe retrieval path before runtime adapter promotion."
+    },
+    {
+      "id": "research_readonly_adapter.identity_and_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "schemaVersion=2026-06-04.agent.research-readonly-adapter.v1;adapter=research_agent_search_knowledge_readonly_adapter;worker=ResearchAgent;skill=search_knowledge;port=KnowledgeQueryReadPort;operation=searchKnowledge;directDb=false;write=false",
+      "expected": "ResearchAgent SINGLE_WORKER adapter bound to KnowledgeQueryReadPort.searchKnowledge",
+      "remediation": "ResearchAgent read-only adapter must call the knowledge read port instead of direct database or write adapters."
+    },
+    {
+      "id": "research_readonly_adapter.guards_evidence_slo",
+      "passed": true,
+      "severity": "info",
+      "actual": "denyWrite=true;denyStudentArchive=true;denyExternalModel=true;denyTool=true;scopes=PRIVATE_ASSIGNED/NONE/NONE/READ/NONE;timing=true;p99=50;promotion=true;root=true;schemaGuards=8",
+      "expected": "guards/evidence/SLO/root-workflow promotion all required",
+      "remediation": "ResearchAgent read-only adapter must keep privacy guards, timing evidence, and root workflow promotion gates."
+    }
+  ]
+}

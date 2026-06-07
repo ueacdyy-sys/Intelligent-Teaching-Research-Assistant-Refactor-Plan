@@ -9,13 +9,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
+)
+
+type ArchiveCreateBatchMode string
+
+const (
+	ArchiveCreateBatchModeInsert ArchiveCreateBatchMode = "insert"
+	ArchiveCreateBatchModeCopy   ArchiveCreateBatchMode = "copy"
 )
 
 type ArchiveCreateBatchConfig struct {
 	MaxSize  int
 	MaxDelay time.Duration
 	Workers  int
+	Mode     ArchiveCreateBatchMode
 }
 
 var ErrArchiveRepositoryClosed = errors.New("archive repository closed")
@@ -25,6 +36,7 @@ type BatchingArchiveItemRepository struct {
 	maxSize   int
 	maxDelay  time.Duration
 	workers   int
+	mode      ArchiveCreateBatchMode
 	requests  chan archiveCreateRequest
 	closing   chan struct{}
 	done      chan struct{}
@@ -56,6 +68,7 @@ func NewBatchingArchiveItemRepository(db AcquireDB, config ArchiveCreateBatchCon
 		maxSize:  maxSize,
 		maxDelay: config.MaxDelay,
 		workers:  workers,
+		mode:     normalizeArchiveCreateBatchMode(config.Mode),
 		requests: make(chan archiveCreateRequest, maxSize*workers*4),
 		closing:  make(chan struct{}),
 		done:     make(chan struct{}),
@@ -71,7 +84,11 @@ func (r *BatchingArchiveItemRepository) WorkerCount() int {
 	return r.workers
 }
 
-func (r *BatchingArchiveItemRepository) Create(ctx context.Context, item domain.ArchiveItem) error {
+func (r *BatchingArchiveItemRepository) WriteMode() ArchiveCreateBatchMode {
+	return r.mode
+}
+
+func (r *BatchingArchiveItemRepository) Create(ctx context.Context, item domain.ArchiveItem) (usecase.WritePersistenceOutcome, error) {
 	request := archiveCreateRequest{
 		ctx:        ctx,
 		item:       item,
@@ -82,7 +99,7 @@ func (r *BatchingArchiveItemRepository) Create(ctx context.Context, item domain.
 	r.enqueueMu.RLock()
 	if r.closed {
 		r.enqueueMu.RUnlock()
-		return ErrArchiveRepositoryClosed
+		return usecase.WritePersistenceOutcome{}, ErrArchiveRepositoryClosed
 	}
 	r.enqueueWG.Add(1)
 	r.enqueueMu.RUnlock()
@@ -91,13 +108,16 @@ func (r *BatchingArchiveItemRepository) Create(ctx context.Context, item domain.
 		r.enqueueWG.Done()
 	case <-ctx.Done():
 		r.enqueueWG.Done()
-		return ctx.Err()
+		return usecase.WritePersistenceOutcome{}, ctx.Err()
 	case <-r.closing:
 		r.enqueueWG.Done()
-		return ErrArchiveRepositoryClosed
+		return usecase.WritePersistenceOutcome{}, ErrArchiveRepositoryClosed
 	}
 
-	return <-request.result
+	if err := <-request.result; err != nil {
+		return usecase.WritePersistenceOutcome{}, err
+	}
+	return usecase.PersistedWriteOutcome(), nil
 }
 
 func (r *BatchingArchiveItemRepository) Close() {
@@ -176,12 +196,6 @@ func (r *BatchingArchiveItemRepository) flush(batch []archiveCreateRequest) {
 		return
 	}
 
-	statement, args, err := buildInsertArchiveItemsStatement(active)
-	if err != nil {
-		completeArchiveCreateBatch(active, err)
-		return
-	}
-
 	acquireStart := time.Now()
 	conn, err := r.db.Acquire(context.Background())
 	acquireDuration := observableDuration(time.Since(acquireStart))
@@ -195,7 +209,16 @@ func (r *BatchingArchiveItemRepository) flush(batch []archiveCreateRequest) {
 	defer conn.Release()
 
 	insertStart := time.Now()
-	_, err = conn.Exec(context.Background(), statement, args...)
+	if r.mode == ArchiveCreateBatchModeCopy {
+		err = copyArchiveItems(context.Background(), conn, active)
+	} else {
+		var statement string
+		var args []any
+		statement, args, err = buildInsertArchiveItemsStatement(active)
+		if err == nil {
+			_, err = conn.Exec(context.Background(), statement, args...)
+		}
+	}
 	insertDuration := observableDuration(time.Since(insertStart))
 	for _, request := range active {
 		recordDBExecTiming(request.ctx, insertDuration)
@@ -208,6 +231,67 @@ func completeArchiveCreateBatch(batch []archiveCreateRequest, err error) {
 	for _, request := range batch {
 		request.result <- err
 	}
+}
+
+func normalizeArchiveCreateBatchMode(mode ArchiveCreateBatchMode) ArchiveCreateBatchMode {
+	if mode == ArchiveCreateBatchModeCopy {
+		return ArchiveCreateBatchModeCopy
+	}
+	return ArchiveCreateBatchModeInsert
+}
+
+var archiveItemCopyColumns = []string{
+	"id",
+	"owner_type",
+	"student_id",
+	"material_type",
+	"title",
+	"source",
+	"content_ref",
+	"tags",
+	"analysis_intents",
+	"ocr_status",
+	"created_at",
+}
+
+func copyArchiveItems(ctx context.Context, conn Conn, batch []archiveCreateRequest) error {
+	_, err := conn.CopyFrom(
+		ctx,
+		pgx.Identifier{"teaching_archive_items"},
+		archiveItemCopyColumns,
+		pgx.CopyFromSlice(len(batch), func(index int) ([]any, error) {
+			return archiveItemCopyRow(batch[index].item)
+		}),
+	)
+	return err
+}
+
+func archiveItemCopyRow(item domain.ArchiveItem) ([]any, error) {
+	tags, err := json.Marshal(item.Tags)
+	if err != nil {
+		return nil, err
+	}
+	intents, err := json.Marshal(item.AnalysisIntents)
+	if err != nil {
+		return nil, err
+	}
+	var studentID any
+	if item.StudentID != "" {
+		studentID = item.StudentID
+	}
+	return []any{
+		item.ID,
+		item.OwnerType,
+		studentID,
+		item.MaterialType,
+		item.Title,
+		item.Source,
+		item.ContentRef,
+		string(tags),
+		string(intents),
+		item.OCRStatus,
+		item.CreatedAt,
+	}, nil
 }
 
 func buildInsertArchiveItemsStatement(batch []archiveCreateRequest) (string, []any, error) {

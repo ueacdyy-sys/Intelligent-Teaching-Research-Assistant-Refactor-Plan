@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/controlled-write-intent-gateway.schema.json",
+  "title": "Agent Controlled Write Intent Gateway",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "gatewayId",
+    "gatewayMode",
+    "acceptedIntents",
+    "writeBoundary",
+    "admissionGuards",
+    "harnessBoundary",
+    "evidence",
+    "eventing",
+    "rollback",
+    "promotion"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-04.agent.controlled-write-intent-gateway.v1"
+    },
+    "gatewayId": {
+      "type": "string",
+      "const": "agent_controlled_write_intent_gateway"
+    },
+    "gatewayMode": {
+      "type": "string",
+      "const": "REVIEW_ONLY_COMMAND_INTENT"
+    },
+    "acceptedIntents": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "workerAgent",
+          "taskKind",
+          "targetCapability",
+          "rootRequirementAnchors",
+          "commandPort",
+          "approvalRequired",
+          "directDatabaseWriteAllowed",
+          "executionCandidateAllowed",
+          "finalEvaluationWriteAllowed"
+        ],
+        "properties": {
+          "intentId": {
+            "type": "string",
+            "enum": [
+              "draft_teaching_quiz",
+              "draft_archive_material",
+              "draft_workflow_plugin"
+            ]
+          },
+          "workerAgent": {
+            "type": "string",
+            "enum": ["TeachingAgent", "WorkflowAgent"]
+          },
+          "taskKind": {
+            "type": "string",
+            "enum": ["TEACHING", "WORKFLOW"]
+          },
+          "targetCapability": {
+            "type": "string",
+            "enum": [
+              "QUIZ_DRAFT",
+              "ARCHIVE_MATERIAL_DRAFT",
+              "WORKFLOW_PLUGIN_DRAFT"
+            ]
+          },
+          "rootRequirementAnchors": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "commandPort": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "portName",
+              "operation",
+              "idempotencyKeyRequired",
+              "outboxEventRequired"
+            ],
+            "properties": {
+              "portName": {
+                "type": "string",
+                "enum": [
+                  "TeachingDraftCommandPort",
+                  "WorkflowDraftCommandPort"
+                ]
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "submitQuizDraftIntent",
+                  "submitArchiveMaterialDraftIntent",
+                  "submitWorkflowPluginDraftIntent"
+                ]
+              },
+              "idempotencyKeyRequired": { "type": "boolean", "const": true },
+              "outboxEventRequired": { "type": "boolean", "const": true }
+            }
+          },
+          "approvalRequired": { "type": "boolean", "const": true },
+          "directDatabaseWriteAllowed": { "type": "boolean", "const": false },
+          "executionCandidateAllowed": { "type": "boolean", "const": false },
+          "finalEvaluationWriteAllowed": { "type": "boolean", "const": false }
+        }
+      }
+    },
+    "writeBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandIntentRecordingAllowed",
+        "immediateBusinessWriteAllowed",
+        "directDatabaseWriteAllowed",
+        "localToolMutationAllowed",
+        "finalAiGradingWriteAllowed",
+        "workflowPublishAllowed",
+        "modelTrainingWriteAllowed",
+        "rejectionMode"
+      ],
+      "properties": {
+        "commandIntentRecordingAllowed": { "type": "boolean", "const": true },
+        "immediateBusinessWriteAllowed": { "type": "boolean", "const": false },
+        "directDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "finalAiGradingWriteAllowed": { "type": "boolean", "const": false },
+        "workflowPublishAllowed": { "type": "boolean", "const": false },
+        "modelTrainingWriteAllowed": { "type": "boolean", "const": false },
+        "rejectionMode": { "type": "string", "const": "DENY_OR_REVIEW_WITH_EVIDENCE" }
+      }
+    },
+    "admissionGuards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "principalContextRequired",
+        "sharedContextRequired",
+        "guardrailResultRequired",
+        "routeDecisionRequired",
+        "humanApprovalRequiredForEveryIntent",
+        "denyUnknownIntent",
+        "denyOnMissingRollbackPlan",
+        "denyOnCrossScopeData",
+        "denyOnDirectDatabaseRequest",
+        "denyOnFinalEvaluationWrite",
+        "denyOnWorkflowPublish",
+        "denyOnLocalToolMutation"
+      ],
+      "properties": {
+        "principalContextRequired": { "type": "boolean", "const": true },
+        "sharedContextRequired": { "type": "boolean", "const": true },
+        "guardrailResultRequired": { "type": "boolean", "const": true },
+        "routeDecisionRequired": { "type": "boolean", "const": true },
+        "humanApprovalRequiredForEveryIntent": { "type": "boolean", "const": true },
+        "denyUnknownIntent": { "type": "boolean", "const": true },
+        "denyOnMissingRollbackPlan": { "type": "boolean", "const": true },
+        "denyOnCrossScopeData": { "type": "boolean", "const": true },
+        "denyOnDirectDatabaseRequest": { "type": "boolean", "const": true },
+        "denyOnFinalEvaluationWrite": { "type": "boolean", "const": true },
+        "denyOnWorkflowPublish": { "type": "boolean", "const": true },
+        "denyOnLocalToolMutation": { "type": "boolean", "const": true }
+      }
+    },
+    "harnessBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "harnessApprovalRequired",
+        "approvalArtifactRequired",
+        "approvalDecisionRequiredBeforeExecution",
+        "executionCandidateAllowed",
+        "executionCandidateViewRef",
+        "executionDisabledReason"
+      ],
+      "properties": {
+        "harnessApprovalRequired": { "type": "boolean", "const": true },
+        "approvalArtifactRequired": { "type": "boolean", "const": true },
+        "approvalDecisionRequiredBeforeExecution": { "type": "boolean", "const": true },
+        "executionCandidateAllowed": { "type": "boolean", "const": false },
+        "executionCandidateViewRef": {
+          "type": "string",
+          "const": "contracts/harness/execution-candidate-view.schema.json"
+        },
+        "executionDisabledReason": {
+          "type": "string",
+          "const": "real local execution is disabled by current SDD"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permissionTraceRequired",
+        "guardrailTraceRequired",
+        "routeDecisionRequired",
+        "inputHashRequired",
+        "outputSummaryRequired",
+        "commandIntentRecordRequired",
+        "approvalArtifactRefRequired",
+        "eventEnvelopeRequired",
+        "rollbackPlanRequired",
+        "idempotencyKeyRequired",
+        "auditTraceRequired"
+      ],
+      "properties": {
+        "permissionTraceRequired": { "type": "boolean", "const": true },
+        "guardrailTraceRequired": { "type": "boolean", "const": true },
+        "routeDecisionRequired": { "type": "boolean", "const": true },
+        "inputHashRequired": { "type": "boolean", "const": true },
+        "outputSummaryRequired": { "type": "boolean", "const": true },
+        "commandIntentRecordRequired": { "type": "boolean", "const": true },
+        "approvalArtifactRefRequired": { "type": "boolean", "const": true },
+        "eventEnvelopeRequired": { "type": "boolean", "const": true },
+        "rollbackPlanRequired": { "type": "boolean", "const": true },
+        "idempotencyKeyRequired": { "type": "boolean", "const": true },
+        "auditTraceRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "eventing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "appendOnlyEventRequired",
+        "outboxRequired",
+        "eventBeforeExecutionRequired",
+        "requiredEventTypes"
+      ],
+      "properties": {
+        "appendOnlyEventRequired": { "type": "boolean", "const": true },
+        "outboxRequired": { "type": "boolean", "const": true },
+        "eventBeforeExecutionRequired": { "type": "boolean", "const": true },
+        "requiredEventTypes": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "AGENT_WRITE_INTENT_SUBMITTED",
+              "AGENT_WRITE_INTENT_REVIEW_REQUIRED",
+              "AGENT_WRITE_INTENT_REJECTED"
+            ]
+          }
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollbackPlanRequired",
+        "dryRunDiffRequired",
+        "compensatingActionRequiredBeforeExecution",
+        "humanRollbackReviewRequired"
+      ],
+      "properties": {
+        "rollbackPlanRequired": { "type": "boolean", "const": true },
+        "dryRunDiffRequired": { "type": "boolean", "const": true },
+        "compensatingActionRequiredBeforeExecution": { "type": "boolean", "const": true },
+        "humanRollbackReviewRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currentEvidenceClass",
+        "rootWorkflowRequired",
+        "businessWriteExecutionClaimAllowed",
+        "finalAiGradingClaimAllowed",
+        "workflowPublishClaimAllowed",
+        "localToolMutationClaimAllowed"
+      ],
+      "properties": {
+        "currentEvidenceClass": {
+          "type": "string",
+          "const": "CONTRACT_REVIEW_ONLY_NO_EXECUTION"
+        },
+        "rootWorkflowRequired": { "type": "boolean", "const": true },
+        "businessWriteExecutionClaimAllowed": { "type": "boolean", "const": false },
+        "finalAiGradingClaimAllowed": { "type": "boolean", "const": false },
+        "workflowPublishClaimAllowed": { "type": "boolean", "const": false },
+        "localToolMutationClaimAllowed": { "type": "boolean", "const": false }
+      }
+    }
+  }
+}

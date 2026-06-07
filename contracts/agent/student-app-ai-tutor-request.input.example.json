@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "2026-06-05.student-app.ai-tutor-request.v1",
+  "requestInvocationId": "student_app_ai_tutor_request_invocation_001",
+  "agentTask": {
+    "schemaVersion": "2026-06-04.agent.task.v1",
+    "taskId": "agent_task_student_app_ai_tutor_001",
+    "requestedByPrincipalId": "student_001",
+    "principalContextRef": "principal_ctx_student_001",
+    "userIntent": "Ask AI Tutor to explain weak algebra skills from my quiz archive.",
+    "taskKind": "STUDENT_TUTORING",
+    "rootRequirementAnchors": ["学生端", "AI辅导助手", "学生档案", "个性化题库"],
+    "riskLevel": "MEDIUM",
+    "writeIntent": true,
+    "requiresHumanApproval": false,
+    "routePolicy": {
+      "allowedModes": ["SINGLE_WORKER"],
+      "preferSingleWorker": true,
+      "swarmRequiredWhen": []
+    },
+    "budgets": {
+      "maxAgentLoops": 1,
+      "maxSkillCalls": 1,
+      "maxTokens": 800,
+      "p99BudgetMs": 50
+    }
+  },
+  "principalContext": {
+    "principalId": "student_001",
+    "subjectType": "USER",
+    "role": "STUDENT",
+    "entryPoint": "STUDENT_APP",
+    "scopes": ["TEACHING_READ", "STUDENT_OWN_READ"],
+    "studentAccess": {
+      "mode": "OWN",
+      "studentIds": ["student_001"]
+    }
+  },
+  "sharedContext": {
+    "schemaVersion": "2026-06-04.agent.shared-context.v1",
+    "contextId": "ctx_student_app_ai_tutor_001",
+    "taskId": "agent_task_student_app_ai_tutor_001",
+    "principalContextRef": "principal_ctx_student_001",
+    "dataScopes": {
+      "teaching": "READ",
+      "student": "OWN",
+      "knowledge": "PUBLIC",
+      "research": "NONE",
+      "tool": "NONE"
+    },
+    "redactionState": {
+      "externalModelAllowed": false,
+      "finalEvaluationRedacted": true
+    },
+    "evidenceRefs": ["evidence:student-app-profile:student_001"]
+  },
+  "guardrailResult": {
+    "schemaVersion": "2026-06-04.agent.guardrail-result.v1",
+    "guardrailId": "guardrail_student_app_ai_tutor_001",
+    "taskId": "agent_task_student_app_ai_tutor_001",
+    "skillId": "tutor_student",
+    "decision": "ALLOW",
+    "reasons": ["Student is requesting tutoring for own archive item."],
+    "harnessActionRequired": false,
+    "rollbackRequired": false,
+    "evidenceRequired": true,
+    "directDatabaseWriteAllowed": false,
+    "safetyChecks": [
+      { "checkId": "own_student_archive_scope", "status": "PASS" },
+      { "checkId": "no_final_evaluation_now", "status": "PASS" }
+    ]
+  },
+  "routeDecision": {
+    "schemaVersion": "2026-06-04.agent.route-decision.v1",
+    "routeId": "route_student_app_ai_tutor_single_001",
+    "taskId": "agent_task_student_app_ai_tutor_001",
+    "mode": "SINGLE_WORKER",
+    "leadAgent": "LeadAgent",
+    "workerAgents": ["StudentTutorAgent"],
+    "selectedSkills": ["tutor_student"],
+    "rationale": "Queue one own-scope Student App AI Tutor request.",
+    "deniedSkills": [],
+    "fallbackPlan": {
+      "mode": "READ_ONLY",
+      "reason": "Queue admission fails closed.",
+      "humanReviewPoint": "Teacher can inspect failed tutor request."
+    },
+    "p99BudgetMs": 50,
+    "conflictPolicy": {
+      "detectConflicts": true,
+      "resolutionMode": "HUMAN_REVIEW"
+    }
+  },
+  "studentArchiveScope": {
+    "mode": "OWN",
+    "studentId": "student_001",
+    "archiveItemId": "tarch_student_quiz_001",
+    "expectedSourceOwnerType": "STUDENT"
+  },
+  "analysisGoal": "explain weak algebra skills",
+  "questionBankIntent": "GENERATE_PERSONALIZED_CHECK",
+  "aiTutorRequestPolicy": {
+    "studentOwnArchiveRequired": true,
+    "teachingArchiveReadRequired": true,
+    "injectedUseCasePortRequired": true,
+    "asyncAnalysisRequired": true,
+    "questionBankDraftDeferred": true,
+    "idempotentQueueAdmissionRequired": true,
+    "queueName": "teaching_tutoring_analysis_requests",
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "externalModelCallNowAllowed": false,
+    "finalEvaluationNowAllowed": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "evidenceRefs": ["evidence:student-archive-item:tarch_student_quiz_001"],
+  "idempotencyKey": "student-app-ai-tutor-request:agent_task_student_app_ai_tutor_001"
+}

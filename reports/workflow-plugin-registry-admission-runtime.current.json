@@ -1,0 +1,189 @@
+{
+  "generatedAt": "2026-06-07T12:29:39.293Z",
+  "readiness": "READY",
+  "workloadType": "WORKFLOW_PLUGIN_REGISTRY_ADMISSION_RUNTIME",
+  "commandPort": "WorkflowRegistryCommandPort.recordWorkflowPluginRegistryAdmission",
+  "boundary": {
+    "savedStatus": "REGISTRY_ADMISSION_SAVED_DRY_RUN_ONLY",
+    "registryEntryPersisted": true,
+    "executionMode": "DRY_RUN_ONLY",
+    "localExecutionEnabled": false,
+    "workflowPublishAllowed": false,
+    "executionCandidateAllowed": false,
+    "localGeneratedCodeExecuted": false
+  },
+  "runtimeProbes": {
+    "allow": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.workflow-plugin.registry-admission-recorded.v1",
+        "commandPort": "WorkflowRegistryCommandPort.recordWorkflowPluginRegistryAdmission",
+        "status": "REGISTRY_ADMISSION_SAVED_DRY_RUN_ONLY",
+        "recordId": "workflow_plugin_registry_admission_audit-workflow-registry-admission-allow",
+        "recordedAt": "2026-06-05T03:00:00.000Z",
+        "idempotencyKey": "audit-workflow-registry-admission-allow",
+        "idempotentReplay": false,
+        "admissionDecision": "ALLOW_SAVE",
+        "issues": [],
+        "draft": {
+          "draftId": "workflow_draft_lesson_archive_review",
+          "artifactKind": "WORKFLOW",
+          "capabilityKind": "WORKFLOW",
+          "origin": "USER_REQUEST"
+        },
+        "sandboxRun": {
+          "runId": "sandbox_run_lesson_archive_review_001",
+          "draftId": "workflow_draft_lesson_archive_review",
+          "status": "PASS"
+        },
+        "approval": {
+          "approvalId": "workflow_plugin_approval_001",
+          "reviewerPrincipalId": "principal_teacher_admin",
+          "decision": "APPROVED",
+          "performanceReviewed": true,
+          "effectReviewed": true,
+          "registrySaveDecision": "ALLOW_SAVE",
+          "reviewedAt": "2026-05-30T13:05:00Z"
+        },
+        "registryEntry": {
+          "schemaVersion": "2026-05-30.workflow-plugin.registry-entry.v1",
+          "registryEntryId": "workflow_registry_audit_allow",
+          "draftId": "workflow_draft_lesson_archive_review",
+          "sandboxRunId": "sandbox_run_lesson_archive_review_001",
+          "approvalId": "workflow_plugin_approval_001",
+          "artifactKind": "WORKFLOW",
+          "capabilityKind": "WORKFLOW",
+          "name": "Lesson Archive Review",
+          "version": "0.1.0",
+          "status": "ACTIVE",
+          "executionMode": "DRY_RUN_ONLY",
+          "localExecutionEnabled": false,
+          "rollbackPlan": "Disable the dry-run registry entry and keep all review evidence for audit.",
+          "provenance": {
+            "origin": "USER_REQUEST",
+            "generatedAt": "2026-06-05T03:00:00.000Z",
+            "approvedAt": "2026-05-30T13:05:00Z"
+          }
+        },
+        "registryStorePath": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\workflow-registry-admission-allow-lgkIrC\\registry.jsonl",
+        "evidence": {
+          "draftIntentRecordRef": "workflow-draft-intent:audit-workflow-draft",
+          "sandboxResultRecordRef": "workflow-sandbox-result:audit-sandbox-result",
+          "humanApprovalRecordRef": "workflow-human-approval:audit-human-approval",
+          "sharedContextRef": "shared-context:audit-workflow-registry-admission",
+          "guardrailResultRef": "guardrail:audit-workflow-registry-admission",
+          "routeDecisionRef": "route:audit-workflow-registry-admission",
+          "inputHash": "sha256:audit-workflow-registry-admission-allow",
+          "outputSummary": "Audit allow registry admission recorded.",
+          "rollbackPlanRef": "rollback:audit-workflow-registry-admission",
+          "auditTraceRef": "audit:audit-workflow-registry-admission",
+          "idempotencyKey": "audit-workflow-registry-admission-allow"
+        },
+        "boundary": {
+          "registryAdmissionRecorded": true,
+          "registryEntryPersisted": true,
+          "registryPersistenceMode": "APPEND_ONLY_JSONL",
+          "executionMode": "DRY_RUN_ONLY",
+          "localExecutionEnabled": false,
+          "workflowPublishAllowed": false,
+          "executionCandidateAllowed": false,
+          "localGeneratedCodeExecuted": false,
+          "generatedCodeExecutedOnHost": false,
+          "directDatabaseWriteAllowed": false
+        },
+        "nextAction": "Keep this registry entry dry-run only; publishing and execution candidates remain disabled until a later explicit runtime slice."
+      },
+      "commandRecordCount": 1,
+      "registryEntryCount": 1
+    },
+    "rejected": {
+      "status": "REJECTED",
+      "error": "approval must be APPROVED with ALLOW_SAVE before registry admission",
+      "commandRecordCount": 0,
+      "registryEntryCount": 0
+    }
+  },
+  "findings": [
+    {
+      "id": "registry_entry_contract.dry_run_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "executionMode=DRY_RUN_ONLY;localExecution=false;required=registryEntryId,executionMode,localExecutionEnabled,rollbackPlan",
+      "expected": "registry entries require executionMode=DRY_RUN_ONLY, localExecutionEnabled=false, rollback plan, and stable ids",
+      "remediation": "Registry admission must not create executable workflow/plugin entries."
+    },
+    {
+      "id": "runtime.requires_internal_admin_and_evidence",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime writer authorization and evidence symbols scanned",
+      "expected": "internal service/admin with ADMIN_SYSTEM plus full draft/sandbox/human approval evidence",
+      "remediation": "Registry admission should only be recorded by trusted writers with complete review evidence."
+    },
+    {
+      "id": "runtime.uses_static_admission_and_append_only_registry",
+      "passed": true,
+      "severity": "info",
+      "actual": "admitWorkflowPluginRegistryEntry=true;JsonlWorkflowPluginRegistryStore=true;store.append=true;APPEND_ONLY_JSONL=true",
+      "expected": "runtime reuses static admission validation and persists only append-only dry-run registry entries",
+      "remediation": "Keep registry admission validation centralized and persistence append-only."
+    },
+    {
+      "id": "runtime.no_publish_execution_or_host_run",
+      "passed": true,
+      "severity": "info",
+      "actual": "workflowPublishAllowed: true=false;executionCandidateAllowed: true=false;localExecutionEnabled: true=false;execSync(=false",
+      "expected": "registry admission must not publish, expose execution candidates, enable local execution, or shell out",
+      "remediation": "Registry admission stores catalog evidence only; real execution must remain a future explicit gate."
+    },
+    {
+      "id": "runtime.allow_probe_persists_one_dry_run_entry",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=REGISTRY_ADMISSION_SAVED_DRY_RUN_ONLY;entries=1;commands=1;local=false",
+      "expected": "approved sandboxed workflow/plugin persists exactly one dry-run registry entry and one command record",
+      "remediation": "Approved registry admission should save a dry-run catalog entry once, with idempotent command evidence."
+    },
+    {
+      "id": "runtime.rejected_probe_blocks_persistence",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=REJECTED;commands=0;entries=0;error=approval must be APPROVED with ALLOW_SAVE before registry admission",
+      "expected": "non-approved human review is rejected before command or registry persistence",
+      "remediation": "Human revision requests must go back through revision feedback instead of registry admission."
+    },
+    {
+      "id": "tests.cover_authorization_safety_and_idempotency",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime test negative paths scanned",
+      "expected": "approved persistence, unauthorized writer, revision approval, failed sandbox, and idempotency replay are tested",
+      "remediation": "Keep registry admission authorization and safety regressions covered."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_audit",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:workflow-plugin-registry-admission-runtime=true;Workflow plugin registry admission runtime audit=true",
+      "expected": "npm script and strict quality command include workflow plugin registry admission runtime audit",
+      "remediation": "Add this runtime audit to the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_registry_runtime_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "workflowPluginRegistryAdmissionRuntime=true;workflow-plugin-registry-admission-runtime.current.json=true",
+      "expected": "workflow_plugin_self_evolution root coverage requires registry admission runtime report",
+      "remediation": "Root workflow coverage should include dry-run registry admission runtime evidence."
+    },
+    {
+      "id": "quality.structure_tracks_slice",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires runtime, audit, tests, and SDD",
+      "remediation": "Add the registry admission runtime slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as dry-run registry admission evidence; publishing and execution candidate runtimes remain future gated slices."
+}

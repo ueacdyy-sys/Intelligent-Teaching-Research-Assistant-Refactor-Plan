@@ -6,6 +6,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/internal/teaching/db-pool", s.dbPoolDiagnostics)
+	mux.HandleFunc("/internal/teaching/command-log", s.commandLogDiagnostics)
 	mux.HandleFunc("/v1/teaching/archive-items", s.archiveItems)
 	mux.HandleFunc("/v1/teaching/archive-items/", s.archiveItemSubresources)
 	mux.HandleFunc("/v1/student-app/teaching-materials", s.studentAppTeachingMaterials)
@@ -13,9 +14,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/student-app/quiz-submissions", s.studentAppQuizSubmissions)
 	mux.HandleFunc("/v1/student-app/quiz-scan-submissions", s.studentAppQuizScanSubmissions)
 	mux.HandleFunc("/v1/student-app/question-bank-drafts", s.studentAppQuestionBankDrafts)
+	mux.HandleFunc("/v1/student-app/question-bank-draft-content", s.studentAppQuestionBankDraftContent)
+	mux.HandleFunc("/v1/student-app/question-bank-draft-answer-submissions", s.studentAppQuestionBankDraftAnswerSubmissions)
+	mux.HandleFunc("/v1/student-app/question-bank-draft-answer-submissions/", s.studentAppQuestionBankDraftAnswerSubmissionSubresources)
 	mux.HandleFunc("/v1/student-app/ai-tutor-requests", s.studentAppAITutorRequests)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests", s.aiGradingRequests)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests/", s.aiGradingRequestSubresources)
+	mux.HandleFunc("/v1/teaching/quiz-draft-intents", s.quizDraftIntents)
+	mux.HandleFunc("/v1/teaching/archive-material-draft-intents", s.archiveMaterialDraftIntents)
 	mux.HandleFunc("/v1/teaching/quiz-scan-submissions", s.quizScanSubmissions)
 	mux.HandleFunc("/v1/teaching/attendance-statistics", s.attendanceStatistics)
 	mux.HandleFunc("/v1/teaching/attendance-sessions", s.attendanceSessions)
@@ -24,6 +30,22 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests", s.tutoringAnalysisRequests)
 	mux.HandleFunc("/v1/teaching/tutoring-analysis-requests/", s.tutoringAnalysisRequestSubresources)
 	return mux
+}
+
+func (s *Server) quizDraftIntents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	s.submitQuizDraftIntent(w, r)
+}
+
+func (s *Server) archiveMaterialDraftIntents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	s.submitArchiveMaterialDraftIntent(w, r)
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {

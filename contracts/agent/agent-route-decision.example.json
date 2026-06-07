@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "2026-06-04.agent.route-decision.examples.v1",
+  "decisions": [
+    {
+      "schemaVersion": "2026-06-04.agent.route-decision.v1",
+      "routeId": "route_lesson_quiz_single_001",
+      "taskId": "agent_task_lesson_quiz_001",
+      "mode": "SINGLE_WORKER",
+      "leadAgent": "LeadAgent",
+      "workerAgents": ["TeachingAgent"],
+      "selectedSkills": ["search_teaching_material"],
+      "rationale": "Single teaching-domain draft with assigned materials and no external tool mutation.",
+      "deniedSkills": [
+        { "skillId": "external_app_action", "reason": "No external application control is needed for a quiz draft." }
+      ],
+      "fallbackPlan": {
+        "mode": "READ_ONLY",
+        "reason": "If write approval is missing, return a read-only quiz outline.",
+        "humanReviewPoint": "Teacher approves before saving quiz."
+      },
+      "p99BudgetMs": 50,
+      "conflictPolicy": { "detectConflicts": true, "resolutionMode": "LEAD_AGENT_MERGE" }
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.route-decision.v1",
+      "routeId": "route_perf_swarm_001",
+      "taskId": "agent_task_system_perf_triage_001",
+      "mode": "SWARM",
+      "leadAgent": "LeadAgent",
+      "workerAgents": ["AnalysisAgent", "WorkflowAgent", "ToolControlAgent"],
+      "selectedSkills": ["run_benchmark", "draft_workflow", "external_app_action"],
+      "rationale": "Cross-domain performance diagnosis touches benchmark evidence, workflow gates, and local tool approval.",
+      "deniedSkills": [
+        { "skillId": "draft_model_job", "reason": "Model experiments are unrelated to current performance evidence." }
+      ],
+      "fallbackPlan": {
+        "mode": "HUMAN_REVIEW",
+        "reason": "Any mutating benchmark or external tool action requires explicit approval.",
+        "humanReviewPoint": "Admin reviews command preview and rollback plan."
+      },
+      "p99BudgetMs": 50,
+      "conflictPolicy": { "detectConflicts": true, "resolutionMode": "HUMAN_REVIEW" }
+    }
+  ]
+}

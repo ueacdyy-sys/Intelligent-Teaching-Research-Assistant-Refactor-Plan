@@ -44,6 +44,12 @@ func TestCreateQuizSubmissionReturnsCreatedResponse(t *testing.T) {
 	if !strings.Contains(timing, "db.insert;dur=") {
 		t.Fatalf("Server-Timing = %q, want db.insert duration", timing)
 	}
+	if !strings.Contains(timing, "response.encode;dur=") {
+		t.Fatalf("Server-Timing = %q, want response.encode duration", timing)
+	}
+	if response.Header().Get("Content-Length") == "" {
+		t.Fatalf("Content-Length header is empty")
+	}
 }
 
 func TestCreateQuizSubmissionRejectsOtherStudent(t *testing.T) {
@@ -140,14 +146,14 @@ func newTestHandlerWithTeachingQuizSubmission() http.Handler {
 func (f *fakeRepository) CreateQuizSubmission(
 	ctx context.Context,
 	submission domain.QuizSubmission,
-) error {
+) (usecase.WritePersistenceOutcome, error) {
 	if timing := platform.TeachingArchiveTimingFromContext(ctx); timing != nil {
 		timing.DBBatchWait = 500 * time.Microsecond
 		timing.DBExec = time.Millisecond
 		timing.DBInsert = time.Millisecond
 	}
 	f.quizSubmissions = append(f.quizSubmissions, submission)
-	return nil
+	return usecase.PersistedWriteOutcome(), nil
 }
 
 func (f *fakeRepository) GetQuizSubmissionByID(

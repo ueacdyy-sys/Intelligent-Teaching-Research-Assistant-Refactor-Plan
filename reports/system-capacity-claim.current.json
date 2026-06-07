@@ -1,20 +1,18 @@
 {
-  "generatedAt": "2026-06-03T16:43:08.144Z",
+  "generatedAt": "2026-06-07T12:35:38.032Z",
   "readiness": "READY",
   "workloadType": "SYSTEM_CAPACITY_CLAIM_AUDIT",
   "claim": {
     "fullSystemUltraConcurrency": {
-      "status": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-      "reason": "Root SLO promotion review blocks the claim with 1 blocker(s): promotion.interactive_tail_latency_within_target.",
-      "requiredNextEvidence": [
-        "ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE"
-      ]
+      "status": "SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+      "reason": "Root workflow coverage, cross-module diagnostics, sustained scale-up, quality, and root SLO promotion review all support the current full-system claim.",
+      "requiredNextEvidence": []
     },
     "moduleLimits": [
       {
         "module": "Identity And Access",
         "status": "MODULE_CAPACITY_ONLY",
-        "summary": "cross-module diagnostics classify identity as MODULE_CAPACITY_ONLY; slowest P99 3071.17ms still blocks root interactive latency",
+        "summary": "cross-module diagnostics classify identity as MODULE_CAPACITY_ONLY; slowest module P99 3071.17ms remains diagnostic context, not the current production10k Root SLO blocker",
         "concurrency": 4400,
         "slowestP99Ms": 3071.17,
         "crossModuleStatus": "PASSED",
@@ -124,7 +122,7 @@
       {
         "module": "Agent Harness And Workflow Plugin",
         "status": "REVIEW_RUNTIME_SLO_AND_QUEUE_BOUNDARY",
-        "summary": "workflow/plugin dry-run runtime SLO P99 2.27ms with generated-code execution disabled and approval queue review-only",
+        "summary": "workflow/plugin dry-run runtime SLO P99 2.42ms with generated-code execution disabled and approval queue review-only",
         "crossModuleStatus": "READY",
         "crossModuleSourceReportPath": "reports/cross-module-db-queue-diagnostics.current.json",
         "crossModuleMetrics": {
@@ -137,8 +135,8 @@
             "present": true,
             "passed": true,
             "targetP99Ms": 300,
-            "p95Ms": 2.27,
-            "p99Ms": 2.27,
+            "p95Ms": 2.42,
+            "p99Ms": 2.42,
             "totalErrors": 0,
             "localGeneratedCodeExecuted": false,
             "localExecutionEnabled": false
@@ -148,8 +146,8 @@
       {
         "module": "Quality Gate",
         "status": "QUALITY_READY",
-        "summary": "0 quality commands passed with 0 static findings",
-        "commandCount": 0
+        "summary": "124 quality commands passed with 0 static findings",
+        "commandCount": 124
       }
     ]
   },
@@ -254,8 +252,8 @@
       "reportParseable": true,
       "summary": {
         "allPassed": true,
-        "reportState": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
-        "commandCount": 0,
+        "reportState": "allPassed=true;status=PASSED;staticPassed=true",
+        "commandCount": 124,
         "staticFindings": 0
       }
     }
@@ -439,8 +437,8 @@
               "present": true,
               "passed": true,
               "targetP99Ms": 300,
-              "p95Ms": 2.27,
-              "p99Ms": 2.27,
+              "p95Ms": 2.42,
+              "p99Ms": 2.42,
               "totalErrors": 0,
               "localGeneratedCodeExecuted": false,
               "localExecutionEnabled": false
@@ -463,20 +461,16 @@
     "reportParseable": true,
     "summary": {
       "readiness": "READY",
-      "decision": "BLOCK_PROMOTION",
-      "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+      "decision": "APPROVE_PROMOTION",
+      "claimStatus": "SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
       "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
       "productionReadWriteRpsTarget": 10000,
       "interactiveP99TargetMs": 50,
       "interactiveP99ExcellentMs": 10,
-      "measuredReadWriteRps": 20808.62,
-      "blockerCount": 1,
-      "blockerIds": [
-        "promotion.interactive_tail_latency_within_target"
-      ],
-      "requiredNextEvidence": [
-        "ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE"
-      ]
+      "measuredReadWriteRps": 22435.1,
+      "blockerCount": 0,
+      "blockerIds": [],
+      "requiredNextEvidence": []
     },
     "entries": [
       {
@@ -507,7 +501,7 @@
       "id": "quality.gate_passed",
       "passed": true,
       "severity": "info",
-      "actual": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
+      "actual": "allPassed=true;status=PASSED;staticPassed=true",
       "expected": "quality gate allPassed=true",
       "remediation": "Do not assess system capacity from a workspace whose strict quality gate is failing."
     },
@@ -523,7 +517,7 @@
       "id": "claim.no_full_system_promotion_without_mixed_workload",
       "passed": true,
       "severity": "info",
-      "actual": "mixedWorkloadEvidence=5;claim=NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+      "actual": "mixedWorkloadEvidence=5;claim=SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
       "expected": "no full-system ultra-concurrency claim when mixed workload evidence is absent",
       "remediation": "Add a mixed workload benchmark covering identity, conversation, teaching archive, knowledge, and worker admission before promoting a full-system claim."
     },

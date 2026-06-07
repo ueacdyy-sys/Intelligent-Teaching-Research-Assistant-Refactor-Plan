@@ -17,61 +17,63 @@ func (Clock) Now() time.Time {
 type IDGenerator struct{}
 
 func (IDGenerator) NewID() string {
-	buffer := make([]byte, 18)
-	if _, err := rand.Read(buffer); err != nil {
-		panic(err)
-	}
-	return "tarch_" + base64.RawURLEncoding.EncodeToString(buffer)
+	return newRandomID("tarch_")
 }
 
 type TutoringRequestIDGenerator struct{}
 
 func (TutoringRequestIDGenerator) NewID() string {
-	buffer := make([]byte, 18)
-	if _, err := rand.Read(buffer); err != nil {
-		panic(err)
-	}
-	return "tutor_req_" + base64.RawURLEncoding.EncodeToString(buffer)
+	return newRandomID("tutor_req_")
 }
 
 type AIGradingRequestIDGenerator struct{}
 
 func (AIGradingRequestIDGenerator) NewID() string {
-	buffer := make([]byte, 18)
-	if _, err := rand.Read(buffer); err != nil {
-		panic(err)
-	}
-	return "grading_req_" + base64.RawURLEncoding.EncodeToString(buffer)
+	return newRandomID("grading_req_")
 }
 
 type QuizSubmissionIDGenerator struct{}
 
 func (QuizSubmissionIDGenerator) NewID() string {
-	buffer := make([]byte, 18)
-	if _, err := rand.Read(buffer); err != nil {
-		panic(err)
-	}
-	return "quiz_sub_" + base64.RawURLEncoding.EncodeToString(buffer)
+	return newRandomID("quiz_sub_")
+}
+
+type QuestionBankDraftAnswerSubmissionIDGenerator struct{}
+
+func (QuestionBankDraftAnswerSubmissionIDGenerator) NewID() string {
+	return newRandomID("qbank_ans_sub_")
+}
+
+type TeachingQuizDraftIntentIDGenerator struct{}
+
+func (TeachingQuizDraftIntentIDGenerator) NewID() string {
+	return newRandomID("quiz_draft_intent_")
+}
+
+type TeachingArchiveMaterialDraftIntentIDGenerator struct{}
+
+func (TeachingArchiveMaterialDraftIntentIDGenerator) NewID() string {
+	return newRandomID("archive_material_draft_intent_")
 }
 
 type AttendanceSessionIDGenerator struct{}
 
 func (AttendanceSessionIDGenerator) NewID() string {
-	buffer := make([]byte, 18)
-	if _, err := rand.Read(buffer); err != nil {
-		panic(err)
-	}
-	return "att_sess_" + base64.RawURLEncoding.EncodeToString(buffer)
+	return newRandomID("att_sess_")
 }
 
 type AttendanceRecordIDGenerator struct{}
 
 func (AttendanceRecordIDGenerator) NewID() string {
+	return newRandomID("att_rec_")
+}
+
+func newRandomID(prefix string) string {
 	buffer := make([]byte, 18)
 	if _, err := rand.Read(buffer); err != nil {
 		panic(err)
 	}
-	return "att_rec_" + base64.RawURLEncoding.EncodeToString(buffer)
+	return prefix + base64.RawURLEncoding.EncodeToString(buffer)
 }
 
 type CryptoRandomSource struct{}

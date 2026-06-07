@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-reasoning-synthesis.output.schema.json",
+  "title": "Deep Research Reasoning Synthesis Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "reasoningPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "job",
+    "draft",
+    "usage",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-reasoning-synthesis-recorded.v1"
+    },
+    "runtimeId": { "type": "string", "const": "research_deep_research_reasoning_synthesis_runtime" },
+    "commandPort": {
+      "type": "string",
+      "const": "DeepResearchReasoningSynthesisPort.recordDeepResearchReasoningSynthesis"
+    },
+    "reasoningPort": {
+      "type": "string",
+      "const": "DeepResearchReasoningPort.composeEvidenceGroundedDraft"
+    },
+    "status": { "type": "string", "const": "REASONING_SYNTHESIS_DRAFT_RECORDED" },
+    "recordId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 },
+    "idempotentReplay": { "type": "boolean" },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "draft": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["draftId", "answerKind", "title", "summary", "claims", "limitations"],
+      "properties": {
+        "draftId": { "type": "string", "minLength": 1 },
+        "answerKind": { "type": "string", "const": "EVIDENCE_GROUNDED_DRAFT" },
+        "claims": { "type": "array", "minItems": 1 }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["draftTokens", "claimCount", "citationCount", "sourceHashCount"],
+      "properties": {
+        "draftTokens": { "type": "integer", "minimum": 1 },
+        "claimCount": { "type": "integer", "minimum": 1 },
+        "citationCount": { "type": "integer", "minimum": 1 },
+        "sourceHashCount": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retrievalExecutionVerified",
+        "evidenceGroundingVerified",
+        "reasoningDraftComposed",
+        "directExternalModelCallStarted",
+        "directDatabaseAccessStarted",
+        "mainDatabaseWriteStarted",
+        "studentArchiveUsed",
+        "remoteDeviceSourcesUsed",
+        "localToolMutationAllowed",
+        "swarmAllowed",
+        "finalAnswerGenerated",
+        "directPublicationAllowed",
+        "requiresFutureFinalAnswerReview"
+      ],
+      "properties": {
+        "retrievalExecutionVerified": { "type": "boolean", "const": true },
+        "evidenceGroundingVerified": { "type": "boolean", "const": true },
+        "reasoningDraftComposed": { "type": "boolean", "const": true },
+        "directExternalModelCallStarted": { "type": "boolean", "const": false },
+        "directDatabaseAccessStarted": { "type": "boolean", "const": false },
+        "mainDatabaseWriteStarted": { "type": "boolean", "const": false },
+        "studentArchiveUsed": { "type": "boolean", "const": false },
+        "remoteDeviceSourcesUsed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "finalAnswerGenerated": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "requiresFutureFinalAnswerReview": { "type": "boolean", "const": true }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetP99Ms", "evidenceClass"],
+      "properties": {
+        "targetP99Ms": { "type": "integer", "minimum": 1, "maximum": 300 },
+        "evidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_REASONING_SYNTHESIS_BOUNDARY"
+        }
+      }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

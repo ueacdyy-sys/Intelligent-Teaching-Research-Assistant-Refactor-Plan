@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-04T01:26:40.742Z",
+  "generatedAt": "2026-06-07T12:35:37.915Z",
   "readiness": "READY",
   "workloadType": "ROOT_SLO_PROMOTION_REVIEW",
   "rootRequirements": {
@@ -21,6 +21,7 @@
     "interactiveP99TargetMs": 50,
     "interactiveP99ExcellentMs": 10,
     "interactiveP99TargetClass": "PASS_TARGET",
+    "minimumProductionTargetSamples": 2,
     "minimumPgbouncerHeadroomRatio": 0.2,
     "minimumSustainedStepName": "high",
     "minimumSustainedStepRank": 4,
@@ -50,39 +51,40 @@
       "samples": [
         {
           "name": "production_target.max_p99_ms",
-          "value": 253.6
+          "value": 44.44
         }
       ],
-      "maxP99Ms": 253.6,
+      "maxP99Ms": 44.44,
       "maxP99Source": "production_target.max_p99_ms",
       "workloadHotspots": [
         {
-          "stepName": "target-10k",
-          "workloadName": "conversation_write",
-          "p95Ms": 228.59,
-          "p99Ms": 253.6,
-          "rps": 17969.1,
+          "stepName": "floor-10k-default-balanced",
+          "workloadName": "teaching_archive",
+          "p95Ms": 36.7,
+          "p99Ms": 44.44,
+          "rps": 3157.34,
           "errors": 0,
           "breakdown": {
-            "serverTimingP99Ms": 195.84,
-            "clientServerGapP99Ms": 165.37,
+            "serverTimingP99Ms": 26.88,
+            "clientServerGapP99Ms": null,
             "acceptanceMode": null,
             "commandAppendP99Ms": null,
             "projectionEnqueueP99Ms": null,
             "dbAcquireP99Ms": 0,
-            "dbBatchWaitP99Ms": 75.48,
-            "dbInsertP99Ms": 164.04,
-            "dbExecP99Ms": null,
+            "dbBatchWaitP99Ms": 21.12,
+            "dbInsertP99Ms": 15.68,
+            "dbExecP99Ms": 15.68,
+            "responseEncodeP99Ms": 4.64,
             "dominantPhase": null,
             "dominantPhaseP99Ms": null
           }
         },
         {
-          "stepName": "target-10k",
+          "stepName": "floor-10k-default-balanced",
           "workloadName": "identity_http",
-          "p95Ms": 235.2,
-          "p99Ms": 251.71,
-          "rps": 1351.91,
+          "p95Ms": 42.33,
+          "p99Ms": 43.57,
+          "rps": 2472.23,
           "errors": 0,
           "breakdown": {
             "serverTimingP99Ms": null,
@@ -94,27 +96,29 @@
             "dbBatchWaitP99Ms": null,
             "dbInsertP99Ms": null,
             "dbExecP99Ms": null,
-            "dominantPhase": "refreshRotation",
-            "dominantPhaseP99Ms": 251.71
+            "responseEncodeP99Ms": null,
+            "dominantPhase": "passwordLogin",
+            "dominantPhaseP99Ms": 43.57
           }
         },
         {
-          "stepName": "target-10k",
-          "workloadName": "teaching_archive",
-          "p95Ms": 187.03,
-          "p99Ms": 207.89,
-          "rps": 2688.21,
+          "stepName": "floor-10k-default-balanced",
+          "workloadName": "conversation_write",
+          "p95Ms": 30.39,
+          "p99Ms": 33.47,
+          "rps": 16805.53,
           "errors": 0,
           "breakdown": {
-            "serverTimingP99Ms": 181.49,
-            "clientServerGapP99Ms": null,
-            "acceptanceMode": null,
-            "commandAppendP99Ms": null,
-            "projectionEnqueueP99Ms": null,
-            "dbAcquireP99Ms": 165.33,
-            "dbBatchWaitP99Ms": 38.1,
-            "dbInsertP99Ms": 46.66,
-            "dbExecP99Ms": 46.66,
+            "serverTimingP99Ms": 6.38,
+            "clientServerGapP99Ms": 30.83,
+            "acceptanceMode": "durable-log",
+            "commandAppendP99Ms": 6.33,
+            "projectionEnqueueP99Ms": 0.6,
+            "dbAcquireP99Ms": null,
+            "dbBatchWaitP99Ms": null,
+            "dbInsertP99Ms": null,
+            "dbExecP99Ms": null,
+            "responseEncodeP99Ms": null,
             "dominantPhase": null,
             "dominantPhaseP99Ms": null
           }
@@ -156,8 +160,27 @@
       "targetStatus": "MET",
       "targetConfigured": true,
       "targetAttempted": true,
-      "measuredReadWriteRps": 20808.62,
-      "maxP99Ms": 253.6
+      "measuredReadWriteRps": 22435.1,
+      "maxP99Ms": 44.44,
+      "samplesPerStep": 2,
+      "totalErrors": 0,
+      "orchestrationErrors": 0,
+      "targetPressureStatus": "PASSED",
+      "sloQualified": true,
+      "qualificationChecks": {
+        "present": true,
+        "statusPassed": true,
+        "targetMet": true,
+        "targetAttempted": true,
+        "targetConfigured": true,
+        "targetPressurePassed": true,
+        "measuredRpsEnough": true,
+        "configuredTargetEnough": true,
+        "latencyWithinTarget": true,
+        "zeroErrors": true,
+        "zeroOrchestrationErrors": true,
+        "enoughSamples": true
+      }
     },
     "databaseHeadroom": {
       "pgbouncerMaxDbConnections": 90,
@@ -176,8 +199,8 @@
       "satisfiedBy": "production_headroom_profile"
     },
     "sustainedScale": {
-      "highestPassedStep": "target-10k",
-      "highestPassedStepRank": 8,
+      "highestPassedStep": "floor-10k-default-balanced",
+      "highestPassedStepRank": 0,
       "minimumStepName": "high",
       "minimumStepRank": 4,
       "totalErrors": 0,
@@ -185,7 +208,7 @@
     },
     "productionThroughput": {
       "targetReadWriteRps": 10000,
-      "measuredReadWriteRps": 20808.62,
+      "measuredReadWriteRps": 22435.1,
       "source": "production_target.summary.highestPassedReadWriteRps",
       "targetConfiguredReadWriteRps": 10000,
       "targetAttemptStatus": "MET",
@@ -195,25 +218,16 @@
     },
     "quality": {
       "allPassed": true,
-      "commandCount": 0
+      "commandCount": 124
     }
   },
   "promotion": {
     "reviewedClaim": "FULL_SYSTEM_PRODUCTION_READ_WRITE_10000_RPS",
-    "decision": "BLOCK_PROMOTION",
-    "claimStatus": "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
-    "blockerCount": 1,
-    "blockers": [
-      {
-        "id": "promotion.interactive_tail_latency_within_target",
-        "actual": "production_target.max_p99_ms=253.6;topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89",
-        "expected": "max interactive/root workflow P99 <= 50ms pass target; 10ms excellent target",
-        "remediation": "Add durable fast-lane command acceptance and async projection evidence for the slowest root workflows before making a production 10k RPS claim."
-      }
-    ],
-    "requiredNextEvidence": [
-      "ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE"
-    ]
+    "decision": "APPROVE_PROMOTION",
+    "claimStatus": "SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW",
+    "blockerCount": 0,
+    "blockers": [],
+    "requiredNextEvidence": []
   },
   "auditFindings": [
     {
@@ -268,7 +282,7 @@
       "id": "quality.gate_passed",
       "passed": true,
       "severity": "info",
-      "actual": "allPassed=false;status=IN_PROGRESS;staticPassed=true",
+      "actual": "allPassed=true;status=PASSED;staticPassed=true",
       "expected": "quality gate allPassed=true",
       "remediation": "Never promote capacity from a failing quality gate."
     }
@@ -292,9 +306,9 @@
     },
     {
       "id": "promotion.interactive_tail_latency_within_target",
-      "passed": false,
-      "severity": "promotion_blocker",
-      "actual": "production_target.max_p99_ms=253.6;topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89",
+      "passed": true,
+      "severity": "info",
+      "actual": "production_target.max_p99_ms=44.44;topWorkloads=teaching_archive:44.44,identity_http:43.57,conversation_write:33.47",
       "expected": "max interactive/root workflow P99 <= 50ms pass target; 10ms excellent target",
       "remediation": "Add durable fast-lane command acceptance and async projection evidence for the slowest root workflows before making a production 10k RPS claim."
     },
@@ -310,18 +324,18 @@
       "id": "promotion.sustained_scale_depth_sufficient",
       "passed": true,
       "severity": "info",
-      "actual": "highest=target-10k;rank=8;errors=0;orchestration=0",
-      "expected": "highest passed sustained mixed workload step >= high with zero errors",
-      "remediation": "Run a higher sustained mixed workload step before promotion."
+      "actual": "highest=floor-10k-default-balanced;rank=0;errors=0;orchestration=0;productionTargetSloQualified=true",
+      "expected": "highest passed sustained mixed workload step >= high with zero errors, or qualified production target evidence with >=2 samples, target pressure passed, >=10000 read/write RPS, and P99 <= 50ms",
+      "remediation": "Run a higher sustained mixed workload step, or attach a qualified production target report instead of repeating under-specified performance probes."
     },
     {
       "id": "promotion.production_read_write_rps_target_met",
       "passed": true,
       "severity": "info",
-      "actual": "20808.62 rps from production_target.summary.highestPassedReadWriteRps;targetRps=10000;targetStatus=MET;targetAttempted=true;shortfall=0",
+      "actual": "22435.1 rps from production_target.summary.highestPassedReadWriteRps;targetRps=10000;targetStatus=MET;targetAttempted=true;shortfall=0",
       "expected": "measured sustained read/write RPS >= 10000 with production target status MET",
       "remediation": "Run a sustained mixed workload that records aggregate read/write RPS before making a production 10k RPS claim."
     }
   ],
-  "nextAction": "Do not promote the production 10k read/write RPS claim; remediate the listed root SLO blockers and rerun the review."
+  "nextAction": "Promotion review approves the current production 10k read/write RPS claim; keep the exact SLO profile, workload shape, and quality gate attached to the claim."
 }

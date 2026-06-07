@@ -33,12 +33,20 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "512",
       "--operations",
       "1024",
+      "--warmup-operations",
+      "128",
       "--session-db-max-conns",
       "16",
       "--session-db-min-conns",
       "4",
       "--session-db-query-exec-mode",
       "exec",
+      "--session-db-read-max-conns",
+      "24",
+      "--session-db-read-min-conns",
+      "12",
+      "--session-db-read-prewarm-conns",
+      "12",
       "--session-db-write-concurrency",
       "8",
       "--session-db-session-table-persistence",
@@ -121,8 +129,13 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.equal(report.baseUrl, "http://127.0.0.1:18100");
     assert.equal(report.concurrency, 512);
     assert.equal(report.operationsPerPhase, 1024);
+    assert.equal(report.warmupOperations, 128);
     assert.equal(report.sessionDbMaxConns, 16);
     assert.equal(report.sessionDbMinConns, 4);
+    assert.equal(report.sessionDbPrewarmConns, 1);
+    assert.equal(report.sessionDbReadMaxConns, 24);
+    assert.equal(report.sessionDbReadMinConns, 12);
+    assert.equal(report.sessionDbReadPrewarmConns, 12);
     assert.equal(report.sessionDbWriteConcurrency, 8);
     assert.equal(report.gatewayCount, 2);
     assert.deepEqual(report.gatewayDatabaseProfile, {
@@ -131,9 +144,21 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       sessionDbMaxConnsTotal: 32,
       sessionDbMinConnsPerWorker: 4,
       sessionDbMinConnsTotal: 8,
+      sessionDbPrewarmConnsPerWorker: 1,
+      sessionDbPrewarmConnsTotal: 2,
+      sessionDbReadMaxConnsPerWorker: 24,
+      sessionDbReadMaxConnsTotal: 48,
+      sessionDbReadMinConnsPerWorker: 12,
+      sessionDbReadMinConnsTotal: 24,
+      sessionDbReadPrewarmConnsPerWorker: 12,
+      sessionDbReadPrewarmConnsTotal: 24,
       sessionDbQueryExecMode: "exec",
       sessionDbWriteConcurrencyPerWorker: 8,
       sessionDbWriteConcurrencyTotal: 16,
+      sessionAccessCacheMaxEntriesPerWorker: 0,
+      sessionAccessCacheMaxEntriesTotal: 0,
+      sessionAccessCacheTtlMs: 30000,
+      tokenOwnerAffinity: true,
       sessionTablePersistence: "unlogged",
     });
     assert.deepEqual(report.transportProfile, {
@@ -478,7 +503,7 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "golang:1.26-alpine",
     ]);
     assert.deepEqual(
-      dockerCommand.args.slice(-16),
+      dockerCommand.args.slice(-18),
       [
         "-base-url",
         "http://host.docker.internal:18080,http://host.docker.internal:18081",
@@ -492,6 +517,8 @@ describe("identity HTTP benchmark runner failure evidence", () => {
         "3200",
         "-operations",
         "6400",
+        "-warmup-operations",
+        "0",
         "-max-conns-per-host",
         "0",
         "-warm-connections-per-host",
@@ -505,6 +532,20 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       targetBaseUrls: ["http://host.docker.internal:18080"],
     });
     assert.doesNotThrow(() => validateSessionDbPoolProfile(options));
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--warmup-operations",
+        "-1",
+      ])),
+      /warmup-operations must be non-negative/u,
+    );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--warmup-operations",
+        "warm",
+      ])),
+      /warmup-operations must be an integer/u,
+    );
     assert.throws(
       () => validateSessionDbPoolProfile(parseArgs([
         "--session-db-max-conns",
@@ -528,9 +569,50 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       ])),
       /session-db-min-conns must be an integer/u,
     );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-max-conns",
+        "8",
+        "--session-db-prewarm-conns",
+        "9",
+      ])),
+      /session-db-prewarm-conns must be <= session-db-max-conns/u,
+    );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-prewarm-conns",
+        "-1",
+      ])),
+      /session-db-prewarm-conns must be non-negative/u,
+    );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-prewarm-conns",
+        "warm",
+      ])),
+      /session-db-prewarm-conns must be an integer/u,
+    );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-read-max-conns",
+        "0",
+        "--session-db-read-min-conns",
+        "1",
+      ])),
+      /session-db-read-min-conns and session-db-read-prewarm-conns require session-db-read-max-conns/u,
+    );
+    assert.throws(
+      () => validateSessionDbPoolProfile(parseArgs([
+        "--session-db-read-max-conns",
+        "8",
+        "--session-db-read-prewarm-conns",
+        "9",
+      ])),
+      /session-db-read-prewarm-conns must be <= session-db-read-max-conns/u,
+    );
   });
 
-  it("passes session DB min connections and query exec mode to gateway processes", async () => {
+  it("passes session DB pool profile and query exec mode to gateway processes", async () => {
     const {
       runIdentityHttpBenchmark,
     } = await import("./run-identity-http-benchmark.mjs");
@@ -550,6 +632,14 @@ describe("identity HTTP benchmark runner failure evidence", () => {
       "8",
       "--session-db-min-conns",
       "4",
+      "--session-db-prewarm-conns",
+      "4",
+      "--session-db-read-max-conns",
+      "12",
+      "--session-db-read-min-conns",
+      "6",
+      "--session-db-read-prewarm-conns",
+      "6",
       "--session-db-query-exec-mode",
       "exec",
       "--session-db-write-concurrency",
@@ -571,6 +661,10 @@ describe("identity HTTP benchmark runner failure evidence", () => {
     assert.deepEqual(spawned[0].args, ["run", "./services/identity-access-gateway/cmd/gateway"]);
     assert.equal(spawned[0].env.SESSION_DB_MAX_CONNS, "8");
     assert.equal(spawned[0].env.SESSION_DB_MIN_CONNS, "4");
+    assert.equal(spawned[0].env.SESSION_DB_PREWARM_CONNS, "4");
+    assert.equal(spawned[0].env.SESSION_DB_READ_MAX_CONNS, "12");
+    assert.equal(spawned[0].env.SESSION_DB_READ_MIN_CONNS, "6");
+    assert.equal(spawned[0].env.SESSION_DB_READ_PREWARM_CONNS, "6");
     assert.equal(spawned[0].env.SESSION_DB_QUERY_EXEC_MODE, "exec");
     fs.rmSync("tmp/identity-min-conns-report.json", { force: true });
   });

@@ -538,7 +538,7 @@ function summarizeCrossModuleDiagnosticLimit(moduleName, diagnostic, fallbackLim
     return `cross-module diagnostics classify the write path as ${diagnostic.classification}; low-tail ${fallbackLimit.lowTailConcurrency ?? "unknown"} clients and burst ${fallbackLimit.burstCeilingConcurrency ?? "unknown"} clients remain module capacity evidence`;
   }
   if (moduleName === "Identity And Access") {
-    return `cross-module diagnostics classify identity as ${diagnostic.classification}; slowest P99 ${fallbackLimit.slowestP99Ms ?? "unknown"}ms still blocks root interactive latency`;
+    return `cross-module diagnostics classify identity as ${diagnostic.classification}; slowest module P99 ${fallbackLimit.slowestP99Ms ?? "unknown"}ms remains diagnostic context, not the current production10k Root SLO blocker`;
   }
   if (moduleName === "Agent Harness And Workflow Plugin") {
     const workflow = metrics.workflowRuntimeEvidence ?? {};

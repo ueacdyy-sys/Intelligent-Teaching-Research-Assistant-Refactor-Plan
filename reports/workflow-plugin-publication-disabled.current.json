@@ -1,0 +1,167 @@
+{
+  "generatedAt": "2026-06-07T12:29:40.802Z",
+  "readiness": "READY",
+  "workloadType": "WORKFLOW_PLUGIN_PUBLICATION_DISABLED_RUNTIME",
+  "commandPort": "WorkflowPublicationCommandPort.recordWorkflowPluginPublicationDisabledPrecheck",
+  "boundary": {
+    "status": "WORKFLOW_PLUGIN_PUBLICATION_BLOCKED_BY_POLICY",
+    "workflowPublishAllowed": false,
+    "pluginMarketplaceExposureAllowed": false,
+    "registryExposure": "INTERNAL_DRY_RUN_CATALOG_ONLY",
+    "executionCandidateAllowed": false,
+    "executionCandidateCount": 0,
+    "localExecutionEnabled": false,
+    "processLaunchAllowed": false,
+    "hostWriteAllowed": false,
+    "networkPolicy": "DEFAULT_DENY",
+    "localGeneratedCodeExecuted": false,
+    "requiresExecutionIsolation": true,
+    "requiresFutureSdd": true
+  },
+  "runtimeProbes": {
+    "blocked": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.workflow-plugin.publication-disabled-recorded.v1",
+        "commandPort": "WorkflowPublicationCommandPort.recordWorkflowPluginPublicationDisabledPrecheck",
+        "status": "WORKFLOW_PLUGIN_PUBLICATION_BLOCKED_BY_POLICY",
+        "recordId": "workflow_plugin_publication_disabled_audit_workflow_publication_disabled",
+        "recordedAt": "2026-06-05T05:00:00.000Z",
+        "idempotencyKey": "audit-workflow-publication-disabled",
+        "idempotentReplay": false,
+        "registryEntry": {
+          "registryEntryId": "workflow_registry_lesson_archive_review",
+          "draftId": "workflow_draft_lesson_archive_review",
+          "artifactKind": "WORKFLOW",
+          "capabilityKind": "WORKFLOW",
+          "executionMode": "DRY_RUN_ONLY",
+          "localExecutionEnabled": false
+        },
+        "publicationPolicy": {
+          "schemaVersion": "2026-06-05.workflow-plugin.publication-policy.v1",
+          "policyId": "workflow_plugin_publication_policy_lesson_archive_review",
+          "registryEntryId": "workflow_registry_lesson_archive_review",
+          "executionIsolationRecordRef": "workflow-plugin-execution-isolation:workflow_plugin_execution_isolation_workflow_execution_isolation_idempotency_001",
+          "mode": "BLOCK_PUBLICATION",
+          "publicationAllowed": false,
+          "publicationChannel": "DISABLED",
+          "registryExposure": "INTERNAL_DRY_RUN_CATALOG_ONLY",
+          "requiresExecutionIsolation": true,
+          "requiresFutureSdd": true,
+          "auditLogRequired": true
+        },
+        "executionIsolation": {
+          "status": "EXECUTION_CANDIDATE_BLOCKED_BY_ISOLATION",
+          "candidateCount": 0
+        },
+        "evidence": {
+          "registryAdmissionRecordRef": "workflow-registry-admission:audit-registry-admission",
+          "executionIsolationRecordRef": "workflow-plugin-execution-isolation:workflow_plugin_execution_isolation_workflow_execution_isolation_idempotency_001",
+          "humanApprovalRecordRef": "workflow-human-approval:audit-human-approval",
+          "sandboxResultRecordRef": "workflow-sandbox-result:audit-sandbox-result",
+          "sharedContextRef": "shared-context:audit-workflow-publication-disabled",
+          "guardrailResultRef": "guardrail:audit-workflow-publication-disabled",
+          "routeDecisionRef": "route:audit-workflow-publication-disabled",
+          "inputHash": "sha256:audit-workflow-publication-disabled",
+          "outputSummary": "Audit publication disabled gate blocked publish.",
+          "rollbackPlanRef": "rollback:audit-workflow-publication-disabled",
+          "auditTraceRef": "audit:audit-workflow-publication-disabled",
+          "idempotencyKey": "audit-workflow-publication-disabled"
+        },
+        "boundary": {
+          "publicationGateRecorded": true,
+          "workflowPublishAllowed": false,
+          "pluginMarketplaceExposureAllowed": false,
+          "registryExposure": "INTERNAL_DRY_RUN_CATALOG_ONLY",
+          "executionCandidateAllowed": false,
+          "executionCandidateCount": 0,
+          "localExecutionEnabled": false,
+          "localGeneratedCodeExecuted": false,
+          "generatedCodeExecutedOnHost": false,
+          "processLaunchAllowed": false,
+          "hostWriteAllowed": false,
+          "networkPolicy": "DEFAULT_DENY",
+          "requiresExecutionIsolation": true,
+          "requiresFutureSdd": true
+        },
+        "nextAction": "Keep workflow/plugin publication disabled; a future SDD must explicitly enable executable isolation, signing, rollout, and rollback before publication."
+      },
+      "logRecordCount": 1
+    }
+  },
+  "findings": [
+    {
+      "id": "publication_policy.default_blocks_publication",
+      "passed": true,
+      "severity": "info",
+      "actual": "mode=BLOCK_PUBLICATION;allowed=false;channel=DISABLED;exposure=INTERNAL_DRY_RUN_CATALOG_ONLY;isolation=true;futureSdd=true",
+      "expected": "policy blocks publication, disables channel, keeps internal dry-run exposure, and requires execution isolation plus future SDD",
+      "remediation": "Publication policy must remain deny-by-default before executable isolation, signing, rollout, and rollback are designed."
+    },
+    {
+      "id": "runtime.requires_internal_admin_and_full_evidence",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime authorization and evidence symbols scanned",
+      "expected": "internal service/admin with ADMIN_SYSTEM plus registry, execution isolation, human approval, sandbox, context, rollback, audit, and idempotency evidence",
+      "remediation": "Publication prechecks should only be recorded by trusted writers with complete evidence."
+    },
+    {
+      "id": "runtime.enforces_dry_run_registry_and_blocked_isolation",
+      "passed": true,
+      "severity": "info",
+      "actual": "DRY_RUN_ONLY=true;localExecutionEnabled=false=true;block candidates=true;BLOCK_PUBLICATION=true",
+      "expected": "runtime rejects executable registry entries, unblocked isolation, and unsafe publication policies",
+      "remediation": "Do not allow dry-run registry entries to become published assets before a future executable isolation SDD."
+    },
+    {
+      "id": "runtime.append_only_no_publish_or_execution",
+      "passed": true,
+      "severity": "info",
+      "actual": "appendFileSync=true;workflowPublishAllowed: true=false;publicationAllowed: true=false;execSync(=false",
+      "expected": "append-only publication blocking evidence; no publish, marketplace exposure, candidate exposure, process launch, host write, or generated code execution",
+      "remediation": "Publication disabled runtime must record blocking evidence only."
+    },
+    {
+      "id": "runtime.blocked_probe_records_publication_disabled",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=WORKFLOW_PLUGIN_PUBLICATION_BLOCKED_BY_POLICY;publish=false;market=false;records=1",
+      "expected": "precheck records a blocked publication decision with no marketplace exposure and no execution candidates",
+      "remediation": "Publication disabled precheck should block publish and persist exactly one command record."
+    },
+    {
+      "id": "tests.cover_publication_policy_isolation_and_idempotency_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime test negative paths scanned",
+      "expected": "blocked precheck, publish-allowed policy, exposed candidates, executable entry, unauthorized principal, and idempotency replay are tested",
+      "remediation": "Keep publication safety regressions covered."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_audit",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:workflow-plugin-publication-disabled=true;Workflow plugin publication disabled runtime audit=true",
+      "expected": "npm script and strict quality command include workflow plugin publication disabled audit",
+      "remediation": "Add this runtime audit to the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_publication_disabled_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "workflowPluginPublicationDisabled=true;workflow-plugin-publication-disabled.current.json=true",
+      "expected": "workflow_plugin_self_evolution root coverage requires publication disabled precheck report",
+      "remediation": "Root workflow coverage should include publication disabled gate evidence."
+    },
+    {
+      "id": "quality.structure_tracks_slice",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires publication policy, runtime, audit, tests, and SDD",
+      "remediation": "Add the publication disabled slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as publication-disabled evidence; signing, rollout, marketplace exposure, and host execution remain future gated slices."
+}

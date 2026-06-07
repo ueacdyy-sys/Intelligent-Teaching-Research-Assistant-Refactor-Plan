@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -270,6 +272,9 @@ func newRoundRobinPicker(upstreams []*url.URL) *roundRobinPicker {
 }
 
 func (picker *roundRobinPicker) NextForRequest(request *http.Request) *url.URL {
+	if index, ok := ownerIndexFromRequest(request, len(picker.upstreams)); ok {
+		return picker.At(index)
+	}
 	if key := bearerAffinityKey(request); key != "" {
 		return picker.NextForAffinityKey(key)
 	}
@@ -296,12 +301,76 @@ func (picker *roundRobinPicker) NextForAffinityKey(key string) *url.URL {
 	return &target
 }
 
+func (picker *roundRobinPicker) At(index int) *url.URL {
+	if len(picker.upstreams) == 0 {
+		return &url.URL{}
+	}
+	if index < 0 || index >= len(picker.upstreams) {
+		return picker.Next()
+	}
+	target := *picker.upstreams[index]
+	return &target
+}
+
+func ownerIndexFromRequest(request *http.Request, upstreamCount int) (int, bool) {
+	if upstreamCount <= 0 {
+		return 0, false
+	}
+	if token := bearerAffinityKey(request); token != "" {
+		return ownerIndexFromToken(token, upstreamCount)
+	}
+	if token := refreshTokenFromRequest(request); token != "" {
+		return ownerIndexFromToken(token, upstreamCount)
+	}
+	return 0, false
+}
+
+func ownerIndexFromToken(token string, upstreamCount int) (int, bool) {
+	parts := strings.SplitN(strings.TrimSpace(token), "_", 3)
+	if len(parts) != 3 {
+		return 0, false
+	}
+	owner := strings.TrimSpace(parts[1])
+	if len(owner) < 2 || owner[0] != 'g' {
+		return 0, false
+	}
+	index, err := strconv.Atoi(owner[1:])
+	if err != nil || index < 0 || index >= upstreamCount {
+		return 0, false
+	}
+	return index, true
+}
+
 func bearerAffinityKey(request *http.Request) string {
 	fields := strings.Fields(strings.TrimSpace(request.Header.Get("Authorization")))
 	if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") {
 		return ""
 	}
 	return fields[1]
+}
+
+func refreshTokenFromRequest(request *http.Request) string {
+	if request.Method != http.MethodPost || request.URL.Path != "/v1/identity/sessions/refresh" || request.Body == nil {
+		return ""
+	}
+	const maxRefreshBodyBytes = 64 * 1024
+	data, err := io.ReadAll(io.LimitReader(request.Body, maxRefreshBodyBytes+1))
+	_ = request.Body.Close()
+	request.Body = io.NopCloser(bytes.NewReader(data))
+	request.ContentLength = int64(len(data))
+	request.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(data)), nil
+	}
+	if err != nil || len(data) > maxRefreshBodyBytes {
+		return ""
+	}
+	var body struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(body.RefreshToken)
 }
 
 func buildUpstreamTransport(config proxyConfig, upstreamCount int) (*http.Transport, upstreamTransportProfile) {

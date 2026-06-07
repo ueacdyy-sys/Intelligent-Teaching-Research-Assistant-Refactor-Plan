@@ -1,0 +1,80 @@
+{
+  "generatedAt": "2026-06-07T12:29:50.627Z",
+  "readiness": "READY",
+  "workloadType": "TEACHING_ARCHIVE_MATERIAL_DRAFT_INTENT_RUNTIME",
+  "commandPort": "TeachingDraftCommandPort.submitArchiveMaterialDraftIntent",
+  "boundary": {
+    "status": "REVIEW_REQUIRED",
+    "executionCandidateAllowed": false,
+    "finalArchiveItemWriteAllowed": false,
+    "ocrOrRagJobWriteAllowed": false,
+    "finalAiGradingWriteAllowed": false
+  },
+  "findings": [
+    {
+      "id": "contract.gateway_allowlists_archive_material_draft",
+      "passed": true,
+      "severity": "info",
+      "actual": "draft_teaching_quiz:TeachingDraftCommandPort.submitQuizDraftIntent:approval=true:execute=false;draft_archive_material:TeachingDraftCommandPort.submitArchiveMaterialDraftIntent:approval=true:execute=false;draft_workflow_plugin:WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent:approval=true:execute=false",
+      "expected": "draft_archive_material -> TeachingDraftCommandPort.submitArchiveMaterialDraftIntent, review-only",
+      "remediation": "Keep the Agent contract aligned with the Teaching archive material draft runtime port."
+    },
+    {
+      "id": "openapi.review_only_accepted",
+      "passed": true,
+      "severity": "info",
+      "actual": "'202':=true;'201':=false;REVIEW_REQUIRED=true",
+      "expected": "HTTP contract returns 202 REVIEW_REQUIRED and no 201 final create response",
+      "remediation": "The endpoint must submit review-only command intent, not create final archive material."
+    },
+    {
+      "id": "domain.requires_evidence_and_authorization",
+      "passed": true,
+      "severity": "info",
+      "actual": "domain evidence and authorization symbols scanned",
+      "expected": "principal, target owner, draft artifact, guardrail, approval, rollback, audit, and idempotency required",
+      "remediation": "Do not accept Agent archive material draft intent without full review evidence."
+    },
+    {
+      "id": "usecase.depends_on_command_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "usecase boundary scanned",
+      "expected": "inner use case depends only on command port and domain",
+      "remediation": "Keep command logging and HTTP outside the use-case layer."
+    },
+    {
+      "id": "commandlog.append_only_no_projection",
+      "passed": true,
+      "severity": "info",
+      "actual": "commandlog append path scanned",
+      "expected": "append command intent only; no projection enqueue or archive projection",
+      "remediation": "Archive material draft intent must not create archive items, OCR jobs, RAG chunks, or AI grading rows."
+    },
+    {
+      "id": "http.route_returns_accepted",
+      "passed": true,
+      "severity": "info",
+      "actual": "http.StatusAccepted=true;http.StatusCreated=false;contentRef=false",
+      "expected": "route submits review-only command intent and never returns final archive material contentRef",
+      "remediation": "HTTP must stay a command-intent ingress, not a final archive item creation endpoint."
+    },
+    {
+      "id": "main.runtime_wired",
+      "passed": true,
+      "severity": "info",
+      "actual": "main wiring scanned",
+      "expected": "runtime use case wired in service composition root",
+      "remediation": "Wire the command port through main before claiming runtime support."
+    },
+    {
+      "id": "quality.structure_tracks_slice",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires the new contract and runtime files",
+      "remediation": "Add the slice to structure verification so it cannot silently disappear."
+    }
+  ],
+  "nextAction": "Use this as the second controlled Agent write-intent runtime slice; continue module-by-module refactor without reopening broad performance testing."
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "2026-06-05.research.deep-research-retrieval-plan-recorded.v1",
+  "runtimeId": "research_deep_research_retrieval_plan_runtime",
+  "commandPort": "DeepResearchRetrievalPlanPort.recordDeepResearchRetrievalPlan",
+  "status": "RETRIEVAL_PLAN_RECORDED",
+  "recordId": "research_deep_research_retrieval_plan_deep-research-retrieval-plan_job-001",
+  "recordedAt": "2026-06-05T00:00:00.000Z",
+  "idempotencyKey": "deep-research-retrieval-plan:job-001",
+  "idempotentReplay": false,
+  "job": {
+    "taskId": "agent_task_research_deep_001",
+    "contextRef": "shared_ctx_research_deep_001",
+    "jobId": "deep_research_job_001",
+    "queueName": "research_deep_research"
+  },
+  "worker": {
+    "workerId": "local_research_worker_001",
+    "nodeType": "LOCAL",
+    "capabilityKinds": ["RAG_RETRIEVAL", "MODEL_REASONING"]
+  },
+  "approval": {
+    "approvalId": "deep_research_approval_001",
+    "approvalRecordRef": "evidence:human-approval:deep-research-job-001",
+    "reviewerPrincipalId": "teacher_001",
+    "decision": "APPROVED_FOR_ASYNC"
+  },
+  "retrievalPlan": {
+    "strategy": "DIRECTORY_INDEX_THEN_VECTOR_RAG",
+    "planningOnly": true,
+    "sourcePlan": [
+      {
+        "planItemId": "plan_public_directory_first",
+        "knowledgeBaseRef": "public_curriculum_knowledge",
+        "classification": "PUBLIC",
+        "retrievalMode": "DIRECTORY_THEN_VECTOR",
+        "plannedQuery": "个性化学习 档案 辅导 效果评估",
+        "directoryScopeRefs": ["directory:education-ai", "directory:learning-analytics"],
+        "maxChunks": 16,
+        "maxSourceRefs": 6,
+        "citationRequired": true,
+        "sourceHashRequired": true
+      }
+    ],
+    "budget": {
+      "maxPlannedQueries": 4,
+      "maxRetrievedChunks": 40,
+      "maxSourceRefs": 12,
+      "p99PlanningBudgetMs": 50
+    },
+    "citationPolicy": {
+      "citationRequired": true,
+      "sourceHashRequired": true,
+      "quoteScope": "RETRIEVED_SOURCE_ONLY"
+    }
+  },
+  "evidenceRefs": [
+    "evidence:deep-research-intent:job-001",
+    "evidence:worker-lifecycle:job-001",
+    "evidence:approval:deep_research_approval_001",
+    "evidence:retrieval-plan-hash:sha256:example",
+    "evidence:runtime:research_deep_research_retrieval_plan_runtime",
+    "evidence:command-port:DeepResearchRetrievalPlanPort.recordDeepResearchRetrievalPlan"
+  ],
+  "boundary": {
+    "approvalVerified": true,
+    "workerClaimVerified": true,
+    "retrievalPlanRecorded": true,
+    "retrievalExecuted": false,
+    "directoryIndexAccessStarted": false,
+    "vectorSearchStarted": false,
+    "externalModelCallStarted": false,
+    "ragSynthesisStarted": false,
+    "finalAnswerGenerated": false,
+    "directPublicationAllowed": false,
+    "localToolMutationAllowed": false,
+    "directMainDatabaseWriteAllowed": false,
+    "studentArchiveUsed": false,
+    "remoteDeviceSourcesUsed": false,
+    "swarmAllowed": false,
+    "requiresFutureRetrievalExecutionSlice": true
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_RETRIEVAL_PLAN_CONTROL_PLANE"
+  },
+  "nextAction": "Use this approved retrieval plan as the input to a future async retrieval execution slice; do not synthesize or publish an answer from plan evidence alone."
+}

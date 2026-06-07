@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-teaching-assistant.local/contracts/agent/deep-research-student-archive-row-verification.output.schema.json",
+  "title": "Research deep_research student archive physical row verification output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "sourceCommit",
+    "teachingArchivePhysicalRow",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2026-06-05.research.deep-research-student-archive-row-verification-verified.v1"
+    },
+    "runtimeId": {
+      "const": "research_deep_research_student_archive_row_verification_runtime"
+    },
+    "commandPort": {
+      "const": "DeepResearchStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow"
+    },
+    "status": {
+      "const": "TEACHING_ARCHIVE_PHYSICAL_ROW_VERIFIED"
+    },
+    "recordId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 240
+    },
+    "idempotentReplay": {
+      "type": "boolean"
+    },
+    "sourceCommit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commitRecordId", "archiveItemId", "targetUseCase", "targetRepository"],
+      "properties": {
+        "commitRecordId": { "type": "string", "minLength": 1 },
+        "archiveItemId": { "type": "string", "pattern": "^tarch_" },
+        "targetUseCase": { "const": "CreateArchiveItem.ExecuteWithPersistence" },
+        "targetRepository": { "const": "ArchiveRepository.Create" }
+      }
+    },
+    "teachingArchivePhysicalRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operationId", "targetRepository", "targetTable", "archiveItem"],
+      "properties": {
+        "operationId": { "const": "getTeachingArchiveItemById" },
+        "targetRepository": { "const": "ArchiveRepository.GetByID" },
+        "targetTable": { "const": "teaching_archive_items" },
+        "archiveItem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "ownerType",
+            "studentId",
+            "materialType",
+            "title",
+            "source",
+            "contentRef",
+            "tags",
+            "analysisIntents",
+            "ocrStatus",
+            "createdAt"
+          ],
+          "properties": {
+            "id": { "type": "string", "pattern": "^tarch_" },
+            "ownerType": { "const": "STUDENT" },
+            "studentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "materialType": { "enum": ["QUIZ", "PAPER", "HANDOUT", "HOMEWORK"] },
+            "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "source": { "const": "SYSTEM_IMPORT" },
+            "contentRef": { "type": "string", "minLength": 1, "maxLength": 1000 },
+            "tags": {
+              "type": "array",
+              "maxItems": 32,
+              "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "uniqueItems": true
+            },
+            "analysisIntents": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" },
+              "uniqueItems": true
+            },
+            "ocrStatus": { "enum": ["RESERVED", "NOT_REQUIRED"] },
+            "createdAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "studentArchiveStorageCommitVerified": { "const": true },
+        "teachingArchiveRowReadPortInvoked": { "const": true },
+        "teachingArchiveRepositoryGetByIDUsed": { "const": true },
+        "committedArchiveItemMatchedPhysicalRow": { "const": true },
+        "projectionEvidencePreserved": { "const": true },
+        "studentAudienceScopeEnforced": { "const": true },
+        "mainDatabaseWritePrepared": { "const": true },
+        "mainDatabaseWriteStarted": { "const": true },
+        "mainDatabaseWriteCommitted": { "const": true },
+        "physicalDatabaseRowVerified": { "const": true },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "externalModelCallStarted": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "targetP99Ms": { "const": 300 },
+        "evidenceClass": { "const": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_ROW_VERIFICATION_BOUNDARY" }
+      }
+    },
+    "nextAction": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

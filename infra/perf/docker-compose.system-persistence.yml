@@ -1,0 +1,121 @@
+name: ita-system-persistence-runtime
+
+services:
+  system-identity-postgres:
+    image: postgres:18-alpine
+    container_name: ita-system-identity-postgres
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: ueacd
+      POSTGRES_DB: intelligent_teaching_assistant
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    command: >
+      postgres
+      -c max_connections=160
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=16MB
+      -c max_wal_size=4GB
+      -c checkpoint_timeout=15min
+    ports:
+      - "15432:5432"
+    volumes:
+      - system_identity_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d intelligent_teaching_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  system-identity-pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: ita-system-identity-pgbouncer
+    ports:
+      - "16432:6432"
+    volumes:
+      - ./system-identity-pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./identity-session-userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      system-identity-postgres:
+        condition: service_healthy
+
+  system-conversation-postgres:
+    image: postgres:18-alpine
+    container_name: ita-system-conversation-postgres
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: ueacd
+      POSTGRES_DB: intelligent_teaching_assistant
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    command: >
+      postgres
+      -c max_connections=160
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=16MB
+      -c max_wal_size=4GB
+      -c checkpoint_timeout=15min
+    ports:
+      - "15433:5432"
+    volumes:
+      - system_conversation_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d intelligent_teaching_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  system-conversation-pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: ita-system-conversation-pgbouncer
+    ports:
+      - "16433:6432"
+    volumes:
+      - ./system-conversation-pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./identity-session-userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      system-conversation-postgres:
+        condition: service_healthy
+
+  system-teaching-postgres:
+    image: postgres:18-alpine
+    container_name: ita-system-teaching-postgres
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: ueacd
+      POSTGRES_DB: intelligent_teaching_assistant
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    command: >
+      postgres
+      -c max_connections=160
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=16MB
+      -c max_wal_size=4GB
+      -c checkpoint_timeout=15min
+    ports:
+      - "15434:5432"
+    volumes:
+      - system_teaching_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d intelligent_teaching_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  system-teaching-pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: ita-system-teaching-pgbouncer
+    ports:
+      - "16434:6432"
+    volumes:
+      - ./system-teaching-pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./identity-session-userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      system-teaching-postgres:
+        condition: service_healthy
+
+volumes:
+  system_identity_postgres_data:
+  system_conversation_postgres_data:
+  system_teaching_postgres_data:

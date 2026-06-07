@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/student-app-ai-tutor-worker-claim.output.schema.json",
+  "title": "Student App AI Tutor Worker Claim Runtime Output",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "queue",
+    "claim",
+    "boundary",
+    "runtimeSlo"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.student-app.ai-tutor-worker-claim-recorded.v1"
+    },
+    "runtimeId": {
+      "type": "string",
+      "const": "student_app_ai_tutor_worker_claim_runtime"
+    },
+    "commandPort": {
+      "type": "string",
+      "const": "StudentAppAITutorWorkerClaimPort.claimTutoringAnalysisRequest"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["STUDENT_APP_AI_TUTOR_WORKER_CLAIMED", "STUDENT_APP_AI_TUTOR_WORKER_NO_CLAIM"]
+    },
+    "queue": {
+      "type": "object",
+      "required": ["queueName", "queueTable", "targetUseCase", "repositoryOperation"],
+      "properties": {
+        "queueName": { "const": "student_app_ai_tutor" },
+        "queueTable": { "const": "teaching_tutoring_analysis_requests" },
+        "targetUseCase": { "const": "ClaimTutoringAnalysisRequest.Execute" },
+        "repositoryOperation": { "const": "ArchiveRepository.ClaimNextTutoringAnalysisRequest" }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "required": ["found", "workerId", "leaseSeconds"],
+      "properties": {
+        "found": { "type": "boolean" },
+        "requestId": { "type": "string", "pattern": "^tutor_req_" },
+        "status": { "enum": ["IN_PROGRESS", "NO_CLAIM"] },
+        "workerId": { "type": "string", "minLength": 1 },
+        "leaseSeconds": { "type": "integer", "minimum": 30, "maximum": 3600 }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": [
+        "internalServiceOnly",
+        "atomicSkipLockedClaimRequired",
+        "leaseRecorded",
+        "modelExecutionStarted",
+        "resultRecorded",
+        "questionBankDraftCreated",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "internalServiceOnly": { "const": true },
+        "atomicSkipLockedClaimRequired": { "const": true },
+        "leaseRecorded": { "type": "boolean" },
+        "modelExecutionStarted": { "const": false },
+        "resultRecorded": { "const": false },
+        "questionBankDraftCreated": { "const": false },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "properties": {
+        "targetP99Ms": { "const": 50 }
+      }
+    }
+  }
+}

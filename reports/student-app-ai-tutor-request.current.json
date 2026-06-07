@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-06-07T12:28:46.706Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_RUNTIME",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_runtime",
+    "commandPort": "StudentAppAITutorRequestPort.createStudentAppAITutorRequest",
+    "asyncQueue": "student_app_ai_tutor"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STUDENT_APP_AI_TUTOR_REQUEST_ADMISSION_PROBE"
+  },
+  "safetyInvariants": {
+    "studentOwnArchiveScopeEnforced": true,
+    "teachingArchiveReadVerified": true,
+    "tutoringAnalysisRequestQueued": true,
+    "questionBankDraftDeferred": true,
+    "asyncAnalysisRequired": true,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "externalModelCallNowAllowed": false,
+    "finalEvaluationNowAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequest": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.student-app.ai-tutor-request-queued.v1",
+        "runtimeId": "student_app_ai_tutor_request_runtime",
+        "commandPort": "StudentAppAITutorRequestPort.createStudentAppAITutorRequest",
+        "status": "STUDENT_APP_AI_TUTOR_REQUEST_QUEUED",
+        "recordId": "student_app_ai_tutor_request_student-app-ai-tutor-request_agent_task_student_app_ai_tutor_001",
+        "recordedAt": "2026-06-05T00:00:00.000Z",
+        "idempotencyKey": "student-app-ai-tutor-request:agent_task_student_app_ai_tutor_001",
+        "idempotentReplay": false,
+        "queue": {
+          "queueName": "student_app_ai_tutor",
+          "queueTable": "teaching_tutoring_analysis_requests",
+          "targetUseCase": "CreateStudentAppAITutorRequest.Execute",
+          "readRepository": "ArchiveRepository.GetByID",
+          "writeRepository": "ArchiveRepository.CreateTutoringAnalysisRequest"
+        },
+        "tutoringAnalysisRequest": {
+          "id": "tutor_req_student_app_001",
+          "archiveItemId": "tarch_student_quiz_001",
+          "requestedByPrincipalId": "student_001",
+          "analysisGoal": "explain weak algebra skills",
+          "questionBankIntent": "GENERATE_PERSONALIZED_CHECK",
+          "status": "QUEUED",
+          "sourceArchiveOwnerType": "STUDENT",
+          "sourceArchiveStudentId": "student_001",
+          "sourceArchiveMaterial": "QUIZ",
+          "createdAt": "2026-06-05T00:00:00.000Z",
+          "updatedAt": "2026-06-05T00:00:00.000Z"
+        },
+        "evidenceRefs": [
+          "evidence:student-archive-item:tarch_student_quiz_001",
+          "evidence:student-app-profile:student_001",
+          "evidence:student-app-ai-tutor-request-input-hash:sha256:4290f0f8c20ad4823c73c4beec871aab3f63ec38629dc6c9f9b165d50a6cf247",
+          "evidence:runtime:student_app_ai_tutor_request_runtime",
+          "evidence:command-port:StudentAppAITutorRequestPort.createStudentAppAITutorRequest",
+          "evidence:tutoring-analysis-request:tutor_req_student_app_001"
+        ],
+        "boundary": {
+          "studentOwnArchiveScopeEnforced": true,
+          "teachingArchiveReadVerified": true,
+          "tutoringAnalysisRequestQueued": true,
+          "questionBankDraftDeferred": true,
+          "asyncAnalysisRequired": true,
+          "directDatabaseAccessAllowed": false,
+          "executeHttpRequestAllowed": false,
+          "externalModelCallNowAllowed": false,
+          "finalEvaluationNowAllowed": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 50,
+          "evidenceClass": "STUDENT_APP_AI_TUTOR_REQUEST_ADMISSION_BOUNDARY"
+        },
+        "nextAction": "Use this as Student App AI Tutor queue admission evidence; continue with worker claim, result review, and question-bank draft slices."
+      },
+      "portCalls": 1,
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "STUDENT_APP_AI_TUTOR_REQUEST_ADMISSION_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "severity": "info",
+      "actual": "STUDENT_APP_AI_TUTOR_REQUEST_QUEUED=true;StudentAppAITutorRequestPort.createStudentAppAITutorRequest=true;CreateStudentAppAITutorRequest.Execute=true;teaching_tutoring_analysis_requests=true",
+      "expected": "contracts define own-scope Student App AI Tutor queue admission through the injected Go use case port",
+      "remediation": "Keep this slice as queue admission, not model inference or final evaluation."
+    },
+    {
+      "id": "student_app.flow_report_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "READY",
+      "expected": "READY Student App flow contract evidence",
+      "remediation": "Regenerate Student App flow audit before counting AI Tutor request runtime evidence."
+    },
+    {
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "severity": "info",
+      "actual": "student_app_ai_tutor_request_runtime=true;StudentAppAITutorRequestPort.createStudentAppAITutorRequest=true;STUDENT_APP_AI_TUTOR_REQUEST_QUEUED=true",
+      "expected": "runtime uses a named injected request port and idempotent queue admission",
+      "remediation": "Do not turn this runtime into an untracked direct service call."
+    },
+    {
+      "id": "runtime.safety_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;directDatabaseAccessAllowed: true=false;executeHttpRequestAllowed: true=false;externalModelCallNowAllowed: true=false;finalEvaluationNowAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;dangerouslySetInnerHTML=false;innerHTML=false",
+      "expected": "runtime queues only through the injected port and blocks raw DB, HTTP, immediate model inference, final evaluation, tools, and Swarm",
+      "remediation": "AI Tutor inference and question-bank generation must stay in later async worker slices."
+    },
+    {
+      "id": "runtime.probe_queues_student_tutor_request",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=STUDENT_APP_AI_TUTOR_REQUEST_QUEUED;request=tutor_req_student_app_001;calls=1;p99=6",
+      "expected": "probe queues one own-scope AI Tutor request through the injected use case port",
+      "remediation": "Queue admission must prove the port call, queue shape, and own-student scope."
+    },
+    {
+      "id": "tests.cover_student_app_ai_tutor_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "positive, idempotency, missing port, non-student, cross-student, mismatch, and unsafe policy tests",
+      "remediation": "Add regression coverage before using this as Student App AI Tutor runtime evidence."
+    },
+    {
+      "id": "teaching_archive.go_usecase_and_repository_evidence_exists",
+      "passed": true,
+      "severity": "info",
+      "actual": "func (uc *CreateStudentAppAITutorRequest) Execute=true;func (r *ArchiveRepository) GetByID=true;teaching_tutoring_analysis_requests=true;TestCreateStudentAppAITutorRequestInsertsQueuedStudentArchiveJob=true",
+      "expected": "Go domain/use case/API/repository evidence proves own archive read and tutoring request queue write",
+      "remediation": "Keep the real Go use case and repository evidence attached to this runtime."
+    },
+    {
+      "id": "quality_and_root_hooks_track_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:student-app-ai-tutor-request=true;Student App AI Tutor request runtime audit=true;studentAppAiTutorRequest=true",
+      "expected": "package script, strict quality, and root workflow coverage include Student App AI Tutor request runtime",
+      "remediation": "Wire the new runtime into package scripts, quality gate, and root workflow coverage."
+    },
+    {
+      "id": "structure_sdd_and_board_track_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "Student App AI Tutor request runtime=true;10.0/10=true;questionBankDraftDeferred=true=true",
+      "expected": "structure verifier, SDD, and architecture board show Student App AI Tutor request as current progress",
+      "remediation": "Update structure, SDD, and architecture board after completing this slice."
+    }
+  ],
+  "nextAction": "Use this as Student App AI Tutor queue admission evidence; continue with worker claim, result review, and question-bank draft slices without repeating production10k."
+}

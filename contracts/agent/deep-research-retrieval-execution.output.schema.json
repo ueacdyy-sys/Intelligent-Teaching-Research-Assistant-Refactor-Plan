@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-retrieval-execution.output.schema.json",
+  "title": "Deep Research Retrieval Execution Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "readPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "job",
+    "retrievalResult",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-retrieval-execution-recorded.v1"
+    },
+    "runtimeId": { "type": "string", "const": "research_deep_research_retrieval_execution_runtime" },
+    "commandPort": {
+      "type": "string",
+      "const": "DeepResearchRetrievalExecutionPort.recordDeepResearchRetrievalExecution"
+    },
+    "readPort": {
+      "type": "string",
+      "const": "DeepResearchRetrievalReadPort.retrieveApprovedSources"
+    },
+    "status": { "type": "string", "const": "RETRIEVAL_EXECUTION_RECORDED" },
+    "recordId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 },
+    "idempotentReplay": { "type": "boolean" },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "retrievalResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retrievalExecuted", "chunkCount", "sourceRefCount", "items"],
+      "properties": {
+        "retrievalExecuted": { "type": "boolean", "const": true },
+        "chunkCount": { "type": "integer", "minimum": 1 },
+        "sourceRefCount": { "type": "integer", "minimum": 1 },
+        "items": { "type": "array", "minItems": 1 }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvalVerified",
+        "workerClaimVerified",
+        "retrievalPlanVerified",
+        "retrievalExecuted",
+        "directoryIndexAccessUsed",
+        "vectorSearchMayHaveBeenUsed",
+        "externalModelCallStarted",
+        "ragSynthesisStarted",
+        "finalAnswerGenerated",
+        "directPublicationAllowed",
+        "localToolMutationAllowed",
+        "directMainDatabaseWriteAllowed",
+        "studentArchiveUsed",
+        "remoteDeviceSourcesUsed",
+        "swarmAllowed",
+        "requiresFutureReasoningSlice"
+      ],
+      "properties": {
+        "approvalVerified": { "type": "boolean", "const": true },
+        "workerClaimVerified": { "type": "boolean", "const": true },
+        "retrievalPlanVerified": { "type": "boolean", "const": true },
+        "retrievalExecuted": { "type": "boolean", "const": true },
+        "directoryIndexAccessUsed": { "type": "boolean", "const": true },
+        "vectorSearchMayHaveBeenUsed": { "type": "boolean" },
+        "externalModelCallStarted": { "type": "boolean", "const": false },
+        "ragSynthesisStarted": { "type": "boolean", "const": false },
+        "finalAnswerGenerated": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "directMainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentArchiveUsed": { "type": "boolean", "const": false },
+        "remoteDeviceSourcesUsed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "requiresFutureReasoningSlice": { "type": "boolean", "const": true }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetP99Ms", "evidenceClass"],
+      "properties": {
+        "targetP99Ms": { "type": "integer", "minimum": 1, "maximum": 300 },
+        "evidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_RETRIEVAL_EXECUTION_BOUNDARY"
+        }
+      }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

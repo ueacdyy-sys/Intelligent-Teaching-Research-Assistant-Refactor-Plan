@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/shared-context.schema.json",
+  "title": "Agent Shared Context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contextId",
+    "principalContextRef",
+    "sessionId",
+    "taskId",
+    "rootRequirementAnchors",
+    "dataScopes",
+    "evidenceRefs",
+    "redactionState",
+    "tokenBudget",
+    "latencyBudgetMs",
+    "memoryRefs",
+    "expirationPolicy"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "2026-06-04.agent.shared-context.v1" },
+    "contextId": { "type": "string", "minLength": 1 },
+    "principalContextRef": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "rootRequirementAnchors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "dataScopes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principal", "teaching", "student", "research", "knowledge", "tool"],
+      "properties": {
+        "principal": { "type": "string", "minLength": 1 },
+        "teaching": { "type": "string", "enum": ["NONE", "READ", "WRITE"] },
+        "student": { "type": "string", "enum": ["NONE", "OWN", "ASSIGNED", "ALL"] },
+        "research": { "type": "string", "enum": ["NONE", "READ", "WRITE"] },
+        "knowledge": { "type": "string", "enum": ["NONE", "PUBLIC", "PRIVATE_ASSIGNED", "PRIVATE_ALL"] },
+        "tool": { "type": "string", "enum": ["NONE", "READ_ONLY", "MUTATING"] }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "redactionState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "studentDataRedacted", "privateKnowledgeRedacted", "externalModelAllowed"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["NONE", "PARTIAL", "STRICT"] },
+        "studentDataRedacted": { "type": "boolean" },
+        "privateKnowledgeRedacted": { "type": "boolean" },
+        "externalModelAllowed": { "type": "boolean" }
+      }
+    },
+    "tokenBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxInputTokens", "maxOutputTokens"],
+      "properties": {
+        "maxInputTokens": { "type": "integer", "minimum": 1 },
+        "maxOutputTokens": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "latencyBudgetMs": { "type": "integer", "minimum": 1 },
+    "memoryRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["memoryId", "scope", "sourceEvidenceRef"],
+        "properties": {
+          "memoryId": { "type": "string", "minLength": 1 },
+          "scope": { "type": "string", "enum": ["RUN", "USER", "CLASS", "COURSE", "RESEARCH"] },
+          "sourceEvidenceRef": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "expirationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expiresAt", "retentionClass", "deleteOnRevoke"],
+      "properties": {
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "retentionClass": { "type": "string", "enum": ["RUN_ONLY", "SHORT_TERM", "LONG_TERM_APPROVED"] },
+        "deleteOnRevoke": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

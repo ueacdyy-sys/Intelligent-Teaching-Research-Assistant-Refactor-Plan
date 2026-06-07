@@ -2,11 +2,8 @@ package postgres_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -41,10 +38,15 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 		"idx_teaching_archive_items_owner_page",
 		"idx_teaching_archive_items_material_page",
 		"idx_teaching_archive_items_owner_material_page",
+		"idx_teaching_archive_publications_student_app_visible_lookup",
+		"idx_teaching_archive_publications_student_app_visible_page",
 	} {
 		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
 			t.Fatalf("schema missing covered page index %s", indexName)
 		}
+	}
+	if !strings.Contains(statements, "CREATE TABLE IF NOT EXISTS teaching_archive_publications") {
+		t.Fatalf("schema missing teaching archive publication projection table")
 	}
 }
 
@@ -73,7 +75,7 @@ func TestEnsureSchemaUsesTransactionAdvisoryLockAroundStatements(t *testing.T) {
 }
 
 func TestEnsureSchemaSkipsMigrationWhenCurrentVersionExists(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-03.schema.2"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.4"}}
 
 	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
 		t.Fatalf("EnsureSchema returned error: %v", err)
@@ -83,8 +85,66 @@ func TestEnsureSchemaSkipsMigrationWhenCurrentVersionExists(t *testing.T) {
 	if strings.Contains(statements, "CREATE TABLE IF NOT EXISTS teaching_archive_items") {
 		t.Fatalf("schema should skip archive table migration when current version exists")
 	}
+	if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_created_page") {
+		t.Fatalf("schema should still apply the selected index profile when current version exists")
+	}
 	if db.commitCount != 1 {
 		t.Fatalf("commitCount = %d, want 1", db.commitCount)
+	}
+}
+
+func TestEnsureSchemaWithHotWriteProfileDropsRedundantArchiveItemPageIndexes(t *testing.T) {
+	db := &recordingDB{}
+
+	err := postgres.EnsureSchemaWithOptions(context.Background(), db, postgres.SchemaOptions{
+		IndexProfile: postgres.SchemaIndexProfileHotWrite,
+	})
+	if err != nil {
+		t.Fatalf("EnsureSchemaWithOptions returned error: %v", err)
+	}
+
+	statements := strings.Join(db.execStatements, "\n")
+	for _, indexName := range []string{
+		"idx_teaching_archive_items_created_page",
+		"idx_teaching_archive_items_owner_page",
+		"idx_teaching_archive_items_material_page",
+	} {
+		if !strings.Contains(statements, "DROP INDEX IF EXISTS "+indexName) {
+			t.Fatalf("hot_write profile should drop write-amplifying page index %s", indexName)
+		}
+	}
+	for _, indexName := range []string{
+		"idx_teaching_archive_items_student_page",
+		"idx_teaching_archive_items_owner_material_page",
+	} {
+		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
+			t.Fatalf("hot_write profile should retain hot query index %s", indexName)
+		}
+	}
+}
+
+func TestEnsureSchemaWithFullProfileRestoresArchiveItemPageIndexes(t *testing.T) {
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.4"}}
+
+	err := postgres.EnsureSchemaWithOptions(context.Background(), db, postgres.SchemaOptions{
+		IndexProfile: postgres.SchemaIndexProfileFull,
+	})
+	if err != nil {
+		t.Fatalf("EnsureSchemaWithOptions returned error: %v", err)
+	}
+
+	statements := strings.Join(db.execStatements, "\n")
+	for _, indexName := range []string{
+		"idx_teaching_archive_items_created_page",
+		"idx_teaching_archive_items_owner_page",
+		"idx_teaching_archive_items_material_page",
+	} {
+		if !strings.Contains(statements, "CREATE INDEX IF NOT EXISTS "+indexName) {
+			t.Fatalf("full profile should restore archive item page index %s", indexName)
+		}
+	}
+	if strings.Contains(statements, "CREATE TABLE IF NOT EXISTS teaching_archive_items") {
+		t.Fatalf("full profile switch should not replay base migration when current version exists")
 	}
 }
 
@@ -114,7 +174,7 @@ func TestCreateArchiveItemRecordsDatabaseInsertTiming(t *testing.T) {
 	timing := &platform.TeachingArchiveTiming{}
 	ctx := platform.WithTeachingArchiveTiming(context.Background(), timing)
 
-	err := repository.Create(ctx, domain.ArchiveItem{
+	_, err := repository.Create(ctx, domain.ArchiveItem{
 		ID:              "tarch_timing",
 		OwnerType:       domain.OwnerTypeTeaching,
 		MaterialType:    domain.MaterialTypeQuiz,
@@ -175,7 +235,8 @@ func TestBatchingArchiveItemRepositoryGroupsConcurrentCreatesIntoSingleInsert(t 
 		go func() {
 			<-start
 			ctx := platform.WithTeachingArchiveTiming(context.Background(), timings[index])
-			errs <- repository.Create(ctx, testArchiveItem(index))
+			_, err := repository.Create(ctx, testArchiveItem(index))
+			errs <- err
 		}()
 	}
 	close(start)
@@ -218,6 +279,112 @@ func TestBatchingArchiveItemRepositoryGroupsConcurrentCreatesIntoSingleInsert(t 
 	}
 }
 
+func TestBatchingArchiveItemRepositoryCopyModeUsesCopyFromForWholeBatch(t *testing.T) {
+	db := &batchRecordingDB{}
+	repository := postgres.NewBatchingArchiveItemRepository(db, postgres.ArchiveCreateBatchConfig{
+		MaxSize:  3,
+		MaxDelay: time.Second,
+		Mode:     postgres.ArchiveCreateBatchModeCopy,
+	})
+	start := make(chan struct{})
+	errs := make(chan error, 3)
+	timings := make([]*platform.TeachingArchiveTiming, 3)
+
+	for index := 0; index < 3; index++ {
+		index := index
+		timings[index] = &platform.TeachingArchiveTiming{}
+		go func() {
+			<-start
+			ctx := platform.WithTeachingArchiveTiming(context.Background(), timings[index])
+			_, err := repository.Create(ctx, testArchiveItem(index))
+			errs <- err
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 3; index++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("Create returned error: %v", err)
+		}
+	}
+	repository.Close()
+
+	if db.acquireCount != 1 {
+		t.Fatalf("Acquire count = %d want 1", db.acquireCount)
+	}
+	if db.releaseCount != 1 {
+		t.Fatalf("Release count = %d want 1", db.releaseCount)
+	}
+	if db.copyCount != 1 {
+		t.Fatalf("CopyFrom count = %d want 1", db.copyCount)
+	}
+	if len(db.statements) != 0 {
+		t.Fatalf("Exec statements = %d want 0", len(db.statements))
+	}
+	if got := strings.Join(db.copyTable, "."); got != "teaching_archive_items" {
+		t.Fatalf("copy table = %q want teaching_archive_items", got)
+	}
+	if strings.Join(db.copyColumns, ",") != "id,owner_type,student_id,material_type,title,source,content_ref,tags,analysis_intents,ocr_status,created_at" {
+		t.Fatalf("copy columns = %#v", db.copyColumns)
+	}
+	if len(db.copyRows) != 3 {
+		t.Fatalf("copy rows = %d want 3", len(db.copyRows))
+	}
+	copiedRow := findCopyRowByID(db.copyRows, "tarch_2")
+	if copiedRow == nil {
+		t.Fatalf("copy rows missing tarch_2: %#v", db.copyRows)
+	}
+	if copiedRow[2] != nil {
+		t.Fatalf("student id = %#v want nil", copiedRow[2])
+	}
+	if got := copiedRow[7]; got != `["performance"]` {
+		t.Fatalf("copied tags = %#v", got)
+	}
+	for index, timing := range timings {
+		if timing.DBBatchWait <= 0 {
+			t.Fatalf("timing[%d].DBBatchWait = %s want > 0", index, timing.DBBatchWait)
+		}
+		if timing.DBAcquire <= 0 {
+			t.Fatalf("timing[%d].DBAcquire = %s want > 0", index, timing.DBAcquire)
+		}
+		if timing.DBExec <= 0 {
+			t.Fatalf("timing[%d].DBExec = %s want > 0", index, timing.DBExec)
+		}
+		if timing.DBInsert <= 0 {
+			t.Fatalf("timing[%d].DBInsert = %s want > 0", index, timing.DBInsert)
+		}
+	}
+}
+
+func TestBatchingArchiveItemRepositoryCopyModeReturnsCopyErrorToWholeBatch(t *testing.T) {
+	copyErr := errors.New("archive copy failed")
+	db := &batchRecordingDB{copyErr: copyErr}
+	repository := postgres.NewBatchingArchiveItemRepository(db, postgres.ArchiveCreateBatchConfig{
+		MaxSize:  2,
+		MaxDelay: time.Second,
+		Mode:     postgres.ArchiveCreateBatchModeCopy,
+	})
+	defer repository.Close()
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+
+	for index := 0; index < 2; index++ {
+		index := index
+		go func() {
+			<-start
+			_, err := repository.Create(context.Background(), testArchiveItem(index))
+			errs <- err
+		}()
+	}
+	close(start)
+
+	for index := 0; index < 2; index++ {
+		if err := <-errs; !errors.Is(err, copyErr) {
+			t.Fatalf("Create error = %v want %v", err, copyErr)
+		}
+	}
+}
+
 func TestBatchingArchiveItemRepositoryReturnsInsertErrorToWholeBatch(t *testing.T) {
 	insertErr := errors.New("archive insert failed")
 	db := &batchRecordingDB{
@@ -236,7 +403,8 @@ func TestBatchingArchiveItemRepositoryReturnsInsertErrorToWholeBatch(t *testing.
 		index := index
 		go func() {
 			<-start
-			errs <- repository.Create(context.Background(), testArchiveItem(index))
+			_, err := repository.Create(context.Background(), testArchiveItem(index))
+			errs <- err
 		}()
 	}
 	close(start)
@@ -258,7 +426,8 @@ func TestBatchingArchiveItemRepositorySkipsCanceledRequestBeforeFlush(t *testing
 	ctx, cancel := context.WithCancel(context.Background())
 	firstErr := make(chan error, 1)
 	go func() {
-		firstErr <- repository.Create(ctx, testArchiveItem(1))
+		_, err := repository.Create(ctx, testArchiveItem(1))
+		firstErr <- err
 	}()
 
 	time.Sleep(10 * time.Millisecond)
@@ -266,7 +435,8 @@ func TestBatchingArchiveItemRepositorySkipsCanceledRequestBeforeFlush(t *testing
 
 	secondErr := make(chan error, 1)
 	go func() {
-		secondErr <- repository.Create(context.Background(), testArchiveItem(2))
+		_, err := repository.Create(context.Background(), testArchiveItem(2))
+		secondErr <- err
 	}()
 	if err := <-firstErr; !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled Create error = %v want context.Canceled", err)
@@ -295,7 +465,8 @@ func TestBatchingArchiveItemRepositoryCloseFlushesQueuedRequest(t *testing.T) {
 
 	errs := make(chan error, 1)
 	go func() {
-		errs <- repository.Create(context.Background(), testArchiveItem(3))
+		_, err := repository.Create(context.Background(), testArchiveItem(3))
+		errs <- err
 	}()
 
 	time.Sleep(10 * time.Millisecond)
@@ -323,7 +494,7 @@ func TestBatchingArchiveItemRepositoryCreateAfterCloseReturnsClosedError(t *test
 	})
 	repository.Close()
 
-	err := repository.Create(context.Background(), testArchiveItem(4))
+	_, err := repository.Create(context.Background(), testArchiveItem(4))
 	if !errors.Is(err, postgres.ErrArchiveRepositoryClosed) {
 		t.Fatalf("Create error = %v want %v", err, postgres.ErrArchiveRepositoryClosed)
 	}
@@ -536,15 +707,17 @@ func TestCreateAIGradingRequestInsertsMetadataOnly(t *testing.T) {
 		"source_archive_content_ref",
 		"source_quiz_submission_id",
 		"source_answer_ref",
+		"source_question_bank_draft_ref",
+		"source_question_bank_answer_submission_id",
 		"source_archive_ocr_status",
-		"VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), $12, $13, $14, $15)",
+		"VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), $14, $15, $16, $17)",
 	} {
 		if !strings.Contains(db.lastExecSQL, fragment) {
 			t.Fatalf("SQL missing %q in: %s", fragment, db.lastExecSQL)
 		}
 	}
-	if len(db.execArgs) != 15 {
-		t.Fatalf("args = %d, want 15", len(db.execArgs))
+	if len(db.execArgs) != 17 {
+		t.Fatalf("args = %d, want 17", len(db.execArgs))
 	}
 }
 
@@ -601,200 +774,4 @@ func TestRecordAIGradingResultRejectsAtomicFinalOverwrite(t *testing.T) {
 	if !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("error = %v, want ErrConflict", err)
 	}
-}
-
-type recordingDB struct {
-	lastSQL        string
-	lastExecSQL    string
-	args           []any
-	execArgs       []any
-	execStatements []string
-	execErrors     map[string]error
-	rows           postgres.Rows
-	tag            postgres.CommandTag
-	beginCount     int
-	commitCount    int
-	rollbackCount  int
-}
-
-func (db *recordingDB) Begin(_ context.Context) (postgres.Tx, error) {
-	db.beginCount += 1
-	return db, nil
-}
-
-func (db *recordingDB) Commit(_ context.Context) error {
-	db.commitCount += 1
-	return nil
-}
-
-func (db *recordingDB) Rollback(_ context.Context) error {
-	db.rollbackCount += 1
-	return nil
-}
-
-func (db *recordingDB) Exec(_ context.Context, statement string, args ...any) (postgres.CommandTag, error) {
-	db.lastExecSQL = statement
-	db.execStatements = append(db.execStatements, statement)
-	db.execArgs = append([]any(nil), args...)
-	for fragment, err := range db.execErrors {
-		if strings.Contains(statement, fragment) {
-			return nil, err
-		}
-	}
-	if db.tag == nil {
-		return commandTag{rowsAffected: 1}, nil
-	}
-	return db.tag, nil
-}
-
-func (db *recordingDB) Query(_ context.Context, query string, args ...any) (postgres.Rows, error) {
-	db.lastSQL = query
-	db.args = append([]any(nil), args...)
-	if db.rows == nil {
-		return &emptyRows{}, nil
-	}
-	return db.rows, nil
-}
-
-type batchRecordingDB struct {
-	mu              sync.Mutex
-	statements      []string
-	args            []any
-	acquireCount    int
-	releaseCount    int
-	failOnStatement string
-	failErr         error
-}
-
-func (db *batchRecordingDB) Exec(_ context.Context, statement string, args ...any) (postgres.CommandTag, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	db.statements = append(db.statements, statement)
-	db.args = append([]any(nil), args...)
-	if db.failOnStatement != "" && strings.Contains(statement, db.failOnStatement) {
-		return nil, db.failErr
-	}
-	return commandTag{rowsAffected: 1}, nil
-}
-
-func (db *batchRecordingDB) Query(_ context.Context, _ string, _ ...any) (postgres.Rows, error) {
-	return &emptyRows{}, nil
-}
-
-func (db *batchRecordingDB) Acquire(context.Context) (postgres.Conn, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	db.acquireCount += 1
-	return batchRecordingConn{db: db}, nil
-}
-
-type batchRecordingConn struct {
-	db *batchRecordingDB
-}
-
-func (conn batchRecordingConn) Exec(ctx context.Context, statement string, args ...any) (postgres.CommandTag, error) {
-	return conn.db.Exec(ctx, statement, args...)
-}
-
-func (conn batchRecordingConn) Release() {
-	conn.db.mu.Lock()
-	defer conn.db.mu.Unlock()
-	conn.db.releaseCount += 1
-}
-
-func testArchiveItem(index int) domain.ArchiveItem {
-	createdAt := time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC)
-	return domain.ArchiveItem{
-		ID:              "tarch_" + strconv.Itoa(index),
-		OwnerType:       domain.OwnerTypeTeaching,
-		MaterialType:    domain.MaterialTypeQuiz,
-		Title:           "Week 3 Quiz",
-		Source:          domain.SourceTeacherUpload,
-		ContentRef:      "local://archive/quiz-" + strconv.Itoa(index) + ".json",
-		Tags:            []string{"performance"},
-		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentAIGrading, domain.AnalysisIntentArchiveOnly},
-		OCRStatus:       domain.OCRStatusReserved,
-		CreatedAt:       createdAt.Add(time.Duration(index) * time.Second),
-	}
-}
-
-type singleStringRow struct {
-	value    string
-	advanced bool
-}
-
-func (r *singleStringRow) Close() {}
-
-func (r *singleStringRow) Next() bool {
-	if r.advanced {
-		return false
-	}
-	r.advanced = true
-	return true
-}
-
-func (r *singleStringRow) Scan(dest ...any) error {
-	*(dest[0].(*string)) = r.value
-	return nil
-}
-
-func (r *singleStringRow) Err() error {
-	return nil
-}
-
-type singleTutoringAnalysisRequestRow struct {
-	advanced            bool
-	status              domain.TutoringAnalysisStatus
-	claimedByWorkerID   string
-	claimExpiresAt      time.Time
-	claimExpiresAtValid bool
-}
-
-func (r *singleTutoringAnalysisRequestRow) Close() {}
-
-func (r *singleTutoringAnalysisRequestRow) Next() bool {
-	if r.advanced {
-		return false
-	}
-	r.advanced = true
-	return true
-}
-
-func (r *singleTutoringAnalysisRequestRow) Scan(dest ...any) error {
-	*(dest[0].(*string)) = "tutor_req_row"
-	*(dest[1].(*string)) = "tarch_001"
-	*(dest[2].(*string)) = "teacher_001"
-	*(dest[3].(*string)) = "find weak skills"
-	*(dest[4].(*string)) = string(domain.QuestionBankIntentGeneratePersonalizedCheck)
-	status := r.status
-	if status == "" {
-		status = domain.TutoringAnalysisStatusQueued
-	}
-	*(dest[5].(*string)) = string(status)
-	*(dest[6].(*string)) = string(domain.OwnerTypeStudent)
-	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
-	*(dest[8].(*string)) = string(domain.MaterialTypeQuiz)
-	*(dest[9].(*sql.NullString)) = sql.NullString{}
-	*(dest[10].(*sql.NullString)) = sql.NullString{}
-	*(dest[11].(*sql.NullString)) = sql.NullString{}
-	*(dest[12].(*sql.NullString)) = sql.NullString{}
-	*(dest[13].(*sql.NullString)) = sql.NullString{}
-	*(dest[14].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
-	*(dest[15].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
-	*(dest[16].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[17].(*sql.NullTime)) = sql.NullTime{}
-	*(dest[18].(*sql.NullTime)) = sql.NullTime{}
-	return nil
-}
-
-func (r *singleTutoringAnalysisRequestRow) Err() error {
-	return nil
-}
-
-type commandTag struct {
-	rowsAffected int64
-}
-
-func (tag commandTag) RowsAffected() int64 {
-	return tag.rowsAffected
 }

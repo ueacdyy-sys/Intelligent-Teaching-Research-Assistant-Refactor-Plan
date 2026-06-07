@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "2026-06-05.research.deep-research-intent.invoke.v1",
+  "intentInvocationId": "deep_research_intent_inv_001",
+  "agentTask": {
+    "schemaVersion": "2026-06-04.agent.task.v1",
+    "taskId": "agent_task_research_deep_001",
+    "requestedByPrincipalId": "teacher_001",
+    "principalContextRef": "principal-context:teacher_001:session_research_001",
+    "userIntent": "对科研模式里的多模型融合回答做深度研究，但先进入审批队列。",
+    "taskKind": "RESEARCH",
+    "rootRequirementAnchors": ["科研模式", "对话", "多个多模态模型融合回答", "节点"],
+    "riskLevel": "MEDIUM",
+    "writeIntent": false,
+    "requiresHumanApproval": true,
+    "routePolicy": {
+      "allowedModes": ["SINGLE_WORKER"],
+      "preferSingleWorker": true,
+      "swarmRequiredWhen": []
+    },
+    "budgets": {
+      "maxAgentLoops": 1,
+      "maxSkillCalls": 1,
+      "maxTokens": 12000,
+      "p99BudgetMs": 50
+    }
+  },
+  "principalContext": {
+    "principalId": "teacher_001",
+    "subjectType": "USER",
+    "role": "TEACHER",
+    "entryPoint": "DESKTOP_TEACHER",
+    "scopes": ["RESEARCH_READ", "KNOWLEDGE_PUBLIC_READ", "KNOWLEDGE_PRIVATE_READ"]
+  },
+  "sharedContext": {
+    "schemaVersion": "2026-06-04.agent.shared-context.v1",
+    "contextId": "shared_ctx_research_deep_001",
+    "principalContextRef": "principal-context:teacher_001:session_research_001",
+    "sessionId": "session_research_001",
+    "taskId": "agent_task_research_deep_001",
+    "rootRequirementAnchors": ["科研模式", "知识库", "统筹智能体"],
+    "dataScopes": {
+      "principal": "teacher:research",
+      "teaching": "NONE",
+      "student": "NONE",
+      "research": "READ",
+      "knowledge": "PRIVATE_ASSIGNED",
+      "tool": "NONE"
+    },
+    "evidenceRefs": ["evidence:shared-context:research-deep-001"],
+    "redactionState": {
+      "mode": "STRICT",
+      "studentDataRedacted": true,
+      "privateKnowledgeRedacted": false,
+      "externalModelAllowed": false
+    }
+  },
+  "guardrailResult": {
+    "schemaVersion": "2026-06-04.agent.guardrail-result.v1",
+    "guardrailId": "guardrail_deep_research_review_001",
+    "taskId": "agent_task_research_deep_001",
+    "skillId": "deep_research",
+    "decision": "APPROVAL_REQUIRED",
+    "reasons": ["Deep research must be queued and reviewed before execution."],
+    "harnessActionRequired": true,
+    "rollbackRequired": false,
+    "evidenceRequired": true,
+    "directDatabaseWriteAllowed": false,
+    "safetyChecks": [
+      { "checkId": "student_archive_denied", "status": "PASS" },
+      { "checkId": "sync_final_answer_denied", "status": "PASS" },
+      { "checkId": "external_model_now_denied", "status": "PASS" }
+    ]
+  },
+  "routeDecision": {
+    "schemaVersion": "2026-06-04.agent.route-decision.v1",
+    "routeId": "route_research_deep_001",
+    "taskId": "agent_task_research_deep_001",
+    "mode": "SINGLE_WORKER",
+    "leadAgent": "LeadAgent",
+    "workerAgents": ["ResearchAgent"],
+    "selectedSkills": ["deep_research"],
+    "rationale": "Admit a deep research intent without starting full RAG synthesis.",
+    "deniedSkills": ["external_app_action", "draft_model_job"],
+    "fallbackPlan": {
+      "mode": "PENDING_REVIEW",
+      "reason": "Teacher reviews the job intent before execution.",
+      "humanReviewPoint": "Review source policy, budget, and model/synthesis permissions."
+    },
+    "p99BudgetMs": 50,
+    "conflictPolicy": { "detectConflicts": true, "resolutionMode": "LEAD_AGENT_MERGE" }
+  },
+  "researchQuestion": "比较多模态模型融合回答在科研模式中的证据链风险和可控重构路径。",
+  "objectives": [
+    "定位可引用知识来源",
+    "形成待审批的深度研究任务",
+    "避免同步生成最终结论"
+  ],
+  "sourcePolicy": {
+    "allowedClassifications": ["PUBLIC", "PRIVATE"],
+    "includeStudentArchive": false,
+    "includeRemoteDeviceSources": false,
+    "directDatabaseAccessAllowed": false,
+    "knowledgeBaseRefs": ["public_curriculum_knowledge", "private_research_notes"]
+  },
+  "asyncPolicy": {
+    "admissionOnly": true,
+    "executeAsyncNow": false,
+    "externalModelCallNowAllowed": false,
+    "ragSynthesisNowAllowed": false,
+    "finalAnswerNowAllowed": false,
+    "directPublicationAllowed": false,
+    "localToolMutationAllowed": false,
+    "humanReviewRequiredBeforeExecution": true,
+    "queueName": "research_deep_research"
+  },
+  "budget": {
+    "maxAsyncRuntimeMs": 120000,
+    "maxSourceRefs": 12,
+    "maxDeferredModelCalls": 4,
+    "maxRetrievedChunks": 40,
+    "p99AdmissionBudgetMs": 50
+  },
+  "evidenceRefs": ["root_req_research_mode", "knowledge_policy_current"]
+}

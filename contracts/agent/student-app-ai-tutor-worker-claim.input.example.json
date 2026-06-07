@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "2026-06-05.student-app.ai-tutor-worker-claim.v1",
+  "claimInvocationId": "student_app_ai_tutor_worker_claim_001",
+  "principal": {
+    "principalId": "svc_student_tutor_worker",
+    "subjectType": "SERVICE",
+    "role": "SERVICE",
+    "entryPoint": "AGENT_INTERNAL",
+    "scopes": ["TEACHING_WRITE", "STUDENT_ARCHIVE_WRITE", "AGENT_COMMAND_SUBMIT"],
+    "sessionId": "svc_session_student_tutor_worker"
+  },
+  "worker": {
+    "workerId": "worker_student_tutor_local_01",
+    "agent": "StudentTutorAgent",
+    "skillId": "tutor_student",
+    "nodeType": "LOCAL",
+    "leaseSeconds": 120,
+    "maxConcurrentClaims": 1
+  },
+  "claimPolicy": {
+    "queueName": "student_app_ai_tutor",
+    "queueTable": "teaching_tutoring_analysis_requests",
+    "targetUseCase": "ClaimTutoringAnalysisRequest.Execute",
+    "repositoryOperation": "ArchiveRepository.ClaimNextTutoringAnalysisRequest",
+    "atomicSkipLockedRequired": true,
+    "leaseRequired": true,
+    "executeModelNowAllowed": false,
+    "recordResultNowAllowed": false,
+    "questionBankDraftNowAllowed": false,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "evidenceRefs": [
+    "evidence:student-app-ai-tutor-request:tutor_req_student_app_001"
+  ],
+  "idempotencyKey": "student-app-ai-tutor-worker-claim:worker_student_tutor_local_01:20260605T000000Z"
+}

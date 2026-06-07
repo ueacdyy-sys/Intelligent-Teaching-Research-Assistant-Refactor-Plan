@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -108,6 +109,7 @@ func TestPasswordSessionReturnsPrincipalContext(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
+	assertIdentityServerTiming(t, response)
 
 	var body map[string]any
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
@@ -156,6 +158,7 @@ func TestGetPrincipalReturnsExistingPrincipal(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
+	assertIdentityServerTiming(t, response)
 	if !bytes.Contains(response.Body.Bytes(), []byte(`"entryPoint":"STUDENT_APP"`)) {
 		t.Fatalf("body = %s", response.Body.String())
 	}
@@ -371,6 +374,14 @@ func TestCompleteWeChatSessionReturnsPrincipalContext(t *testing.T) {
 
 func newTestHandler() http.Handler {
 	return httpapi.NewServer(newTestIdentityService(), "ueacd").Handler()
+}
+
+func assertIdentityServerTiming(t *testing.T, response *httptest.ResponseRecorder) {
+	t.Helper()
+	value := response.Header().Get("Server-Timing")
+	if !strings.Contains(value, "app;dur=") {
+		t.Fatalf("Server-Timing missing app duration: %q", value)
+	}
 }
 
 func newDiagnosticsTestHandler(provider platform.SessionDBPoolStatsProvider) http.Handler {

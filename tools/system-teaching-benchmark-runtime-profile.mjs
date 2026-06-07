@@ -13,6 +13,20 @@ export const systemTeachingBenchmarkDefaults = {
   teachingArchiveCreateBatchSize: "1",
   teachingArchiveCreateBatchDelayMs: "0",
   teachingArchiveCreateBatchWorkers: "1",
+  teachingArchiveCreateBatchMode: "insert",
+  teachingQuizSubmissionBatchSize: "",
+  teachingQuizSubmissionBatchDelayMs: "",
+  teachingQuizSubmissionBatchWorkers: "",
+  teachingWriteAcceptanceMode: "sync",
+  teachingCommandLogPath: "",
+  teachingCommandLogAppendBatchSize: "64",
+  teachingCommandLogQueueCapacity: "65536",
+  teachingCommandLogProjectionWorkers: "4",
+  teachingCommandLogSync: "true",
+  teachingCommandLogSettleTimeoutMs: "0",
+  teachingArchiveListCacheTtlMs: "0",
+  teachingArchiveListCacheMaxEntries: "1024",
+  teachingArchiveSchemaIndexProfile: "full",
 };
 
 export function systemTeachingBenchmarkRuntime(options) {
@@ -60,6 +74,34 @@ export function systemTeachingBenchmarkRuntimeArgs(options) {
     options.teachingArchiveCreateBatchDelayMs,
     "--archive-create-batch-workers",
     options.teachingArchiveCreateBatchWorkers,
+    "--archive-create-batch-mode",
+    options.teachingArchiveCreateBatchMode,
+    "--quiz-submission-batch-size",
+    teachingQuizSubmissionBatchSize(options),
+    "--quiz-submission-batch-delay-ms",
+    teachingQuizSubmissionBatchDelayMs(options),
+    "--quiz-submission-batch-workers",
+    teachingQuizSubmissionBatchWorkers(options),
+    "--teaching-write-acceptance-mode",
+    teachingWriteAcceptanceMode(options),
+    "--teaching-command-log-path",
+    options.teachingCommandLogPath,
+    "--teaching-command-log-append-batch-size",
+    options.teachingCommandLogAppendBatchSize,
+    "--teaching-command-log-queue-capacity",
+    options.teachingCommandLogQueueCapacity,
+    "--teaching-command-log-projection-workers",
+    options.teachingCommandLogProjectionWorkers,
+    "--teaching-command-log-sync",
+    options.teachingCommandLogSync,
+    "--teaching-command-log-settle-timeout-ms",
+    options.teachingCommandLogSettleTimeoutMs,
+    "--archive-list-cache-ttl-ms",
+    options.teachingArchiveListCacheTtlMs,
+    "--archive-list-cache-max-entries",
+    options.teachingArchiveListCacheMaxEntries,
+    "--archive-schema-index-profile",
+    options.teachingArchiveSchemaIndexProfile,
   ];
 }
 
@@ -71,6 +113,19 @@ export function buildSystemTeachingTransportProfile(options) {
     teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
     teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
     teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
+    teachingArchiveCreateBatchMode: archiveCreateBatchMode(options.teachingArchiveCreateBatchMode),
+    teachingQuizSubmissionBatchSize: parseInteger(teachingQuizSubmissionBatchSize(options)),
+    teachingQuizSubmissionBatchDelayMs: parseInteger(teachingQuizSubmissionBatchDelayMs(options)),
+    teachingQuizSubmissionBatchWorkers: parseInteger(teachingQuizSubmissionBatchWorkers(options)),
+    teachingWriteAcceptanceMode: teachingWriteAcceptanceMode(options),
+    teachingCommandLogAppendBatchSize: parseInteger(options.teachingCommandLogAppendBatchSize),
+    teachingCommandLogQueueCapacity: parseInteger(options.teachingCommandLogQueueCapacity),
+    teachingCommandLogProjectionWorkers: parseInteger(options.teachingCommandLogProjectionWorkers),
+    teachingCommandLogSync: parseBoolean(options.teachingCommandLogSync),
+    teachingCommandLogSettleTimeoutMs: parseInteger(options.teachingCommandLogSettleTimeoutMs),
+    teachingArchiveListCacheTtlMs: parseInteger(options.teachingArchiveListCacheTtlMs),
+    teachingArchiveListCacheMaxEntries: parseInteger(options.teachingArchiveListCacheMaxEntries),
+    teachingArchiveSchemaIndexProfile: archiveSchemaIndexProfile(options.teachingArchiveSchemaIndexProfile),
   };
 }
 
@@ -81,6 +136,18 @@ export function assertSystemTeachingBenchmarkOptions(options) {
   assertNonNegativeInteger(options.teachingArchiveCreateBatchSize, "teaching-archive-create-batch-size");
   assertNonNegativeInteger(options.teachingArchiveCreateBatchDelayMs, "teaching-archive-create-batch-delay-ms");
   assertPositiveInteger(options.teachingArchiveCreateBatchWorkers, "teaching-archive-create-batch-workers");
+  assertArchiveCreateBatchMode(options.teachingArchiveCreateBatchMode, "teaching-archive-create-batch-mode");
+  assertNonNegativeInteger(teachingQuizSubmissionBatchSize(options), "teaching-quiz-submission-batch-size");
+  assertNonNegativeInteger(teachingQuizSubmissionBatchDelayMs(options), "teaching-quiz-submission-batch-delay-ms");
+  assertPositiveInteger(teachingQuizSubmissionBatchWorkers(options), "teaching-quiz-submission-batch-workers");
+  teachingWriteAcceptanceMode(options);
+  assertPositiveInteger(options.teachingCommandLogAppendBatchSize, "teaching-command-log-append-batch-size");
+  assertPositiveInteger(options.teachingCommandLogQueueCapacity, "teaching-command-log-queue-capacity");
+  assertPositiveInteger(options.teachingCommandLogProjectionWorkers, "teaching-command-log-projection-workers");
+  assertNonNegativeInteger(options.teachingCommandLogSettleTimeoutMs, "teaching-command-log-settle-timeout-ms");
+  assertNonNegativeInteger(options.teachingArchiveListCacheTtlMs, "teaching-archive-list-cache-ttl-ms");
+  assertPositiveInteger(options.teachingArchiveListCacheMaxEntries, "teaching-archive-list-cache-max-entries");
+  assertArchiveSchemaIndexProfile(options.teachingArchiveSchemaIndexProfile, "teaching-archive-schema-index-profile");
 }
 
 export function summarizeTeachingArchiveReport(report) {
@@ -108,12 +175,20 @@ export function summarizeTeachingArchiveReport(report) {
     dbExecP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.exec"]?.p99))),
     dbQueryP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.query"]?.p99))),
     dbInsertP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99))),
+    commandAppendP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["command.append"]?.p99))),
+    projectionEnqueueP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["projection.enqueue"]?.p99))),
+    responseEncodeP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["response.encode"]?.p99))),
+    cacheHitP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["cache.hit"]?.p99))),
+    cacheSharedWaitP99Ms: maxFinite(phases.map((phase) => numberOrNull(phase.serverTimingBreakdownMs?.["cache.shared_wait"]?.p99))),
+    gatewayReadProfile: report.gatewayReadProfile ?? null,
     gatewayWriteProfile: report.gatewayWriteProfile ?? null,
+    gatewaySchemaProfile: report.gatewaySchemaProfile ?? null,
     clientHandlerGapP99Ms: maxFinite(phases.map((phase) =>
       nullableDelta(numberOrNull(phase.latencyMs?.p99), numberOrNull(phase.serverTimingBreakdownMs?.handler?.p99))
     )),
     benchmarkRuntimeProfile: report.benchmarkRuntimeProfile ?? null,
     databaseDiagnostics: summarizeGatewayDatabaseDiagnostics(report.gatewayDatabaseDiagnostics),
+    commandLogDiagnostics: summarizeTeachingCommandLogDiagnostics(report.gatewayCommandLogDiagnostics),
   };
 }
 
@@ -143,6 +218,33 @@ function summarizeGatewaySnapshot(snapshot) {
   };
 }
 
+function summarizeTeachingCommandLogDiagnostics(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== "object") return undefined;
+  const summarized = Object.fromEntries(
+    ["before", "after", "settled"].map((snapshotName) => [snapshotName, summarizeCommandLogSnapshot(diagnostics[snapshotName])])
+      .filter(([_name, snapshot]) => snapshot !== undefined),
+  );
+  return Object.keys(summarized).length > 0 ? summarized : undefined;
+}
+
+function summarizeCommandLogSnapshot(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.gateways)) return undefined;
+  const gateways = snapshot.gateways;
+  const stats = gateways.map((gateway) => gateway.stats ?? {});
+  return {
+    gatewayCount: gateways.length,
+    okGateways: gateways.filter((gateway) => gateway.status === "OK").length,
+    unavailableGateways: gateways.filter((gateway) => gateway.status !== "OK").length,
+    acceptedCommands: sumFinite(stats.map((entry) => numberOrNull(entry.acceptedCommands))),
+    appendErrors: sumFinite(stats.map((entry) => numberOrNull(entry.appendErrors))),
+    projectionEnqueued: sumFinite(stats.map((entry) => numberOrNull(entry.projectionEnqueued))),
+    projectionSucceeded: sumFinite(stats.map((entry) => numberOrNull(entry.projectionSucceeded))),
+    projectionFailed: sumFinite(stats.map((entry) => numberOrNull(entry.projectionFailed))),
+    queueDepth: sumFinite(stats.map((entry) => numberOrNull(entry.queueDepth))),
+    maxOldestPendingAgeMs: maxFinite(stats.map((entry) => numberOrNull(entry.oldestPendingAgeMs))),
+  };
+}
+
 function systemTeachingBenchmarkRuntimeExecutor(runtime) {
   if (runtime === "docker") return "DOCKER_GO";
   if (runtime === "wsl") return "WSL_GO";
@@ -156,6 +258,26 @@ function teachingMaxConnsPerHost(options) {
 
 function teachingWarmConnectionsPerHost(options) {
   return optionOrFallback(options.teachingWarmConnectionsPerHost, options.warmConnectionsPerHost);
+}
+
+export function teachingQuizSubmissionBatchSize(options) {
+  return optionOrFallback(options.teachingQuizSubmissionBatchSize, options.teachingArchiveCreateBatchSize);
+}
+
+export function teachingQuizSubmissionBatchDelayMs(options) {
+  return optionOrFallback(options.teachingQuizSubmissionBatchDelayMs, options.teachingArchiveCreateBatchDelayMs);
+}
+
+export function teachingQuizSubmissionBatchWorkers(options) {
+  return optionOrFallback(options.teachingQuizSubmissionBatchWorkers, options.teachingArchiveCreateBatchWorkers);
+}
+
+export function teachingWriteAcceptanceMode(options) {
+  const normalized = String(options.teachingWriteAcceptanceMode ?? "sync").trim().toLowerCase();
+  if (normalized !== "sync" && normalized !== "durable-log") {
+    throw new Error("teaching-write-acceptance-mode must be sync or durable-log");
+  }
+  return normalized;
 }
 
 function optionOrFallback(value, fallback) {
@@ -178,6 +300,24 @@ function parseInteger(value) {
 
 function parseBoolean(value) {
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+function archiveCreateBatchMode(value) {
+  return String(value ?? "").trim().toLowerCase() === "copy" ? "copy" : "insert";
+}
+
+function archiveSchemaIndexProfile(value) {
+  return String(value ?? "").trim().toLowerCase() === "hot_write" ? "hot_write" : "full";
+}
+
+function assertArchiveCreateBatchMode(value, name) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized !== "insert" && normalized !== "copy") throw new Error(`${name} must be insert or copy`);
+}
+
+function assertArchiveSchemaIndexProfile(value, name) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized !== "full" && normalized !== "hot_write") throw new Error(`${name} must be full or hot_write`);
 }
 
 function numberOrNull(value) {

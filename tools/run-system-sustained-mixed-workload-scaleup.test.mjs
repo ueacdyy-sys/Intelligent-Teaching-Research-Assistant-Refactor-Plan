@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import {
+  fixedClock,
+  makeTempRoot,
+  pickOptions,
+  production10kTargetOptions,
+  sustainedReport,
+} from "./run-system-sustained-mixed-workload-scaleup-fixtures.test.mjs";
 import {
   buildScaleUpSteps,
   buildSystemSustainedMixedWorkloadScaleUpReport,
@@ -57,6 +63,12 @@ describe("system sustained mixed workload scale-up runner", () => {
       "smoke:2:4:8:16:2:4,edge:4:8:16:32:4:8:12000",
       "--samples",
       "3",
+      "--identity-dsn",
+      "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
+      "--conversation-dsn",
+      "postgres://app_user:ueacd@127.0.0.1:16433/intelligent_teaching_assistant?sslmode=disable",
+      "--teaching-dsn",
+      "postgres://app_user:ueacd@127.0.0.1:16434/intelligent_teaching_assistant?sslmode=disable",
       "--max-p99-ms",
       "800",
       "--max-p99-drift-ms",
@@ -93,6 +105,20 @@ describe("system sustained mixed workload scale-up runner", () => {
       "1",
       "--teaching-archive-create-batch-workers",
       "2",
+      "--teaching-archive-create-batch-mode",
+      "copy",
+      "--teaching-quiz-submission-batch-size",
+      "16",
+      "--teaching-quiz-submission-batch-delay-ms",
+      "0",
+      "--teaching-quiz-submission-batch-workers",
+      "8",
+      "--teaching-archive-list-cache-ttl-ms",
+      "250",
+      "--teaching-archive-list-cache-max-entries",
+      "4096",
+      "--teaching-archive-schema-index-profile",
+      "hot_write",
       "--teaching-gateway-count",
       "4",
       "--identity-benchmark-docker-image",
@@ -107,16 +133,28 @@ describe("system sustained mixed workload scale-up runner", () => {
       "150",
       "--identity-session-db-session-table-persistence",
       "UNLOGGED",
+      "--identity-session-db-read-max-conns",
+      "24",
+      "--identity-session-db-read-min-conns",
+      "12",
+      "--identity-session-db-read-prewarm-conns",
+      "12",
       "--identity-session-db-write-concurrency",
       "10",
+      "--identity-warmup-operations",
+      "80",
       "--stop-on-failure",
       "false",
     ]);
 
     assert.equal(parsed.stepPrefix, "reports/custom-scale");
     assert.equal(parsed.scaleProfile, "production10k");
+    assert.equal(parsed.dockerStack, "system-persistence");
     assert.equal(parsed.targetReadWriteRps, "12000");
     assert.equal(parsed.samples, "3");
+    assert.equal(parsed.identityDsn, "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable");
+    assert.equal(parsed.conversationDsn, "postgres://app_user:ueacd@127.0.0.1:16433/intelligent_teaching_assistant?sslmode=disable");
+    assert.equal(parsed.teachingDsn, "postgres://app_user:ueacd@127.0.0.1:16434/intelligent_teaching_assistant?sslmode=disable");
     assert.equal(parsed.maxP99Ms, "800");
     assert.equal(parsed.maxP99DriftMs, "120");
     assert.equal(parsed.conversationBenchmarkRuntime, "wsl");
@@ -137,6 +175,13 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.teachingArchiveCreateBatchSize, "96");
     assert.equal(parsed.teachingArchiveCreateBatchDelayMs, "1");
     assert.equal(parsed.teachingArchiveCreateBatchWorkers, "2");
+    assert.equal(parsed.teachingArchiveCreateBatchMode, "copy");
+    assert.equal(parsed.teachingQuizSubmissionBatchSize, "16");
+    assert.equal(parsed.teachingQuizSubmissionBatchDelayMs, "0");
+    assert.equal(parsed.teachingQuizSubmissionBatchWorkers, "8");
+    assert.equal(parsed.teachingArchiveListCacheTtlMs, "250");
+    assert.equal(parsed.teachingArchiveListCacheMaxEntries, "4096");
+    assert.equal(parsed.teachingArchiveSchemaIndexProfile, "hot_write");
     assert.equal(parsed.teachingGatewayCount, "4");
     assert.equal(parsed.identityBenchmarkDockerImage, "golang:1.26-alpine");
     assert.equal(parsed.identityBenchmarkDockerHost, "host.docker.internal");
@@ -144,11 +189,18 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
     assert.equal(parsed.identitySessionDbSessionTablePersistence, "unlogged");
+    assert.equal(parsed.identitySessionDbReadMaxConns, "24");
+    assert.equal(parsed.identitySessionDbReadMinConns, "12");
+    assert.equal(parsed.identitySessionDbReadPrewarmConns, "12");
     assert.equal(parsed.identitySessionDbWriteConcurrency, "10");
+    assert.equal(parsed.identityWarmupOperations, "80");
     assert.equal(parsed.stopOnFailure, "false");
   });
 
   it("builds isolated sustained step options", () => {
+    const identityDsn = "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable";
+    const conversationDsn = "postgres://app_user:ueacd@127.0.0.1:16433/intelligent_teaching_assistant?sslmode=disable";
+    const teachingDsn = "postgres://app_user:ueacd@127.0.0.1:16434/intelligent_teaching_assistant?sslmode=disable";
     const steps = buildScaleUpSteps({
       ...defaults,
       stepPrefix: "reports/scaleup",
@@ -157,6 +209,9 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityBaseUrl: "http://127.0.0.1:19000",
       conversationBaseUrl: "http://127.0.0.1:19100",
       teachingBaseUrl: "http://127.0.0.1:19200",
+      identityDsn,
+      conversationDsn,
+      teachingDsn,
       maxConnsPerHost: "70",
       warmConnectionsPerHost: "9",
       identityMaxConnsPerHost: "150",
@@ -166,8 +221,14 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbMinConns: "6",
+      identitySessionDbPrewarmConns: "6",
+      identitySessionDbReadMaxConns: "24",
+      identitySessionDbReadMinConns: "12",
+      identitySessionDbReadPrewarmConns: "12",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      identityWarmupOperations: "80",
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
@@ -188,6 +249,13 @@ describe("system sustained mixed workload scale-up runner", () => {
       teachingArchiveCreateBatchSize: "64",
       teachingArchiveCreateBatchDelayMs: "1",
       teachingArchiveCreateBatchWorkers: "2",
+      teachingArchiveCreateBatchMode: "copy",
+      teachingQuizSubmissionBatchSize: "16",
+      teachingQuizSubmissionBatchDelayMs: "0",
+      teachingQuizSubmissionBatchWorkers: "8",
+      teachingArchiveListCacheTtlMs: "250",
+      teachingArchiveListCacheMaxEntries: "4096",
+      teachingArchiveSchemaIndexProfile: "hot_write",
     });
 
     assert.deepEqual(steps.map((step) => step.name), ["smoke", "low"]);
@@ -203,6 +271,9 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.identityBaseUrl, "http://127.0.0.1:19000");
     assert.equal(steps[0].options.conversationBaseUrl, "http://127.0.0.1:19100");
     assert.equal(steps[0].options.teachingBaseUrl, "http://127.0.0.1:19200");
+    assert.equal(steps[0].options.identityDsn, identityDsn);
+    assert.equal(steps[0].options.conversationDsn, conversationDsn);
+    assert.equal(steps[0].options.teachingDsn, teachingDsn);
     assert.equal(steps[0].options.teachingGatewayCount, "3");
     assert.equal(steps[0].options.maxConnsPerHost, "70");
     assert.equal(steps[0].options.identityMaxConnsPerHost, "150");
@@ -210,8 +281,14 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.identityIngressPort, "19080");
     assert.equal(steps[0].options.identityIngressCount, "16");
     assert.equal(steps[0].options.identityIngressMaxConnsPerHost, "40");
+    assert.equal(steps[0].options.identitySessionDbMinConns, "6");
+    assert.equal(steps[0].options.identitySessionDbPrewarmConns, "6");
+    assert.equal(steps[0].options.identitySessionDbReadMaxConns, "24");
+    assert.equal(steps[0].options.identitySessionDbReadMinConns, "12");
+    assert.equal(steps[0].options.identitySessionDbReadPrewarmConns, "12");
     assert.equal(steps[0].options.identitySessionDbSessionTablePersistence, "unlogged");
     assert.equal(steps[0].options.identitySessionDbWriteConcurrency, "10");
+    assert.equal(steps[0].options.identityWarmupOperations, "80");
     assert.equal(steps[0].options.conversationBenchmarkRuntime, "wsl");
     assert.equal(steps[0].options.conversationWriteBatchWorkers, "2");
     assert.equal(steps[0].options.conversationWriteBatchMode, "copy");
@@ -230,6 +307,13 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(steps[0].options.teachingArchiveCreateBatchSize, "64");
     assert.equal(steps[0].options.teachingArchiveCreateBatchDelayMs, "1");
     assert.equal(steps[0].options.teachingArchiveCreateBatchWorkers, "2");
+    assert.equal(steps[0].options.teachingArchiveCreateBatchMode, "copy");
+    assert.equal(steps[0].options.teachingQuizSubmissionBatchSize, "16");
+    assert.equal(steps[0].options.teachingQuizSubmissionBatchDelayMs, "0");
+    assert.equal(steps[0].options.teachingQuizSubmissionBatchWorkers, "8");
+    assert.equal(steps[0].options.teachingArchiveListCacheTtlMs, "250");
+    assert.equal(steps[0].options.teachingArchiveListCacheMaxEntries, "4096");
+    assert.equal(steps[0].options.teachingArchiveSchemaIndexProfile, "hot_write");
   });
 
   it("runs every scale-up step and writes a passed report", async () => {
@@ -406,6 +490,9 @@ describe("system sustained mixed workload scale-up runner", () => {
       ...defaults,
       steps: "smoke:2:4:8:16,low:4:8:16:32",
       maxP99Ms: "100",
+      identityDsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
+      conversationDsn: "postgres://app_user:ueacd@127.0.0.1:16433/intelligent_teaching_assistant?sslmode=disable",
+      teachingDsn: "postgres://app_user:ueacd@127.0.0.1:16434/intelligent_teaching_assistant?sslmode=disable",
       maxConnsPerHost: "70",
       warmConnectionsPerHost: "9",
       identityMaxConnsPerHost: "150",
@@ -415,8 +502,14 @@ describe("system sustained mixed workload scale-up runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbMinConns: "6",
+      identitySessionDbPrewarmConns: "6",
+      identitySessionDbReadMaxConns: "24",
+      identitySessionDbReadMinConns: "12",
+      identitySessionDbReadPrewarmConns: "12",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      identityWarmupOperations: "80",
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
@@ -436,6 +529,13 @@ describe("system sustained mixed workload scale-up runner", () => {
       teachingArchiveCreateBatchSize: "64",
       teachingArchiveCreateBatchDelayMs: "1",
       teachingArchiveCreateBatchWorkers: "2",
+      teachingArchiveCreateBatchMode: "copy",
+      teachingQuizSubmissionBatchSize: "16",
+      teachingQuizSubmissionBatchDelayMs: "0",
+      teachingQuizSubmissionBatchWorkers: "8",
+      teachingArchiveListCacheTtlMs: "250",
+      teachingArchiveListCacheMaxEntries: "4096",
+      teachingArchiveSchemaIndexProfile: "hot_write",
     };
     const steps = buildScaleUpSteps({
       ...options,
@@ -463,6 +563,10 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.throughputTarget.attempted, false);
     assert.equal(report.summary.firstBlockedStep, "low");
     assert.equal(report.steps[1].guardrailFindings.find((finding) => finding.id === "step.max_p99_within_guardrail").passed, false);
+    assert.equal(report.persistenceProfile.mode, "isolated");
+    assert.equal(report.persistenceProfile.domainCount, 3);
+    assert.equal(report.persistenceProfile.domains.conversation.port, 16433);
+    assert.equal(report.persistenceProfile.domains.teaching.password, "[masked]");
     assert.deepEqual(report.transportProfile, {
       sharedMaxConnsPerHost: 70,
       sharedWarmConnectionsPerHost: 9,
@@ -472,6 +576,19 @@ describe("system sustained mixed workload scale-up runner", () => {
       teachingArchiveCreateBatchSize: 64,
       teachingArchiveCreateBatchDelayMs: 1,
       teachingArchiveCreateBatchWorkers: 2,
+      teachingArchiveCreateBatchMode: "copy",
+      teachingQuizSubmissionBatchSize: 16,
+      teachingQuizSubmissionBatchDelayMs: 0,
+      teachingQuizSubmissionBatchWorkers: 8,
+      teachingWriteAcceptanceMode: "sync",
+      teachingCommandLogAppendBatchSize: 64,
+      teachingCommandLogQueueCapacity: 65536,
+      teachingCommandLogProjectionWorkers: 4,
+      teachingCommandLogSync: true,
+      teachingCommandLogSettleTimeoutMs: 0,
+      teachingArchiveListCacheTtlMs: 250,
+      teachingArchiveListCacheMaxEntries: 4096,
+      teachingArchiveSchemaIndexProfile: "hot_write",
       identityMaxConnsPerHost: 150,
       identityWarmConnectionsPerHost: 150,
     });
@@ -484,7 +601,13 @@ describe("system sustained mixed workload scale-up runner", () => {
       warmConnectionsPerHost: 16,
     });
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
+    assert.equal(report.databaseProfile.identitySessionDbMinConns, 6);
+    assert.equal(report.databaseProfile.identitySessionDbPrewarmConns, 6);
+    assert.equal(report.databaseProfile.identitySessionDbReadMaxConns, 24);
+    assert.equal(report.databaseProfile.identitySessionDbReadMinConns, 12);
+    assert.equal(report.databaseProfile.identitySessionDbReadPrewarmConns, 12);
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    assert.equal(report.databaseProfile.identityWarmupOperations, 80);
     assert.equal(report.databaseProfile.conversationWriteBatchWorkers, 2);
     assert.equal(report.databaseProfile.conversationWriteBatchMode, "copy");
     assert.equal(report.databaseProfile.teachingDbMinConns, 12);
@@ -492,6 +615,11 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.databaseProfile.teachingArchiveCreateBatchSize, 64);
     assert.equal(report.databaseProfile.teachingArchiveCreateBatchDelayMs, 1);
     assert.equal(report.databaseProfile.teachingArchiveCreateBatchWorkers, 2);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchMode, "copy");
+    assert.equal(report.databaseProfile.teachingQuizSubmissionBatchSize, 16);
+    assert.equal(report.databaseProfile.teachingQuizSubmissionBatchDelayMs, 0);
+    assert.equal(report.databaseProfile.teachingQuizSubmissionBatchWorkers, 8);
+    assert.equal(report.databaseProfile.teachingArchiveSchemaIndexProfile, "hot_write");
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
@@ -642,158 +770,3 @@ describe("system sustained mixed workload scale-up runner", () => {
     assert.equal(report.summary.maxP99DriftMs, null);
   });
 });
-
-function sustainedReport(options, overrides = {}) {
-  const errors = overrides.errors ?? 0;
-  const status = overrides.status ?? "PASSED";
-  const maxP99Ms = overrides.maxP99Ms ?? Number(options.conversationConcurrency) + 10;
-  const p99DriftMs = Object.hasOwn(overrides, "p99DriftMs") ? overrides.p99DriftMs : 0;
-  const readWriteRps = overrides.readWriteRps ?? 370;
-  const sampleCount = Number(options.samples);
-  return {
-    status,
-    summary: {
-      executedSamples: Number(options.samples),
-      totalErrors: errors,
-      maxP95Ms: maxP99Ms * 0.8,
-      maxP99Ms,
-      p99DriftMs,
-      readWriteRps,
-      aggregateReadWriteRps: readWriteRps,
-      minPassedReadWriteRps: readWriteRps,
-      maxPassedReadWriteRps: readWriteRps,
-    },
-    samples: Array.from({ length: sampleCount }, (_entry, index) => ({
-      name: `sample-${index + 1}`,
-      readWriteRps,
-      aggregateRps: readWriteRps,
-      workloads: [
-        workload("identity_http", index === 0 ? errors : 0, maxP99Ms, identitySummary(index)),
-        workload("conversation_write", 0, maxP99Ms - 1, conversationSummary(index)),
-        workload("teaching_archive", 0, maxP99Ms - 2, { rps: 70 }),
-      ],
-    })),
-  };
-}
-
-function workload(name, errors, p99Ms, summary = undefined) {
-  return {
-    name,
-    errors,
-    p99Ms,
-    summary,
-  };
-}
-
-function identitySummary(index) {
-  return {
-    errors: 0,
-    rps: index === 0 ? 90 : 85,
-    dominantPhase: "revokeCycle",
-    dominantPhaseP99Ms: index === 0 ? 66 : 88,
-    phases: {
-      passwordLogin: {
-        errors: 0,
-        p95Ms: index === 0 ? 20 : 25,
-        p99Ms: index === 0 ? 30 : 35,
-        rps: index === 0 ? 110 : 100,
-        sessionOperations: {
-          saveSession: {
-            count: index === 0 ? 16 : 24,
-            totalElapsedMs: index === 0 ? 160 : 360,
-            averageElapsedMs: index === 0 ? 10 : 15,
-          },
-        },
-        slowestSessionOperation: "saveSession",
-        slowestSessionOperationAverageElapsedMs: index === 0 ? 10 : 15,
-      },
-      revokeCycle: {
-        errors: 0,
-        p95Ms: index === 0 ? 60 : 80,
-        p99Ms: index === 0 ? 66 : 88,
-        rps: index === 0 ? 90 : 85,
-        slowestStep: "revoke",
-        slowestStepP99Ms: index === 0 ? 44 : 55,
-        sessionOperations: {
-          revokeOwnSession: {
-            count: index === 0 ? 16 : 24,
-            totalElapsedMs: index === 0 ? 320 : 720,
-            averageElapsedMs: index === 0 ? 20 : 30,
-          },
-          saveSession: {
-            count: index === 0 ? 16 : 24,
-            totalElapsedMs: index === 0 ? 240 : 480,
-            averageElapsedMs: index === 0 ? 15 : 20,
-          },
-        },
-        slowestSessionOperation: "revokeOwnSession",
-        slowestSessionOperationAverageElapsedMs: index === 0 ? 20 : 30,
-      },
-    },
-  };
-}
-
-function conversationSummary(index) {
-  return {
-    errors: 0,
-    rps: index === 0 ? 210 : 205,
-    clientServerGapP99Ms: index === 0 ? 77 : 101,
-    acceptanceMode: "durable-log",
-    commandAppendP99Ms: index === 0 ? 4 : 6,
-    projectionEnqueueP99Ms: index === 0 ? 1 : 2,
-    dbBatchWaitP99Ms: index === 0 ? 12 : 14,
-    benchmarkRuntimeProfile: {
-      executor: "WSL_GO",
-      wslDistro: "Ubuntu",
-      wslHostAlias: "172.28.160.1",
-      wslWorkspace: "/mnt/c/workspace",
-      targetBaseUrls: ["http://172.28.160.1:18100"],
-    },
-    runtimeDiagnostics: {
-      after: {
-        gatewayCount: 2,
-        okGateways: 2,
-        unavailableGateways: 0,
-        totalAcceptedConns: index === 0 ? 120 : 240,
-      },
-    },
-    commandLogDiagnostics: {
-      after: {
-        acceptedCommands: index === 0 ? 210 : 205,
-        projectionEnqueued: index === 0 ? 210 : 205,
-        projectionSucceeded: index === 0 ? 207 : 198,
-        projectionFailed: 0,
-        queueDepth: index === 0 ? 3 : 12,
-        maxOldestPendingAgeMs: index === 0 ? 5 : 9,
-      },
-    },
-  };
-}
-
-function makeTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "ita-sustained-scaleup-"));
-}
-
-function fixedClock() {
-  let tick = 0;
-  return () => `2026-06-01T00:00:0${tick++}.000Z`;
-}
-
-const production10kTargetOptions = {
-  identityConcurrency: "192", identityOperations: "768", conversationConcurrency: "2304", conversationOperations: "9216",
-  teachingConcurrency: "384", teachingOperations: "1536", identityGatewayCount: "8", conversationGatewayCount: "16",
-  teachingGatewayCount: "4", identitySessionDbMaxConns: "32", identitySessionDbSessionTablePersistence: "unlogged",
-  conversationDbMaxConns: "32", teachingDbMaxConns: "12", teachingDbMinConns: "12", teachingDbPrewarmConns: "12",
-  conversationWriteBatchSize: "128", conversationWriteBatchWorkers: "4", conversationWriteBatchMode: "copy",
-  conversationBenchmarkRuntime: "wsl", conversationBenchmarkWslHost: "172.28.160.1", maxConnsPerHost: "256",
-  warmConnectionsPerHost: "144", teachingBenchmarkRuntime: "docker", teachingMaxConnsPerHost: "128",
-  teachingWarmConnectionsPerHost: "96", teachingClientTrace: "true", teachingArchiveCreateBatchSize: "64",
-  teachingArchiveCreateBatchDelayMs: "0", teachingArchiveCreateBatchWorkers: "4", identityIngressProxy: "true",
-  identityIngressCount: "8", identityMaxConnsPerHost: "64", identityWarmConnectionsPerHost: "16",
-  identityIngressMaxConnsPerHost: "64", identityIngressWarmConnectionsPerHost: "8",
-  identityBenchmarkRuntime: "docker", requireTargetReadWriteRps: "true",
-};
-
-function pickOptions(options, expected) {
-  return Object.fromEntries(Object.keys(expected).map((key) => [key, options[key]]));
-}

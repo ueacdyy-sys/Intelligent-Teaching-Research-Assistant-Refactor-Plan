@@ -48,7 +48,7 @@ func (uc *CreateScannedQuizSubmission) Execute(
 	if err != nil {
 		return domain.QuizSubmission{}, err
 	}
-	if err := uc.repository.CreateQuizSubmission(ctx, submission); err != nil {
+	if _, err := uc.repository.CreateQuizSubmission(ctx, submission); err != nil {
 		return domain.QuizSubmission{}, err
 	}
 	return submission, nil

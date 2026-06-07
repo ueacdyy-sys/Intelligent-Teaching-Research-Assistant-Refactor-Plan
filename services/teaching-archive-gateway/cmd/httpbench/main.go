@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -22,6 +23,7 @@ type benchmarkConfig struct {
 	WarmConnectionsPerHost int
 	WarmConnectionRetries  int
 	ClientTrace            bool
+	WriteAcceptanceMode    string
 }
 
 type benchmarkReport struct {
@@ -97,6 +99,7 @@ func parseConfig() benchmarkConfig {
 	flag.IntVar(&config.WarmConnectionsPerHost, "warm-connections-per-host", 0, "optional keep-alive connections to prewarm per gateway host")
 	flag.IntVar(&config.WarmConnectionRetries, "warm-connection-retries", 3, "warm-up retries per connection after transient listener refusal")
 	flag.BoolVar(&config.ClientTrace, "client-trace", false, "capture per-request client-side httptrace timings")
+	flag.StringVar(&config.WriteAcceptanceMode, "write-acceptance-mode", getenv("TEACHING_WRITE_ACCEPTANCE_MODE", "sync"), "write acceptance mode: sync or durable-log")
 	flag.Parse()
 	return config
 }
@@ -119,6 +122,9 @@ func run(config benchmarkConfig) error {
 	}
 	if config.WarmConnectionRetries < 0 {
 		return errors.New("warm-connection-retries must be zero or positive")
+	}
+	if _, err := expectedWriteStatus(config); err != nil {
+		return err
 	}
 
 	baseURLs, err := parseBaseURLs(config.BaseURL)
@@ -181,4 +187,15 @@ func run(config benchmarkConfig) error {
 		return fmt.Errorf("teaching archive benchmark failed with %d errors", totalErrors)
 	}
 	return nil
+}
+
+func expectedWriteStatus(config benchmarkConfig) (int, error) {
+	switch config.WriteAcceptanceMode {
+	case "", "sync":
+		return http.StatusCreated, nil
+	case "durable-log":
+		return http.StatusAccepted, nil
+	default:
+		return 0, fmt.Errorf("write-acceptance-mode must be sync or durable-log: %q", config.WriteAcceptanceMode)
+	}
 }

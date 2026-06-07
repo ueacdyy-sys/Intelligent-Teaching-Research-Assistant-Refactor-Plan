@@ -1,0 +1,196 @@
+post:
+  operationId: submitTeachingArchiveMaterialDraftIntent
+  summary: Submit a review-only teaching archive material draft command intent.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - ownerType
+            - materialType
+            - title
+            - source
+            - sourceRefs
+            - draftArtifactRef
+            - analysisIntents
+            - sharedContextRef
+            - guardrailResultRef
+            - routeDecisionRef
+            - inputHash
+            - outputSummary
+            - approvalArtifactRef
+            - rollbackPlanRef
+            - auditTraceRef
+            - idempotencyKey
+          properties:
+            ownerType:
+              type: string
+              enum: [STUDENT, TEACHING]
+            studentId:
+              type: string
+              minLength: 1
+              maxLength: 128
+            materialType:
+              type: string
+              enum: [QUIZ, PAPER, HANDOUT, HOMEWORK, TEACHING_MATERIAL]
+            title:
+              type: string
+              minLength: 1
+              maxLength: 200
+            source:
+              type: string
+              enum: [TEACHER_UPLOAD, STUDENT_UPLOAD, SYSTEM_IMPORT]
+            sourceRefs:
+              type: array
+              minItems: 1
+              maxItems: 16
+              items:
+                type: string
+                minLength: 1
+                maxLength: 1000
+            draftArtifactRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            tags:
+              type: array
+              maxItems: 32
+              items:
+                type: string
+                minLength: 1
+                maxLength: 64
+            analysisIntents:
+              type: array
+              minItems: 1
+              maxItems: 8
+              items:
+                type: string
+                enum: [TUTORING, AI_GRADING, ARCHIVE_ONLY]
+            sharedContextRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            guardrailResultRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            routeDecisionRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            inputHash:
+              type: string
+              minLength: 1
+              maxLength: 200
+            outputSummary:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            approvalArtifactRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            rollbackPlanRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            auditTraceRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            idempotencyKey:
+              type: string
+              minLength: 1
+              maxLength: 200
+  responses:
+    '202':
+      description: Teaching archive material draft intent accepted for human review.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - requestedByPrincipalId
+              - sessionId
+              - ownerType
+              - materialType
+              - title
+              - source
+              - sourceRefs
+              - draftArtifactRef
+              - analysisIntents
+              - status
+              - approvalRequired
+              - eventType
+              - command
+            properties:
+              id:
+                type: string
+                pattern: '^archive_material_draft_intent_[A-Za-z0-9_-]+$'
+              requestedByPrincipalId:
+                type: string
+                minLength: 1
+              sessionId:
+                type: string
+                minLength: 1
+              ownerType:
+                type: string
+              studentId:
+                type: string
+              materialType:
+                type: string
+              title:
+                type: string
+              source:
+                type: string
+              sourceRefs:
+                type: array
+                items:
+                  type: string
+              draftArtifactRef:
+                type: string
+              tags:
+                type: array
+                items:
+                  type: string
+              analysisIntents:
+                type: array
+                items:
+                  type: string
+              status:
+                type: string
+                const: REVIEW_REQUIRED
+              approvalRequired:
+                type: boolean
+                const: true
+              eventType:
+                type: string
+                const: AGENT_WRITE_INTENT_REVIEW_REQUIRED
+              command:
+                type: object
+                additionalProperties: false
+                required: [id, status, resourceId]
+                properties:
+                  id:
+                    type: string
+                    pattern: '^cmd_archive_material_draft_intent_[A-Za-z0-9_-]+$'
+                  status:
+                    type: string
+                    const: accepted
+                  resourceId:
+                    type: string
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

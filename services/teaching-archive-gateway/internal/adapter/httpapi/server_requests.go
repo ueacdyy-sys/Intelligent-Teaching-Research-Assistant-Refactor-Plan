@@ -40,6 +40,49 @@ type createScannedQuizSubmissionRequest struct {
 	AnswerRef string `json:"answerRef"`
 }
 
+type submitQuestionBankDraftAnswerSubmissionRequest struct {
+	QuestionBankDraftRef string                                    `json:"questionBankDraftRef"`
+	Answers              []domain.QuestionBankDraftSubmittedAnswer `json:"answers"`
+}
+
+type submitTeachingQuizDraftIntentRequest struct {
+	Title               string                             `json:"title"`
+	SourceMaterialRefs  []string                           `json:"sourceMaterialRefs"`
+	LearningObjectives  []string                           `json:"learningObjectives"`
+	QuestionCount       int                                `json:"questionCount"`
+	Difficulty          domain.TeachingQuizDraftDifficulty `json:"difficulty,omitempty"`
+	SharedContextRef    string                             `json:"sharedContextRef"`
+	GuardrailResultRef  string                             `json:"guardrailResultRef"`
+	RouteDecisionRef    string                             `json:"routeDecisionRef"`
+	InputHash           string                             `json:"inputHash"`
+	OutputSummary       string                             `json:"outputSummary"`
+	ApprovalArtifactRef string                             `json:"approvalArtifactRef"`
+	RollbackPlanRef     string                             `json:"rollbackPlanRef"`
+	AuditTraceRef       string                             `json:"auditTraceRef"`
+	IdempotencyKey      string                             `json:"idempotencyKey"`
+}
+
+type submitTeachingArchiveMaterialDraftIntentRequest struct {
+	OwnerType           domain.OwnerType        `json:"ownerType"`
+	StudentID           string                  `json:"studentId,omitempty"`
+	MaterialType        domain.MaterialType     `json:"materialType"`
+	Title               string                  `json:"title"`
+	Source              domain.Source           `json:"source"`
+	SourceRefs          []string                `json:"sourceRefs"`
+	DraftArtifactRef    string                  `json:"draftArtifactRef"`
+	Tags                []string                `json:"tags,omitempty"`
+	AnalysisIntents     []domain.AnalysisIntent `json:"analysisIntents"`
+	SharedContextRef    string                  `json:"sharedContextRef"`
+	GuardrailResultRef  string                  `json:"guardrailResultRef"`
+	RouteDecisionRef    string                  `json:"routeDecisionRef"`
+	InputHash           string                  `json:"inputHash"`
+	OutputSummary       string                  `json:"outputSummary"`
+	ApprovalArtifactRef string                  `json:"approvalArtifactRef"`
+	RollbackPlanRef     string                  `json:"rollbackPlanRef"`
+	AuditTraceRef       string                  `json:"auditTraceRef"`
+	IdempotencyKey      string                  `json:"idempotencyKey"`
+}
+
 type recordTutoringAnalysisResultRequest struct {
 	Status               domain.TutoringAnalysisStatus `json:"status"`
 	WorkerID             string                        `json:"workerId"`
@@ -67,4 +110,8 @@ type claimTutoringAnalysisRequestRequest struct {
 type claimAIGradingRequestRequest struct {
 	WorkerID     string `json:"workerId"`
 	LeaseSeconds int    `json:"leaseSeconds,omitempty"`
+}
+
+type readQuestionBankDraftAnswerScoringInputRequest struct {
+	WorkerID string `json:"workerId"`
 }

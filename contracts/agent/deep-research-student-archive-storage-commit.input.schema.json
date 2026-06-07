@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-teaching-assistant.local/contracts/agent/deep-research-student-archive-storage-commit.input.schema.json",
+  "title": "Research deep_research student archive storage commit input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "commitInvocationId",
+    "studentArchiveStoragePrecommitOutput",
+    "studentArchiveCommitPolicy",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2026-06-05.research.deep-research-student-archive-storage-commit.v1"
+    },
+    "commitInvocationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "studentArchiveStoragePrecommitOutput": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schemaVersion",
+        "runtimeId",
+        "commandPort",
+        "status",
+        "recordId",
+        "teachingArchiveCreateCommand",
+        "boundary"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "2026-06-05.research.deep-research-student-archive-storage-precommit-prepared.v1"
+        },
+        "runtimeId": {
+          "const": "research_deep_research_student_archive_storage_precommit_runtime"
+        },
+        "commandPort": {
+          "const": "DeepResearchStudentArchiveStoragePrecommitPort.prepareTeachingArchiveCreateCommand"
+        },
+        "status": {
+          "const": "TEACHING_ARCHIVE_MAIN_DB_STORAGE_PRECOMMIT_PREPARED"
+        },
+        "teachingArchiveCreateCommand": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "operationId",
+            "targetUseCase",
+            "targetRepository",
+            "targetTable",
+            "principalContextHeader",
+            "requestBody"
+          ],
+          "properties": {
+            "operationId": { "const": "createTeachingArchiveItem" },
+            "targetUseCase": { "const": "CreateArchiveItem.ExecuteWithPersistence" },
+            "targetRepository": { "const": "ArchiveRepository.Create" },
+            "targetTable": { "const": "teaching_archive_items" },
+            "requestBody": {
+              "type": "object",
+              "required": ["ownerType", "studentId", "materialType", "title", "source", "contentRef", "analysisIntents"],
+              "properties": {
+                "ownerType": { "const": "STUDENT" },
+                "source": { "const": "SYSTEM_IMPORT" }
+              }
+            }
+          }
+        },
+        "boundary": {
+          "type": "object",
+          "properties": {
+            "mainDatabaseWritePrepared": { "const": true },
+            "mainDatabaseWriteStarted": { "const": false },
+            "mainDatabaseWriteCommitted": { "const": false },
+            "directDatabaseAccessAllowed": { "const": false },
+            "executeHttpRequestAllowed": { "const": false }
+          }
+        }
+      }
+    },
+    "studentArchiveCommitPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storagePrecommitRequired",
+        "teachingArchiveUseCaseCommitAllowed",
+        "injectedTeachingArchivePortRequired",
+        "teachingArchiveDomainValidationRequired",
+        "persistedOutcomeRequired",
+        "preserveProjectionEvidenceRequired",
+        "idempotentStorageCommitRequired",
+        "mainDatabaseWriteAllowed",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "directPublicationAllowed",
+        "externalModelCallAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "storagePrecommitRequired": { "const": true },
+        "teachingArchiveUseCaseCommitAllowed": { "const": true },
+        "injectedTeachingArchivePortRequired": { "const": true },
+        "teachingArchiveDomainValidationRequired": { "const": true },
+        "persistedOutcomeRequired": { "const": true },
+        "preserveProjectionEvidenceRequired": { "const": true },
+        "idempotentStorageCommitRequired": { "const": true },
+        "mainDatabaseWriteAllowed": { "const": true },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "directPublicationAllowed": { "const": false },
+        "externalModelCallAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 240,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 240
+    }
+  }
+}

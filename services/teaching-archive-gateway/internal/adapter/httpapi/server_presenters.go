@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
 func toListResponse(page domain.ArchiveItemPage) archiveItemListResponse {
@@ -37,6 +38,17 @@ func toResponse(item domain.ArchiveItem) archiveItemResponse {
 	}
 }
 
+func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
+	return archiveItemAcceptedResponse{
+		archiveItemResponse: toResponse(result.Item),
+		Command: commandResponse{
+			ID:         result.Persistence.CommandID,
+			Status:     string(result.Persistence.Status),
+			ResourceID: result.Item.ID,
+		},
+	}
+}
+
 func toQuizSubmissionResponse(submission domain.QuizSubmission) quizSubmissionResponse {
 	return quizSubmissionResponse{
 		ID:                     submission.ID,
@@ -46,6 +58,103 @@ func toQuizSubmissionResponse(submission domain.QuizSubmission) quizSubmissionRe
 		AnswerRef:              submission.AnswerRef,
 		Status:                 submission.Status,
 		SubmittedAt:            formatTime(submission.SubmittedAt),
+	}
+}
+
+func toAcceptedQuizSubmissionResponse(result usecase.CreateQuizSubmissionResult) quizSubmissionAcceptedResponse {
+	return quizSubmissionAcceptedResponse{
+		quizSubmissionResponse: toQuizSubmissionResponse(result.Submission),
+		Command: commandResponse{
+			ID:         result.Persistence.CommandID,
+			Status:     string(result.Persistence.Status),
+			ResourceID: result.Submission.ID,
+		},
+	}
+}
+
+func toTeachingQuizDraftIntentResponse(
+	intent domain.TeachingQuizDraftIntent,
+) teachingQuizDraftIntentResponse {
+	return teachingQuizDraftIntentResponse{
+		ID:                     intent.ID,
+		RequestedByPrincipalID: intent.RequestedByPrincipalID,
+		SessionID:              intent.SessionID,
+		Title:                  intent.Title,
+		SourceMaterialRefs:     intent.SourceMaterialRefs,
+		LearningObjectives:     intent.LearningObjectives,
+		QuestionCount:          intent.QuestionCount,
+		Difficulty:             intent.Difficulty,
+		Status:                 intent.Status,
+		ApprovalRequired:       intent.ApprovalRequired,
+		EventType:              intent.EventType,
+		SharedContextRef:       intent.SharedContextRef,
+		GuardrailResultRef:     intent.GuardrailResultRef,
+		RouteDecisionRef:       intent.RouteDecisionRef,
+		InputHash:              intent.InputHash,
+		OutputSummary:          intent.OutputSummary,
+		ApprovalArtifactRef:    intent.ApprovalArtifactRef,
+		RollbackPlanRef:        intent.RollbackPlanRef,
+		AuditTraceRef:          intent.AuditTraceRef,
+		IdempotencyKey:         intent.IdempotencyKey,
+		CreatedAt:              formatTime(intent.CreatedAt),
+	}
+}
+
+func toAcceptedTeachingQuizDraftIntentResponse(
+	result usecase.SubmitTeachingQuizDraftIntentResult,
+) teachingQuizDraftIntentAcceptedResponse {
+	return teachingQuizDraftIntentAcceptedResponse{
+		teachingQuizDraftIntentResponse: toTeachingQuizDraftIntentResponse(result.Intent),
+		Command: commandResponse{
+			ID:         result.Persistence.CommandID,
+			Status:     string(result.Persistence.Status),
+			ResourceID: result.Intent.ID,
+		},
+	}
+}
+
+func toTeachingArchiveMaterialDraftIntentResponse(
+	intent domain.TeachingArchiveMaterialDraftIntent,
+) teachingArchiveMaterialDraftIntentResponse {
+	return teachingArchiveMaterialDraftIntentResponse{
+		ID:                     intent.ID,
+		RequestedByPrincipalID: intent.RequestedByPrincipalID,
+		SessionID:              intent.SessionID,
+		OwnerType:              intent.OwnerType,
+		StudentID:              optionalString(intent.StudentID),
+		MaterialType:           intent.MaterialType,
+		Title:                  intent.Title,
+		Source:                 intent.Source,
+		SourceRefs:             intent.SourceRefs,
+		DraftArtifactRef:       intent.DraftArtifactRef,
+		Tags:                   intent.Tags,
+		AnalysisIntents:        intent.AnalysisIntents,
+		Status:                 intent.Status,
+		ApprovalRequired:       intent.ApprovalRequired,
+		EventType:              intent.EventType,
+		SharedContextRef:       intent.SharedContextRef,
+		GuardrailResultRef:     intent.GuardrailResultRef,
+		RouteDecisionRef:       intent.RouteDecisionRef,
+		InputHash:              intent.InputHash,
+		OutputSummary:          intent.OutputSummary,
+		ApprovalArtifactRef:    intent.ApprovalArtifactRef,
+		RollbackPlanRef:        intent.RollbackPlanRef,
+		AuditTraceRef:          intent.AuditTraceRef,
+		IdempotencyKey:         intent.IdempotencyKey,
+		CreatedAt:              formatTime(intent.CreatedAt),
+	}
+}
+
+func toAcceptedTeachingArchiveMaterialDraftIntentResponse(
+	result usecase.SubmitTeachingArchiveMaterialDraftIntentResult,
+) teachingArchiveMaterialDraftIntentAcceptedResponse {
+	return teachingArchiveMaterialDraftIntentAcceptedResponse{
+		teachingArchiveMaterialDraftIntentResponse: toTeachingArchiveMaterialDraftIntentResponse(result.Intent),
+		Command: commandResponse{
+			ID:         result.Persistence.CommandID,
+			Status:     string(result.Persistence.Status),
+			ResourceID: result.Intent.ID,
+		},
 	}
 }
 
@@ -96,6 +205,63 @@ func toStudentAppQuestionBankDraftResponse(
 	}
 }
 
+func toStudentAppQuestionBankDraftContentResponse(
+	content domain.QuestionBankDraftContent,
+) studentAppQuestionBankDraftContentResponse {
+	items := make([]questionBankDraftItemResponse, 0, len(content.Items))
+	for _, item := range content.Items {
+		items = append(items, questionBankDraftItemResponse{
+			ID:             item.ID,
+			QuestionText:   item.QuestionText,
+			LearningTarget: item.LearningTarget,
+		})
+	}
+	return studentAppQuestionBankDraftContentResponse{
+		QuestionBankDraftRef:      content.QuestionBankDraftRef,
+		TutoringAnalysisRequestID: content.TutoringAnalysisRequestID,
+		ArchiveItemID:             content.ArchiveItemID,
+		SourceArchiveMaterial:     content.SourceArchiveMaterial,
+		ResultSummary:             content.ResultSummary,
+		Items:                     items,
+		CreatedAt:                 formatTime(content.CreatedAt),
+		UpdatedAt:                 formatTime(content.UpdatedAt),
+	}
+}
+
+func toQuestionBankDraftAnswerSubmissionResponse(
+	submission domain.QuestionBankDraftAnswerSubmission,
+) questionBankDraftAnswerSubmissionResponse {
+	return questionBankDraftAnswerSubmissionResponse{
+		ID:                        submission.ID,
+		QuestionBankDraftRef:      submission.QuestionBankDraftRef,
+		TutoringAnalysisRequestID: submission.TutoringAnalysisRequestID,
+		ArchiveItemID:             submission.ArchiveItemID,
+		StudentID:                 submission.StudentID,
+		SubmittedByPrincipalID:    submission.SubmittedByPrincipalID,
+		Status:                    submission.Status,
+		AnswerCount:               len(submission.Answers),
+		SubmittedAt:               formatTime(submission.SubmittedAt),
+	}
+}
+
+func toStudentAppQuestionBankDraftAnswerScoringResultResponse(
+	result domain.QuestionBankDraftAnswerScoringResult,
+) questionBankDraftAnswerScoringResultResponse {
+	return questionBankDraftAnswerScoringResultResponse{
+		SubmissionID:              result.SubmissionID,
+		RequestID:                 result.RequestID,
+		QuestionBankDraftRef:      result.QuestionBankDraftRef,
+		TutoringAnalysisRequestID: result.TutoringAnalysisRequestID,
+		ArchiveItemID:             result.ArchiveItemID,
+		Status:                    result.Status,
+		ScoreSummary:              optionalString(result.ScoreSummary),
+		ErrorCode:                 optionalString(result.ErrorCode),
+		RequestedAt:               formatTime(result.RequestedAt),
+		CompletedAt:               optionalTime(result.CompletedAt),
+		UpdatedAt:                 formatTime(result.UpdatedAt),
+	}
+}
+
 func toAIGradingRequestListResponse(page domain.AIGradingRequestPage) aiGradingRequestListResponse {
 	requests := make([]aiGradingRequestResponse, 0, len(page.Items))
 	for _, request := range page.Items {
@@ -113,49 +279,84 @@ func toAIGradingRequestListResponse(page domain.AIGradingRequestPage) aiGradingR
 
 func toAIGradingRequestResponse(request domain.AIGradingRequest) aiGradingRequestResponse {
 	return aiGradingRequestResponse{
-		ID:                      request.ID,
-		ArchiveItemID:           request.ArchiveItemID,
-		RequestedByPrincipalID:  request.RequestedByPrincipalID,
-		GradingInstructions:     request.GradingInstructions,
-		RubricRef:               optionalString(request.RubricRef),
-		Status:                  request.Status,
-		SourceArchiveOwnerType:  request.SourceArchiveOwnerType,
-		SourceArchiveStudentID:  optionalString(request.SourceArchiveStudentID),
-		SourceArchiveContentRef: request.SourceArchiveContentRef,
-		SourceQuizSubmissionID:  optionalString(request.SourceQuizSubmissionID),
-		SourceAnswerRef:         optionalString(request.SourceAnswerRef),
-		SourceArchiveMaterial:   request.SourceArchiveMaterial,
-		SourceArchiveOCRStatus:  request.SourceArchiveOCRStatus,
-		ScoreSummary:            optionalString(request.ScoreSummary),
-		ResultRef:               optionalString(request.ResultRef),
-		ErrorCode:               optionalString(request.ErrorCode),
-		ErrorMessage:            optionalString(request.ErrorMessage),
-		ClaimedByWorkerID:       optionalString(request.ClaimedByWorkerID),
-		ClaimExpiresAt:          optionalTime(request.ClaimExpiresAt),
-		CreatedAt:               formatTime(request.CreatedAt),
-		CompletedAt:             optionalTime(request.CompletedAt),
-		UpdatedAt:               formatTime(request.UpdatedAt),
+		ID:                                   request.ID,
+		ArchiveItemID:                        request.ArchiveItemID,
+		RequestedByPrincipalID:               request.RequestedByPrincipalID,
+		GradingInstructions:                  request.GradingInstructions,
+		RubricRef:                            optionalString(request.RubricRef),
+		Status:                               request.Status,
+		SourceArchiveOwnerType:               request.SourceArchiveOwnerType,
+		SourceArchiveStudentID:               optionalString(request.SourceArchiveStudentID),
+		SourceArchiveContentRef:              request.SourceArchiveContentRef,
+		SourceQuizSubmissionID:               optionalString(request.SourceQuizSubmissionID),
+		SourceAnswerRef:                      optionalString(request.SourceAnswerRef),
+		SourceQuestionBankDraftRef:           optionalString(request.SourceQuestionBankDraftRef),
+		SourceQuestionBankAnswerSubmissionID: optionalString(request.SourceQuestionBankAnswerSubmissionID),
+		SourceArchiveMaterial:                request.SourceArchiveMaterial,
+		SourceArchiveOCRStatus:               request.SourceArchiveOCRStatus,
+		ScoreSummary:                         optionalString(request.ScoreSummary),
+		ResultRef:                            optionalString(request.ResultRef),
+		ErrorCode:                            optionalString(request.ErrorCode),
+		ErrorMessage:                         optionalString(request.ErrorMessage),
+		ClaimedByWorkerID:                    optionalString(request.ClaimedByWorkerID),
+		ClaimExpiresAt:                       optionalTime(request.ClaimExpiresAt),
+		CreatedAt:                            formatTime(request.CreatedAt),
+		CompletedAt:                          optionalTime(request.CompletedAt),
+		UpdatedAt:                            formatTime(request.UpdatedAt),
 	}
 }
 
 func toAIGradingWorkerClaimResponse(request domain.AIGradingRequest) aiGradingWorkerClaimResponse {
 	return aiGradingWorkerClaimResponse{
-		ID:                      request.ID,
-		ArchiveItemID:           request.ArchiveItemID,
-		GradingInstructions:     request.GradingInstructions,
-		RubricRef:               optionalString(request.RubricRef),
-		Status:                  request.Status,
-		SourceArchiveOwnerType:  request.SourceArchiveOwnerType,
-		SourceArchiveStudentID:  optionalString(request.SourceArchiveStudentID),
-		SourceArchiveContentRef: request.SourceArchiveContentRef,
-		SourceQuizSubmissionID:  optionalString(request.SourceQuizSubmissionID),
-		SourceAnswerRef:         optionalString(request.SourceAnswerRef),
-		SourceArchiveMaterial:   request.SourceArchiveMaterial,
-		SourceArchiveOCRStatus:  request.SourceArchiveOCRStatus,
-		ClaimedByWorkerID:       request.ClaimedByWorkerID,
-		ClaimExpiresAt:          formatTime(request.ClaimExpiresAt),
-		CreatedAt:               formatTime(request.CreatedAt),
-		UpdatedAt:               formatTime(request.UpdatedAt),
+		ID:                                   request.ID,
+		ArchiveItemID:                        request.ArchiveItemID,
+		GradingInstructions:                  request.GradingInstructions,
+		RubricRef:                            optionalString(request.RubricRef),
+		Status:                               request.Status,
+		SourceArchiveOwnerType:               request.SourceArchiveOwnerType,
+		SourceArchiveStudentID:               optionalString(request.SourceArchiveStudentID),
+		SourceArchiveContentRef:              request.SourceArchiveContentRef,
+		SourceQuizSubmissionID:               optionalString(request.SourceQuizSubmissionID),
+		SourceAnswerRef:                      optionalString(request.SourceAnswerRef),
+		SourceQuestionBankDraftRef:           optionalString(request.SourceQuestionBankDraftRef),
+		SourceQuestionBankAnswerSubmissionID: optionalString(request.SourceQuestionBankAnswerSubmissionID),
+		SourceArchiveMaterial:                request.SourceArchiveMaterial,
+		SourceArchiveOCRStatus:               request.SourceArchiveOCRStatus,
+		ClaimedByWorkerID:                    request.ClaimedByWorkerID,
+		ClaimExpiresAt:                       formatTime(request.ClaimExpiresAt),
+		CreatedAt:                            formatTime(request.CreatedAt),
+		UpdatedAt:                            formatTime(request.UpdatedAt),
+	}
+}
+
+func toQuestionBankDraftAnswerScoringInputResponse(
+	input domain.QuestionBankDraftAnswerScoringInput,
+) questionBankDraftAnswerScoringInputResponse {
+	items := make([]questionBankDraftAnswerScoringInputItem, 0, len(input.Items))
+	for _, item := range input.Items {
+		items = append(items, questionBankDraftAnswerScoringInputItem{
+			ItemID:         item.ItemID,
+			QuestionText:   item.QuestionText,
+			AnswerText:     item.AnswerText,
+			ExpectedAnswer: item.ExpectedAnswer,
+			Explanation:    item.Explanation,
+			LearningTarget: item.LearningTarget,
+		})
+	}
+	return questionBankDraftAnswerScoringInputResponse{
+		RequestID:                            input.RequestID,
+		ArchiveItemID:                        input.ArchiveItemID,
+		GradingInstructions:                  input.GradingInstructions,
+		RubricRef:                            optionalString(input.RubricRef),
+		Status:                               input.Status,
+		WorkerID:                             input.WorkerID,
+		ClaimExpiresAt:                       formatTime(input.ClaimExpiresAt),
+		SourceArchiveStudentID:               input.SourceArchiveStudentID,
+		SourceQuestionBankDraftRef:           input.SourceQuestionBankDraftRef,
+		SourceQuestionBankAnswerSubmissionID: input.SourceQuestionBankAnswerSubmissionID,
+		SourceArchiveMaterial:                input.SourceArchiveMaterial,
+		TutoringAnalysisRequestID:            input.TutoringAnalysisRequestID,
+		Items:                                items,
 	}
 }
 

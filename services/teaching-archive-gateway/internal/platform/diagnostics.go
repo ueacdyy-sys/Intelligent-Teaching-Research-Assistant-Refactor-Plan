@@ -19,3 +19,18 @@ type TeachingArchiveDBPoolStats struct {
 type TeachingArchiveDBPoolStatsProvider interface {
 	TeachingArchiveDBPoolStats() TeachingArchiveDBPoolStats
 }
+
+type TeachingCommandLogStats struct {
+	AcceptedCommands    int64   `json:"acceptedCommands"`
+	AppendErrors        int64   `json:"appendErrors"`
+	ProjectionEnqueued  int64   `json:"projectionEnqueued"`
+	ProjectionSucceeded int64   `json:"projectionSucceeded"`
+	ProjectionFailed    int64   `json:"projectionFailed"`
+	QueueDepth          int     `json:"queueDepth"`
+	QueueCapacity       int     `json:"queueCapacity"`
+	OldestPendingAgeMs  float64 `json:"oldestPendingAgeMs"`
+}
+
+type TeachingCommandLogStatsProvider interface {
+	TeachingCommandLogStats() TeachingCommandLogStats
+}

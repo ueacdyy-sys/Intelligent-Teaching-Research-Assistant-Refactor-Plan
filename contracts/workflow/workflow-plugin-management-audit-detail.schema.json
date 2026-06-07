@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/workflow/workflow-plugin-management-audit-detail.schema.json",
+  "title": "Workflow Plugin Management Audit Detail",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "detailId",
+    "generatedAt",
+    "surface",
+    "registryEntry",
+    "summary",
+    "evidenceTimeline",
+    "controlActions",
+    "boundary"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.workflow-plugin.management-audit-detail.v1"
+    },
+    "detailId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "surface": {
+      "type": "string",
+      "const": "ADMIN_WORKFLOW_PLUGIN_AUDIT_DETAIL"
+    },
+    "registryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registryEntryId",
+        "draftId",
+        "artifactKind",
+        "capabilityKind",
+        "status",
+        "executionMode",
+        "localExecutionEnabled"
+      ],
+      "properties": {
+        "registryEntryId": { "type": "string", "minLength": 1 },
+        "draftId": { "type": "string", "minLength": 1 },
+        "artifactKind": { "type": "string", "minLength": 1 },
+        "capabilityKind": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "const": "ACTIVE" },
+        "executionMode": { "type": "string", "const": "DRY_RUN_ONLY" },
+        "localExecutionEnabled": { "type": "boolean", "const": false }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detailReadiness",
+        "executionStatus",
+        "publicationStatus",
+        "managementStatus",
+        "nextRequiredSdd"
+      ],
+      "properties": {
+        "detailReadiness": { "type": "string", "const": "READONLY_AUDIT_READY" },
+        "executionStatus": { "type": "string", "const": "EXECUTION_CANDIDATES_DISABLED" },
+        "publicationStatus": { "type": "string", "const": "PUBLICATION_DISABLED" },
+        "managementStatus": { "type": "string", "const": "ALL_ACTIONS_DISABLED" },
+        "nextRequiredSdd": { "type": "string", "const": "EXECUTABLE_ISOLATION_SIGNING_ROLLOUT_ROLLBACK" }
+      }
+    },
+    "evidenceTimeline": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stage",
+          "status",
+          "reportRef",
+          "recordRef",
+          "allowedToAdvance"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "DRAFT_INTENT",
+              "SANDBOX_RESULT",
+              "HUMAN_APPROVAL",
+              "REGISTRY_ADMISSION",
+              "EXECUTION_ISOLATION",
+              "PUBLICATION_DISABLED",
+              "MANAGEMENT_DISABLED_VIEW"
+            ]
+          },
+          "status": { "type": "string", "minLength": 1 },
+          "reportRef": { "type": "string", "minLength": 1 },
+          "recordRef": { "type": "string", "minLength": 1 },
+          "allowedToAdvance": { "type": "boolean" }
+        }
+      }
+    },
+    "controlActions": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actionId",
+          "enabled",
+          "disabledReason",
+          "evidenceRef"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "enum": [
+              "publish",
+              "enableLocalExecution",
+              "createExecutionCandidate",
+              "exposeMarketplace"
+            ]
+          },
+          "enabled": { "type": "boolean", "const": false },
+          "disabledReason": { "type": "string", "minLength": 1 },
+          "evidenceRef": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "managementDetailRendered",
+        "allActionsDisabled",
+        "workflowPublishAllowed",
+        "pluginMarketplaceExposureAllowed",
+        "executionCandidateAllowed",
+        "localExecutionEnabled",
+        "processLaunchAllowed",
+        "hostWriteAllowed",
+        "productionHotPathChanged",
+        "requiresFutureSdd"
+      ],
+      "properties": {
+        "readOnly": { "type": "boolean", "const": true },
+        "managementDetailRendered": { "type": "boolean", "const": true },
+        "allActionsDisabled": { "type": "boolean", "const": true },
+        "workflowPublishAllowed": { "type": "boolean", "const": false },
+        "pluginMarketplaceExposureAllowed": { "type": "boolean", "const": false },
+        "executionCandidateAllowed": { "type": "boolean", "const": false },
+        "localExecutionEnabled": { "type": "boolean", "const": false },
+        "processLaunchAllowed": { "type": "boolean", "const": false },
+        "hostWriteAllowed": { "type": "boolean", "const": false },
+        "productionHotPathChanged": { "type": "boolean", "const": false },
+        "requiresFutureSdd": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

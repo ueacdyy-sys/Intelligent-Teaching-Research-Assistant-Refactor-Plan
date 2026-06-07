@@ -1,0 +1,196 @@
+{
+  "generatedAt": "2026-06-07T12:29:32.948Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_DEEP_RESEARCH_STUDENT_ARCHIVE_ROW_VERIFICATION",
+  "runtime": {
+    "runtimeId": "research_deep_research_student_archive_row_verification_runtime",
+    "commandPort": "DeepResearchStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow",
+    "asyncQueue": "research_deep_research"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_ROW_VERIFICATION_PROBE"
+  },
+  "safetyInvariants": {
+    "studentArchiveStorageCommitVerified": true,
+    "teachingArchiveRowReadPortInvoked": true,
+    "teachingArchiveRepositoryGetByIDUsed": true,
+    "committedArchiveItemMatchedPhysicalRow": true,
+    "mainDatabaseWriteCommitted": true,
+    "physicalDatabaseRowVerified": true,
+    "executeHttpRequestAllowed": false,
+    "directDatabaseAccessAllowed": false,
+    "externalModelCallStarted": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "studentArchiveRowVerification": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.research.deep-research-student-archive-row-verification-verified.v1",
+        "runtimeId": "research_deep_research_student_archive_row_verification_runtime",
+        "commandPort": "DeepResearchStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow",
+        "status": "TEACHING_ARCHIVE_PHYSICAL_ROW_VERIFIED",
+        "recordId": "research_deep_research_student_archive_row_verification_deep-research-student-archive-row-verification_job-001",
+        "recordedAt": "2026-06-05T00:00:00.000Z",
+        "idempotencyKey": "deep-research-student-archive-row-verification:job-001",
+        "idempotentReplay": false,
+        "sourceCommit": {
+          "commitRecordId": "research_deep_research_student_archive_storage_commit_deep-research-student-archive-storage-commit_job-001",
+          "archiveItemId": "tarch_deep_research_001",
+          "targetUseCase": "CreateArchiveItem.ExecuteWithPersistence",
+          "targetRepository": "ArchiveRepository.Create"
+        },
+        "teachingArchivePhysicalRow": {
+          "operationId": "getTeachingArchiveItemById",
+          "targetRepository": "ArchiveRepository.GetByID",
+          "targetTable": "teaching_archive_items",
+          "archiveItem": {
+            "id": "tarch_deep_research_001",
+            "ownerType": "STUDENT",
+            "studentId": "student_001",
+            "materialType": "HANDOUT",
+            "title": "Evidence grounded learning support draft",
+            "source": "SYSTEM_IMPORT",
+            "contentRef": "research-deep-research-projection:deep_research_student_archive_projection_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "tags": [
+              "deep_research",
+              "student_archive",
+              "projection",
+              "math_unit"
+            ],
+            "analysisIntents": [
+              "ARCHIVE_ONLY",
+              "TUTORING"
+            ],
+            "ocrStatus": "NOT_REQUIRED",
+            "createdAt": "2026-06-05T00:00:00.000Z"
+          }
+        },
+        "evidenceRefs": [
+          "evidence:student-archive-row-verification:commit-consumed",
+          "evidence:student-archive-storage-commit:precommit-consumed",
+          "evidence:runtime:research_deep_research_student_archive_storage_commit_runtime",
+          "evidence:command-port:DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand",
+          "evidence:student-archive-storage-precommit-record:research_deep_research_student_archive_storage_precommit_deep-research-student-archive-storage-precommit_job-001",
+          "evidence:teaching-archive-item:tarch_deep_research_001",
+          "evidence:student-archive-row-verification-input-hash:sha256:881c4e5a94c9315c122c4b5187b3458f7ceee2f5d82e68251bce52ec177aa87f",
+          "evidence:runtime:research_deep_research_student_archive_row_verification_runtime",
+          "evidence:command-port:DeepResearchStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow",
+          "evidence:student-archive-storage-commit-record:research_deep_research_student_archive_storage_commit_deep-research-student-archive-storage-commit_job-001",
+          "evidence:teaching-archive-physical-row:tarch_deep_research_001"
+        ],
+        "boundary": {
+          "studentArchiveStorageCommitVerified": true,
+          "teachingArchiveRowReadPortInvoked": true,
+          "teachingArchiveRepositoryGetByIDUsed": true,
+          "committedArchiveItemMatchedPhysicalRow": true,
+          "projectionEvidencePreserved": true,
+          "studentAudienceScopeEnforced": true,
+          "mainDatabaseWritePrepared": true,
+          "mainDatabaseWriteStarted": true,
+          "mainDatabaseWriteCommitted": true,
+          "physicalDatabaseRowVerified": true,
+          "directDatabaseAccessAllowed": false,
+          "executeHttpRequestAllowed": false,
+          "externalModelCallStarted": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 300,
+          "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_ROW_VERIFICATION_BOUNDARY"
+        },
+        "nextAction": "Use this as physical Teaching Archive row evidence for the deep_research student archive flow; continue module-by-module root requirement refactor."
+      },
+      "portCalls": 1,
+      "runtimeSlo": {
+        "targetP99Ms": 300,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_ROW_VERIFICATION_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "severity": "info",
+      "actual": "TEACHING_ARCHIVE_PHYSICAL_ROW_VERIFIED=true;DeepResearchStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow=true;ArchiveRepository.GetByID=true;physicalDatabaseRowVerified=true",
+      "expected": "row-verification contracts require an injected row read port and verified teaching_archive_items row",
+      "remediation": "Keep row verification contracts explicit about the read port and physical row evidence."
+    },
+    {
+      "id": "storage_commit.report_available",
+      "passed": true,
+      "severity": "info",
+      "actual": "readiness=READY;runtime=research_deep_research_student_archive_storage_commit_runtime",
+      "expected": "row verification is based on a READY storage commit report",
+      "remediation": "Regenerate storage commit evidence before verifying physical rows."
+    },
+    {
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "severity": "info",
+      "actual": "research_deep_research_student_archive_row_verification_runtime=true;TeachingArchiveRowReadPort.getArchiveItemById=true;TEACHING_ARCHIVE_PHYSICAL_ROW_VERIFIED=true",
+      "expected": "runtime records idempotent physical row verification through the row read port",
+      "remediation": "The row verification slice must stay port-based and idempotent."
+    },
+    {
+      "id": "runtime.safety_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;directDatabaseAccessAllowed: true=false;executeHttpRequestAllowed: true=false;externalModelCallAllowed: true=false;externalModelCallStarted: true=false;remoteDeviceControlAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;dangerouslySetInnerHTML=false;innerHTML=false",
+      "expected": "runtime verifies only through an injected row read port and blocks raw DB, HTTP, models, tools, and Swarm",
+      "remediation": "Do not let JS execute SQL or HTTP in the row verification runtime."
+    },
+    {
+      "id": "runtime.probe_verifies_physical_row",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=TEACHING_ARCHIVE_PHYSICAL_ROW_VERIFIED;row=tarch_deep_research_001;calls=1;p99=5",
+      "expected": "probe verifies the committed archive item through one injected row read port call",
+      "remediation": "Row verification must prove read port invocation and exact row match."
+    },
+    {
+      "id": "tests.cover_row_verification_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "positive, idempotency, missing port, missing row, mismatch, wrong owner, DB/HTTP policy, and Swarm tests",
+      "remediation": "Add regression coverage before treating physical row verification as root evidence."
+    },
+    {
+      "id": "teaching_archive.repository_get_by_id_evidence_exists",
+      "passed": true,
+      "severity": "info",
+      "actual": "GetByID=true;FROM teaching_archive_items=true;TestGetByIDReturnsDeepResearchStorageCommitPhysicalRow=true",
+      "expected": "Go repository has a GetByID physical row query and test for the deep_research committed shape",
+      "remediation": "Do not claim physical row verification without Go repository row-read evidence."
+    },
+    {
+      "id": "quality_and_root_hooks_track_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:research-deep-research-student-archive-row-verification=true;Research deep_research student archive row verification audit=true;researchDeepResearchStudentArchiveRowVerification=true",
+      "expected": "package script, strict quality, and root workflow coverage include row verification",
+      "remediation": "Wire row verification into package scripts, strict quality, and root workflow coverage."
+    },
+    {
+      "id": "structure_sdd_and_board_track_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "student archive physical row verification runtime=true;9.9/10=true;physicalDatabaseRowVerified=true=true",
+      "expected": "structure verifier, SDD, and architecture board show row verification as current progress",
+      "remediation": "Update structure, SDD, and architecture board after completing this slice."
+    }
+  ],
+  "nextAction": "Use this as deep_research Teaching Archive physical row evidence and continue the next root-requirement module slice without repeating production10k tests."
+}

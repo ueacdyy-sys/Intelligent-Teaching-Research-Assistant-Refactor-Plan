@@ -83,6 +83,51 @@ func TestParseSessionDBMinConnsRejectsInvalidValues(t *testing.T) {
 	}
 }
 
+func TestParseSessionDBPrewarmConns(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		maxConns int
+		want     int
+	}{
+		{name: "default warms one connection", value: "", maxConns: 8, want: 1},
+		{name: "disabled", value: "0", maxConns: 8, want: 0},
+		{name: "equal to max", value: "8", maxConns: 8, want: 8},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := parseSessionDBPrewarmConns(test.value, test.maxConns)
+			if err != nil {
+				t.Fatalf("parseSessionDBPrewarmConns error = %v", err)
+			}
+			if got != test.want {
+				t.Fatalf("parseSessionDBPrewarmConns = %d want %d", got, test.want)
+			}
+		})
+	}
+}
+
+func TestParseSessionDBPrewarmConnsRejectsInvalidValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		maxConns int
+	}{
+		{name: "non integer", value: "warm", maxConns: 8},
+		{name: "negative", value: "-1", maxConns: 8},
+		{name: "greater than max", value: "9", maxConns: 8},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := parseSessionDBPrewarmConns(test.value, test.maxConns); err == nil {
+				t.Fatalf("parseSessionDBPrewarmConns should reject %q with max %d", test.value, test.maxConns)
+			}
+		})
+	}
+}
+
 func TestParseSessionDBQueryExecMode(t *testing.T) {
 	tests := []struct {
 		name     string

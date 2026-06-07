@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/guardrail-result.schema.json",
+  "title": "Agent Guardrail Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "guardrailId",
+    "taskId",
+    "skillId",
+    "decision",
+    "reasons",
+    "harnessActionRequired",
+    "rollbackRequired",
+    "evidenceRequired",
+    "directDatabaseWriteAllowed",
+    "safetyChecks"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "2026-06-04.agent.guardrail-result.v1" },
+    "guardrailId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "skillId": { "type": "string", "minLength": 1 },
+    "decision": { "type": "string", "enum": ["ALLOW", "APPROVAL_REQUIRED", "DENY"] },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "harnessActionRequired": { "type": "boolean" },
+    "rollbackRequired": { "type": "boolean" },
+    "evidenceRequired": { "type": "boolean", "const": true },
+    "directDatabaseWriteAllowed": { "type": "boolean", "const": false },
+    "safetyChecks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["checkId", "status"],
+        "properties": {
+          "checkId": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["PASS", "FAIL"] }
+        }
+      }
+    }
+  }
+}

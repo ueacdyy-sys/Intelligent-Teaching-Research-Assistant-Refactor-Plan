@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/student-app-ai-tutor-result.output.schema.json",
+  "title": "Student App AI Tutor Result Runtime Output",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "queue",
+    "result",
+    "boundary",
+    "runtimeSlo"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.student-app.ai-tutor-result-recorded.v1"
+    },
+    "runtimeId": {
+      "type": "string",
+      "const": "student_app_ai_tutor_result_runtime"
+    },
+    "commandPort": {
+      "type": "string",
+      "const": "StudentAppAITutorResultPort.recordTutoringAnalysisResult"
+    },
+    "status": {
+      "type": "string",
+      "const": "STUDENT_APP_AI_TUTOR_RESULT_RECORDED"
+    },
+    "queue": {
+      "type": "object",
+      "required": ["queueName", "queueTable", "targetUseCase", "writeRepositoryOperation"],
+      "properties": {
+        "queueName": { "const": "student_app_ai_tutor" },
+        "queueTable": { "const": "teaching_tutoring_analysis_requests" },
+        "targetUseCase": { "const": "RecordTutoringAnalysisResult.Execute" },
+        "writeRepositoryOperation": { "const": "ArchiveRepository.RecordTutoringAnalysisResult" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["requestId", "workerId", "status"],
+      "properties": {
+        "requestId": { "type": "string", "pattern": "^tutor_req_" },
+        "workerId": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["SUCCEEDED", "FAILED"] },
+        "resultRef": { "type": "string" },
+        "questionBankDraftRef": { "type": "string" },
+        "errorMessage": { "type": "string" }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": [
+        "internalServiceOnly",
+        "claimRequired",
+        "workerLeaseMustMatch",
+        "modelExecutionStarted",
+        "modelExecutionAlreadyCompletedElsewhere",
+        "resultRecorded",
+        "questionBankDraftCreated",
+        "studentVisibleResultPublished",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "internalServiceOnly": { "const": true },
+        "claimRequired": { "const": true },
+        "workerLeaseMustMatch": { "const": true },
+        "modelExecutionStarted": { "const": false },
+        "modelExecutionAlreadyCompletedElsewhere": { "const": true },
+        "resultRecorded": { "const": true },
+        "questionBankDraftCreated": { "const": false },
+        "studentVisibleResultPublished": { "const": false },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "properties": {
+        "targetP99Ms": { "const": 50 }
+      }
+    }
+  }
+}

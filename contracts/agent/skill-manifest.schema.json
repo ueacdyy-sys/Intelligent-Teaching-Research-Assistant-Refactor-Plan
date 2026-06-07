@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/skill-manifest.schema.json",
+  "title": "Agent Skill Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "skillId",
+    "domain",
+    "summary",
+    "inputSchemaRef",
+    "outputSchemaRef",
+    "requiredPermissions",
+    "dataScopes",
+    "costHint",
+    "latencyBudgetMs",
+    "evidencePolicy",
+    "disclosureLevel",
+    "harnessRequired",
+    "directDatabaseWriteAllowed",
+    "riskLevel",
+    "allowedWorkerAgents"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-04.agent.skill-manifest.v1"
+    },
+    "skillId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{2,80}$"
+    },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "Teaching",
+        "StudentTutor",
+        "Research",
+        "Analysis",
+        "Workflow",
+        "ToolControl",
+        "ModelExperiment"
+      ]
+    },
+    "summary": { "type": "string", "minLength": 12 },
+    "inputSchemaRef": { "type": "string", "minLength": 1 },
+    "outputSchemaRef": { "type": "string", "minLength": 1 },
+    "requiredPermissions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "TEACHING_READ",
+          "TEACHING_WRITE",
+          "STUDENT_OWN_READ",
+          "STUDENT_ASSIGNED_READ",
+          "STUDENT_ARCHIVE_WRITE",
+          "RESEARCH_READ",
+          "RESEARCH_WRITE",
+          "KNOWLEDGE_PUBLIC_READ",
+          "KNOWLEDGE_PRIVATE_READ",
+          "WORKFLOW_DRAFT",
+          "WORKFLOW_PUBLISH",
+          "FILE_READ",
+          "FILE_WRITE",
+          "PROCESS_START",
+          "BROWSER_NAVIGATE",
+          "EXTERNAL_APP_CONTROL",
+          "MODEL_EXPERIMENT",
+          "MODEL_TRAINING"
+        ]
+      }
+    },
+    "dataScopes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["knowledge", "student", "teaching", "research", "localTool"],
+      "properties": {
+        "knowledge": { "type": "string", "enum": ["NONE", "PUBLIC", "PRIVATE_ASSIGNED", "PRIVATE_ALL"] },
+        "student": { "type": "string", "enum": ["NONE", "OWN", "ASSIGNED", "ALL"] },
+        "teaching": { "type": "string", "enum": ["NONE", "READ", "WRITE"] },
+        "research": { "type": "string", "enum": ["NONE", "READ", "WRITE"] },
+        "localTool": { "type": "string", "enum": ["NONE", "READ_ONLY", "MUTATING"] }
+      }
+    },
+    "costHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokenClass", "runtimeClass", "externalCost"],
+      "properties": {
+        "tokenClass": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "runtimeClass": { "type": "string", "enum": ["INLINE", "ASYNC_WORKER", "OPTIONAL_PLUGIN"] },
+        "externalCost": { "type": "string", "enum": ["NONE", "LOW", "METERED"] }
+      }
+    },
+    "latencyBudgetMs": { "type": "integer", "minimum": 1, "maximum": 30000 },
+    "evidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "requiredEvidenceRefs", "citationRequired", "traceRequired"],
+      "properties": {
+        "required": { "type": "boolean", "const": true },
+        "requiredEvidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["SOURCE", "PERMISSION", "INPUT_HASH", "OUTPUT_SUMMARY", "SLO", "ROLLBACK"]
+          }
+        },
+        "citationRequired": { "type": "boolean" },
+        "traceRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "disclosureLevel": { "type": "string", "enum": ["SUMMARY_FIRST", "MANIFEST_THEN_SCHEMA"] },
+    "harnessRequired": { "type": "boolean" },
+    "directDatabaseWriteAllowed": { "type": "boolean", "const": false },
+    "riskLevel": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+    "allowedWorkerAgents": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "TeachingAgent",
+          "StudentTutorAgent",
+          "ResearchAgent",
+          "AnalysisAgent",
+          "WorkflowAgent",
+          "ToolControlAgent",
+          "ModelExperimentAgent"
+        ]
+      }
+    }
+  }
+}

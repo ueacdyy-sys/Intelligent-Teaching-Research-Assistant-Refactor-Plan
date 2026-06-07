@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/student-app-ai-tutor-worker-claim.input.schema.json",
+  "title": "Student App AI Tutor Worker Claim Runtime Input",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "claimInvocationId",
+    "principal",
+    "worker",
+    "claimPolicy",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.student-app.ai-tutor-worker-claim.v1"
+    },
+    "claimInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "required": ["subjectType", "role", "entryPoint", "scopes"],
+      "properties": {
+        "subjectType": { "const": "SERVICE" },
+        "role": { "const": "SERVICE" },
+        "entryPoint": { "const": "AGENT_INTERNAL" },
+        "scopes": {
+          "type": "array",
+          "contains": { "const": "TEACHING_WRITE" }
+        }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "required": ["workerId", "agent", "skillId", "nodeType", "leaseSeconds"],
+      "properties": {
+        "workerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "agent": { "const": "StudentTutorAgent" },
+        "skillId": { "const": "tutor_student" },
+        "nodeType": { "const": "LOCAL" },
+        "leaseSeconds": { "type": "integer", "minimum": 30, "maximum": 3600 }
+      }
+    },
+    "claimPolicy": {
+      "type": "object",
+      "required": [
+        "queueName",
+        "queueTable",
+        "targetUseCase",
+        "repositoryOperation",
+        "atomicSkipLockedRequired",
+        "leaseRequired",
+        "executeModelNowAllowed",
+        "recordResultNowAllowed",
+        "questionBankDraftNowAllowed",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "queueName": { "const": "student_app_ai_tutor" },
+        "queueTable": { "const": "teaching_tutoring_analysis_requests" },
+        "targetUseCase": { "const": "ClaimTutoringAnalysisRequest.Execute" },
+        "repositoryOperation": { "const": "ArchiveRepository.ClaimNextTutoringAnalysisRequest" },
+        "atomicSkipLockedRequired": { "const": true },
+        "leaseRequired": { "const": true },
+        "executeModelNowAllowed": { "const": false },
+        "recordResultNowAllowed": { "const": false },
+        "questionBankDraftNowAllowed": { "const": false },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8 }
+  }
+}

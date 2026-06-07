@@ -1,0 +1,75 @@
+get:
+  operationId: readStudentAppQuestionBankDraftAnswerScoringResult
+  summary: Read a student's own question-bank draft answer AI grading status or safe result summary.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: submissionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+  responses:
+    '200':
+      description: Student-visible AI grading metadata. Succeeded requests include scoreSummary; failed requests include errorCode. The response is an allowlisted status/result summary and never returns protected scoring input, internal worker state, raw model output, or internal failure detail.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - submissionId
+              - requestId
+              - questionBankDraftRef
+              - tutoringAnalysisRequestId
+              - archiveItemId
+              - status
+              - requestedAt
+              - updatedAt
+            properties:
+              submissionId:
+                type: string
+                pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+              requestId:
+                type: string
+                pattern: '^grading_req_[A-Za-z0-9_-]+$'
+              questionBankDraftRef:
+                type: string
+                minLength: 1
+                maxLength: 1000
+              tutoringAnalysisRequestId:
+                type: string
+                pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              status:
+                $ref: './teaching-archive.yaml#/components/schemas/AIGradingStatus'
+              scoreSummary:
+                type: string
+                minLength: 1
+                maxLength: 2000
+              errorCode:
+                type: string
+                minLength: 1
+                maxLength: 64
+              requestedAt:
+                type: string
+                format: date-time
+              completedAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

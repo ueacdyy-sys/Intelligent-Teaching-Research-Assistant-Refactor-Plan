@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/readonly-runtime-dispatcher.schema.json",
+  "title": "Agent Read-Only Runtime Dispatcher",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "dispatcherId",
+    "routeMode",
+    "adapters",
+    "dispatchBoundary",
+    "admissionGuards",
+    "evidence",
+    "aggregateSlo",
+    "promotion"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-04.agent.readonly-runtime-dispatcher.v1"
+    },
+    "dispatcherId": {
+      "type": "string",
+      "const": "agent_readonly_runtime_dispatcher"
+    },
+    "routeMode": {
+      "type": "string",
+      "const": "SINGLE_WORKER_ONLY"
+    },
+    "adapters": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workerAgent",
+          "skillId",
+          "adapterRef",
+          "runtimeSloReportRef",
+          "inputSchemaRef",
+          "outputSchemaRef",
+          "readPort",
+          "targetP99Ms"
+        ],
+        "properties": {
+          "workerAgent": {
+            "type": "string",
+            "enum": ["TeachingAgent", "StudentTutorAgent", "ResearchAgent"]
+          },
+          "skillId": {
+            "type": "string",
+            "enum": ["search_teaching_material", "recommend_practice", "search_knowledge"]
+          },
+          "adapterRef": { "type": "string", "minLength": 1 },
+          "runtimeSloReportRef": { "type": "string", "minLength": 1 },
+          "inputSchemaRef": { "type": "string", "minLength": 1 },
+          "outputSchemaRef": { "type": "string", "minLength": 1 },
+          "readPort": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "portName",
+              "operation",
+              "directDatabaseAccessAllowed",
+              "writeOperationAllowed"
+            ],
+            "properties": {
+              "portName": {
+                "type": "string",
+                "enum": ["TeachingArchiveReadPort", "StudentLearningReadPort", "KnowledgeQueryReadPort"]
+              },
+              "operation": {
+                "type": "string",
+                "enum": ["searchTeachingMaterials", "recommendPracticeContext", "searchKnowledge"]
+              },
+              "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+              "writeOperationAllowed": { "type": "boolean", "const": false }
+            }
+          },
+          "targetP99Ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    "dispatchBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writeIntentAllowed",
+        "directDatabaseAccessAllowed",
+        "externalModelCallAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed",
+        "deepResearchAllowed",
+        "finalEvaluationAllowed",
+        "rejectionMode"
+      ],
+      "properties": {
+        "writeIntentAllowed": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "externalModelCallAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "deepResearchAllowed": { "type": "boolean", "const": false },
+        "finalEvaluationAllowed": { "type": "boolean", "const": false },
+        "rejectionMode": { "type": "string", "const": "DENY_WITH_EVIDENCE" }
+      }
+    },
+    "admissionGuards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "principalContextRequired",
+        "sharedContextRequired",
+        "guardrailResultRequired",
+        "adapterAllowlistRequired",
+        "denyUnknownSkill",
+        "denyOnWriteIntent",
+        "denyOnCrossScopeData",
+        "denyOnExternalModelRequest",
+        "denyOnLocalToolMutation"
+      ],
+      "properties": {
+        "principalContextRequired": { "type": "boolean", "const": true },
+        "sharedContextRequired": { "type": "boolean", "const": true },
+        "guardrailResultRequired": { "type": "boolean", "const": true },
+        "adapterAllowlistRequired": { "type": "boolean", "const": true },
+        "denyUnknownSkill": { "type": "boolean", "const": true },
+        "denyOnWriteIntent": { "type": "boolean", "const": true },
+        "denyOnCrossScopeData": { "type": "boolean", "const": true },
+        "denyOnExternalModelRequest": { "type": "boolean", "const": true },
+        "denyOnLocalToolMutation": { "type": "boolean", "const": true }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routeDecisionRequired",
+        "skillInvocationTraceRequired",
+        "inputHashRequired",
+        "outputSummaryRequired",
+        "adapterDecisionRequired",
+        "sourceSloReportRequired",
+        "runtimeTimingRequired"
+      ],
+      "properties": {
+        "routeDecisionRequired": { "type": "boolean", "const": true },
+        "skillInvocationTraceRequired": { "type": "boolean", "const": true },
+        "inputHashRequired": { "type": "boolean", "const": true },
+        "outputSummaryRequired": { "type": "boolean", "const": true },
+        "adapterDecisionRequired": { "type": "boolean", "const": true },
+        "sourceSloReportRequired": { "type": "boolean", "const": true },
+        "runtimeTimingRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "aggregateSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p99BudgetMs",
+        "aggregateStrategy",
+        "requiredZeroErrors",
+        "minComponentCount"
+      ],
+      "properties": {
+        "p99BudgetMs": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "aggregateStrategy": { "type": "string", "const": "MAX_COMPONENT_P99" },
+        "requiredZeroErrors": { "type": "boolean", "const": true },
+        "minComponentCount": { "type": "integer", "const": 3 }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currentEvidenceClass",
+        "rootWorkflowRequired",
+        "fullAgentLoopClaimAllowed",
+        "fullSwarmClaimAllowed",
+        "modelReasoningClaimAllowed"
+      ],
+      "properties": {
+        "currentEvidenceClass": {
+          "type": "string",
+          "const": "AGGREGATED_RUNTIME_SLO_FROM_READONLY_FAST_PATHS"
+        },
+        "rootWorkflowRequired": { "type": "boolean", "const": true },
+        "fullAgentLoopClaimAllowed": { "type": "boolean", "const": false },
+        "fullSwarmClaimAllowed": { "type": "boolean", "const": false },
+        "modelReasoningClaimAllowed": { "type": "boolean", "const": false }
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+post:
+  operationId: createStudentAppQuestionBankDraftAnswerScoringRequest
+  summary: Queue a metadata-only AI grading request for a student's submitted question-bank draft answer.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: submissionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: './teaching-archive.yaml#/components/schemas/CreateAIGradingRequest'
+  responses:
+    '201':
+      description: AI grading request queued against the submitted question-bank draft answer; no answer text, key, feedback, model result, or score is returned.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.yaml#/components/schemas/AIGradingRequestResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

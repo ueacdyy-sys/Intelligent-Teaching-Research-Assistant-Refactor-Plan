@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-worker-lifecycle.input.schema.json",
+  "title": "Deep Research Worker Lifecycle Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "lifecycleInvocationId",
+    "principal",
+    "approvedIntent",
+    "approval",
+    "worker",
+    "lifecycleAction",
+    "sourcePolicy",
+    "executionPlan",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-worker-lifecycle.v1"
+    },
+    "lifecycleInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["SERVICE", "ADMIN"] },
+        "subjectType": { "type": "string", "enum": ["SERVICE", "USER"] },
+        "entryPoint": { "type": "string", "enum": ["AGENT_INTERNAL", "DESKTOP_ADMIN"] },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["AGENT_COMMAND_SUBMIT", "ADMIN_SYSTEM"] }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "approvedIntent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schemaVersion",
+        "runtimeId",
+        "taskId",
+        "contextRef",
+        "workerAgent",
+        "skillId",
+        "decision",
+        "job",
+        "safety"
+      ],
+      "properties": {
+        "schemaVersion": { "type": "string", "const": "2026-06-05.research.deep-research-intent.output.v1" },
+        "runtimeId": { "type": "string", "const": "research_deep_research_intent_runtime" },
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "workerAgent": { "type": "string", "const": "ResearchAgent" },
+        "skillId": { "type": "string", "const": "deep_research" },
+        "decision": { "type": "string", "const": "ACCEPTED_ASYNC" },
+        "job": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["jobId", "queueName", "reviewRequired", "executionStarted"],
+          "properties": {
+            "jobId": { "type": "string", "minLength": 1, "maxLength": 160 },
+            "queueName": { "type": "string", "const": "research_deep_research" },
+            "reviewRequired": { "type": "boolean", "const": true },
+            "executionStarted": { "type": "boolean", "const": false }
+          }
+        },
+        "safety": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "admissionOnly",
+            "writeOperationAllowed",
+            "directDatabaseAccessAllowed",
+            "studentArchiveUsed",
+            "studentDataAccess",
+            "externalModelCallStarted",
+            "ragSynthesisStarted",
+            "finalAnswerGenerated",
+            "directPublicationAllowed",
+            "localToolMutationAllowed",
+            "swarmAllowed"
+          ],
+          "properties": {
+            "admissionOnly": { "type": "boolean", "const": true },
+            "writeOperationAllowed": { "type": "boolean", "const": false },
+            "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+            "studentArchiveUsed": { "type": "boolean", "const": false },
+            "studentDataAccess": { "type": "string", "const": "NONE" },
+            "externalModelCallStarted": { "type": "boolean", "const": false },
+            "ragSynthesisStarted": { "type": "boolean", "const": false },
+            "finalAnswerGenerated": { "type": "boolean", "const": false },
+            "directPublicationAllowed": { "type": "boolean", "const": false },
+            "localToolMutationAllowed": { "type": "boolean", "const": false },
+            "swarmAllowed": { "type": "boolean", "const": false }
+          }
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvalId",
+        "approvalRecordRef",
+        "taskId",
+        "jobId",
+        "reviewerPrincipalId",
+        "decision",
+        "sourcePolicyReviewed",
+        "budgetReviewed",
+        "privateKnowledgeApproved",
+        "externalModelPolicy",
+        "reviewedAt"
+      ],
+      "properties": {
+        "approvalId": { "type": "string", "minLength": 1 },
+        "approvalRecordRef": { "type": "string", "minLength": 1 },
+        "taskId": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "const": "APPROVED_FOR_ASYNC" },
+        "sourcePolicyReviewed": { "type": "boolean", "const": true },
+        "budgetReviewed": { "type": "boolean", "const": true },
+        "privateKnowledgeApproved": { "type": "boolean", "const": true },
+        "externalModelPolicy": { "type": "string", "const": "DEFERRED_ONLY" },
+        "reviewedAt": { "type": "string", "minLength": 1 }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workerId",
+        "executionOwner",
+        "nodeType",
+        "capabilityKinds",
+        "baselineRuntimeDependencyAllowed",
+        "directMainDatabaseWriteAllowed",
+        "leaseDurationMs",
+        "maxConcurrentJobs"
+      ],
+      "properties": {
+        "workerId": { "type": "string", "minLength": 1 },
+        "executionOwner": { "type": "string", "const": "ASYNC_RESEARCH_WORKER" },
+        "nodeType": { "type": "string", "const": "LOCAL" },
+        "capabilityKinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["RAG_RETRIEVAL", "MODEL_REASONING", "CITATION_AUDIT", "SOURCE_PLANNING"] }
+        },
+        "baselineRuntimeDependencyAllowed": { "type": "boolean", "const": false },
+        "directMainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "leaseDurationMs": { "type": "integer", "minimum": 1000, "maximum": 120000 },
+        "maxConcurrentJobs": { "type": "integer", "minimum": 1, "maximum": 32 }
+      }
+    },
+    "lifecycleAction": { "type": "string", "enum": ["CLAIM", "MARK_FAILED_SAFE"] },
+    "sourcePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowedClassifications",
+        "includeStudentArchive",
+        "includeRemoteDeviceSources",
+        "directDatabaseAccessAllowed",
+        "knowledgeBaseRefs"
+      ],
+      "properties": {
+        "allowedClassifications": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["PUBLIC", "PRIVATE"] }
+        },
+        "includeStudentArchive": { "type": "boolean", "const": false },
+        "includeRemoteDeviceSources": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "knowledgeBaseRefs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+        }
+      }
+    },
+    "executionPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executeNow",
+        "startRagRetrievalNow",
+        "startExternalModelCallNow",
+        "finalAnswerNowAllowed",
+        "directPublicationAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed",
+        "maxDeferredModelCalls",
+        "maxRetrievedChunks",
+        "maxSourceRefs"
+      ],
+      "properties": {
+        "executeNow": { "type": "boolean", "const": false },
+        "startRagRetrievalNow": { "type": "boolean", "const": false },
+        "startExternalModelCallNow": { "type": "boolean", "const": false },
+        "finalAnswerNowAllowed": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "maxDeferredModelCalls": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "maxRetrievedChunks": { "type": "integer", "minimum": 3, "maximum": 120 },
+        "maxSourceRefs": { "type": "integer", "minimum": 3, "maximum": 50 }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["errorCode", "safeMessage", "retryable", "partialArtifactsDiscarded", "humanReviewRequired"],
+      "properties": {
+        "errorCode": { "type": "string", "minLength": 1 },
+        "safeMessage": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "retryable": { "type": "boolean" },
+        "partialArtifactsDiscarded": { "type": "boolean", "const": true },
+        "humanReviewRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 }
+  }
+}

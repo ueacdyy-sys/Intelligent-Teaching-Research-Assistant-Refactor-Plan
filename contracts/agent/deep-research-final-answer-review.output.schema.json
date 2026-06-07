@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-final-answer-review.output.schema.json",
+  "title": "Deep Research Final Answer Review Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "job",
+    "review",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-final-answer-review-recorded.v1"
+    },
+    "runtimeId": { "type": "string", "const": "research_deep_research_final_answer_review_runtime" },
+    "commandPort": {
+      "type": "string",
+      "const": "DeepResearchFinalAnswerReviewPort.recordDeepResearchFinalAnswerReview"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["FINAL_ANSWER_REVIEW_APPROVED_FOR_FINALIZATION", "FINAL_ANSWER_REVIEW_REVISION_REQUIRED"]
+    },
+    "recordId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 },
+    "idempotentReplay": { "type": "boolean" },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewId",
+        "reviewerPrincipalId",
+        "decision",
+        "approvedForFinalization",
+        "revisionRequired",
+        "coverage",
+        "risk"
+      ],
+      "properties": {
+        "reviewId": { "type": "string", "minLength": 1 },
+        "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string" },
+        "approvedForFinalization": { "type": "boolean" },
+        "revisionRequired": { "type": "boolean" },
+        "coverage": { "type": "object" },
+        "risk": { "type": "object" },
+        "comments": { "type": "string" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reasoningSynthesisVerified",
+        "humanFinalAnswerReviewRecorded",
+        "evidenceCoverageReviewed",
+        "citationIntegrityReviewed",
+        "sourceHashIntegrityReviewed",
+        "safetyReviewed",
+        "approvedForFutureFinalization",
+        "revisionRequired",
+        "finalAnswerGenerated",
+        "finalAnswerPublished",
+        "directPublicationAllowed",
+        "externalModelCallStarted",
+        "mainDatabaseWriteStarted",
+        "studentArchiveWriteStarted",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed",
+        "requiresFutureFinalizationRuntime"
+      ],
+      "properties": {
+        "reasoningSynthesisVerified": { "type": "boolean", "const": true },
+        "humanFinalAnswerReviewRecorded": { "type": "boolean", "const": true },
+        "evidenceCoverageReviewed": { "type": "boolean", "const": true },
+        "citationIntegrityReviewed": { "type": "boolean", "const": true },
+        "sourceHashIntegrityReviewed": { "type": "boolean", "const": true },
+        "safetyReviewed": { "type": "boolean", "const": true },
+        "approvedForFutureFinalization": { "type": "boolean" },
+        "revisionRequired": { "type": "boolean" },
+        "finalAnswerGenerated": { "type": "boolean", "const": false },
+        "finalAnswerPublished": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "externalModelCallStarted": { "type": "boolean", "const": false },
+        "mainDatabaseWriteStarted": { "type": "boolean", "const": false },
+        "studentArchiveWriteStarted": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "requiresFutureFinalizationRuntime": { "type": "boolean", "const": true }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetP99Ms", "evidenceClass"],
+      "properties": {
+        "targetP99Ms": { "type": "integer", "minimum": 1, "maximum": 300 },
+        "evidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_FINAL_ANSWER_REVIEW_BOUNDARY"
+        }
+      }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

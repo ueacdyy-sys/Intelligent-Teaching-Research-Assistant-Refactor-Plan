@@ -7,11 +7,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	teachingcache "ita-refactor/services/teaching-archive-gateway/internal/adapter/cache"
+	teachingcommandlog "ita-refactor/services/teaching-archive-gateway/internal/adapter/commandlog"
 	"ita-refactor/services/teaching-archive-gateway/internal/adapter/httpapi"
 	teachingpostgres "ita-refactor/services/teaching-archive-gateway/internal/adapter/postgres"
 	"ita-refactor/services/teaching-archive-gateway/internal/platform"
@@ -24,17 +28,27 @@ func main() {
 	defer pool.Close()
 
 	db := teachingpostgres.NewPoolDB(pool)
-	if err := teachingpostgres.EnsureSchema(ctx, db); err != nil {
+	schemaOptions, err := schemaOptionsFromConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := teachingpostgres.EnsureSchemaWithOptions(ctx, db, schemaOptions); err != nil {
 		log.Fatal(err)
 	}
 
 	archiveRepository := teachingpostgres.NewArchiveRepository(db)
-	createArchiveRepository := archiveCreateRepositoryFromConfig(db)
+	archiveReader := archiveReaderFromConfig(archiveRepository)
+	writeRepositories := teachingWriteRepositoriesFromConfig(db)
+	createArchiveRepository := writeRepositories.ArchiveCreateRepository
 	if closeable, ok := createArchiveRepository.(interface{ Close() }); ok {
 		defer closeable.Close()
 	}
-	quizSubmissionRepository := quizSubmissionRepositoryFromConfig(db)
+	quizSubmissionRepository := writeRepositories.QuizSubmissionRepository
 	if closeable, ok := quizSubmissionRepository.(interface{ Close() }); ok {
+		defer closeable.Close()
+	}
+	teachingDraftCommandPort := writeRepositories.TeachingDraftCommandPort
+	if closeable, ok := teachingDraftCommandPort.(interface{ Close() }); ok {
 		defer closeable.Close()
 	}
 	createArchiveItem := usecase.NewCreateArchiveItem(
@@ -42,11 +56,25 @@ func main() {
 		platform.IDGenerator{},
 		platform.Clock{},
 	)
-	listArchiveItems := usecase.NewListArchiveItems(archiveRepository)
-	listStudentAppTeachingMaterials := usecase.NewListStudentAppTeachingMaterials(archiveRepository)
+	listArchiveItems := usecase.NewListArchiveItems(archiveReader)
+	listStudentAppTeachingMaterials := usecase.NewListStudentAppTeachingMaterials(archiveReader)
 	listStudentAppArchiveItems := usecase.NewListStudentAppArchiveItems(archiveRepository)
 	listStudentAppQuizSubmissions := usecase.NewListStudentAppQuizSubmissions(archiveRepository)
 	listStudentAppQuestionBankDrafts := usecase.NewListStudentAppQuestionBankDrafts(archiveRepository)
+	readStudentAppQuestionBankDraftContent := usecase.NewReadStudentAppQuestionBankDraftContent(archiveRepository)
+	submitStudentAppQuestionBankDraftAnswer := usecase.NewSubmitStudentAppQuestionBankDraftAnswer(
+		archiveRepository,
+		platform.QuestionBankDraftAnswerSubmissionIDGenerator{},
+		platform.Clock{},
+	)
+	createStudentAppQuestionBankDraftAnswerScoringRequest := usecase.NewCreateStudentAppQuestionBankDraftAnswerScoringRequest(
+		archiveRepository,
+		platform.AIGradingRequestIDGenerator{},
+		platform.Clock{},
+	)
+	readStudentAppQuestionBankDraftAnswerScoringResult := usecase.NewReadStudentAppQuestionBankDraftAnswerScoringResult(
+		archiveRepository,
+	)
 	createStudentAppAITutorRequest := usecase.NewCreateStudentAppAITutorRequest(
 		archiveRepository,
 		platform.TutoringRequestIDGenerator{},
@@ -56,6 +84,16 @@ func main() {
 	createQuizSubmission := usecase.NewCreateQuizSubmission(
 		quizSubmissionRepository,
 		platform.QuizSubmissionIDGenerator{},
+		platform.Clock{},
+	)
+	submitTeachingQuizDraftIntent := usecase.NewSubmitTeachingQuizDraftIntent(
+		teachingDraftCommandPort,
+		platform.TeachingQuizDraftIntentIDGenerator{},
+		platform.Clock{},
+	)
+	submitArchiveMaterialDraftIntent := usecase.NewSubmitTeachingArchiveMaterialDraftIntent(
+		teachingDraftCommandPort,
+		platform.TeachingArchiveMaterialDraftIntentIDGenerator{},
 		platform.Clock{},
 	)
 	createScannedQuizSubmission := usecase.NewCreateScannedQuizSubmission(
@@ -80,6 +118,10 @@ func main() {
 		platform.Clock{},
 	)
 	recordAIGradingResult := usecase.NewRecordAIGradingResult(
+		archiveRepository,
+		platform.Clock{},
+	)
+	readQuestionBankDraftAnswerScoringInput := usecase.NewReadQuestionBankDraftAnswerScoringInput(
 		archiveRepository,
 		platform.Clock{},
 	)
@@ -127,37 +169,45 @@ func main() {
 	server := &http.Server{
 		Addr: ":" + getenv("PORT", "18120"),
 		Handler: httpapi.NewServer(httpapi.ServerConfig{
-			CreateArchiveItem:                createArchiveItem,
-			ListArchiveItems:                 listArchiveItems,
-			ListStudentAppTeachingMaterials:  listStudentAppTeachingMaterials,
-			ListStudentAppArchiveItems:       listStudentAppArchiveItems,
-			ListStudentAppQuizSubmissions:    listStudentAppQuizSubmissions,
-			ListStudentAppQuestionBankDrafts: listStudentAppQuestionBankDrafts,
-			CreateStudentAppAITutorRequest:   createStudentAppAITutorRequest,
-			ListStudentAppAITutorRequests:    listStudentAppAITutorRequests,
-			CreateAIGradingRequest:           createAIGradingRequest,
-			CreateQuizSubmissionAIGrading:    createQuizSubmissionAIGradingRequest,
-			ListAIGradingRequests:            listAIGradingRequests,
-			ClaimAIGradingRequest:            claimAIGradingRequest,
-			RecordAIGradingResult:            recordAIGradingResult,
-			CreateTutoringAnalysisRequest:    createTutoringAnalysisRequest,
-			ListTutoringAnalysisRequests:     listTutoringAnalysisRequests,
-			ClaimTutoringAnalysisRequest:     claimTutoringAnalysisRequest,
-			RecordTutoringAnalysisResult:     recordTutoringAnalysisResult,
-			CreateQuizSubmission:             createQuizSubmission,
-			CreateScannedQuizSubmission:      createScannedQuizSubmission,
-			ListQuizSubmissions:              listQuizSubmissions,
-			CreateAttendanceSession:          createAttendanceSession,
-			CreateAttendanceRecord:           createAttendanceRecord,
-			SignInAttendance:                 signInAttendance,
-			EndAttendanceSession:             endAttendanceSession,
-			SelectAttendanceRandomStudents:   selectAttendanceRandomStudents,
-			ListAttendanceRecords:            listAttendanceRecords,
-			ListStudentAttendanceRecords:     listStudentAttendanceRecords,
-			GetAttendanceStatistics:          getAttendanceStatistics,
-			AgentAPIKey:                      getenv("AGENT_API_KEY", "ueacd"),
-			DiagnosticsSecret:                getenv("INTERNAL_DIAGNOSTICS_SECRET", "ueacd"),
-			DBPoolStatsProvider:              db,
+			CreateArchiveItem:                                     createArchiveItem,
+			ListArchiveItems:                                      listArchiveItems,
+			ListStudentAppTeachingMaterials:                       listStudentAppTeachingMaterials,
+			ListStudentAppArchiveItems:                            listStudentAppArchiveItems,
+			ListStudentAppQuizSubmissions:                         listStudentAppQuizSubmissions,
+			ListStudentAppQuestionBankDrafts:                      listStudentAppQuestionBankDrafts,
+			ReadStudentAppQuestionBankDraftContent:                readStudentAppQuestionBankDraftContent,
+			SubmitStudentAppQuestionBankDraftAnswer:               submitStudentAppQuestionBankDraftAnswer,
+			CreateStudentAppQuestionBankDraftAnswerScoringRequest: createStudentAppQuestionBankDraftAnswerScoringRequest,
+			ReadStudentAppQuestionBankDraftAnswerScoringResult:    readStudentAppQuestionBankDraftAnswerScoringResult,
+			CreateStudentAppAITutorRequest:                        createStudentAppAITutorRequest,
+			ListStudentAppAITutorRequests:                         listStudentAppAITutorRequests,
+			CreateAIGradingRequest:                                createAIGradingRequest,
+			CreateQuizSubmissionAIGrading:                         createQuizSubmissionAIGradingRequest,
+			ListAIGradingRequests:                                 listAIGradingRequests,
+			ClaimAIGradingRequest:                                 claimAIGradingRequest,
+			RecordAIGradingResult:                                 recordAIGradingResult,
+			ReadQuestionBankDraftAnswerScoringInput:               readQuestionBankDraftAnswerScoringInput,
+			CreateTutoringAnalysisRequest:                         createTutoringAnalysisRequest,
+			ListTutoringAnalysisRequests:                          listTutoringAnalysisRequests,
+			ClaimTutoringAnalysisRequest:                          claimTutoringAnalysisRequest,
+			RecordTutoringAnalysisResult:                          recordTutoringAnalysisResult,
+			SubmitTeachingQuizDraftIntent:                         submitTeachingQuizDraftIntent,
+			SubmitArchiveMaterialDraftIntent:                      submitArchiveMaterialDraftIntent,
+			CreateQuizSubmission:                                  createQuizSubmission,
+			CreateScannedQuizSubmission:                           createScannedQuizSubmission,
+			ListQuizSubmissions:                                   listQuizSubmissions,
+			CreateAttendanceSession:                               createAttendanceSession,
+			CreateAttendanceRecord:                                createAttendanceRecord,
+			SignInAttendance:                                      signInAttendance,
+			EndAttendanceSession:                                  endAttendanceSession,
+			SelectAttendanceRandomStudents:                        selectAttendanceRandomStudents,
+			ListAttendanceRecords:                                 listAttendanceRecords,
+			ListStudentAttendanceRecords:                          listStudentAttendanceRecords,
+			GetAttendanceStatistics:                               getAttendanceStatistics,
+			AgentAPIKey:                                           getenv("AGENT_API_KEY", "ueacd"),
+			DiagnosticsSecret:                                     getenv("INTERNAL_DIAGNOSTICS_SECRET", "ueacd"),
+			DBPoolStatsProvider:                                   db,
+			CommandLogProvider:                                    writeRepositories.CommandLogProvider,
 		}).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -169,6 +219,72 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+}
+
+type teachingWriteRepositoryBundle struct {
+	ArchiveCreateRepository  usecase.ArchiveRepository
+	QuizSubmissionRepository usecase.QuizSubmissionRepository
+	TeachingDraftCommandPort usecase.TeachingDraftCommandPort
+	CommandLogProvider       platform.TeachingCommandLogStatsProvider
+}
+
+func teachingWriteRepositoriesFromConfig(db teachingpostgres.AcquireDB) teachingWriteRepositoryBundle {
+	archiveProjection := archiveCreateRepositoryFromConfig(db)
+	quizProjection := quizSubmissionRepositoryFromConfig(db)
+	if teachingWriteAcceptanceModeFromConfig() != "durable-log" {
+		return teachingWriteRepositoryBundle{
+			ArchiveCreateRepository:  archiveProjection,
+			QuizSubmissionRepository: quizProjection,
+			TeachingDraftCommandPort: teachingIntentCommandPortFromConfig(),
+		}
+	}
+	repository, err := teachingcommandlog.NewRepository(teachingcommandlog.Config{
+		Path:              teachingCommandLogPathFromConfig(),
+		AppendBatchSize:   getenvInt("TEACHING_COMMAND_LOG_APPEND_BATCH_SIZE", 64),
+		QueueCapacity:     getenvInt("TEACHING_COMMAND_LOG_QUEUE_CAPACITY", 65536),
+		ProjectionWorkers: getenvInt("TEACHING_COMMAND_LOG_PROJECTION_WORKERS", 4),
+		Sync:              getenvBool("TEACHING_COMMAND_LOG_SYNC", true),
+		ArchiveProjection: archiveProjection,
+		QuizProjection:    quizProjection,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return teachingWriteRepositoryBundle{
+		ArchiveCreateRepository:  repository,
+		QuizSubmissionRepository: repository,
+		TeachingDraftCommandPort: repository,
+		CommandLogProvider:       repository,
+	}
+}
+
+func teachingIntentCommandPortFromConfig() usecase.TeachingDraftCommandPort {
+	repository, err := teachingcommandlog.NewIntentRepository(teachingcommandlog.IntentRepositoryConfig{
+		Path:            teachingCommandLogPathFromConfig(),
+		AppendBatchSize: getenvInt("TEACHING_COMMAND_LOG_APPEND_BATCH_SIZE", 64),
+		Sync:            getenvBool("TEACHING_COMMAND_LOG_SYNC", true),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return repository
+}
+
+func teachingWriteAcceptanceModeFromConfig() string {
+	value := strings.ToLower(strings.TrimSpace(getenv("TEACHING_WRITE_ACCEPTANCE_MODE", "sync")))
+	switch value {
+	case "sync", "durable-log":
+		return value
+	default:
+		panic(fmt.Sprintf("TEACHING_WRITE_ACCEPTANCE_MODE must be %q or %q: %q", "sync", "durable-log", value))
+	}
+}
+
+func teachingCommandLogPathFromConfig() string {
+	if path := strings.TrimSpace(os.Getenv("TEACHING_COMMAND_LOG_PATH")); path != "" {
+		return path
+	}
+	return filepath.Join("reports", "teaching-command-log", "teaching-"+getenv("PORT", "18120")+".jsonl")
 }
 
 func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
@@ -204,6 +320,29 @@ func mustOpenPostgres(ctx context.Context) *pgxpool.Pool {
 		settings.PrewarmConns,
 	)
 	return pool
+}
+
+func archiveReaderFromConfig(reader usecase.ArchiveReader) usecase.ArchiveReader {
+	ttlMs := getenvNonNegativeInt("TEACHING_ARCHIVE_LIST_CACHE_TTL_MS", 0)
+	if ttlMs == 0 {
+		return reader
+	}
+	return teachingcache.NewArchiveReader(reader, teachingcache.ArchiveReaderConfig{
+		TTL:        time.Duration(ttlMs) * time.Millisecond,
+		MaxEntries: getenvInt("TEACHING_ARCHIVE_LIST_CACHE_MAX_ENTRIES", 1024),
+	})
+}
+
+func schemaOptionsFromConfig() (teachingpostgres.SchemaOptions, error) {
+	indexProfile, err := teachingpostgres.NormalizeSchemaIndexProfile(
+		getenv("TEACHING_ARCHIVE_SCHEMA_INDEX_PROFILE", string(teachingpostgres.SchemaIndexProfileFull)),
+	)
+	if err != nil {
+		return teachingpostgres.SchemaOptions{}, err
+	}
+	return teachingpostgres.SchemaOptions{
+		IndexProfile: indexProfile,
+	}, nil
 }
 
 type postgresPoolSettings struct {
@@ -312,6 +451,9 @@ func archiveCreateRepositoryFromConfig(db teachingpostgres.AcquireDB) usecase.Ar
 		MaxSize:  batchSize,
 		MaxDelay: time.Duration(getenvNonNegativeInt("TEACHING_ARCHIVE_CREATE_BATCH_DELAY_MS", 0)) * time.Millisecond,
 		Workers:  getenvInt("TEACHING_ARCHIVE_CREATE_BATCH_WORKERS", 1),
+		Mode: teachingpostgres.ArchiveCreateBatchMode(
+			getenv("TEACHING_ARCHIVE_CREATE_BATCH_MODE", string(teachingpostgres.ArchiveCreateBatchModeInsert)),
+		),
 	})
 }
 
@@ -352,6 +494,21 @@ func getenvNonNegativeInt(key string, fallback int) int {
 		panic(err.Error())
 	}
 	return parsed
+}
+
+func getenvBool(key string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		panic(fmt.Sprintf("%s must be a boolean: %q", key, value))
+	}
 }
 
 func getenvIntFrom(getenv func(string) string, key string, fallback int, positive bool) (int, error) {

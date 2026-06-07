@@ -23,6 +23,8 @@ func (r *ArchiveRepository) GetAIGradingRequestByID(
 			source_archive_content_ref,
 			source_quiz_submission_id,
 			source_answer_ref,
+			source_question_bank_draft_ref,
+			source_question_bank_answer_submission_id,
 			source_archive_material,
 			source_archive_ocr_status,
 			score_summary,

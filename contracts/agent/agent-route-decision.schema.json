@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/agent-route-decision.schema.json",
+  "title": "Agent Route Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "routeId",
+    "taskId",
+    "mode",
+    "leadAgent",
+    "workerAgents",
+    "selectedSkills",
+    "rationale",
+    "deniedSkills",
+    "fallbackPlan",
+    "p99BudgetMs",
+    "conflictPolicy"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "2026-06-04.agent.route-decision.v1" },
+    "routeId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "mode": { "type": "string", "enum": ["SINGLE_WORKER", "SWARM"] },
+    "leadAgent": { "type": "string", "const": "LeadAgent" },
+    "workerAgents": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "TeachingAgent",
+          "StudentTutorAgent",
+          "ResearchAgent",
+          "AnalysisAgent",
+          "WorkflowAgent",
+          "ToolControlAgent",
+          "ModelExperimentAgent"
+        ]
+      }
+    },
+    "selectedSkills": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "rationale": { "type": "string", "minLength": 12 },
+    "deniedSkills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["skillId", "reason"],
+        "properties": {
+          "skillId": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "fallbackPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "reason", "humanReviewPoint"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["READ_ONLY", "SINGLE_WORKER", "HUMAN_REVIEW", "DENY"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "humanReviewPoint": { "type": "string", "minLength": 1 }
+      }
+    },
+    "p99BudgetMs": { "type": "integer", "minimum": 1 },
+    "conflictPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["detectConflicts", "resolutionMode"],
+      "properties": {
+        "detectConflicts": { "type": "boolean", "const": true },
+        "resolutionMode": { "type": "string", "enum": ["LEAD_AGENT_MERGE", "HUMAN_REVIEW"] }
+      }
+    }
+  }
+}

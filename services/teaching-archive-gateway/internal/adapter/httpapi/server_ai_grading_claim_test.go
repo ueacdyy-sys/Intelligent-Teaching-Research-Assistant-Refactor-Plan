@@ -78,6 +78,51 @@ func TestClaimAIGradingRequestReturnsQuizSubmissionSourceRefs(t *testing.T) {
 	}
 }
 
+func TestClaimAIGradingRequestReturnsQuestionBankAnswerSourceRefs(t *testing.T) {
+	request := httpAIGradingRequest(
+		"grading_req_http_claim",
+		"tarch_http_3",
+		"student_001",
+		time.Date(2026, 5, 29, 10, 3, 0, 0, time.UTC),
+	)
+	request.SourceArchiveContentRef = "local://question-bank-drafts/tutor_req_001.json"
+	request.SourceQuestionBankDraftRef = "local://question-bank-drafts/tutor_req_001.json"
+	request.SourceQuestionBankAnswerSubmissionID = "qbank_ans_sub_http_answer"
+	request.SourceArchiveOCRStatus = domain.OCRStatusNotRequired
+	handler := newTestHandlerWithAIGradingClaimRequests([]domain.AIGradingRequest{request})
+	httpRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/ai-grading-requests/worker-claims",
+		bytes.NewBufferString(`{"workerId":" worker_ai_grading_01 ","leaseSeconds":120}`),
+	)
+	httpRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, httpRequest, servicePrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httpRequest)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"sourceQuestionBankDraftRef":"local://question-bank-drafts/tutor_req_001.json"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"sourceQuestionBankAnswerSubmissionId":"qbank_ans_sub_http_answer"`)) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`answerText`),
+		[]byte(`expectedAnswer`),
+		[]byte(`explanation`),
+		[]byte(`scoreSummary`),
+		[]byte(`3/4`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
 func TestClaimAIGradingRequestReturnsNoContentWhenQueueEmpty(t *testing.T) {
 	handler := newTestHandlerWithAIGradingClaimRequests(nil)
 	request := httptest.NewRequest(

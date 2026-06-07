@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/skills/search-teaching-material.output.schema.json",
+  "title": "Search Teaching Material Skill Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "invocationId",
+    "taskId",
+    "contextRef",
+    "decision",
+    "summary",
+    "items",
+    "evidenceRefs",
+    "safety",
+    "slo"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-04.agent.skill.search-teaching-material.output.v1"
+    },
+    "invocationId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "contextRef": { "type": "string", "minLength": 1 },
+    "decision": { "type": "string", "enum": ["FOUND", "NO_MATCH", "NEEDS_MORE_CONTEXT", "DENIED"] },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "items": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "archiveItemId",
+          "ownerType",
+          "materialType",
+          "title",
+          "contentRef",
+          "matchedSnippets",
+          "sourceEvidenceRefs"
+        ],
+        "properties": {
+          "archiveItemId": { "type": "string", "pattern": "^tarch_[a-zA-Z0-9_-]+$" },
+          "ownerType": { "type": "string", "const": "TEACHING" },
+          "materialType": {
+            "type": "string",
+            "enum": ["TEACHING_MATERIAL", "HANDOUT", "QUIZ", "PAPER"]
+          },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "contentRef": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "matchedSnippets": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["text", "score", "sourceRef"],
+              "properties": {
+                "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "score": { "type": "number", "minimum": 0, "maximum": 1 },
+                "sourceRef": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "sourceEvidenceRefs": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directDatabaseWriteAllowed",
+        "studentDataReturned",
+        "privateKnowledgeReturned",
+        "externalModelUsed"
+      ],
+      "properties": {
+        "directDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentDataReturned": { "type": "boolean", "const": false },
+        "privateKnowledgeReturned": { "type": "boolean", "const": false },
+        "externalModelUsed": { "type": "boolean", "const": false }
+      }
+    },
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p99BudgetMs", "runtimeEvidenceClass", "runtimeEvidenceRequiredBeforePromotion"],
+      "properties": {
+        "p99BudgetMs": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "runtimeEvidenceClass": { "type": "string", "const": "CONTRACT_ONLY" },
+        "runtimeEvidenceRequiredBeforePromotion": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

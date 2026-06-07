@@ -8,11 +8,19 @@ import (
 
 type QuizSubmissionRepository interface {
 	GetByID(ctx context.Context, id string) (domain.ArchiveItem, bool, error)
-	CreateQuizSubmission(ctx context.Context, submission domain.QuizSubmission) error
+	CreateQuizSubmission(ctx context.Context, submission domain.QuizSubmission) (WritePersistenceOutcome, error)
 }
 
 type teachingQuizSubmissionFastRepository interface {
-	CreateQuizSubmissionForExistingTeachingQuiz(ctx context.Context, submission domain.QuizSubmission) (bool, error)
+	CreateQuizSubmissionForExistingTeachingQuiz(
+		ctx context.Context,
+		submission domain.QuizSubmission,
+	) (bool, WritePersistenceOutcome, error)
+}
+
+type CreateQuizSubmissionResult struct {
+	Submission  domain.QuizSubmission
+	Persistence WritePersistenceOutcome
 }
 
 type CreateQuizSubmission struct {
@@ -37,33 +45,44 @@ func (uc *CreateQuizSubmission) Execute(
 	ctx context.Context,
 	input domain.CreateQuizSubmissionInput,
 ) (domain.QuizSubmission, error) {
-	normalized, err := domain.NormalizeCreateQuizSubmissionInput(input)
+	result, err := uc.ExecuteWithPersistence(ctx, input)
 	if err != nil {
 		return domain.QuizSubmission{}, err
 	}
+	return result.Submission, nil
+}
 
-	var fastSubmission *domain.QuizSubmission
+func (uc *CreateQuizSubmission) ExecuteWithPersistence(
+	ctx context.Context,
+	input domain.CreateQuizSubmissionInput,
+) (CreateQuizSubmissionResult, error) {
+	normalized, err := domain.NormalizeCreateQuizSubmissionInput(input)
+	if err != nil {
+		return CreateQuizSubmissionResult{}, err
+	}
+
+	var fastResult *CreateQuizSubmissionResult
 	if fastRepository, ok := uc.repository.(teachingQuizSubmissionFastRepository); ok {
-		submission, created, err := uc.createFastForKnownTeachingQuiz(ctx, fastRepository, normalized)
+		result, created, err := uc.createFastForKnownTeachingQuiz(ctx, fastRepository, normalized)
 		if err != nil {
-			return domain.QuizSubmission{}, err
+			return CreateQuizSubmissionResult{}, err
 		}
 		if created {
-			return submission, nil
+			return result, nil
 		}
-		if submission.ID != "" {
-			fastSubmission = &submission
+		if result.Submission.ID != "" {
+			fastResult = &result
 		}
 	}
 
-	return uc.createAfterArchiveLookup(ctx, normalized, fastSubmission)
+	return uc.createAfterArchiveLookup(ctx, normalized, fastResult)
 }
 
 func (uc *CreateQuizSubmission) createFastForKnownTeachingQuiz(
 	ctx context.Context,
 	repository teachingQuizSubmissionFastRepository,
 	normalized domain.CreateQuizSubmissionInput,
-) (domain.QuizSubmission, bool, error) {
+) (CreateQuizSubmissionResult, bool, error) {
 	knownTeachingQuiz := domain.ArchiveItem{
 		ID:           normalized.QuizArchiveItemID,
 		OwnerType:    domain.OwnerTypeTeaching,
@@ -74,48 +93,55 @@ func (uc *CreateQuizSubmission) createFastForKnownTeachingQuiz(
 		knownTeachingQuiz,
 		normalized.StudentID,
 	); err != nil {
-		return domain.QuizSubmission{}, false, nil
+		return CreateQuizSubmissionResult{}, false, nil
 	}
 
 	submission, err := domain.NewQuizSubmission(uc.ids.NewID(), normalized, uc.clock.Now())
 	if err != nil {
-		return domain.QuizSubmission{}, false, err
+		return CreateQuizSubmissionResult{}, false, err
 	}
-	created, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(ctx, submission)
+	created, persistence, err := repository.CreateQuizSubmissionForExistingTeachingQuiz(ctx, submission)
 	if err != nil {
-		return domain.QuizSubmission{}, false, err
+		return CreateQuizSubmissionResult{}, false, err
 	}
-	return submission, created, nil
+	return CreateQuizSubmissionResult{
+		Submission:  submission,
+		Persistence: normalizeWritePersistenceOutcome(persistence),
+	}, created, nil
 }
 
 func (uc *CreateQuizSubmission) createAfterArchiveLookup(
 	ctx context.Context,
 	normalized domain.CreateQuizSubmissionInput,
-	prepared *domain.QuizSubmission,
-) (domain.QuizSubmission, error) {
+	prepared *CreateQuizSubmissionResult,
+) (CreateQuizSubmissionResult, error) {
 	item, ok, err := uc.repository.GetByID(ctx, normalized.QuizArchiveItemID)
 	if err != nil {
-		return domain.QuizSubmission{}, err
+		return CreateQuizSubmissionResult{}, err
 	}
 	if !ok {
-		return domain.QuizSubmission{}, domain.ErrNotFound
+		return CreateQuizSubmissionResult{}, domain.ErrNotFound
 	}
 	if err := domain.AuthorizeCreateQuizSubmission(normalized.Principal, item, normalized.StudentID); err != nil {
-		return domain.QuizSubmission{}, err
+		return CreateQuizSubmissionResult{}, err
 	}
 
 	var submission domain.QuizSubmission
 	if prepared != nil {
-		submission = *prepared
+		submission = prepared.Submission
 	} else {
 		var err error
 		submission, err = domain.NewQuizSubmission(uc.ids.NewID(), normalized, uc.clock.Now())
 		if err != nil {
-			return domain.QuizSubmission{}, err
+			return CreateQuizSubmissionResult{}, err
 		}
 	}
-	if err := uc.repository.CreateQuizSubmission(ctx, submission); err != nil {
-		return domain.QuizSubmission{}, err
+	persistence, err := uc.repository.CreateQuizSubmission(ctx, submission)
+	if err != nil {
+		return CreateQuizSubmissionResult{}, err
 	}
-	return submission, nil
+	return CreateQuizSubmissionResult{
+		Submission:  submission,
+		Persistence: normalizeWritePersistenceOutcome(persistence),
+	}, nil
 }

@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/workflow/workflow-plugin-management-disabled-view.schema.json",
+  "title": "Workflow Plugin Management Disabled View",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "viewId",
+    "generatedAt",
+    "surface",
+    "registryEntry",
+    "badges",
+    "actions",
+    "disabledActionCount",
+    "evidence",
+    "boundary"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.workflow-plugin.management-disabled-view.v1"
+    },
+    "viewId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "surface": {
+      "type": "string",
+      "const": "ADMIN_WORKFLOW_PLUGIN_MANAGEMENT"
+    },
+    "registryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registryEntryId",
+        "draftId",
+        "artifactKind",
+        "capabilityKind",
+        "status",
+        "executionMode",
+        "localExecutionEnabled"
+      ],
+      "properties": {
+        "registryEntryId": { "type": "string", "minLength": 1 },
+        "draftId": { "type": "string", "minLength": 1 },
+        "artifactKind": { "type": "string", "minLength": 1 },
+        "capabilityKind": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "const": "ACTIVE" },
+        "executionMode": { "type": "string", "const": "DRY_RUN_ONLY" },
+        "localExecutionEnabled": { "type": "boolean", "const": false }
+      }
+    },
+    "badges": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "DRY_RUN_ONLY",
+          "EXECUTION_CANDIDATES_DISABLED",
+          "PUBLICATION_DISABLED",
+          "FUTURE_SDD_REQUIRED"
+        ]
+      },
+      "allOf": [
+        { "contains": { "const": "DRY_RUN_ONLY" } },
+        { "contains": { "const": "EXECUTION_CANDIDATES_DISABLED" } },
+        { "contains": { "const": "PUBLICATION_DISABLED" } },
+        { "contains": { "const": "FUTURE_SDD_REQUIRED" } }
+      ]
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["actionId", "enabled"],
+            "properties": {
+              "actionId": { "const": "publish" },
+              "enabled": { "const": false }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["actionId", "enabled"],
+            "properties": {
+              "actionId": { "const": "enableLocalExecution" },
+              "enabled": { "const": false }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["actionId", "enabled"],
+            "properties": {
+              "actionId": { "const": "createExecutionCandidate" },
+              "enabled": { "const": false }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["actionId", "enabled"],
+            "properties": {
+              "actionId": { "const": "exposeMarketplace" },
+              "enabled": { "const": false }
+            }
+          }
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actionId",
+          "label",
+          "enabled",
+          "disabledReason",
+          "evidenceRef"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "enum": [
+              "publish",
+              "enableLocalExecution",
+              "createExecutionCandidate",
+              "exposeMarketplace"
+            ]
+          },
+          "label": { "type": "string", "minLength": 1 },
+          "enabled": { "type": "boolean", "const": false },
+          "disabledReason": { "type": "string", "minLength": 1 },
+          "evidenceRef": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "disabledActionCount": {
+      "type": "integer",
+      "const": 4
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registryAdmissionRecordRef",
+        "executionIsolationRecordRef",
+        "publicationDisabledRecordRef",
+        "humanApprovalRecordRef",
+        "sandboxResultRecordRef",
+        "auditTraceRef"
+      ],
+      "properties": {
+        "registryAdmissionRecordRef": { "type": "string", "minLength": 1 },
+        "executionIsolationRecordRef": { "type": "string", "minLength": 1 },
+        "publicationDisabledRecordRef": { "type": "string", "minLength": 1 },
+        "humanApprovalRecordRef": { "type": "string", "minLength": 1 },
+        "sandboxResultRecordRef": { "type": "string", "minLength": 1 },
+        "auditTraceRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managementViewRendered",
+        "allActionsDisabled",
+        "workflowPublishAllowed",
+        "pluginMarketplaceExposureAllowed",
+        "executionCandidateAllowed",
+        "localExecutionEnabled",
+        "processLaunchAllowed",
+        "hostWriteAllowed",
+        "requiresFutureSdd"
+      ],
+      "properties": {
+        "managementViewRendered": { "type": "boolean", "const": true },
+        "allActionsDisabled": { "type": "boolean", "const": true },
+        "workflowPublishAllowed": { "type": "boolean", "const": false },
+        "pluginMarketplaceExposureAllowed": { "type": "boolean", "const": false },
+        "executionCandidateAllowed": { "type": "boolean", "const": false },
+        "localExecutionEnabled": { "type": "boolean", "const": false },
+        "processLaunchAllowed": { "type": "boolean", "const": false },
+        "hostWriteAllowed": { "type": "boolean", "const": false },
+        "requiresFutureSdd": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

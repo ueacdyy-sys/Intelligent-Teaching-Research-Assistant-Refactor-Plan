@@ -1,0 +1,183 @@
+{
+  "generatedAt": "2026-06-07T12:29:24.451Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_DEEP_RESEARCH_FINALIZATION",
+  "runtime": {
+    "runtimeId": "research_deep_research_finalization_runtime",
+    "commandPort": "DeepResearchFinalizationPort.recordDeepResearchFinalization",
+    "asyncQueue": "research_deep_research"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_FINALIZATION_PROBE"
+  },
+  "safetyInvariants": {
+    "approvedReviewVerified": true,
+    "finalAnswerFinalized": true,
+    "finalAnswerPublished": false,
+    "directPublicationAllowed": false,
+    "externalModelCallStarted": false,
+    "mainDatabaseWriteStarted": false,
+    "studentArchiveWriteStarted": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "finalization": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-05.research.deep-research-finalization-recorded.v1",
+        "runtimeId": "research_deep_research_finalization_runtime",
+        "commandPort": "DeepResearchFinalizationPort.recordDeepResearchFinalization",
+        "status": "FINAL_ANSWER_FINALIZED_NOT_PUBLISHED",
+        "recordId": "research_deep_research_finalization_deep-research-finalization_job-001",
+        "recordedAt": "2026-06-05T00:00:00.000Z",
+        "idempotencyKey": "deep-research-finalization:job-001",
+        "idempotentReplay": false,
+        "job": {
+          "taskId": "agent_task_research_deep_001",
+          "contextRef": "shared_ctx_research_deep_001",
+          "jobId": "deep_research_job_001",
+          "queueName": "research_deep_research"
+        },
+        "artifact": {
+          "artifactId": "deep_research_finalization_artifact_001",
+          "artifactKind": "REVIEWED_DEEP_RESEARCH_FINALIZATION_RECORD",
+          "finalizationLabel": "Reviewed deep research answer envelope",
+          "deliveryState": "FINALIZED_NOT_PUBLISHED",
+          "reviewRecordId": "research_deep_research_final_answer_review_deep-research-final-answer-review_job-001",
+          "reviewerPrincipalId": "teacher_research_reviewer_001",
+          "finalizerPrincipalId": "teacher_research_reviewer_001",
+          "claimCount": 2,
+          "citationCount": 2,
+          "sourceHashCount": 2
+        },
+        "evidenceRefs": [
+          "evidence:final-answer-review:job-001",
+          "evidence:finalization:desktop-research",
+          "evidence:reasoning-synthesis:job-001",
+          "evidence:runtime:research_deep_research_final_answer_review_runtime",
+          "evidence:finalization-input-hash:sha256:4243fee7bb5b6f4bd1c76455c57b3ed05b8120d8ea9ba4495d078d668cfaec5d",
+          "evidence:runtime:research_deep_research_finalization_runtime",
+          "evidence:command-port:DeepResearchFinalizationPort.recordDeepResearchFinalization",
+          "evidence:review-record:research_deep_research_final_answer_review_deep-research-final-answer-review_job-001",
+          "evidence:finalizer:teacher_research_reviewer_001"
+        ],
+        "boundary": {
+          "approvedReviewVerified": true,
+          "humanFinalAnswerReviewRecorded": true,
+          "finalAnswerFinalized": true,
+          "finalAnswerGenerated": false,
+          "finalAnswerPublished": false,
+          "publicationCandidateCreated": false,
+          "directPublicationAllowed": false,
+          "externalModelCallStarted": false,
+          "mainDatabaseWriteStarted": false,
+          "studentArchiveWriteStarted": false,
+          "remoteDeviceControlAllowed": false,
+          "localToolMutationAllowed": false,
+          "swarmAllowed": false,
+          "requiresFuturePublicationReview": true
+        },
+        "runtimeSlo": {
+          "targetP99Ms": 300,
+          "evidenceClass": "ASYNC_DEEP_RESEARCH_FINALIZATION_BOUNDARY"
+        },
+        "nextAction": "Keep the finalized artifact unpublished until a future publication review/runtime approves delivery."
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 300,
+        "p99Ms": 4,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "ASYNC_DEEP_RESEARCH_FINALIZATION_PROBE"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.schema_and_examples",
+      "passed": true,
+      "severity": "info",
+      "actual": "FINAL_ANSWER_REVIEW_APPROVED_FOR_FINALIZATION=true;FINAL_ANSWER_FINALIZED_NOT_PUBLISHED=true;ASYNC_DEEP_RESEARCH_FINALIZATION_BOUNDARY=true",
+      "expected": "finalization schemas and examples consume approved review and produce unpublished artifact envelope",
+      "remediation": "Keep finalization separate from publication and answer-body generation."
+    },
+    {
+      "id": "runtime.identity_ports_and_idempotency",
+      "passed": true,
+      "severity": "info",
+      "actual": "research_deep_research_finalization_runtime=true;DeepResearchFinalizationPort.recordDeepResearchFinalization=true;FINAL_ANSWER_FINALIZED_NOT_PUBLISHED=true",
+      "expected": "runtime records append-only finalization through the finalization command port",
+      "remediation": "The finalization slice must stay port-based and idempotent."
+    },
+    {
+      "id": "runtime.review_and_safety_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;answerBodyAllowed: true=false;publicationAllowed: true=false;directPublicationAllowed: true=false;directDatabaseAccessAllowed: true=false;mainDatabaseWriteAllowed: true=false;studentArchiveWriteAllowed: true=false;remoteDeviceControlAllowed: true=false;externalModelCallAllowed: true=false;localToolMutationAllowed: true=false;swarmAllowed: true=false;finalAnswerPublished: true=false;publicationCandidateCreated: true=false;externalModelCallStarted: true=false;mainDatabaseWriteStarted: true=false",
+      "expected": "finalization verifies approved review and blocks publication, answer body injection, writes, model calls, tools, and Swarm",
+      "remediation": "Do not let finalization become publication or content generation."
+    },
+    {
+      "id": "runtime.probe_records_finalization_without_publication",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=FINAL_ANSWER_FINALIZED_NOT_PUBLISHED;delivery=FINALIZED_NOT_PUBLISHED;p99=4",
+      "expected": "probe records unpublished finalization artifact under async boundary budget",
+      "remediation": "Finalization must stop before publication or durable business writes."
+    },
+    {
+      "id": "tests.cover_finalization_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "positive, idempotency, unsafe review, invalid principal, body injection, publication, coverage, and risk tests",
+      "remediation": "Add regression coverage before treating finalization as root evidence."
+    },
+    {
+      "id": "quality.gate_tracks_runtime",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:research-deep-research-finalization=true;Research deep_research finalization audit=true",
+      "expected": "npm script and strict quality command include the finalization audit",
+      "remediation": "Wire finalization into the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_finalization_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "researchDeepResearchFinalization=true;research-deep-research-finalization.current.json=true;research_deep_research_finalization_runtime=true",
+      "expected": "research root workflow requires deep_research finalization evidence",
+      "remediation": "Root workflow coverage must explicitly require finalization after final-answer review."
+    },
+    {
+      "id": "structure_tracks_runtime_files",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires finalization contracts, SDD, runtime, tests, audit, and audit test",
+      "remediation": "Add the finalization slice to structure verification."
+    },
+    {
+      "id": "sdd.explicitly_defers_publication",
+      "passed": true,
+      "severity": "info",
+      "actual": "finalization runtime=true;DeepResearchFinalizationPort.recordDeepResearchFinalization=true;not final-answer publication=true",
+      "expected": "SDD states finalization is not publication and requires future publication review",
+      "remediation": "Keep the SDD honest about the boundary."
+    },
+    {
+      "id": "architecture_board.reflects_finalization_progress",
+      "passed": true,
+      "severity": "info",
+      "actual": "ResearchAgent.deep_research=true;finalization runtime=true;8.8/10=true;8.7/10=true",
+      "expected": "architecture board shows finalization progress while preserving the 8.7/10 review milestone",
+      "remediation": "Update the architecture board with current and historical deep_research milestones."
+    }
+  ],
+  "nextAction": "Use this as deep_research finalization evidence; publication and user-facing rendering remain separate future slices."
+}

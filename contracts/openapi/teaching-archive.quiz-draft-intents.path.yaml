@@ -1,0 +1,166 @@
+post:
+  operationId: submitTeachingQuizDraftIntent
+  summary: Submit a review-only teaching quiz draft command intent.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - title
+            - sourceMaterialRefs
+            - learningObjectives
+            - questionCount
+            - sharedContextRef
+            - guardrailResultRef
+            - routeDecisionRef
+            - inputHash
+            - outputSummary
+            - approvalArtifactRef
+            - rollbackPlanRef
+            - auditTraceRef
+            - idempotencyKey
+          properties:
+            title:
+              type: string
+              minLength: 1
+              maxLength: 200
+            sourceMaterialRefs:
+              type: array
+              minItems: 1
+              maxItems: 16
+              items:
+                type: string
+                minLength: 1
+                maxLength: 1000
+            learningObjectives:
+              type: array
+              minItems: 1
+              maxItems: 16
+              items:
+                type: string
+                minLength: 1
+                maxLength: 200
+            questionCount:
+              type: integer
+              minimum: 1
+              maximum: 100
+            difficulty:
+              type: string
+              enum: [EASY, MEDIUM, HARD, MIXED]
+              default: MIXED
+            sharedContextRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            guardrailResultRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            routeDecisionRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            inputHash:
+              type: string
+              minLength: 1
+              maxLength: 200
+            outputSummary:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            approvalArtifactRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            rollbackPlanRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            auditTraceRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            idempotencyKey:
+              type: string
+              minLength: 1
+              maxLength: 200
+  responses:
+    '202':
+      description: Teaching quiz draft intent accepted for human review.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - requestedByPrincipalId
+              - sessionId
+              - title
+              - sourceMaterialRefs
+              - learningObjectives
+              - questionCount
+              - difficulty
+              - status
+              - approvalRequired
+              - eventType
+              - command
+            properties:
+              id:
+                type: string
+                pattern: '^quiz_draft_intent_[A-Za-z0-9_-]+$'
+              requestedByPrincipalId:
+                type: string
+                minLength: 1
+              sessionId:
+                type: string
+                minLength: 1
+              title:
+                type: string
+              sourceMaterialRefs:
+                type: array
+                items:
+                  type: string
+              learningObjectives:
+                type: array
+                items:
+                  type: string
+              questionCount:
+                type: integer
+              difficulty:
+                type: string
+              status:
+                type: string
+                const: REVIEW_REQUIRED
+              approvalRequired:
+                type: boolean
+                const: true
+              eventType:
+                type: string
+                const: AGENT_WRITE_INTENT_REVIEW_REQUIRED
+              command:
+                type: object
+                additionalProperties: false
+                required: [id, status, resourceId]
+                properties:
+                  id:
+                    type: string
+                    pattern: '^cmd_quiz_draft_intent_[A-Za-z0-9_-]+$'
+                  status:
+                    type: string
+                    const: accepted
+                  resourceId:
+                    type: string
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

@@ -1,0 +1,99 @@
+post:
+  operationId: submitStudentAppQuestionBankDraftAnswerSubmission
+  summary: Submit answers for an authenticated student's question-bank draft.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - questionBankDraftRef
+            - answers
+          properties:
+            questionBankDraftRef:
+              type: string
+              minLength: 1
+              maxLength: 1000
+              pattern: '^local://question-bank-drafts/tutor_req_[A-Za-z0-9_-]+\.json$'
+            answers:
+              type: array
+              minItems: 1
+              maxItems: 100
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - itemId
+                  - answerText
+                properties:
+                  itemId:
+                    type: string
+                    minLength: 1
+                    maxLength: 128
+                  answerText:
+                    type: string
+                    maxLength: 4000
+  responses:
+    '201':
+      description: Answer submission metadata. The response intentionally omits submitted answer text, answer keys, rationale fields, and scoring fields.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - questionBankDraftRef
+              - tutoringAnalysisRequestId
+              - archiveItemId
+              - studentId
+              - submittedByPrincipalId
+              - status
+              - answerCount
+              - submittedAt
+            properties:
+              id:
+                type: string
+                pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+              questionBankDraftRef:
+                type: string
+                minLength: 1
+                maxLength: 1000
+              tutoringAnalysisRequestId:
+                type: string
+                pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              studentId:
+                type: string
+                minLength: 1
+                maxLength: 128
+              submittedByPrincipalId:
+                type: string
+                minLength: 1
+                maxLength: 200
+              status:
+                type: string
+                enum: [SUBMITTED]
+              answerCount:
+                type: integer
+                minimum: 1
+                maximum: 100
+              submittedAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

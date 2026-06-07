@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-worker-lifecycle.output.schema.json",
+  "title": "Deep Research Worker Lifecycle Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "job",
+    "approval",
+    "worker",
+    "lifecycle",
+    "failure",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-worker-lifecycle-recorded.v1"
+    },
+    "runtimeId": { "type": "string", "const": "research_deep_research_worker_lifecycle_runtime" },
+    "commandPort": {
+      "type": "string",
+      "const": "DeepResearchWorkerCommandPort.recordDeepResearchWorkerLifecycle"
+    },
+    "status": { "type": "string", "enum": ["CLAIMED_FOR_ASYNC_EXECUTION", "FAILED_SAFE_RECORDED"] },
+    "recordId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 },
+    "idempotentReplay": { "type": "boolean" },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approvalId", "approvalRecordRef", "reviewerPrincipalId", "decision"],
+      "properties": {
+        "approvalId": { "type": "string", "minLength": 1 },
+        "approvalRecordRef": { "type": "string", "minLength": 1 },
+        "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "const": "APPROVED_FOR_ASYNC" }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workerId", "nodeType", "capabilityKinds", "leaseDurationMs", "maxConcurrentJobs"],
+      "properties": {
+        "workerId": { "type": "string", "minLength": 1 },
+        "nodeType": { "type": "string", "const": "LOCAL" },
+        "capabilityKinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "leaseDurationMs": { "type": "integer", "minimum": 1000, "maximum": 120000 },
+        "maxConcurrentJobs": { "type": "integer", "minimum": 1, "maximum": 32 }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "fromStatus", "toStatus", "leaseExpiresAt"],
+      "properties": {
+        "action": { "type": "string", "enum": ["CLAIM", "MARK_FAILED_SAFE"] },
+        "fromStatus": { "type": "string", "enum": ["APPROVED_FOR_ASYNC", "CLAIMED"] },
+        "toStatus": { "type": "string", "enum": ["CLAIMED", "FAILED_SAFE"] },
+        "leaseExpiresAt": { "type": ["string", "null"] }
+      }
+    },
+    "failure": { "type": ["object", "null"] },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvalVerified",
+        "workerClaimRecorded",
+        "failedSafeRecorded",
+        "executionStarted",
+        "ragRetrievalStarted",
+        "externalModelCallStarted",
+        "finalAnswerGenerated",
+        "directPublicationAllowed",
+        "localToolMutationAllowed",
+        "directMainDatabaseWriteAllowed",
+        "studentArchiveUsed",
+        "remoteDeviceSourcesUsed",
+        "swarmAllowed",
+        "requiresFutureExecutionSlice"
+      ],
+      "properties": {
+        "approvalVerified": { "type": "boolean", "const": true },
+        "workerClaimRecorded": { "type": "boolean" },
+        "failedSafeRecorded": { "type": "boolean" },
+        "executionStarted": { "type": "boolean", "const": false },
+        "ragRetrievalStarted": { "type": "boolean", "const": false },
+        "externalModelCallStarted": { "type": "boolean", "const": false },
+        "finalAnswerGenerated": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "directMainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentArchiveUsed": { "type": "boolean", "const": false },
+        "remoteDeviceSourcesUsed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "requiresFutureExecutionSlice": { "type": "boolean", "const": true }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetP99Ms", "evidenceClass"],
+      "properties": {
+        "targetP99Ms": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "evidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_WORKER_LIFECYCLE_CONTROL_PLANE"
+        }
+      }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

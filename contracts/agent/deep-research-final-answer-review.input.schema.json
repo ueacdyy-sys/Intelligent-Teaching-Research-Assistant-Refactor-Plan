@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-final-answer-review.input.schema.json",
+  "title": "Deep Research Final Answer Review Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reviewInvocationId",
+    "principal",
+    "reasoningSynthesisRecord",
+    "reviewPolicy",
+    "review",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-final-answer-review.v1"
+    },
+    "reviewInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["TEACHER", "ADMIN"] },
+        "subjectType": { "type": "string", "const": "USER" },
+        "entryPoint": { "type": "string", "enum": ["DESKTOP_RESEARCH", "DESKTOP_TEACHER"] },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["RESEARCH_READ", "RESEARCH_WRITE", "KNOWLEDGE_PRIVATE_READ", "ADMIN_SYSTEM"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "reasoningSynthesisRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "runtimeId", "status", "job", "draft", "usage", "evidenceRefs", "boundary"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-06-05.research.deep-research-reasoning-synthesis-recorded.v1"
+        },
+        "runtimeId": { "type": "string", "const": "research_deep_research_reasoning_synthesis_runtime" },
+        "status": { "type": "string", "const": "REASONING_SYNTHESIS_DRAFT_RECORDED" },
+        "job": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["taskId", "contextRef", "jobId", "queueName"],
+          "properties": {
+            "taskId": { "type": "string", "minLength": 1 },
+            "contextRef": { "type": "string", "minLength": 1 },
+            "jobId": { "type": "string", "minLength": 1 },
+            "queueName": { "type": "string", "const": "research_deep_research" }
+          }
+        },
+        "draft": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["draftId", "answerKind", "claims", "limitations"],
+          "properties": {
+            "draftId": { "type": "string", "minLength": 1 },
+            "answerKind": { "type": "string", "const": "EVIDENCE_GROUNDED_DRAFT" },
+            "claims": { "type": "array", "minItems": 1 },
+            "limitations": { "type": "array", "minItems": 1 }
+          }
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["claimCount", "citationCount", "sourceHashCount"],
+          "properties": {
+            "claimCount": { "type": "integer", "minimum": 1 },
+            "citationCount": { "type": "integer", "minimum": 1 },
+            "sourceHashCount": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["reasoningDraftComposed", "finalAnswerGenerated", "directPublicationAllowed", "requiresFutureFinalAnswerReview"],
+          "properties": {
+            "reasoningDraftComposed": { "type": "boolean", "const": true },
+            "finalAnswerGenerated": { "type": "boolean", "const": false },
+            "directPublicationAllowed": { "type": "boolean", "const": false },
+            "requiresFutureFinalAnswerReview": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "reviewPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "humanReviewRequired",
+        "evidenceCoverageReviewRequired",
+        "safetyReviewRequired",
+        "limitationReviewRequired",
+        "citationIntegrityReviewRequired",
+        "sourceHashIntegrityReviewRequired",
+        "allowFutureFinalizationWhenApproved",
+        "publicationAllowed",
+        "directDatabaseAccessAllowed",
+        "writeAllowed",
+        "studentArchiveWriteAllowed",
+        "remoteDeviceControlAllowed",
+        "externalModelCallAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed",
+        "minEvidenceCoverageRatio"
+      ],
+      "properties": {
+        "humanReviewRequired": { "type": "boolean", "const": true },
+        "evidenceCoverageReviewRequired": { "type": "boolean", "const": true },
+        "safetyReviewRequired": { "type": "boolean", "const": true },
+        "limitationReviewRequired": { "type": "boolean", "const": true },
+        "citationIntegrityReviewRequired": { "type": "boolean", "const": true },
+        "sourceHashIntegrityReviewRequired": { "type": "boolean", "const": true },
+        "allowFutureFinalizationWhenApproved": { "type": "boolean", "const": true },
+        "publicationAllowed": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "writeAllowed": { "type": "boolean", "const": false },
+        "studentArchiveWriteAllowed": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "externalModelCallAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "minEvidenceCoverageRatio": { "type": "number", "minimum": 0.5, "maximum": 1 }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewId",
+        "reviewerPrincipalId",
+        "decision",
+        "reviewedAt",
+        "evidenceCoverageReviewed",
+        "safetyReviewed",
+        "limitationsReviewed",
+        "citationIntegrityReviewed",
+        "sourceHashIntegrityReviewed",
+        "coverage",
+        "risk"
+      ],
+      "properties": {
+        "reviewId": { "type": "string", "minLength": 1 },
+        "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "enum": ["APPROVED_FOR_FINALIZATION", "REVISION_REQUIRED", "REJECTED"] },
+        "reviewedAt": { "type": "string", "minLength": 1 },
+        "evidenceCoverageReviewed": { "type": "boolean", "const": true },
+        "safetyReviewed": { "type": "boolean", "const": true },
+        "limitationsReviewed": { "type": "boolean", "const": true },
+        "citationIntegrityReviewed": { "type": "boolean", "const": true },
+        "sourceHashIntegrityReviewed": { "type": "boolean", "const": true },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claimCountReviewed", "citedClaimCount", "unsupportedClaimCount", "coverageRatio"],
+          "properties": {
+            "claimCountReviewed": { "type": "integer", "minimum": 1 },
+            "citedClaimCount": { "type": "integer", "minimum": 0 },
+            "unsupportedClaimCount": { "type": "integer", "minimum": 0 },
+            "coverageRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "risk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hallucinationRisk", "privateKnowledgeRisk", "studentDataRisk"],
+          "properties": {
+            "hallucinationRisk": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+            "privateKnowledgeRisk": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+            "studentDataRisk": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] }
+          }
+        },
+        "comments": { "type": "string" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 }
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/skills/deep-research.input.schema.json",
+  "title": "Deep Research Skill Intent Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "intentInvocationId",
+    "agentTask",
+    "principalContext",
+    "sharedContext",
+    "guardrailResult",
+    "routeDecision",
+    "researchQuestion",
+    "objectives",
+    "sourcePolicy",
+    "asyncPolicy",
+    "budget",
+    "evidenceRefs"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-intent.invoke.v1"
+    },
+    "intentInvocationId": { "type": "string", "minLength": 1 },
+    "agentTask": { "$ref": "https://ita.local/contracts/agent/agent-task.schema.json" },
+    "principalContext": { "$ref": "https://ita.local/contracts/auth/principal-context.schema.json" },
+    "sharedContext": { "$ref": "https://ita.local/contracts/agent/shared-context.schema.json" },
+    "guardrailResult": { "$ref": "https://ita.local/contracts/agent/guardrail-result.schema.json" },
+    "routeDecision": { "$ref": "https://ita.local/contracts/agent/agent-route-decision.schema.json" },
+    "researchQuestion": { "type": "string", "minLength": 8, "maxLength": 1200 },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+    },
+    "sourcePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowedClassifications",
+        "includeStudentArchive",
+        "includeRemoteDeviceSources",
+        "directDatabaseAccessAllowed",
+        "knowledgeBaseRefs"
+      ],
+      "properties": {
+        "allowedClassifications": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["PUBLIC", "PRIVATE"] }
+        },
+        "includeStudentArchive": { "type": "boolean", "const": false },
+        "includeRemoteDeviceSources": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "knowledgeBaseRefs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+        }
+      }
+    },
+    "asyncPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admissionOnly",
+        "executeAsyncNow",
+        "externalModelCallNowAllowed",
+        "ragSynthesisNowAllowed",
+        "finalAnswerNowAllowed",
+        "directPublicationAllowed",
+        "localToolMutationAllowed",
+        "humanReviewRequiredBeforeExecution",
+        "queueName"
+      ],
+      "properties": {
+        "admissionOnly": { "type": "boolean", "const": true },
+        "executeAsyncNow": { "type": "boolean", "const": false },
+        "externalModelCallNowAllowed": { "type": "boolean", "const": false },
+        "ragSynthesisNowAllowed": { "type": "boolean", "const": false },
+        "finalAnswerNowAllowed": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "humanReviewRequiredBeforeExecution": { "type": "boolean", "const": true },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxAsyncRuntimeMs",
+        "maxSourceRefs",
+        "maxDeferredModelCalls",
+        "maxRetrievedChunks",
+        "p99AdmissionBudgetMs"
+      ],
+      "properties": {
+        "maxAsyncRuntimeMs": { "type": "integer", "minimum": 1000, "maximum": 300000 },
+        "maxSourceRefs": { "type": "integer", "minimum": 3, "maximum": 50 },
+        "maxDeferredModelCalls": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "maxRetrievedChunks": { "type": "integer", "minimum": 3, "maximum": 120 },
+        "p99AdmissionBudgetMs": { "type": "integer", "minimum": 1, "maximum": 50 }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

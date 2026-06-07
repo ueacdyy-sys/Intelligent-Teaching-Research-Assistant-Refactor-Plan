@@ -3,20 +3,48 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 const schemaAdvisoryLockID int64 = 7432026060301
 const schemaComponent = "teaching_archive_gateway"
-const schemaVersion = "2026-06-03.schema.2"
+const schemaVersion = "2026-06-07.schema.4"
 
-func EnsureSchema(ctx context.Context, db DB) error {
-	if transactor, ok := db.(Transactor); ok {
-		return ensureSchemaTransaction(ctx, transactor)
-	}
-	return ensureSchemaSessionLock(ctx, db)
+type SchemaIndexProfile string
+
+const (
+	SchemaIndexProfileFull     SchemaIndexProfile = "full"
+	SchemaIndexProfileHotWrite SchemaIndexProfile = "hot_write"
+)
+
+type SchemaOptions struct {
+	IndexProfile SchemaIndexProfile
 }
 
-func ensureSchemaTransaction(ctx context.Context, transactor Transactor) error {
+func NormalizeSchemaIndexProfile(value string) (SchemaIndexProfile, error) {
+	profile := SchemaIndexProfile(value)
+	switch profile {
+	case "", SchemaIndexProfileFull:
+		return SchemaIndexProfileFull, nil
+	case SchemaIndexProfileHotWrite:
+		return SchemaIndexProfileHotWrite, nil
+	default:
+		return "", fmt.Errorf("unsupported teaching archive schema index profile: %q", value)
+	}
+}
+
+func EnsureSchema(ctx context.Context, db DB) error {
+	return EnsureSchemaWithOptions(ctx, db, SchemaOptions{})
+}
+
+func EnsureSchemaWithOptions(ctx context.Context, db DB, options SchemaOptions) error {
+	if transactor, ok := db.(Transactor); ok {
+		return ensureSchemaTransaction(ctx, transactor, options)
+	}
+	return ensureSchemaSessionLock(ctx, db, options)
+}
+
+func ensureSchemaTransaction(ctx context.Context, transactor Transactor, options SchemaOptions) error {
 	tx, err := transactor.Begin(ctx)
 	if err != nil {
 		return err
@@ -30,7 +58,7 @@ func ensureSchemaTransaction(ctx context.Context, transactor Transactor) error {
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, schemaAdvisoryLockID); err != nil {
 		return err
 	}
-	if err := ensureSchemaLocked(ctx, tx); err != nil {
+	if err := ensureSchemaLocked(ctx, tx, options); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -40,11 +68,11 @@ func ensureSchemaTransaction(ctx context.Context, transactor Transactor) error {
 	return nil
 }
 
-func ensureSchemaSessionLock(ctx context.Context, db DB) error {
+func ensureSchemaSessionLock(ctx context.Context, db DB, options SchemaOptions) error {
 	if _, err := db.Exec(ctx, `SELECT pg_advisory_lock($1)`, schemaAdvisoryLockID); err != nil {
 		return err
 	}
-	if err := ensureSchemaLocked(ctx, db); err != nil {
+	if err := ensureSchemaLocked(ctx, db, options); err != nil {
 		if unlockErr := unlockSchema(ctx, db); unlockErr != nil {
 			return errors.Join(err, unlockErr)
 		}
@@ -53,7 +81,7 @@ func ensureSchemaSessionLock(ctx context.Context, db DB) error {
 	return unlockSchema(ctx, db)
 }
 
-func ensureSchemaLocked(ctx context.Context, db DB) error {
+func ensureSchemaLocked(ctx context.Context, db DB, options SchemaOptions) error {
 	if _, err := db.Exec(ctx, schemaVersionTableStatement); err != nil {
 		return err
 	}
@@ -61,16 +89,33 @@ func ensureSchemaLocked(ctx context.Context, db DB) error {
 	if err != nil {
 		return err
 	}
-	if applied {
-		return nil
+	if !applied {
+		for _, statement := range append(schemaStatements, schemaFeatureStatements...) {
+			if _, err := db.Exec(ctx, statement); err != nil {
+				return err
+			}
+		}
+		if _, err := db.Exec(ctx, schemaVersionUpsertStatement, schemaComponent, schemaVersion); err != nil {
+			return err
+		}
 	}
-	for _, statement := range schemaStatements {
+	return applySchemaIndexProfile(ctx, db, options.IndexProfile)
+}
+
+func applySchemaIndexProfile(ctx context.Context, db DB, profile SchemaIndexProfile) error {
+	for _, statement := range schemaIndexProfileStatements(profile) {
 		if _, err := db.Exec(ctx, statement); err != nil {
 			return err
 		}
 	}
-	_, err = db.Exec(ctx, schemaVersionUpsertStatement, schemaComponent, schemaVersion)
-	return err
+	return nil
+}
+
+func schemaIndexProfileStatements(profile SchemaIndexProfile) []string {
+	if profile == SchemaIndexProfileHotWrite {
+		return hotWriteIndexProfileStatements
+	}
+	return fullIndexProfileStatements
 }
 
 func schemaVersionApplied(ctx context.Context, db DB) (bool, error) {
@@ -128,17 +173,6 @@ var schemaStatements = []string{
 	`DROP INDEX IF EXISTS idx_teaching_archive_items_student_created`,
 	`DROP INDEX IF EXISTS idx_teaching_archive_items_owner_created`,
 	`DROP INDEX IF EXISTS idx_teaching_archive_items_material_created`,
-	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_created_page
-		ON teaching_archive_items (created_at DESC, id DESC)`,
-	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_student_page
-		ON teaching_archive_items (student_id, created_at DESC, id DESC)
-		WHERE student_id IS NOT NULL`,
-	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_page
-		ON teaching_archive_items (owner_type, created_at DESC, id DESC)`,
-	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
-		ON teaching_archive_items (material_type, created_at DESC, id DESC)`,
-	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_material_page
-		ON teaching_archive_items (owner_type, material_type, created_at DESC, id DESC)`,
 	`CREATE TABLE IF NOT EXISTS teaching_quiz_submissions (
 		id TEXT PRIMARY KEY,
 		quiz_archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
@@ -186,6 +220,63 @@ var schemaStatements = []string{
 		ON teaching_attendance_records (session_id, created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_attendance_records_student_created
 		ON teaching_attendance_records (student_id, created_at DESC, id DESC)`,
+}
+
+var fullIndexProfileStatements = []string{
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_created_page
+		ON teaching_archive_items (created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_student_page
+		ON teaching_archive_items (student_id, created_at DESC, id DESC)
+		WHERE student_id IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_page
+		ON teaching_archive_items (owner_type, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_material_page
+		ON teaching_archive_items (material_type, created_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_material_page
+		ON teaching_archive_items (owner_type, material_type, created_at DESC, id DESC)`,
+}
+
+var hotWriteIndexProfileStatements = []string{
+	`DROP INDEX IF EXISTS idx_teaching_archive_items_created_page`,
+	`DROP INDEX IF EXISTS idx_teaching_archive_items_owner_page`,
+	`DROP INDEX IF EXISTS idx_teaching_archive_items_material_page`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_student_page
+		ON teaching_archive_items (student_id, created_at DESC, id DESC)
+		WHERE student_id IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_items_owner_material_page
+		ON teaching_archive_items (owner_type, material_type, created_at DESC, id DESC)`,
+}
+
+var schemaFeatureStatements = []string{
+	`CREATE TABLE IF NOT EXISTS teaching_archive_publications (
+		publication_id TEXT PRIMARY KEY,
+		publication_state TEXT NOT NULL,
+		visibility_state TEXT NOT NULL,
+		channel TEXT NOT NULL,
+		scope_type TEXT NOT NULL,
+		student_id TEXT NOT NULL,
+		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+		material_type TEXT NOT NULL,
+		title TEXT NOT NULL,
+		content_ref TEXT NOT NULL,
+		approval_record_id TEXT NOT NULL,
+		approval_id TEXT NOT NULL,
+		publication_candidate_id TEXT NOT NULL,
+		committed_at TIMESTAMPTZ NOT NULL,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_publications_student_app_visible_lookup
+		ON teaching_archive_publications (archive_item_id, student_id)
+		WHERE scope_type = 'STUDENT_OWN_ARCHIVE'
+			AND publication_state = 'COMMITTED_TO_PUBLICATION_STORE'
+			AND visibility_state = 'STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED'
+			AND channel = 'STUDENT_APP'`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_archive_publications_student_app_visible_page
+		ON teaching_archive_publications (student_id, material_type, committed_at DESC, publication_id DESC)
+		WHERE scope_type = 'STUDENT_OWN_ARCHIVE'
+			AND publication_state = 'COMMITTED_TO_PUBLICATION_STORE'
+			AND visibility_state = 'STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED'
+			AND channel = 'STUDENT_APP'`,
 	`CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
 		id TEXT PRIMARY KEY,
 		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
@@ -198,6 +289,8 @@ var schemaStatements = []string{
 		source_archive_content_ref TEXT NOT NULL,
 		source_quiz_submission_id TEXT,
 		source_answer_ref TEXT,
+		source_question_bank_draft_ref TEXT,
+		source_question_bank_answer_submission_id TEXT,
 		source_archive_material TEXT NOT NULL,
 		source_archive_ocr_status TEXT NOT NULL,
 		score_summary TEXT,
@@ -224,6 +317,10 @@ var schemaStatements = []string{
 	`ALTER TABLE teaching_ai_grading_requests
 		ADD COLUMN IF NOT EXISTS source_answer_ref TEXT`,
 	`ALTER TABLE teaching_ai_grading_requests
+		ADD COLUMN IF NOT EXISTS source_question_bank_draft_ref TEXT`,
+	`ALTER TABLE teaching_ai_grading_requests
+		ADD COLUMN IF NOT EXISTS source_question_bank_answer_submission_id TEXT`,
+	`ALTER TABLE teaching_ai_grading_requests
 		ADD COLUMN IF NOT EXISTS score_summary TEXT`,
 	`ALTER TABLE teaching_ai_grading_requests
 		ADD COLUMN IF NOT EXISTS result_ref TEXT`,
@@ -248,6 +345,9 @@ var schemaStatements = []string{
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_source_student_created
 		ON teaching_ai_grading_requests (source_archive_student_id, created_at DESC, id DESC)
 		WHERE source_archive_student_id IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_qbank_answer_student_created
+		ON teaching_ai_grading_requests (source_question_bank_answer_submission_id, source_archive_student_id, created_at DESC, id DESC)
+		WHERE source_question_bank_answer_submission_id IS NOT NULL`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_created_page
 		ON teaching_ai_grading_requests (created_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_grading_requests_claim_eligible
@@ -306,4 +406,35 @@ var schemaStatements = []string{
 		WHERE source_archive_student_id IS NOT NULL`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_created_page
 		ON teaching_tutoring_analysis_requests (created_at DESC, id DESC)`,
+	`CREATE TABLE IF NOT EXISTS teaching_question_bank_draft_contents (
+		question_bank_draft_ref TEXT PRIMARY KEY,
+		tutoring_analysis_request_id TEXT NOT NULL REFERENCES teaching_tutoring_analysis_requests(id),
+		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+		student_id TEXT NOT NULL,
+		status TEXT NOT NULL,
+		source_archive_material TEXT NOT NULL,
+		result_summary TEXT NOT NULL,
+		question_items JSONB NOT NULL,
+		created_at TIMESTAMPTZ NOT NULL,
+		updated_at TIMESTAMPTZ NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_question_bank_draft_contents_student_updated
+		ON teaching_question_bank_draft_contents (student_id, updated_at DESC, question_bank_draft_ref)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_question_bank_draft_contents_request
+		ON teaching_question_bank_draft_contents (tutoring_analysis_request_id)`,
+	`CREATE TABLE IF NOT EXISTS teaching_question_bank_draft_answer_submissions (
+		id TEXT PRIMARY KEY,
+		question_bank_draft_ref TEXT NOT NULL REFERENCES teaching_question_bank_draft_contents(question_bank_draft_ref),
+		tutoring_analysis_request_id TEXT NOT NULL REFERENCES teaching_tutoring_analysis_requests(id),
+		archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+		student_id TEXT NOT NULL,
+		submitted_by_principal_id TEXT NOT NULL,
+		status TEXT NOT NULL,
+		answers JSONB NOT NULL,
+		submitted_at TIMESTAMPTZ NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_question_bank_draft_answer_submissions_student_submitted
+		ON teaching_question_bank_draft_answer_submissions (student_id, submitted_at DESC, id DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_question_bank_draft_answer_submissions_draft_submitted
+		ON teaching_question_bank_draft_answer_submissions (question_bank_draft_ref, submitted_at DESC, id DESC)`,
 }

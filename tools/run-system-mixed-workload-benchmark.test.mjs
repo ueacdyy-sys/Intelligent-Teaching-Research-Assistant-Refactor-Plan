@@ -24,6 +24,12 @@ describe("system mixed workload benchmark runner", () => {
     const parsed = parseArgs([
       "--identity-base-url",
       "http://127.0.0.1:19000",
+      "--identity-dsn",
+      "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
+      "--conversation-dsn",
+      "postgres://app_user:ueacd@127.0.0.1:16433/intelligent_teaching_assistant?sslmode=disable",
+      "--teaching-dsn",
+      "postgres://app_user:ueacd@127.0.0.1:16434/intelligent_teaching_assistant?sslmode=disable",
       "--conversation-gateway-count",
       "16",
       "--teaching-gateway-count",
@@ -76,6 +82,20 @@ describe("system mixed workload benchmark runner", () => {
       "1",
       "--teaching-archive-create-batch-workers",
       "2",
+      "--teaching-archive-create-batch-mode",
+      "copy",
+      "--teaching-quiz-submission-batch-size",
+      "16",
+      "--teaching-quiz-submission-batch-delay-ms",
+      "0",
+      "--teaching-quiz-submission-batch-workers",
+      "8",
+      "--teaching-archive-list-cache-ttl-ms",
+      "250",
+      "--teaching-archive-list-cache-max-entries",
+      "4096",
+      "--teaching-archive-schema-index-profile",
+      "hot_write",
       "--teaching-concurrency",
       "6",
       "--identity-ingress-proxy",
@@ -86,13 +106,24 @@ describe("system mixed workload benchmark runner", () => {
       "150",
       "--identity-session-db-session-table-persistence",
       "UNLOGGED",
+      "--identity-session-db-read-max-conns",
+      "24",
+      "--identity-session-db-read-min-conns",
+      "12",
+      "--identity-session-db-read-prewarm-conns",
+      "12",
       "--identity-session-db-write-concurrency",
       "10",
+      "--identity-warmup-operations",
+      "80",
       "--unknown-option",
       "ignored",
     ]);
 
     assert.equal(parsed.identityBaseUrl, "http://127.0.0.1:19000");
+    assert.equal(parsed.identityDsn, "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable");
+    assert.equal(parsed.conversationDsn, "postgres://app_user:ueacd@127.0.0.1:16433/intelligent_teaching_assistant?sslmode=disable");
+    assert.equal(parsed.teachingDsn, "postgres://app_user:ueacd@127.0.0.1:16434/intelligent_teaching_assistant?sslmode=disable");
     assert.equal(parsed.conversationGatewayCount, "16");
     assert.equal(parsed.teachingGatewayCount, "4");
     assert.equal(parsed.conversationWriteBatchSize, "64");
@@ -119,22 +150,39 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(parsed.teachingArchiveCreateBatchSize, "64");
     assert.equal(parsed.teachingArchiveCreateBatchDelayMs, "1");
     assert.equal(parsed.teachingArchiveCreateBatchWorkers, "2");
+    assert.equal(parsed.teachingArchiveCreateBatchMode, "copy");
+    assert.equal(parsed.teachingQuizSubmissionBatchSize, "16");
+    assert.equal(parsed.teachingQuizSubmissionBatchDelayMs, "0");
+    assert.equal(parsed.teachingQuizSubmissionBatchWorkers, "8");
+    assert.equal(parsed.teachingArchiveListCacheTtlMs, "250");
+    assert.equal(parsed.teachingArchiveListCacheMaxEntries, "4096");
+    assert.equal(parsed.teachingArchiveSchemaIndexProfile, "hot_write");
     assert.equal(parsed.teachingConcurrency, "6");
     assert.equal(parsed.identityIngressProxy, "true");
     assert.equal(parsed.identityIngressCount, "16");
     assert.equal(parsed.identityMaxConnsPerHost, "150");
     assert.equal(parsed.identitySessionDbSessionTablePersistence, "unlogged");
+    assert.equal(parsed.identitySessionDbReadMaxConns, "24");
+    assert.equal(parsed.identitySessionDbReadMinConns, "12");
+    assert.equal(parsed.identitySessionDbReadPrewarmConns, "12");
     assert.equal(parsed.identitySessionDbWriteConcurrency, "10");
+    assert.equal(parsed.identityWarmupOperations, "80");
     assert.equal(parsed.profile, defaults.profile);
     assert.equal(Object.hasOwn(parsed, "unknownOption"), false);
   });
 
   it("builds the five root-module workload commands with the configured ports and outputs", () => {
+    const identityDsn = "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable";
+    const conversationDsn = "postgres://app_user:ueacd@127.0.0.1:16433/intelligent_teaching_assistant?sslmode=disable";
+    const teachingDsn = "postgres://app_user:ueacd@127.0.0.1:16434/intelligent_teaching_assistant?sslmode=disable";
     const commands = buildWorkloadCommands({
       ...defaults,
       identityBaseUrl: "http://127.0.0.1:19000",
       conversationBaseUrl: "http://127.0.0.1:19100",
       teachingBaseUrl: "http://127.0.0.1:19200",
+      identityDsn,
+      conversationDsn,
+      teachingDsn,
       identityOut: "reports/identity.json",
       conversationOut: "reports/conversation.json",
       teachingOut: "reports/teaching.json",
@@ -150,8 +198,14 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbMinConns: "6",
+      identitySessionDbPrewarmConns: "6",
+      identitySessionDbReadMaxConns: "24",
+      identitySessionDbReadMinConns: "12",
+      identitySessionDbReadPrewarmConns: "12",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      identityWarmupOperations: "80",
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
@@ -178,6 +232,13 @@ describe("system mixed workload benchmark runner", () => {
       teachingArchiveCreateBatchSize: "64",
       teachingArchiveCreateBatchDelayMs: "1",
       teachingArchiveCreateBatchWorkers: "2",
+      teachingArchiveCreateBatchMode: "copy",
+      teachingQuizSubmissionBatchSize: "16",
+      teachingQuizSubmissionBatchDelayMs: "0",
+      teachingQuizSubmissionBatchWorkers: "8",
+      teachingArchiveListCacheTtlMs: "250",
+      teachingArchiveListCacheMaxEntries: "4096",
+      teachingArchiveSchemaIndexProfile: "hot_write",
       pgbouncerDiagnostics: "true",
       postgresDiagnostics: "true",
       postgresDiagnosticsRelations: "teaching_archive_items",
@@ -191,6 +252,7 @@ describe("system mixed workload benchmark runner", () => {
       "ai_worker_admission",
     ]);
     assert.equal(argumentAfter(commands[0].args, "--base-url"), "http://127.0.0.1:19000");
+    assert.equal(argumentAfter(commands[0].args, "--dsn"), identityDsn);
     assert.equal(argumentAfter(commands[0].args, "--max-conns-per-host"), "150");
     assert.equal(argumentAfter(commands[0].args, "--warm-connections-per-host"), "150");
     assert.equal(argumentAfter(commands[0].args, "--ingress-proxy"), "true");
@@ -198,12 +260,19 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[0].args, "--ingress-count"), "16");
     assert.equal(argumentAfter(commands[0].args, "--ingress-max-conns-per-host"), "40");
     assert.equal(argumentAfter(commands[0].args, "--ingress-warm-connections-per-host"), "16");
+    assert.equal(argumentAfter(commands[0].args, "--session-db-min-conns"), "6");
+    assert.equal(argumentAfter(commands[0].args, "--session-db-prewarm-conns"), "6");
+    assert.equal(argumentAfter(commands[0].args, "--session-db-read-max-conns"), "24");
+    assert.equal(argumentAfter(commands[0].args, "--session-db-read-min-conns"), "12");
+    assert.equal(argumentAfter(commands[0].args, "--session-db-read-prewarm-conns"), "12");
     assert.equal(argumentAfter(commands[0].args, "--session-db-session-table-persistence"), "unlogged");
     assert.equal(argumentAfter(commands[0].args, "--session-db-write-concurrency"), "10");
+    assert.equal(argumentAfter(commands[0].args, "--warmup-operations"), "80");
     assert.equal(argumentAfter(commands[0].args, "--benchmark-runtime"), "docker");
     assert.equal(argumentAfter(commands[0].args, "--benchmark-docker-image"), "golang:1.26-alpine");
     assert.equal(argumentAfter(commands[0].args, "--benchmark-docker-host"), "host.docker.internal");
     assert.equal(argumentAfter(commands[1].args, "--base-url"), "http://127.0.0.1:19100");
+    assert.equal(argumentAfter(commands[1].args, "--dsn"), conversationDsn);
     assert.equal(argumentAfter(commands[1].args, "--agent-api-key"), "ueacd");
     assert.equal(argumentAfter(commands[1].args, "--benchmark-runtime"), "wsl");
     assert.equal(argumentAfter(commands[1].args, "--benchmark-wsl-host"), "172.28.160.1");
@@ -219,6 +288,7 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[1].args, "--command-log-settle-timeout-ms"), "30000");
     assert.equal(argumentAfter(commands[1].args, "--client-trace"), "true");
     assert.equal(argumentAfter(commands[2].args, "--base-url"), "http://127.0.0.1:19200");
+    assert.equal(argumentAfter(commands[2].args, "--dsn"), teachingDsn);
     assert.equal(argumentAfter(commands[2].args, "--gateway-count"), "3");
     assert.equal(argumentAfter(commands[2].args, "--db-min-conns"), "12");
     assert.equal(argumentAfter(commands[2].args, "--db-prewarm-conns"), "12");
@@ -232,6 +302,13 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(argumentAfter(commands[2].args, "--archive-create-batch-size"), "64");
     assert.equal(argumentAfter(commands[2].args, "--archive-create-batch-delay-ms"), "1");
     assert.equal(argumentAfter(commands[2].args, "--archive-create-batch-workers"), "2");
+    assert.equal(argumentAfter(commands[2].args, "--archive-create-batch-mode"), "copy");
+    assert.equal(argumentAfter(commands[2].args, "--quiz-submission-batch-size"), "16");
+    assert.equal(argumentAfter(commands[2].args, "--quiz-submission-batch-delay-ms"), "0");
+    assert.equal(argumentAfter(commands[2].args, "--quiz-submission-batch-workers"), "8");
+    assert.equal(argumentAfter(commands[2].args, "--archive-list-cache-ttl-ms"), "250");
+    assert.equal(argumentAfter(commands[2].args, "--archive-list-cache-max-entries"), "4096");
+    assert.equal(argumentAfter(commands[2].args, "--archive-schema-index-profile"), "hot_write");
     assert.equal(argumentAfter(commands[2].args, "--pgbouncer-diagnostics"), "true");
     assert.equal(argumentAfter(commands[2].args, "--postgres-diagnostics"), "true");
     assert.equal(argumentAfter(commands[2].args, "--postgres-diagnostics-relations"), "teaching_archive_items");
@@ -279,6 +356,8 @@ describe("system mixed workload benchmark runner", () => {
 
     assert.doesNotMatch(reportText, /ueacd/u);
     assert.doesNotMatch(reportText, /postgres:\/\/app_user/u);
+    assert.equal(report.persistenceProfile.mode, "shared");
+    assert.equal(report.persistenceProfile.domains.identity.password, "[masked]");
     assert.match(report.sourceCommands.find((command) => command.name === "conversation_write").command, /--agent-api-key \*\*\*/u);
     assert.match(report.workloads[0].outputTail, /\[database-url\]/u);
   });
@@ -419,8 +498,14 @@ describe("system mixed workload benchmark runner", () => {
       identityIngressCount: "16",
       identityIngressMaxConnsPerHost: "40",
       identityIngressWarmConnectionsPerHost: "16",
+      identitySessionDbMinConns: "6",
+      identitySessionDbPrewarmConns: "6",
+      identitySessionDbReadMaxConns: "24",
+      identitySessionDbReadMinConns: "12",
+      identitySessionDbReadPrewarmConns: "12",
       identitySessionDbSessionTablePersistence: "unlogged",
       identitySessionDbWriteConcurrency: "10",
+      identityWarmupOperations: "80",
       conversationBenchmarkRuntime: "wsl",
       conversationBenchmarkWslHost: "172.28.160.1",
       conversationBenchmarkWslWorkspace: "/mnt/c/workspace",
@@ -441,6 +526,12 @@ describe("system mixed workload benchmark runner", () => {
       teachingArchiveCreateBatchSize: "64",
       teachingArchiveCreateBatchDelayMs: "1",
       teachingArchiveCreateBatchWorkers: "2",
+      teachingArchiveCreateBatchMode: "copy",
+      teachingQuizSubmissionBatchSize: "16",
+      teachingQuizSubmissionBatchDelayMs: "0",
+      teachingQuizSubmissionBatchWorkers: "8",
+      teachingArchiveListCacheTtlMs: "250",
+      teachingArchiveListCacheMaxEntries: "4096",
     };
     const commands = buildWorkloadCommands(options);
     const results = commands.map((command) => ({
@@ -473,6 +564,19 @@ describe("system mixed workload benchmark runner", () => {
       teachingArchiveCreateBatchSize: 64,
       teachingArchiveCreateBatchDelayMs: 1,
       teachingArchiveCreateBatchWorkers: 2,
+      teachingArchiveCreateBatchMode: "copy",
+      teachingQuizSubmissionBatchSize: 16,
+      teachingQuizSubmissionBatchDelayMs: 0,
+      teachingQuizSubmissionBatchWorkers: 8,
+      teachingWriteAcceptanceMode: "sync",
+      teachingCommandLogAppendBatchSize: 64,
+      teachingCommandLogQueueCapacity: 65536,
+      teachingCommandLogProjectionWorkers: 4,
+      teachingCommandLogSync: true,
+      teachingCommandLogSettleTimeoutMs: 0,
+      teachingArchiveListCacheTtlMs: 250,
+      teachingArchiveListCacheMaxEntries: 4096,
+      teachingArchiveSchemaIndexProfile: "full",
       identityMaxConnsPerHost: 150,
       identityWarmConnectionsPerHost: 150,
     });
@@ -486,7 +590,13 @@ describe("system mixed workload benchmark runner", () => {
     });
     assert.equal(report.concurrencyProfile.teachingGatewayCount, 3);
     assert.equal(report.databaseProfile.identitySessionTablePersistence, "unlogged");
+    assert.equal(report.databaseProfile.identitySessionDbMinConns, 6);
+    assert.equal(report.databaseProfile.identitySessionDbPrewarmConns, 6);
+    assert.equal(report.databaseProfile.identitySessionDbReadMaxConns, 24);
+    assert.equal(report.databaseProfile.identitySessionDbReadMinConns, 12);
+    assert.equal(report.databaseProfile.identitySessionDbReadPrewarmConns, 12);
     assert.equal(report.databaseProfile.identitySessionDbWriteConcurrency, 10);
+    assert.equal(report.databaseProfile.identityWarmupOperations, 80);
     assert.equal(report.databaseProfile.conversationWriteBatchWorkers, 2);
     assert.equal(report.databaseProfile.conversationWriteBatchMode, "copy");
     assert.equal(report.databaseProfile.teachingDbMinConns, 12);
@@ -494,6 +604,11 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(report.databaseProfile.teachingArchiveCreateBatchSize, 64);
     assert.equal(report.databaseProfile.teachingArchiveCreateBatchDelayMs, 1);
     assert.equal(report.databaseProfile.teachingArchiveCreateBatchWorkers, 2);
+    assert.equal(report.databaseProfile.teachingArchiveCreateBatchMode, "copy");
+    assert.equal(report.databaseProfile.teachingQuizSubmissionBatchSize, 16);
+    assert.equal(report.databaseProfile.teachingQuizSubmissionBatchDelayMs, 0);
+    assert.equal(report.databaseProfile.teachingQuizSubmissionBatchWorkers, 8);
+    assert.equal(report.databaseProfile.teachingArchiveSchemaIndexProfile, "full");
     assert.equal(report.conversationBenchmarkRuntimeProfile.executor, "WSL_GO");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslHostAlias, "172.28.160.1");
     assert.equal(report.conversationBenchmarkRuntimeProfile.wslWorkspace, "/mnt/c/workspace");
@@ -591,15 +706,17 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(teaching.summary.appP99Ms, 31);
     assert.equal(teaching.summary.dbBatchWaitP99Ms, 7);
     assert.equal(teaching.summary.dbInsertP99Ms, 24);
+    assert.equal(teaching.summary.responseEncodeP99Ms, 2);
     assert.deepEqual(teaching.summary.gatewayWriteProfile, {
       archiveCreateBatchingEnabled: true,
       archiveCreateBatchSize: 64,
       archiveCreateBatchDelayMs: 1,
       archiveCreateBatchWorkers: 2,
+      archiveCreateBatchMode: "copy",
       quizSubmissionBatchingEnabled: true,
-      quizSubmissionBatchSize: 64,
-      quizSubmissionBatchDelayMs: 1,
-      quizSubmissionBatchWorkers: 2,
+      quizSubmissionBatchSize: 16,
+      quizSubmissionBatchDelayMs: 0,
+      quizSubmissionBatchWorkers: 8,
     });
     assert.equal(teaching.summary.clientHandlerGapP99Ms, 14);
     assert.equal(teaching.summary.benchmarkRuntimeProfile.executor, "DOCKER_GO");
@@ -645,65 +762,5 @@ describe("system mixed workload benchmark runner", () => {
     assert.equal(report.status, "FAILED");
     assert.equal(report.summary.totalErrors, 1);
     assert.equal(teaching.errors, 1);
-  });
-
-  it("rejects negative identity write concurrency", async () => {
-    const root = makeTempRoot();
-
-    await assert.rejects(
-      () => runSystemMixedWorkloadBenchmark(
-        {
-          ...defaults,
-          identitySessionDbWriteConcurrency: "-1",
-        },
-        { root, runCommand: successfulChildCommand },
-      ),
-      /identity-session-db-write-concurrency must be a non-negative integer/u,
-    );
-  });
-
-  it("rejects unsupported conversation benchmark runtimes", async () => {
-    const root = makeTempRoot();
-
-    await assert.rejects(
-      () => runSystemMixedWorkloadBenchmark(
-        {
-          ...defaults,
-          conversationBenchmarkRuntime: "bad",
-        },
-        { root, runCommand: successfulChildCommand },
-      ),
-      /conversation-benchmark-runtime must be local, docker, or wsl/u,
-    );
-  });
-
-  it("rejects unsupported identity benchmark runtimes", async () => {
-    const root = makeTempRoot();
-
-    await assert.rejects(
-      () => runSystemMixedWorkloadBenchmark(
-        {
-          ...defaults,
-          identityBenchmarkRuntime: "wsl",
-        },
-        { root, runCommand: successfulChildCommand },
-      ),
-      /identity-benchmark-runtime must be local or docker/u,
-    );
-  });
-
-  it("rejects unsupported teaching benchmark runtimes", async () => {
-    const root = makeTempRoot();
-
-    await assert.rejects(
-      () => runSystemMixedWorkloadBenchmark(
-        {
-          ...defaults,
-          teachingBenchmarkRuntime: "bad",
-        },
-        { root, runCommand: successfulChildCommand },
-      ),
-      /teaching-benchmark-runtime must be js, local, docker, or wsl/u,
-    );
   });
 });

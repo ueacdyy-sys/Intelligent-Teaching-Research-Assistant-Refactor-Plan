@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "2026-06-04.agent.task.examples.v1",
+  "tasks": [
+    {
+      "schemaVersion": "2026-06-04.agent.task.v1",
+      "taskId": "agent_task_lesson_quiz_001",
+      "requestedByPrincipalId": "teacher_001",
+      "principalContextRef": "principal-context:teacher_001:session_teacher_001",
+      "userIntent": "根据本节课材料生成一次随堂测验草稿，并说明依据。",
+      "taskKind": "TEACHING",
+      "rootRequirementAnchors": ["教学模式", "随堂测验", "统筹智能体"],
+      "riskLevel": "MEDIUM",
+      "writeIntent": true,
+      "requiresHumanApproval": true,
+      "routePolicy": {
+        "allowedModes": ["SINGLE_WORKER", "SWARM"],
+        "preferSingleWorker": true,
+        "swarmRequiredWhen": ["CROSS_DOMAIN", "HIGH_RISK", "CONFLICTING_EVIDENCE"]
+      },
+      "budgets": { "maxAgentLoops": 3, "maxSkillCalls": 5, "maxTokens": 9000, "p99BudgetMs": 50 }
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.task.v1",
+      "taskId": "agent_task_system_perf_triage_001",
+      "requestedByPrincipalId": "admin_001",
+      "principalContextRef": "principal-context:admin_001:session_admin_001",
+      "userIntent": "检查当前系统并发瓶颈，只输出已有证据和下一步建议。",
+      "taskKind": "ANALYSIS",
+      "rootRequirementAnchors": ["人类评估性能与效果", "统筹智能体"],
+      "riskLevel": "HIGH",
+      "writeIntent": false,
+      "requiresHumanApproval": false,
+      "routePolicy": {
+        "allowedModes": ["SINGLE_WORKER", "SWARM"],
+        "preferSingleWorker": false,
+        "swarmRequiredWhen": ["CROSS_DOMAIN", "HIGH_RISK"]
+      },
+      "budgets": { "maxAgentLoops": 2, "maxSkillCalls": 4, "maxTokens": 8000, "p99BudgetMs": 50 }
+    }
+  ]
+}

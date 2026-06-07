@@ -272,7 +272,7 @@ func TestCreateArchiveItemSendsTeachingPrincipalAndCapturesID(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	result, err := createArchiveItem(context.Background(), server.Client(), server.URL, "local-key", 7, true)
+	result, err := createArchiveItem(context.Background(), server.Client(), server.URL, "local-key", 7, http.StatusCreated, true)
 
 	if err != nil {
 		t.Fatalf("createArchiveItem() error = %v", err)

@@ -1,0 +1,67 @@
+{
+  "generatedAt": "2026-06-07T12:29:00.635Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SCORING_REQUEST_FOUNDATION",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_question_bank_draft_answer_scoring_request_foundation",
+    "useCase": "CreateStudentAppQuestionBankDraftAnswerScoringRequest.Execute",
+    "repository": "ArchiveRepository.CreateAIGradingRequest",
+    "endpoint": "POST /v1/student-app/question-bank-draft-answer-submissions/{submissionId}/ai-grading-requests"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_ANSWER_SCORING_REQUEST_FOUNDATION_AUDIT"
+  },
+  "safetyInvariants": {
+    "ownStudentOnly": true,
+    "ownStudentWriteRequired": true,
+    "submissionIdAndStudentScopedLookup": true,
+    "draftRefAndStudentScopedLookup": true,
+    "reusesAIGradingRequestQueue": true,
+    "createsNewScoringQueueTable": false,
+    "responseExposesAnswerText": false,
+    "responseExposesExpectedAnswer": false,
+    "responseExposesExplanation": false,
+    "responseExposesScore": false,
+    "modelInferenceAllowed": false,
+    "studentVisiblePublishAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "go.domain_usecase_own_student_scoring_request",
+      "passed": true,
+      "actual": "ScopeStudentOwnWrite=true;GetQuestionBankDraftAnswerSubmissionForStudent=true;ValidateQuestionBankDraftAnswerScoringSource=true;SourceQuestionBankAnswerSubmissionID=true",
+      "expected": "domain and use case require own-student read/write, scoped submission lookup, scoped draft content lookup, linkage validation, and existing AIGradingRequest queue reuse",
+      "remediation": "Keep student-owned submission authorization and linkage validation before queueing any scoring request."
+    },
+    {
+      "severity": "info",
+      "id": "postgres.reuses_ai_grading_queue_with_question_bank_refs",
+      "passed": true,
+      "actual": "source_question_bank_draft_ref=true;source_question_bank_answer_submission_id=true;teaching_question_bank_draft_answer_scoring_requests=false",
+      "expected": "PostgreSQL stores source refs on the existing AIGradingRequest queue and reads submissions by submission id plus student id",
+      "remediation": "Do not add a second scoring queue; keep the worker source refs on teaching_ai_grading_requests."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_metadata_only_request_and_claim",
+      "passed": true,
+      "actual": "operationId: createStudentAppQuestionBankDraftAnswerScoringRequest=true;sourceQuestionBankAnswerSubmissionId=true;answerText=true;scoreSummary=true;resultRef=true",
+      "expected": "HTTP/OpenAPI expose only metadata for scoring request creation while worker claim receives source refs without answer/key/feedback leakage",
+      "remediation": "Keep creation response metadata-only and let the worker resolve protected content through controlled internal paths."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-question-bank-draft-answer-scoring-request=true;studentAppAiTutorQuestionBankDraftAnswerScoringRequest=true;10.7/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD, and architecture board track 0267",
+      "remediation": "Wire the scoring request foundation through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the queued scoring-request foundation; keep actual grading, feedback, and student-visible publication as later reviewed slices."
+}

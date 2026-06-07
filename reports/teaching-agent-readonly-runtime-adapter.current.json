@@ -1,0 +1,208 @@
+{
+  "generatedAt": "2026-06-07T12:28:43.871Z",
+  "readiness": "READY",
+  "workloadType": "TEACHING_AGENT_READONLY_RUNTIME_ADAPTER",
+  "adapter": {
+    "adapterId": "teaching_agent_search_material_readonly_adapter",
+    "workerAgent": "TeachingAgent",
+    "skillId": "search_teaching_material",
+    "readPort": "TeachingArchiveReadPort.searchTeachingMaterials"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "RUNTIME_ADAPTER_PROBE_WITH_INJECTED_READ_PORT"
+  },
+  "safetyInvariants": {
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false,
+    "studentDataReturned": false,
+    "privateKnowledgeReturned": false,
+    "externalModelUsed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "invoke": {
+      "status": "PASS",
+      "output": {
+        "schemaVersion": "2026-06-04.agent.skill.search-teaching-material.output.v1",
+        "invocationId": "skill_call_search_teaching_material_001",
+        "taskId": "agent_task_lesson_quiz_001",
+        "contextRef": "ctx_lesson_quiz_triage_001",
+        "decision": "FOUND",
+        "summary": "Found 1 teaching material item(s) through the injected read port.",
+        "items": [
+          {
+            "archiveItemId": "tarch_teaching_material_001",
+            "ownerType": "TEACHING",
+            "materialType": "TEACHING_MATERIAL",
+            "title": "函数单调性导学案",
+            "contentRef": "teaching-materials/functions/monotonicity/guide-v1.md",
+            "matchedSnippets": [
+              {
+                "text": "函数单调性教学目标、例题和课堂练习安排。",
+                "score": 0.92,
+                "sourceRef": "teaching-materials/functions/monotonicity/guide-v1.md#section-2"
+              }
+            ],
+            "sourceEvidenceRefs": [
+              "evidence:source:tarch_teaching_material_001"
+            ]
+          }
+        ],
+        "evidenceRefs": [
+          "evidence:permission:teaching-read",
+          "evidence:lesson-material:index-hash-001",
+          "evidence:shared-context:ctx_lesson_quiz_triage_001",
+          "evidence:source:tarch_teaching_material_001",
+          "evidence:input-hash:a44b7b33a2d3e9f88dac8a38",
+          "evidence:adapter:teaching_agent_search_material_readonly_adapter",
+          "evidence:read-port:TeachingArchiveReadPort.searchTeachingMaterials",
+          "evidence:runtime-ms:2"
+        ],
+        "safety": {
+          "directDatabaseWriteAllowed": false,
+          "studentDataReturned": false,
+          "privateKnowledgeReturned": false,
+          "externalModelUsed": false
+        },
+        "slo": {
+          "p99BudgetMs": 50,
+          "runtimeEvidenceClass": "CONTRACT_ONLY",
+          "runtimeEvidenceRequiredBeforePromotion": true
+        }
+      },
+      "readPortRequest": {
+        "portName": "TeachingArchiveReadPort",
+        "operation": "searchTeachingMaterials",
+        "invocationId": "skill_call_search_teaching_material_001",
+        "taskId": "agent_task_lesson_quiz_001",
+        "contextRef": "ctx_lesson_quiz_triage_001",
+        "principal": {
+          "principalId": "teacher_001",
+          "role": "TEACHER",
+          "scopes": [
+            "TEACHING_READ",
+            "KNOWLEDGE_PUBLIC_READ"
+          ]
+        },
+        "query": "函数单调性随堂测验教学资料",
+        "filters": {
+          "ownerType": "TEACHING",
+          "materialTypes": [
+            "TEACHING_MATERIAL",
+            "HANDOUT"
+          ],
+          "tags": [
+            "函数单调性",
+            "随堂测验"
+          ],
+          "includeStudentArchive": false
+        },
+        "limits": {
+          "maxResults": 5,
+          "maxSnippetChars": 240
+        },
+        "evidenceRefs": [
+          "evidence:permission:teaching-read",
+          "evidence:lesson-material:index-hash-001",
+          "evidence:shared-context:ctx_lesson_quiz_triage_001",
+          "evidence:guardrail:guardrail_allow_read_teaching_001",
+          "evidence:route:route_lesson_quiz_single_001",
+          "evidence:input-hash:a44b7b33a2d3e9f88dac8a38"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "studentDataAccess": "NONE",
+          "externalModelAllowed": false
+        }
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 4,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "RUNTIME_ADAPTER_PROBE_WITH_INJECTED_READ_PORT"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.adapter_identity_and_read_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "adapter=teaching_agent_search_material_readonly_adapter;worker=TeachingAgent;skill=search_teaching_material;route=SINGLE_WORKER;port=TeachingArchiveReadPort.searchTeachingMaterials;directDb=false;write=false",
+      "expected": "TeachingAgent.search_teaching_material SINGLE_WORKER via TeachingArchiveReadPort.searchTeachingMaterials with no direct DB or writes",
+      "remediation": "Keep the real adapter bound to the checked read port rather than a database, write repository, or model call."
+    },
+    {
+      "id": "contract.skill_input_output_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "write=false;student=NONE;external=false;owner=TEACHING;studentArchive=false;p99=50;outputOwner=TEACHING;outputWrite=false;outputStudent=false",
+      "expected": "input denies write/student archive/external model; output is teaching-only and safety=false",
+      "remediation": "Skill boundaries must stay narrow before runtime invocation can count as root workflow evidence."
+    },
+    {
+      "id": "runtime.requires_injected_read_port_and_context_guards",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime guard symbols scanned",
+      "expected": "injected read port plus principal/shared context/guardrail/route gates",
+      "remediation": "The runtime adapter must validate every upstream control-plane artifact before it invokes the read port."
+    },
+    {
+      "id": "runtime.no_side_effects_direct_db_or_model_calls",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:fs=false;readFileSync=false;writeFileSync=false;appendFileSync=false;mkdirSync=false;node:child_process=false;execSync(=false;spawn(=false;execFile(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;directDatabaseAccessAllowed: true=false;writeOperationAllowed: true=false;externalModelUsed: true=false;studentDataReturned: true=false;privateKnowledgeReturned: true=false",
+      "expected": "runtime is pure adapter logic with no fs writes, process launch, direct SQL, fetch, model call, or unsafe output flags",
+      "remediation": "Keep database, HTTP, model, file, and process details behind outer read-port adapters."
+    },
+    {
+      "id": "runtime.probe_maps_real_read_port_output",
+      "passed": true,
+      "severity": "info",
+      "actual": "decision=FOUND;items=1;p99=4;errors=0",
+      "expected": "probe returns FOUND teaching-only output through injected read port with p99<=50 and zero errors",
+      "remediation": "Runtime adapter must produce executable evidence, not contract-only prose."
+    },
+    {
+      "id": "tests.cover_runtime_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "happy path, no-match, unsafe input, unsafe principal, unsafe context, guardrail, route, read-port, and limit tests",
+      "remediation": "Keep runtime regression tests broad enough to catch safety-boundary drift."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:teaching-agent-readonly-runtime-adapter=true;TeachingAgent read-only runtime adapter audit=true",
+      "expected": "npm script and strict quality command include the real TeachingAgent read-only runtime adapter audit",
+      "remediation": "Add this runtime adapter slice to the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_runtime_adapter_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "teachingAgentReadonlyRuntimeAdapter=true;teaching-agent-readonly-runtime-adapter.current.json=true;teaching_agent_readonly_runtime_adapter=true",
+      "expected": "teaching root workflow requires the real TeachingAgent runtime adapter report",
+      "remediation": "Root workflow coverage should not claim this adapter is real unless its report is required."
+    },
+    {
+      "id": "quality.structure_tracks_runtime_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires runtime adapter, tests, audit, audit test, and SDD",
+      "remediation": "Add the real adapter slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as the first real TeachingAgent read-only runtime adapter evidence; next Agent slices can wire dispatcher invocation or add StudentTutor/Research real adapters without repeating broad production10k tests."
+}

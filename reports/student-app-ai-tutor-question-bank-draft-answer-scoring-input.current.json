@@ -1,0 +1,77 @@
+{
+  "generatedAt": "2026-06-07T12:29:04.637Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SCORING_INPUT_FOUNDATION",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_question_bank_draft_answer_scoring_input_foundation",
+    "useCase": "ReadQuestionBankDraftAnswerScoringInput.Execute",
+    "repository": "ArchiveRepository.GetAIGradingRequestByID + source scoped reads",
+    "endpoint": "POST /v1/teaching/ai-grading-requests/{requestId}/question-bank-answer-scoring-input"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_ANSWER_SCORING_INPUT_FOUNDATION_AUDIT"
+  },
+  "safetyInvariants": {
+    "internalWorkerOnly": true,
+    "servicePrincipalRequired": true,
+    "agentInternalEntryPointRequired": true,
+    "teachingWriteScopeRequired": true,
+    "claimedBySameWorkerRequired": true,
+    "unexpiredClaimLeaseRequired": true,
+    "requestSourceLinkageRequired": true,
+    "submissionAndContentScopedByStudent": true,
+    "responseExposesAnswerTextToWorker": true,
+    "responseExposesExpectedAnswerToWorker": true,
+    "responseExposesExplanationToWorker": true,
+    "modelInferenceAllowed": false,
+    "resultPersistenceAllowed": false,
+    "studentVisiblePublishAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "go.worker_only_claimed_input_gate",
+      "passed": true,
+      "actual": "AuthorizeRecordAIGradingResult=true;EntryPointAgentInternal=true;ScopeTeachingWrite=true;canRecordAIGradingResult=true;RejectsWrongWorkerBeforeSourceReads=true",
+      "expected": "domain and use case allow only internal service workers with TEACHING_WRITE to read input for their active claim",
+      "remediation": "Keep scoring input behind the existing internal worker authorization and claim lease checks."
+    },
+    {
+      "severity": "info",
+      "id": "go.question_bank_source_linkage_and_answer_package",
+      "passed": true,
+      "actual": "validateQuestionBankDraftAnswerScoringLinkage=true;QuestionBankDraftAnswerSubmissionStatusSubmitted=true;answer.AnswerText=true;item.ExpectedAnswer=true;item.Explanation=true",
+      "expected": "worker package is built only after request/source/submission/content linkage checks and includes submitted answers plus expected answers/explanations",
+      "remediation": "Validate every source ref before exposing answer, expected answer, or explanation to the worker."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_worker_only_input_endpoint",
+      "passed": true,
+      "actual": "operationId: readTeachingAIGradingQuestionBankAnswerScoringInput=true;answerText=true;expectedAnswer=true;explanation=true;scoreSummary=false;resultRef=false",
+      "expected": "HTTP/OpenAPI expose the answer/key/explanation package only on the internal worker endpoint",
+      "remediation": "Keep answer package fields confined to the /v1/teaching internal worker input path."
+    },
+    {
+      "severity": "info",
+      "id": "scope.no_scoring_persistence_or_student_publish",
+      "passed": true,
+      "actual": "answerText=true;expectedAnswer=true;explanation=true;scoreSummary=false;resultRef=false;feedback=false;RecordAIGradingResultInput=false",
+      "expected": "0268 reads scoring input only; it does not run model inference, persist scoring results, or publish student-visible feedback",
+      "remediation": "Move model scoring, result persistence, and publication to later reviewed worker/result slices."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-question-bank-draft-answer-scoring-input=true;studentAppAiTutorQuestionBankDraftAnswerScoringInput=true;10.8/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD, and architecture board track 0268",
+      "remediation": "Wire the scoring input foundation through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the controlled worker input foundation; keep actual model scoring, persisted feedback, and student-visible publication as later reviewed slices."
+}

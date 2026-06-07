@@ -1,0 +1,66 @@
+{
+  "generatedAt": "2026-06-07T12:28:59.035Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_QUESTION_BANK_DRAFT_ANSWER_SUBMISSION_FOUNDATION",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_question_bank_draft_answer_submission_foundation",
+    "useCase": "SubmitStudentAppQuestionBankDraftAnswer.ExecuteWithPersistence",
+    "repository": "ArchiveRepository.SubmitQuestionBankDraftAnswerSubmission",
+    "endpoint": "POST /v1/student-app/question-bank-draft-answer-submissions"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_ANSWER_SUBMISSION_FOUNDATION_AUDIT"
+  },
+  "safetyInvariants": {
+    "ownStudentOnly": true,
+    "ownStudentWriteRequired": true,
+    "draftRefAndStudentScopedLookup": true,
+    "duplicateItemRejected": true,
+    "unknownItemRejected": true,
+    "responseExposesAnswerText": false,
+    "responseExposesExpectedAnswer": false,
+    "responseExposesExplanation": false,
+    "scoringAllowed": false,
+    "studentVisiblePublishAllowed": false,
+    "modelInferenceAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "go.domain_usecase_own_student_submission",
+      "passed": true,
+      "actual": "ScopeStudentOwnWrite=true;validateSubmittedAnswersAgainstDraft=true;RejectsUnknownItemBeforePersist=true",
+      "expected": "domain and use case require own-student read/write, scoped draft lookup, duplicate/unknown item rejection, and one persistence call",
+      "remediation": "Keep submission validation in domain/usecase before persistence."
+    },
+    {
+      "severity": "info",
+      "id": "postgres.answer_submission_table_and_jsonb_write",
+      "passed": true,
+      "actual": "teaching_question_bank_draft_answer_submissions=true;$8::jsonb=true;SELECT *=false",
+      "expected": "PostgreSQL stores submitted answers as JSONB with indexed student and draft lookup metadata",
+      "remediation": "Keep answers parameterized and stored only in the submission table."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_metadata_only_response",
+      "passed": true,
+      "actual": "/v1/student-app/question-bank-draft-answer-submissions=false;operationId: submitStudentAppQuestionBankDraftAnswerSubmission=true;AnswerText=false;expectedAnswer=false;explanation=false;scoreSummary=false",
+      "expected": "HTTP and OpenAPI accept answer text in the request but return metadata only, with no answer text, keys, explanations, or scores",
+      "remediation": "Keep answer content out of response DTOs; scoring is a later reviewed slice."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-question-bank-draft-answer-submission=true;studentAppAiTutorQuestionBankDraftAnswerSubmission=true;10.6/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD, and architecture board track 0266",
+      "remediation": "Wire the answer submission foundation through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the answer submission foundation; keep scoring, feedback, and publication as later reviewed slices."
+}

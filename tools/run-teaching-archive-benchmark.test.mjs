@@ -18,6 +18,7 @@ import {
   studentPrincipal,
   teacherPrincipal,
 } from "./run-teaching-archive-benchmark.mjs";
+import { gatewayCommandLogPath } from "./teaching-archive-benchmark-gateway-runtime.mjs";
 
 describe("teaching archive benchmark runner", () => {
   it("parses kebab-case options into the teaching archive profile", () => {
@@ -36,6 +37,20 @@ describe("teaching archive benchmark runner", () => {
       "1",
       "--archive-create-batch-workers",
       "2",
+      "--archive-create-batch-mode",
+      "copy",
+      "--quiz-submission-batch-size",
+      "16",
+      "--quiz-submission-batch-delay-ms",
+      "0",
+      "--quiz-submission-batch-workers",
+      "8",
+      "--archive-list-cache-ttl-ms",
+      "250",
+      "--archive-list-cache-max-entries",
+      "4096",
+      "--archive-schema-index-profile",
+      "hot_write",
       "--gateway-count",
       "3",
       "--startup-timeout-ms",
@@ -61,6 +76,13 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(parsed.archiveCreateBatchSize, "64");
     assert.equal(parsed.archiveCreateBatchDelayMs, "1");
     assert.equal(parsed.archiveCreateBatchWorkers, "2");
+    assert.equal(parsed.archiveCreateBatchMode, "copy");
+    assert.equal(parsed.quizSubmissionBatchSize, "16");
+    assert.equal(parsed.quizSubmissionBatchDelayMs, "0");
+    assert.equal(parsed.quizSubmissionBatchWorkers, "8");
+    assert.equal(parsed.archiveListCacheTtlMs, "250");
+    assert.equal(parsed.archiveListCacheMaxEntries, "4096");
+    assert.equal(parsed.archiveSchemaIndexProfile, "hot_write");
     assert.equal(parsed.gatewayCount, "3");
     assert.equal(parsed.startupTimeoutMs, "30000");
     assert.equal(parsed.benchmarkRuntime, "docker");
@@ -134,14 +156,25 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.gatewayCount, 1);
     assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_NODE_FETCH");
     assert.deepEqual(report.gatewayWriteProfile, {
+      acceptanceMode: "sync",
+      commandLog: null,
       archiveCreateBatchingEnabled: false,
       archiveCreateBatchSize: 1,
       archiveCreateBatchDelayMs: 0,
       archiveCreateBatchWorkers: 1,
+      archiveCreateBatchMode: "insert",
       quizSubmissionBatchingEnabled: false,
       quizSubmissionBatchSize: 1,
       quizSubmissionBatchDelayMs: 0,
       quizSubmissionBatchWorkers: 1,
+    });
+    assert.deepEqual(report.gatewayReadProfile, {
+      archiveListCacheEnabled: false,
+      archiveListCacheTtlMs: 0,
+      archiveListCacheMaxEntries: 1024,
+    });
+    assert.deepEqual(report.gatewaySchemaProfile, {
+      archiveSchemaIndexProfile: "full",
     });
     assert.equal(report.summary.totalErrors, 0);
     assert.equal(report.summary.maxP99Ms, 10);
@@ -163,14 +196,25 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.status, "FAILED");
     assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_NODE_FETCH");
     assert.deepEqual(report.gatewayWriteProfile, {
+      acceptanceMode: "sync",
+      commandLog: null,
       archiveCreateBatchingEnabled: false,
       archiveCreateBatchSize: 1,
       archiveCreateBatchDelayMs: 0,
       archiveCreateBatchWorkers: 1,
+      archiveCreateBatchMode: "insert",
       quizSubmissionBatchingEnabled: false,
       quizSubmissionBatchSize: 1,
       quizSubmissionBatchDelayMs: 0,
       quizSubmissionBatchWorkers: 1,
+    });
+    assert.deepEqual(report.gatewayReadProfile, {
+      archiveListCacheEnabled: false,
+      archiveListCacheTtlMs: 0,
+      archiveListCacheMaxEntries: 1024,
+    });
+    assert.deepEqual(report.gatewaySchemaProfile, {
+      archiveSchemaIndexProfile: "full",
     });
     assert.doesNotMatch(text, /ueacd/u);
     assert.doesNotMatch(text, /postgres:\/\/app_user/u);
@@ -211,14 +255,25 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples["db.batch_wait"], 4);
     assert.equal(report.phases.createArchiveItem.serverTimingBreakdownSamples["db.insert"], 4);
     assert.deepEqual(report.gatewayWriteProfile, {
+      acceptanceMode: "sync",
+      commandLog: null,
       archiveCreateBatchingEnabled: false,
       archiveCreateBatchSize: 1,
       archiveCreateBatchDelayMs: 0,
       archiveCreateBatchWorkers: 1,
+      archiveCreateBatchMode: "insert",
       quizSubmissionBatchingEnabled: false,
       quizSubmissionBatchSize: 1,
       quizSubmissionBatchDelayMs: 0,
       quizSubmissionBatchWorkers: 1,
+    });
+    assert.deepEqual(report.gatewayReadProfile, {
+      archiveListCacheEnabled: false,
+      archiveListCacheTtlMs: 0,
+      archiveListCacheMaxEntries: 1024,
+    });
+    assert.deepEqual(report.gatewaySchemaProfile, {
+      archiveSchemaIndexProfile: "full",
     });
     assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 4);
     assert.equal(report.gatewayDatabaseDiagnostics.after.gateways[0].stats.totalConns, 4);
@@ -273,6 +328,11 @@ describe("teaching archive benchmark runner", () => {
     assert.equal(report.summary.maxP99Ms, 11);
     assert.equal(report.benchmarkRuntimeProfile.executor, "LOCAL_GO");
     assert.equal(report.gatewayDatabaseProfile.dbMaxConns, 4);
+    assert.deepEqual(report.gatewayReadProfile, {
+      archiveListCacheEnabled: false,
+      archiveListCacheTtlMs: 0,
+      archiveListCacheMaxEntries: 1024,
+    });
     assert.equal(report.gatewayDatabaseProfile.dbMinConns, 0);
     assert.equal(report.gatewayDatabaseProfile.dbPrewarmConns, 1);
     assert.equal(report.gatewayDatabaseDiagnostics.before.gateways[0].stats.maxConns, 4);
@@ -331,7 +391,7 @@ describe("teaching archive benchmark runner", () => {
     assert(calls.some((call) => call.includes("127.0.0.1:19502/v1/teaching/archive-items")));
   });
 
-  it("passes DB and archive create batch settings to each teaching gateway", async () => {
+  it("passes DB and split write-path batch settings to each teaching gateway", async () => {
     const root = makeTempRoot();
     const spawnedEnvs = [];
     const report = await runTeachingArchiveBenchmark(
@@ -345,6 +405,13 @@ describe("teaching archive benchmark runner", () => {
         archiveCreateBatchSize: "64",
         archiveCreateBatchDelayMs: "1",
         archiveCreateBatchWorkers: "2",
+        archiveCreateBatchMode: "copy",
+        quizSubmissionBatchSize: "16",
+        quizSubmissionBatchDelayMs: "0",
+        quizSubmissionBatchWorkers: "8",
+        archiveListCacheTtlMs: "250",
+        archiveListCacheMaxEntries: "4096",
+        archiveSchemaIndexProfile: "hot_write",
         gatewayCount: "2",
       },
       {
@@ -367,9 +434,13 @@ describe("teaching archive benchmark runner", () => {
     assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_CREATE_BATCH_SIZE), ["64", "64"]);
     assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_CREATE_BATCH_DELAY_MS), ["1", "1"]);
     assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_CREATE_BATCH_WORKERS), ["2", "2"]);
-    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_SIZE), ["64", "64"]);
-    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_DELAY_MS), ["1", "1"]);
-    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_WORKERS), ["2", "2"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_CREATE_BATCH_MODE), ["copy", "copy"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_SIZE), ["16", "16"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_DELAY_MS), ["0", "0"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_QUIZ_SUBMISSION_BATCH_WORKERS), ["8", "8"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_LIST_CACHE_TTL_MS), ["250", "250"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_LIST_CACHE_MAX_ENTRIES), ["4096", "4096"]);
+    assert.deepEqual(spawnedEnvs.map((env) => env.TEACHING_ARCHIVE_SCHEMA_INDEX_PROFILE), ["hot_write", "hot_write"]);
     assert.deepEqual(report.gatewayDatabaseProfile, {
       dbMaxConns: 12,
       dbMinConns: 12,
@@ -377,15 +448,71 @@ describe("teaching archive benchmark runner", () => {
       databaseUrl: "[database-url]",
     });
     assert.deepEqual(report.gatewayWriteProfile, {
+      acceptanceMode: "sync",
+      commandLog: null,
       archiveCreateBatchingEnabled: true,
       archiveCreateBatchSize: 64,
       archiveCreateBatchDelayMs: 1,
       archiveCreateBatchWorkers: 2,
+      archiveCreateBatchMode: "copy",
       quizSubmissionBatchingEnabled: true,
-      quizSubmissionBatchSize: 64,
-      quizSubmissionBatchDelayMs: 1,
-      quizSubmissionBatchWorkers: 2,
+      quizSubmissionBatchSize: 16,
+      quizSubmissionBatchDelayMs: 0,
+      quizSubmissionBatchWorkers: 8,
     });
+    assert.deepEqual(report.gatewayReadProfile, {
+      archiveListCacheEnabled: true,
+      archiveListCacheTtlMs: 250,
+      archiveListCacheMaxEntries: 4096,
+    });
+    assert.deepEqual(report.gatewaySchemaProfile, {
+      archiveSchemaIndexProfile: "hot_write",
+    });
+  });
+
+  it("isolates default durable command logs per report before gateways start", async () => {
+    const root = makeTempRoot();
+    const options = {
+      ...defaults,
+      baseUrl: "http://127.0.0.1:19500",
+      out: "reports/scale up/teaching durable sample.json",
+      concurrency: "1",
+      operations: "2",
+      gatewayCount: "2",
+      teachingWriteAcceptanceMode: "durable-log",
+    };
+    const stalePath = gatewayCommandLogPath(options, root, "19500");
+    fs.mkdirSync(path.dirname(stalePath), { recursive: true });
+    fs.writeFileSync(stalePath, "{\"stale\":true}\n");
+    const spawnedPaths = [];
+
+    const report = await runTeachingArchiveBenchmark(
+      options,
+      {
+        root,
+        fetch: fakeTeachingFetch([]),
+        sleep: async () => {},
+        spawnProcess: (_command, _args, spawnOptions) => {
+          spawnedPaths.push(spawnOptions.env.TEACHING_COMMAND_LOG_PATH);
+          assert.equal(fs.existsSync(spawnOptions.env.TEACHING_COMMAND_LOG_PATH), false);
+          return fakeSpawnProcess();
+        },
+        spawnCommandSync: fakeSpawnSync,
+        now: fixedClock(),
+      },
+    );
+
+    assert.equal(report.status, "PASSED");
+    assert.deepEqual(spawnedPaths, [
+      gatewayCommandLogPath(options, root, "19500"),
+      gatewayCommandLogPath(options, root, "19501"),
+    ]);
+    assert.equal(fs.existsSync(stalePath), false);
+    assert.equal(report.gatewayWriteProfile.acceptanceMode, "durable-log");
+    assert.equal(report.gatewayWriteProfile.commandLog.pathMode, "per-report");
+    assert.match(report.gatewayWriteProfile.commandLog.runId, /teaching-durable-sample/u);
+    assert.equal(path.basename(path.dirname(spawnedPaths[0])), report.gatewayWriteProfile.commandLog.runId);
+    assert.notEqual(path.dirname(spawnedPaths[0]), path.join(root, "reports", "teaching-command-log"));
   });
 
   it("fails local evidence when DB prewarm exceeds the max connection budget", async () => {
@@ -496,6 +623,9 @@ function fakeTeachingFetch(calls, options = {}) {
     if (url.endsWith("/internal/teaching/db-pool")) {
       return jsonResponse(200, { status: "ok", stats: gatewayPoolStats() });
     }
+    if (url.endsWith("/internal/teaching/command-log")) {
+      return jsonResponse(200, { status: "ok", stats: commandLogStats() });
+    }
     if (options.failArchiveCreate && init.method === "POST" && url.endsWith("/v1/teaching/archive-items")) {
       return jsonResponse(500, { error: "create failed with ueacd" });
     }
@@ -525,6 +655,18 @@ function jsonResponse(status, body, serverTiming = "") {
     },
     text: async () => JSON.stringify(body),
     json: async () => body,
+  };
+}
+
+function commandLogStats() {
+  return {
+    acceptedCommands: 0,
+    appendErrors: 0,
+    projectionEnqueued: 0,
+    projectionSucceeded: 0,
+    projectionFailed: 0,
+    queueDepth: 0,
+    oldestPendingAgeMs: 0,
   };
 }
 

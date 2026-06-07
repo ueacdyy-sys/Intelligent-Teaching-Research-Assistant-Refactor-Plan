@@ -1,16 +1,13 @@
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { assertNonNegativeInteger, assertPositiveInteger, countCommandErrors, kebabToCamel, maskSensitive, maxFinite, minFinite, nullableDelta, numberOrNull, numberOrZero, parseBoolean, parseInteger, readOptionalJson, removeReports, round, sanitizeCommandLine, sanitizeCommandResult, sumFinite, tailText, toRunnableCommand, writeJsonReport } from "./benchmark-runner-utils.mjs";
+import { assertNonNegativeInteger, assertPositiveInteger, countCommandErrors, kebabToCamel, maskSensitive, parseBoolean, parseInteger, readOptionalJson, removeReports, sanitizeCommandLine, sanitizeCommandResult, tailText, toRunnableCommand, writeJsonReport } from "./benchmark-runner-utils.mjs";
 import {
   defaultSessionTablePersistence,
   normalizeSessionTablePersistence,
 } from "./identity-http-benchmark-session-profile.mjs";
 import { benchmarkRuntimeDefaults } from "./conversation-benchmark-runtime.mjs";
-import {
-  buildSystemConversationBenchmarkRuntimeProfile,
-  systemConversationBenchmarkRuntime,
-} from "./system-conversation-benchmark-runtime-profile.mjs";
+import { systemConversationBenchmarkRuntime } from "./system-conversation-benchmark-runtime-profile.mjs";
 import {
   buildSystemIdentityBenchmarkRuntimeProfile,
   systemIdentityBenchmarkRuntimeArgs,
@@ -18,21 +15,50 @@ import {
 } from "./system-identity-benchmark-runtime-profile.mjs";
 import {
   assertSystemTeachingBenchmarkOptions,
-  buildSystemTeachingBenchmarkRuntimeProfile,
-  buildSystemTeachingTransportProfile,
-  summarizeTeachingArchiveReport,
   systemTeachingBenchmarkDefaults,
   systemTeachingBenchmarkRuntimeArgs,
+  teachingQuizSubmissionBatchDelayMs,
+  teachingQuizSubmissionBatchSize,
+  teachingQuizSubmissionBatchWorkers,
 } from "./system-teaching-benchmark-runtime-profile.mjs";
-import { buildSystemIdentityPhaseSummary } from "./system-identity-phase-summary.mjs";
 import { portRange, portSequence } from "./system-port-profile.mjs";
 import { postgresDiagnosticsDefaults } from "./postgres-diagnostics.mjs";
-import { summarizeCommandLogDiagnostics } from "./conversation-command-log-summary.mjs";
 import { assertConversationFastLaneOptions, conversationFastLaneArgs, conversationFastLaneOptionDefaults, conversationFastLaneProfile } from "./conversation-fast-lane-options.mjs";
+import {
+  runWorkloadCommand,
+  summarizeMixedWorkload,
+  summarizeWorkload,
+} from "./run-system-mixed-workload-benchmark-helpers.mjs";
+import {
+  assertPostgresDsn,
+  buildMixedWorkloadConversationBenchmarkRuntimeProfile,
+  buildMixedWorkloadIdentityIngressProfile,
+  buildMixedWorkloadPersistenceProfile,
+  buildMixedWorkloadTeachingBenchmarkRuntimeProfile,
+  buildMixedWorkloadTransportProfile,
+  dockerStack,
+  dockerStackScript,
+  identityMaxConnsPerHost,
+  identityWarmConnectionsPerHost,
+} from "./run-system-mixed-workload-benchmark-profiles.mjs";
+
+export {
+  buildMixedWorkloadConversationBenchmarkRuntimeProfile,
+  buildMixedWorkloadIdentityIngressProfile,
+  buildMixedWorkloadPersistenceProfile,
+  buildMixedWorkloadTeachingBenchmarkRuntimeProfile,
+  buildMixedWorkloadTransportProfile,
+  dockerStack,
+  dockerStackScript,
+};
+
+export const defaultPersistenceDsn = "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable";
+
 export const defaults = {
   out: "reports/system-mixed-workload-benchmark.current.json",
   profile: "SMOKE",
   manageDocker: "false",
+  dockerStack: "identity-session",
   dockerCleanup: "down",
   identityOut: "reports/system-mixed-workload.identity-http-smoke.json",
   conversationOut: "reports/system-mixed-workload.conversation-write-smoke.json",
@@ -42,8 +68,12 @@ export const defaults = {
   identityBaseUrl: "http://127.0.0.1:18300",
   conversationBaseUrl: "http://127.0.0.1:18400",
   teachingBaseUrl: "http://127.0.0.1:18500",
+  identityDsn: defaultPersistenceDsn,
+  conversationDsn: defaultPersistenceDsn,
+  teachingDsn: defaultPersistenceDsn,
   identityConcurrency: "16",
   identityOperations: "40",
+  identityWarmupOperations: "0",
   conversationConcurrency: "64",
   conversationOperations: "128",
   teachingConcurrency: "8",
@@ -52,7 +82,14 @@ export const defaults = {
   conversationGatewayCount: "1",
   teachingGatewayCount: "1",
   identitySessionDbMaxConns: "8",
+  identitySessionDbMinConns: "0",
+  identitySessionDbPrewarmConns: "1",
+  identitySessionDbReadMaxConns: "0",
+  identitySessionDbReadMinConns: "0",
+  identitySessionDbReadPrewarmConns: "0",
   identitySessionDbWriteConcurrency: "0",
+  identitySessionAccessCacheMaxEntries: "0",
+  identitySessionAccessCacheTtlMs: "30000",
   identitySessionDbSessionTablePersistence: defaultSessionTablePersistence,
   conversationDbMaxConns: "4",
   teachingDbMaxConns: "2",
@@ -69,7 +106,12 @@ export const defaults = {
   conversationBenchmarkWslDistro: benchmarkRuntimeDefaults.benchmarkWslDistro,
   conversationBenchmarkWslHost: benchmarkRuntimeDefaults.benchmarkWslHost,
   conversationBenchmarkWslWorkspace: benchmarkRuntimeDefaults.benchmarkWslWorkspace,
-  identityBenchmarkRuntime: "local", identityBenchmarkDockerImage: "golang:1.26-alpine", identityBenchmarkDockerHost: "host.docker.internal",
+  identityBenchmarkRuntime: "local",
+  identityBenchmarkDockerImage: benchmarkRuntimeDefaults.benchmarkDockerImage,
+  identityBenchmarkDockerHost: benchmarkRuntimeDefaults.benchmarkDockerHost,
+  identityBenchmarkWslDistro: benchmarkRuntimeDefaults.benchmarkWslDistro,
+  identityBenchmarkWslHost: benchmarkRuntimeDefaults.benchmarkWslHost,
+  identityBenchmarkWslWorkspace: benchmarkRuntimeDefaults.benchmarkWslWorkspace,
   ...systemTeachingBenchmarkDefaults,
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
@@ -121,20 +163,38 @@ export function buildWorkloadCommands(options) {
       command: process.execPath,
       args: [
         "tools/run-identity-http-benchmark.mjs",
+        "--dsn",
+        options.identityDsn,
         "--base-url",
         options.identityBaseUrl,
         "--gateway-count",
         options.identityGatewayCount,
         "--session-db-max-conns",
         options.identitySessionDbMaxConns,
+        "--session-db-min-conns",
+        options.identitySessionDbMinConns,
+        "--session-db-prewarm-conns",
+        options.identitySessionDbPrewarmConns,
+        "--session-db-read-max-conns",
+        options.identitySessionDbReadMaxConns,
+        "--session-db-read-min-conns",
+        options.identitySessionDbReadMinConns,
+        "--session-db-read-prewarm-conns",
+        options.identitySessionDbReadPrewarmConns,
         "--session-db-write-concurrency",
         options.identitySessionDbWriteConcurrency,
+        "--session-access-cache-max-entries",
+        options.identitySessionAccessCacheMaxEntries,
+        "--session-access-cache-ttl-ms",
+        options.identitySessionAccessCacheTtlMs,
         "--session-db-session-table-persistence",
         identitySessionTablePersistence(options),
         "--concurrency",
         options.identityConcurrency,
         "--operations",
         options.identityOperations,
+        "--warmup-operations",
+        options.identityWarmupOperations,
         "--max-conns-per-host",
         identityMaxConnsPerHost(options),
         "--warm-connections-per-host",
@@ -166,6 +226,8 @@ export function buildWorkloadCommands(options) {
       command: process.execPath,
       args: [
         "tools/run-conversation-write-benchmark.mjs",
+        "--dsn",
+        options.conversationDsn,
         "--base-url",
         options.conversationBaseUrl,
         "--gateway-count",
@@ -221,6 +283,8 @@ export function buildWorkloadCommands(options) {
       command: process.execPath,
       args: [
         "tools/run-teaching-archive-benchmark.mjs",
+        "--dsn",
+        options.teachingDsn,
         "--base-url",
         options.teachingBaseUrl,
         "--gateway-count",
@@ -282,7 +346,7 @@ export async function runSystemMixedWorkloadBenchmark(options = parseArgs(proces
   removeReports(root, [options.out, ...commands.map((command) => command.sourceReportPath)]);
   try {
     if (parseBoolean(options.manageDocker)) {
-      setup.push({ phase: "setup", ...runSyncFn("npm", ["run", "perf:identity-session:up"], root) });
+      setup.push({ phase: "setup", ...runSyncFn("npm", ["run", dockerStackScript(options, "up")], root) });
       if (setup.at(-1).exitCode !== 0) {
         throw new Error("managed Docker setup failed before mixed workload execution");
       }
@@ -355,9 +419,18 @@ export function buildSystemMixedWorkloadReport({
     },
     transportProfile: buildMixedWorkloadTransportProfile(options),
     identityIngressProfile: buildMixedWorkloadIdentityIngressProfile(options),
+    persistenceProfile: buildMixedWorkloadPersistenceProfile(options),
     databaseProfile: {
       identitySessionDbMaxConns: parseInteger(options.identitySessionDbMaxConns),
+      identitySessionDbMinConns: parseInteger(options.identitySessionDbMinConns),
+      identitySessionDbPrewarmConns: parseInteger(options.identitySessionDbPrewarmConns),
+      identitySessionDbReadMaxConns: parseInteger(options.identitySessionDbReadMaxConns),
+      identitySessionDbReadMinConns: parseInteger(options.identitySessionDbReadMinConns),
+      identitySessionDbReadPrewarmConns: parseInteger(options.identitySessionDbReadPrewarmConns),
       identitySessionDbWriteConcurrency: parseInteger(options.identitySessionDbWriteConcurrency),
+      identityWarmupOperations: parseInteger(options.identityWarmupOperations),
+      identitySessionAccessCacheMaxEntries: parseInteger(options.identitySessionAccessCacheMaxEntries),
+      identitySessionAccessCacheTtlMs: parseInteger(options.identitySessionAccessCacheTtlMs),
       identitySessionTablePersistence: identitySessionTablePersistence(options),
       conversationDbMaxConns: parseInteger(options.conversationDbMaxConns),
       teachingDbMaxConns: parseInteger(options.teachingDbMaxConns),
@@ -370,10 +443,22 @@ export function buildSystemMixedWorkloadReport({
       teachingArchiveCreateBatchSize: parseInteger(options.teachingArchiveCreateBatchSize),
       teachingArchiveCreateBatchDelayMs: parseInteger(options.teachingArchiveCreateBatchDelayMs),
       teachingArchiveCreateBatchWorkers: parseInteger(options.teachingArchiveCreateBatchWorkers),
+      teachingArchiveCreateBatchMode: options.teachingArchiveCreateBatchMode,
+      teachingQuizSubmissionBatchSize: parseInteger(teachingQuizSubmissionBatchSize(options)),
+      teachingQuizSubmissionBatchDelayMs: parseInteger(teachingQuizSubmissionBatchDelayMs(options)),
+      teachingQuizSubmissionBatchWorkers: parseInteger(teachingQuizSubmissionBatchWorkers(options)),
+      teachingWriteAcceptanceMode: options.teachingWriteAcceptanceMode,
+      teachingCommandLogAppendBatchSize: parseInteger(options.teachingCommandLogAppendBatchSize),
+      teachingCommandLogQueueCapacity: parseInteger(options.teachingCommandLogQueueCapacity),
+      teachingCommandLogProjectionWorkers: parseInteger(options.teachingCommandLogProjectionWorkers),
+      teachingCommandLogSync: parseBoolean(options.teachingCommandLogSync),
+      teachingCommandLogSettleTimeoutMs: parseInteger(options.teachingCommandLogSettleTimeoutMs),
+      teachingArchiveSchemaIndexProfile: options.teachingArchiveSchemaIndexProfile,
     },
     runtimeProfile: {
       executor: "LOCAL_NODE_ORCHESTRATOR",
       managedDocker: parseBoolean(options.manageDocker),
+      dockerStack: dockerStack(options),
       dockerCleanup: options.dockerCleanup,
     },
     diagnosticsProfile: buildDiagnosticsProfile(options),
@@ -398,35 +483,6 @@ export function buildSystemMixedWorkloadReport({
   };
 }
 
-export function buildMixedWorkloadTransportProfile(options) {
-  return {
-    sharedMaxConnsPerHost: parseInteger(options.maxConnsPerHost),
-    sharedWarmConnectionsPerHost: parseInteger(options.warmConnectionsPerHost),
-    ...buildSystemTeachingTransportProfile(options),
-    identityMaxConnsPerHost: parseInteger(identityMaxConnsPerHost(options)),
-    identityWarmConnectionsPerHost: parseInteger(identityWarmConnectionsPerHost(options)),
-  };
-}
-
-export function buildMixedWorkloadIdentityIngressProfile(options) {
-  return {
-    enabled: parseBoolean(options.identityIngressProxy),
-    basePort: parseInteger(options.identityIngressPort),
-    workerCount: parseInteger(options.identityIngressCount),
-    upstreamGatewayCount: parseInteger(options.identityGatewayCount),
-    maxConnsPerHost: parseInteger(options.identityIngressMaxConnsPerHost),
-    warmConnectionsPerHost: parseInteger(options.identityIngressWarmConnectionsPerHost),
-  };
-}
-
-export function buildMixedWorkloadConversationBenchmarkRuntimeProfile(options) {
-  return buildSystemConversationBenchmarkRuntimeProfile(options);
-}
-
-export function buildMixedWorkloadTeachingBenchmarkRuntimeProfile(options) {
-  return buildSystemTeachingBenchmarkRuntimeProfile(options);
-}
-
 export function formatSystemMixedWorkloadBenchmark(report) {
   const lines = [
     `System mixed workload benchmark: ${report.status}`,
@@ -443,160 +499,49 @@ export function formatSystemMixedWorkloadBenchmark(report) {
   return lines.join("\n");
 }
 
-async function runWorkloadCommand(command, root, runCommandFn) {
-  const startedAt = new Date().toISOString();
-  const result = await runCommandFn(command.command, command.args, root);
-  return {
-    name: command.name,
-    startedAt,
-    endedAt: new Date().toISOString(),
-    ...sanitizeCommandResult(result),
-  };
-}
-
-function summarizeWorkload(command, result, reportState) {
-  const report = reportState?.value;
-  const status = sourceStatus(report, result);
-  const summary = summarizeSourceReport(command.name, report);
-  return {
-    name: command.name,
-    moduleSlice: command.moduleSlice,
-    sourceReportPath: command.sourceReportPath,
-    status,
-    exitCode: result?.exitCode ?? 1,
-    elapsedMs: result?.elapsedMs ?? null,
-    errors: summary.errors ?? (status === "PASSED" || status === "READY" ? 0 : 1),
-    p95Ms: summary.p95Ms ?? null,
-    p99Ms: summary.p99Ms ?? null,
-    rps: summary.rps ?? null,
-    readiness: summary.readiness ?? null,
-    reportPresent: reportState?.present === true,
-    reportParseable: reportState?.parseable === true,
-    outputTail: result?.outputTail ?? "",
-    summary,
-  };
-}
-
-function summarizeSourceReport(name, report) {
-  if (!report || typeof report !== "object") return {};
-  if (name === "identity_http") return summarizeIdentity(report);
-  if (name === "conversation_write") return summarizeConversation(report);
-  if (name === "teaching_archive") return summarizeTeachingArchiveReport(report);
-  if (name === "knowledge_retrieval") {
-    return {
-      readiness: report.readiness ?? null,
-      errors: report.readiness === "READY" ? 0 : 1,
-      p95Ms: numberOrNull(report.benchmark?.metrics?.p95QueryPlanMs),
-    };
-  }
-  if (name === "ai_worker_admission") {
-    return {
-      readiness: report.readiness ?? null,
-      errors: report.readiness === "READY" ? 0 : 1,
-    };
-  }
-  return {};
-}
-
-function summarizeIdentity(report) {
-  const phases = Object.values(report.phases ?? {});
-  const p95Values = phases.map((phase) => numberOrNull(phase.latencyMs?.p95)).filter(Number.isFinite);
-  const p99Values = phases.map((phase) => numberOrNull(phase.latencyMs?.p99)).filter(Number.isFinite);
-  const errors = phases.reduce((total, phase) => total + numberOrZero(phase.errors), 0);
-  return {
-    errors,
-    p95Ms: p95Values.length ? Math.max(...p95Values) : null,
-    p99Ms: p99Values.length ? Math.max(...p99Values) : null,
-    rps: minFinite(phases.map((phase) => numberOrNull(phase.rps))),
-    concurrency: numberOrNull(report.concurrency),
-    ...buildSystemIdentityPhaseSummary(report.phases, report.gatewayDatabasePhaseDiagnostics),
-  };
-}
-
-function summarizeConversation(report) {
-  const phase = report.phases?.createConversation ?? {};
-  return {
-    errors: numberOrZero(phase.errors),
-    p95Ms: numberOrNull(phase.latencyMs?.p95),
-    p99Ms: numberOrNull(phase.latencyMs?.p99),
-    rps: numberOrNull(phase.rps),
-    concurrency: numberOrNull(report.concurrency),
-    serverTimingP99Ms: numberOrNull(phase.serverTimingMs?.p99),
-    clientServerGapP99Ms: numberOrNull(phase.clientServerGapMs?.p99),
-    acceptanceMode: report.gatewayWriteProfile?.acceptanceMode ?? null,
-    commandAppendP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["command.append"]?.p99),
-    projectionEnqueueP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["projection.enqueue"]?.p99),
-    dbAcquireP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.acquire"]?.p99),
-    dbBatchWaitP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.batch_wait"]?.p99),
-    dbInsertP99Ms: numberOrNull(phase.serverTimingBreakdownMs?.["db.insert"]?.p99),
-    benchmarkRuntimeProfile: report.benchmarkRuntimeProfile ?? null,
-    gatewayExitCode: report.gatewayExitCode ?? null,
-    gatewaySignal: report.gatewaySignal ?? null,
-    runtimeDiagnostics: summarizeGatewayDiagnostics(report.gatewayRuntimeDiagnostics),
-    databaseDiagnostics: summarizeGatewayDiagnostics(report.gatewayDatabaseDiagnostics),
-    commandLogDiagnostics: summarizeCommandLogDiagnostics(report.gatewayCommandLogDiagnostics),
-  };
-}
-
-function summarizeGatewayDiagnostics(diagnostics) {
-  if (!diagnostics || typeof diagnostics !== "object") return undefined;
-  const summarized = Object.fromEntries(
-    ["before", "after"].map((snapshotName) => [snapshotName, summarizeGatewaySnapshot(diagnostics[snapshotName])])
-      .filter(([_name, snapshot]) => snapshot !== undefined),
-  );
-  return Object.keys(summarized).length > 0 ? summarized : undefined;
-}
-
-function summarizeGatewaySnapshot(snapshot) {
-  if (!snapshot || !Array.isArray(snapshot.gateways)) return undefined;
-  const gateways = snapshot.gateways;
-  const stats = gateways.map((gateway) => gateway.stats ?? {});
-  return {
-    gatewayCount: gateways.length,
-    okGateways: gateways.filter((gateway) => gateway.status === "OK").length,
-    unavailableGateways: gateways.filter((gateway) => gateway.status !== "OK").length,
-    maxCurrentConns: maxFinite(stats.map((entry) => numberOrNull(entry.maxCurrentConns))),
-    totalAcceptedConns: sumFinite(stats.map((entry) => numberOrNull(entry.acceptedConns))),
-    totalEmptyAcquireCount: sumFinite(stats.map((entry) => numberOrNull(entry.emptyAcquireCount))),
-    totalAcquireWaitTimeMs: round(sumFinite(stats.map((entry) => numberOrNull(entry.emptyAcquireWaitTimeMs))), 2),
-  };
-}
-
-function summarizeMixedWorkload(workloads, orchestrationErrors = 0) {
-  const workloadErrors = workloads.reduce((total, workload) => total + workload.errors, 0);
-  return {
-    totalErrors: workloadErrors + orchestrationErrors,
-    workloadErrors,
-    orchestrationErrors,
-    maxP95Ms: maxFinite(workloads.map((workload) => workload.p95Ms)),
-    maxP99Ms: maxFinite(workloads.map((workload) => workload.p99Ms)),
-    passedWorkloads: workloads.filter((workload) => workload.status === "PASSED" || workload.status === "READY").length,
-    failedWorkloads: workloads.filter((workload) => workload.status !== "PASSED" && workload.status !== "READY").length,
-  };
-}
-
-function sourceStatus(report, result) {
-  if (result?.exitCode !== 0) return "FAILED";
-  if (!report || typeof report !== "object") return "FAILED";
-  if (typeof report.status === "string") return report.status;
-  if (typeof report.readiness === "string") return report.readiness;
-  if (typeof report.allPassed === "boolean") return report.allPassed ? "PASSED" : "FAILED";
-  return "FAILED";
-}
-
 function validateOptions(options) {
   assertPositiveInteger(options.identityConcurrency, "identity-concurrency");
   assertPositiveInteger(options.identityOperations, "identity-operations");
+  assertNonNegativeInteger(options.identityWarmupOperations, "identity-warmup-operations");
   assertPositiveInteger(options.conversationConcurrency, "conversation-concurrency");
   assertPositiveInteger(options.conversationOperations, "conversation-operations");
   assertPositiveInteger(options.teachingConcurrency, "teaching-concurrency");
   assertPositiveInteger(options.teachingOperations, "teaching-operations");
+  assertPostgresDsn(options.identityDsn, "identity-dsn");
+  assertPostgresDsn(options.conversationDsn, "conversation-dsn");
+  assertPostgresDsn(options.teachingDsn, "teaching-dsn");
+  dockerStack(options);
   assertPositiveInteger(options.identityGatewayCount, "identity-gateway-count");
   assertPositiveInteger(options.conversationGatewayCount, "conversation-gateway-count");
   assertPositiveInteger(options.teachingGatewayCount, "teaching-gateway-count");
   assertPositiveInteger(options.identitySessionDbMaxConns, "identity-session-db-max-conns");
+  assertNonNegativeInteger(options.identitySessionDbMinConns, "identity-session-db-min-conns");
+  assertNonNegativeInteger(options.identitySessionDbPrewarmConns, "identity-session-db-prewarm-conns");
+  assertNonNegativeInteger(options.identitySessionDbReadMaxConns, "identity-session-db-read-max-conns");
+  assertNonNegativeInteger(options.identitySessionDbReadMinConns, "identity-session-db-read-min-conns");
+  assertNonNegativeInteger(options.identitySessionDbReadPrewarmConns, "identity-session-db-read-prewarm-conns");
   assertNonNegativeInteger(options.identitySessionDbWriteConcurrency, "identity-session-db-write-concurrency");
+  assertNonNegativeInteger(options.identitySessionAccessCacheMaxEntries, "identity-session-access-cache-max-entries");
+  assertNonNegativeInteger(options.identitySessionAccessCacheTtlMs, "identity-session-access-cache-ttl-ms");
   identitySessionTablePersistence(options);
+  if (parseInteger(options.identitySessionDbMinConns) > parseInteger(options.identitySessionDbMaxConns)) {
+    throw new Error("identity-session-db-min-conns must be <= identity-session-db-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbPrewarmConns) > parseInteger(options.identitySessionDbMaxConns)) {
+    throw new Error("identity-session-db-prewarm-conns must be <= identity-session-db-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbReadMaxConns) === 0 &&
+    (parseInteger(options.identitySessionDbReadMinConns) > 0 || parseInteger(options.identitySessionDbReadPrewarmConns) > 0)) {
+    throw new Error("identity-session-db-read-min-conns and identity-session-db-read-prewarm-conns require identity-session-db-read-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbReadMaxConns) > 0 &&
+    parseInteger(options.identitySessionDbReadMinConns) > parseInteger(options.identitySessionDbReadMaxConns)) {
+    throw new Error("identity-session-db-read-min-conns must be <= identity-session-db-read-max-conns");
+  }
+  if (parseInteger(options.identitySessionDbReadMaxConns) > 0 &&
+    parseInteger(options.identitySessionDbReadPrewarmConns) > parseInteger(options.identitySessionDbReadMaxConns)) {
+    throw new Error("identity-session-db-read-prewarm-conns must be <= identity-session-db-read-max-conns");
+  }
   assertPositiveInteger(options.conversationDbMaxConns, "conversation-db-max-conns");
   assertPositiveInteger(options.teachingDbMaxConns, "teaching-db-max-conns");
   assertNonNegativeInteger(options.teachingDbMinConns, "teaching-db-min-conns");
@@ -726,7 +671,7 @@ function assertNoPortOverlap(options) {
 
 function cleanupDocker(options, root, runSyncFn) {
   if (options.dockerCleanup === "none") return [];
-  const script = options.dockerCleanup === "reset" ? "perf:identity-session:reset" : "perf:identity-session:down";
+  const script = dockerStackScript(options, options.dockerCleanup === "reset" ? "reset" : "down");
   return [{ phase: "cleanup", ...runSyncFn("npm", ["run", script], root) }];
 }
 
@@ -778,19 +723,7 @@ function runCommand(command, args, root) {
   });
 }
 
-function identityMaxConnsPerHost(options) {
-  return optionOrFallback(options.identityMaxConnsPerHost, options.maxConnsPerHost);
-}
-
-function identityWarmConnectionsPerHost(options) {
-  return optionOrFallback(options.identityWarmConnectionsPerHost, options.warmConnectionsPerHost);
-}
-function identitySessionTablePersistence(options) {
-  return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence);
-}
-function optionOrFallback(value, fallback) {
-  return String(value ?? "").trim() === "" ? fallback : value;
-}
+function identitySessionTablePersistence(options) { return normalizeSessionTablePersistence(options.identitySessionDbSessionTablePersistence); }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const report = await runSystemMixedWorkloadBenchmark();

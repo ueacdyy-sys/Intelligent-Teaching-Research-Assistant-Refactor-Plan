@@ -17,7 +17,7 @@ const root = process.cwd();
 const rootRequirementsPath = "../智能教研助手/项目根本需求（禁止改动）";
 
 describe("root SLO promotion review audit", () => {
-  it("reviews the current evidence and blocks full-system ultra-concurrency promotion", () => {
+  it("reviews the current qualified production 10k evidence and approves the 50ms SLO claim", () => {
     const inputs = loadCurrentInputs();
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(loadCurrentCrossModuleDiagnostics());
     const report = auditRootSloPromotionReview(inputs);
@@ -29,10 +29,11 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.promotionPolicy.interactiveP99TargetMs, 50);
     assert.equal(report.promotionPolicy.interactiveP99ExcellentMs, 10);
     assert.equal(report.promotionPolicy.interactiveP99TargetClass, "PASS_TARGET");
-    assert.equal(report.promotion.decision, "BLOCK_PROMOTION");
-    assert.equal(report.promotion.claimStatus, "NOT_SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
-    assert.equal(report.promotion.blockerCount, 1);
-    assert.equal(report.promotion.blockers[0].id, "promotion.interactive_tail_latency_within_target");
+    assert.equal(report.promotionPolicy.minimumProductionTargetSamples, 2);
+    assert.equal(report.promotion.decision, "APPROVE_PROMOTION");
+    assert.equal(report.promotion.claimStatus, "SUPPORTED_BY_CURRENT_ROOT_SLO_REVIEW");
+    assert.equal(report.promotion.blockerCount, 0);
+    assert.deepEqual(report.promotion.blockers, []);
     const expectedTargetReport = parseReport(inputs, sourceReports.productionTargetScaleUp);
     const expectedReadWriteRps = expectedTargetReport.summary.highestPassedReadWriteRps;
     assert.equal(report.evidence.productionThroughput.targetReadWriteRps, 10000);
@@ -43,6 +44,9 @@ describe("root SLO promotion review audit", () => {
     assert.equal(report.evidence.productionThroughput.targetAttempted, true);
     assert.equal(report.evidence.productionThroughput.targetConfigured, true);
     assert.equal(report.evidence.productionThroughput.targetShortfallRps, 0);
+    assert.equal(report.evidence.productionTarget.sloQualified, true);
+    assert.equal(report.evidence.productionTarget.qualificationChecks.enoughSamples, true);
+    assert.equal(report.evidence.productionTarget.qualificationChecks.targetPressurePassed, true);
     assert.equal(report.evidence.latency.maxP99Source, "production_target.max_p99_ms");
     assert.equal(report.evidence.latency.maxP99Ms, expectedTargetReport.summary.maxP99Ms);
     assert.deepEqual(
@@ -51,28 +55,27 @@ describe("root SLO promotion review audit", () => {
         p99Ms: entry.p99Ms,
       })),
       [
-        { workloadName: "conversation_write", p99Ms: 253.6 },
-        { workloadName: "identity_http", p99Ms: 251.71 },
-        { workloadName: "teaching_archive", p99Ms: 207.89 },
+        { workloadName: "teaching_archive", p99Ms: 44.44 },
+        { workloadName: "identity_http", p99Ms: 43.57 },
+        { workloadName: "conversation_write", p99Ms: 33.47 },
       ],
     );
-    assert.equal(report.evidence.latency.workloadHotspots[0].breakdown.dbInsertP99Ms, 164.04);
-    assert.match(report.promotion.blockers[0].actual, /topWorkloads=conversation_write:253.6,identity_http:251.71,teaching_archive:207.89/u);
+    assert.equal(report.evidence.latency.workloadHotspots[0].breakdown.dbInsertP99Ms, 15.68);
     assert.equal(
       report.promotion.blockers.some((blocker) => blocker.id === "promotion.production_read_write_rps_target_met"),
       false,
     );
-    assert(report.promotion.requiredNextEvidence.includes("ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE"));
+    assert(!report.promotion.requiredNextEvidence.includes("ROOT_DURABLE_FAST_LANE_RUNTIME_EVIDENCE"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_10000_RPS_SUSTAINED_EVIDENCE"));
     assert(!report.promotion.requiredNextEvidence.includes("MODULE_RUNTIME_SLO_DEPTH_FOR_TEACHING_KNOWLEDGE_WORKER_AGENT"));
     assert(!report.promotion.requiredNextEvidence.includes("ROOT_WORKFLOW_RUNTIME_SLO_COVERAGE"));
     assert(!report.promotion.requiredNextEvidence.includes("HIGHER_SUSTAINED_MIXED_WORKLOAD_STEP"));
     assert(!report.promotion.requiredNextEvidence.includes("PRODUCTION_PGBOUNCER_HEADROOM_PROFILE"));
     assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.module_evidence_depth_sufficient").passed, true);
-    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.interactive_tail_latency_within_target").passed, false);
+    assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.interactive_tail_latency_within_target").passed, true);
     assert.equal(report.promotionFindings.find((finding) => finding.id === "promotion.sustained_scale_depth_sufficient").passed, true);
     assert.equal(report.evidence.databaseHeadroom.satisfiedBy, "production_headroom_profile");
-    assert.match(formatRootSloPromotionReview(report), /Decision: BLOCK_PROMOTION/);
+    assert.match(formatRootSloPromotionReview(report), /Decision: APPROVE_PROMOTION/);
   });
 
   it("fails readiness when immutable root requirements text is missing", () => {
@@ -126,6 +129,7 @@ describe("root SLO promotion review audit", () => {
     const inputs = loadCurrentInputs();
     inputs.reports[sourceReports.crossModuleDiagnostics] = JSON.stringify(loadCurrentCrossModuleDiagnostics());
     const productionTarget = parseReport(inputs, sourceReports.productionTargetScaleUp);
+    productionTarget.summary.highestPassedStep = "high";
     productionTarget.summary.maxP99Ms = 8;
     inputs.reports[sourceReports.productionTargetScaleUp] = JSON.stringify(productionTarget);
     const report = auditRootSloPromotionReview(inputs);

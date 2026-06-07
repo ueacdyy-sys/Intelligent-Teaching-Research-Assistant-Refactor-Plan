@@ -1,6 +1,10 @@
 package postgres
 
-import "context"
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+)
 
 type CommandTag interface {
 	RowsAffected() int64
@@ -18,6 +22,7 @@ type AcquireDB interface {
 
 type Conn interface {
 	Exec(ctx context.Context, sql string, args ...any) (CommandTag, error)
+	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
 	Release()
 }
 

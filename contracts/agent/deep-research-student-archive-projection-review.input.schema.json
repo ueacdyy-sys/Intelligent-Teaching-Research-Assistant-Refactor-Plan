@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-student-archive-projection-review.input.schema.json",
+  "title": "Deep Research Student Archive Projection Review Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "projectionReviewInvocationId",
+    "principal",
+    "studentArchivePersistenceRecord",
+    "studentArchiveProjectionReviewPolicy",
+    "studentArchiveProjectionReviewRequest",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-student-archive-projection-review.v1"
+    },
+    "projectionReviewInvocationId": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "role", "subjectType", "entryPoint", "scopes", "sessionId"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "const": "SERVICE" },
+        "subjectType": { "type": "string", "const": "SERVICE" },
+        "entryPoint": { "type": "string", "const": "STUDENT_ARCHIVE_PROJECTION_REVIEW_RUNTIME" },
+        "scopes": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["RESEARCH_READ", "STUDENT_ARCHIVE_PERSISTENCE", "STUDENT_ARCHIVE_PROJECTION_REVIEW"]
+          }
+        },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "studentArchivePersistenceRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "runtimeId", "commandPort", "status", "recordId", "job", "studentArchivePersistenceCommand", "evidenceRefs", "boundary"],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "2026-06-05.research.deep-research-student-archive-persistence-recorded.v1"
+        },
+        "runtimeId": { "type": "string", "const": "research_deep_research_student_archive_persistence_runtime" },
+        "commandPort": {
+          "type": "string",
+          "const": "DeepResearchStudentArchivePersistencePort.recordStudentArchivePersistenceCommand"
+        },
+        "status": { "type": "string", "const": "STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_PROJECTED" },
+        "recordId": { "type": "string", "minLength": 1 },
+        "job": { "$ref": "#/$defs/researchJob" },
+        "studentArchivePersistenceCommand": { "$ref": "#/$defs/studentArchivePersistenceCommand" },
+        "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+        "boundary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "studentArchivePersistenceCommandRecorded": { "type": "boolean", "const": true },
+            "appendOnlyCommandLogRecorded": { "type": "boolean", "const": true },
+            "studentArchivePersisted": { "type": "boolean", "const": false },
+            "studentArchiveProjectionWritten": { "type": "boolean", "const": false },
+            "mainDatabaseWriteStarted": { "type": "boolean", "const": false },
+            "studentArchiveWriteStarted": { "type": "boolean", "const": false },
+            "externalModelCallStarted": { "type": "boolean", "const": false },
+            "swarmAllowed": { "type": "boolean", "const": false },
+            "requiresFutureDurableProjectionReview": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "studentArchiveProjectionReviewPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewedPersistenceCommandRequired",
+        "humanProjectionReviewRequired",
+        "durableProjectionReviewAllowed",
+        "appendOnlyReviewLogRequired",
+        "preserveEvidenceRequired",
+        "preserveSourceHashesRequired",
+        "preserveLimitationsRequired",
+        "studentAudienceScopeRequired",
+        "futureDurableProjectionRuntimeRequired",
+        "directPublicationAllowed",
+        "directDatabaseAccessAllowed",
+        "mainDatabaseWriteAllowed",
+        "studentArchiveProjectionWriteAllowed",
+        "externalModelCallAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "reviewedPersistenceCommandRequired": { "type": "boolean", "const": true },
+        "humanProjectionReviewRequired": { "type": "boolean", "const": true },
+        "durableProjectionReviewAllowed": { "type": "boolean", "const": true },
+        "appendOnlyReviewLogRequired": { "type": "boolean", "const": true },
+        "preserveEvidenceRequired": { "type": "boolean", "const": true },
+        "preserveSourceHashesRequired": { "type": "boolean", "const": true },
+        "preserveLimitationsRequired": { "type": "boolean", "const": true },
+        "studentAudienceScopeRequired": { "type": "boolean", "const": true },
+        "futureDurableProjectionRuntimeRequired": { "type": "boolean", "const": true },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "mainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentArchiveProjectionWriteAllowed": { "type": "boolean", "const": false },
+        "externalModelCallAllowed": { "type": "boolean", "const": false },
+        "remoteDeviceControlAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "studentArchiveProjectionReviewRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewId", "decision", "targetArchiveKind", "archiveScopeRef", "sourcePersistenceRecordId", "sourcePersistenceCommandId", "sourceStudentDeliveryEnvelopeId", "desiredProjectionState", "reviewerPrincipalId", "comments"],
+      "properties": {
+        "reviewId": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "const": "APPROVED_FOR_DURABLE_STUDENT_ARCHIVE_PROJECTION_RUNTIME" },
+        "targetArchiveKind": { "type": "string", "const": "STUDENT_LEARNING_ARCHIVE" },
+        "archiveScopeRef": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "sourcePersistenceRecordId": { "type": "string", "minLength": 1 },
+        "sourcePersistenceCommandId": { "type": "string", "minLength": 1 },
+        "sourceStudentDeliveryEnvelopeId": { "type": "string", "minLength": 1 },
+        "desiredProjectionState": { "type": "string", "const": "REVIEWED_FOR_DURABLE_PROJECTION_NOT_WRITTEN" },
+        "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+        "comments": { "type": "string", "minLength": 1, "maxLength": 1200 }
+      }
+    },
+    "evidenceRefs": { "$ref": "#/$defs/evidenceRefs" },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 240 }
+  },
+  "$defs": {
+    "researchJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "studentArchivePersistenceCommand": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["commandId", "commandKind", "persistenceMode", "targetArchiveKind", "archiveScopeRef", "desiredArchiveState", "projectionState", "sourceStudentDeliveryRecordId", "sourceStudentDeliveryEnvelopeId", "studentVisibilityReviewId", "teacherDeliveryPackageId", "title", "learnerFacingSummary", "claimCount", "citationCount", "sourceHashCount", "claims", "limitations", "risk", "evidencePreserved", "sourceHashIntegrityPreserved", "limitationsPreserved"],
+      "properties": {
+        "commandId": { "type": "string", "minLength": 1 },
+        "commandKind": { "type": "string", "const": "EVIDENCE_GROUNDED_STUDENT_ARCHIVE_PERSISTENCE_COMMAND" },
+        "persistenceMode": { "type": "string", "const": "APPEND_ONLY_STUDENT_ARCHIVE_COMMAND" },
+        "targetArchiveKind": { "type": "string", "const": "STUDENT_LEARNING_ARCHIVE" },
+        "archiveScopeRef": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "desiredArchiveState": { "type": "string", "const": "PERSISTENCE_COMMAND_RECORDED_NOT_PROJECTED" },
+        "projectionState": { "type": "string", "const": "NOT_PROJECTED_TO_STUDENT_ARCHIVE" },
+        "sourceStudentDeliveryRecordId": { "type": "string", "minLength": 1 },
+        "sourceStudentDeliveryEnvelopeId": { "type": "string", "minLength": 1 },
+        "studentVisibilityReviewId": { "type": "string", "minLength": 1 },
+        "teacherDeliveryPackageId": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 1200 },
+        "learnerFacingSummary": { "type": "string", "minLength": 1, "maxLength": 1200 },
+        "claimCount": { "type": "integer", "minimum": 1 },
+        "citationCount": { "type": "integer", "minimum": 1 },
+        "sourceHashCount": { "type": "integer", "minimum": 1 },
+        "claims": { "type": "array", "minItems": 1 },
+        "limitations": { "type": "array", "minItems": 1 },
+        "risk": { "type": "object" },
+        "evidencePreserved": { "type": "boolean", "const": true },
+        "sourceHashIntegrityPreserved": { "type": "boolean", "const": true },
+        "limitationsPreserved": { "type": "boolean", "const": true }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

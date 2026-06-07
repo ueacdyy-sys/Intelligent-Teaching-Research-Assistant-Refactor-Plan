@@ -1,0 +1,77 @@
+{
+  "generatedAt": "2026-06-07T12:29:46.650Z",
+  "readiness": "READY",
+  "workloadType": "RESEARCH_AGENT_READONLY_RUNTIME_SLO",
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p95Ms": 2.55,
+    "p99Ms": 2.55,
+    "totalErrors": 0,
+    "operations": 256,
+    "sourcePhase": "knowledgeRetrievalQueryPlan",
+    "sourceReportPath": "reports/knowledge-retrieval-benchmark.current.json"
+  },
+  "safetyInvariants": {
+    "skillContractReady": true,
+    "adapterContractReady": true,
+    "sourceBenchmarkReady": true,
+    "noCrossClassificationLeakage": true,
+    "noForbiddenRuntimeDeps": true,
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false,
+    "studentArchiveReturned": false,
+    "externalModelUsed": false,
+    "evidenceClass": "RUNTIME_SLO_FROM_KNOWLEDGE_RETRIEVAL_QUERY_PLAN"
+  },
+  "findings": [
+    {
+      "id": "contract.skill_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "ResearchAgent search_knowledge input/output contracts must be READY before runtime SLO evidence can count."
+    },
+    {
+      "id": "contract.adapter_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": true,
+      "expected": true,
+      "remediation": "ResearchAgent read-only adapter contract must keep read port, guards, and evidence/SLO checks ready."
+    },
+    {
+      "id": "source.knowledge_retrieval_ready",
+      "passed": true,
+      "severity": "info",
+      "actual": "ready=true;ops=256;leakage=false",
+      "expected": "READY knowledge retrieval benchmark with operations>0 and no classification leakage",
+      "remediation": "Regenerate knowledge retrieval benchmark evidence before using it for ResearchAgent read-only SLO."
+    },
+    {
+      "id": "runtime.errors_zero",
+      "passed": true,
+      "severity": "info",
+      "actual": 0,
+      "expected": 0,
+      "remediation": "ResearchAgent read-only runtime evidence must have zero query-plan errors."
+    },
+    {
+      "id": "runtime.p99_proxy_within_target",
+      "passed": true,
+      "severity": "info",
+      "actual": 2.55,
+      "expected": "<=50",
+      "remediation": "ResearchAgent read-only retrieval planning must stay within the 50ms fast-path SLO before promotion."
+    },
+    {
+      "id": "safety.readonly_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "directDb=false;write=false;studentArchive=false;externalModel=false",
+      "expected": "directDb=false;write=false;studentArchive=false;externalModel=false",
+      "remediation": "Read-only retrieval evidence must not expand into database writes, student archive data, or external model calls."
+    }
+  ],
+  "nextAction": "Use this as small ResearchAgent read-only retrieval evidence; keep full RAG synthesis and deep_research outside the 50ms fast-path claim."
+}

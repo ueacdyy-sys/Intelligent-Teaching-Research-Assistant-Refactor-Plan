@@ -6,6 +6,7 @@ import (
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
 	"ita-refactor/services/teaching-archive-gateway/internal/platform"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +29,7 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	ctx := platform.WithTeachingArchiveTiming(r.Context(), timing)
 	preUsecaseDuration := time.Since(handlerStart)
 	appStart := time.Now()
-	item, err := s.createArchiveItem.Execute(ctx, domain.CreateArchiveItemInput{
+	result, err := s.createArchiveItem.ExecuteWithPersistence(ctx, domain.CreateArchiveItemInput{
 		Principal:       principal,
 		OwnerType:       request.OwnerType,
 		StudentID:       request.StudentID,
@@ -43,9 +44,22 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	if handleArchiveError(w, err, "failed to create archive item") {
 		return
 	}
-	writeTeachingServerTiming(w, time.Since(handlerStart), preUsecaseDuration, time.Since(appStart), timing)
-
-	writeJSON(w, http.StatusCreated, toResponse(item))
+	status := http.StatusCreated
+	payload := any(toResponse(result.Item))
+	if result.Persistence.Status == usecase.PersistenceStatusAccepted {
+		w.Header().Set("X-Teaching-Write-Acceptance", "durable-log")
+		status = http.StatusAccepted
+		payload = toAcceptedArchiveItemResponse(result)
+	}
+	writeTeachingJSON(
+		w,
+		status,
+		payload,
+		handlerStart,
+		preUsecaseDuration,
+		time.Since(appStart),
+		timing,
+	)
 }
 
 func (s *Server) list(w http.ResponseWriter, r *http.Request) {
@@ -78,9 +92,15 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	if handleArchiveError(w, err, "failed to list archive items") {
 		return
 	}
-	writeTeachingServerTiming(w, time.Since(handlerStart), preUsecaseDuration, time.Since(appStart), timing)
-
-	writeJSON(w, http.StatusOK, toListResponse(page))
+	writeTeachingJSON(
+		w,
+		http.StatusOK,
+		toListResponse(page),
+		handlerStart,
+		preUsecaseDuration,
+		time.Since(appStart),
+		timing,
+	)
 }
 
 func (s *Server) createAIGrading(w http.ResponseWriter, r *http.Request, archiveItemID string) {
@@ -179,7 +199,7 @@ func (s *Server) createQuizSubmissionMetadata(w http.ResponseWriter, r *http.Req
 	ctx := platform.WithTeachingArchiveTiming(r.Context(), timing)
 	preUsecaseDuration := time.Since(handlerStart)
 	appStart := time.Now()
-	created, err := s.createQuizSubmission.Execute(ctx, domain.CreateQuizSubmissionInput{
+	result, err := s.createQuizSubmission.ExecuteWithPersistence(ctx, domain.CreateQuizSubmissionInput{
 		Principal:         principal,
 		QuizArchiveItemID: archiveItemID,
 		StudentID:         request.StudentID,
@@ -188,9 +208,22 @@ func (s *Server) createQuizSubmissionMetadata(w http.ResponseWriter, r *http.Req
 	if handleArchiveError(w, err, "failed to create quiz submission") {
 		return
 	}
-	writeTeachingServerTiming(w, time.Since(handlerStart), preUsecaseDuration, time.Since(appStart), timing)
-
-	writeJSON(w, http.StatusCreated, toQuizSubmissionResponse(created))
+	status := http.StatusCreated
+	payload := any(toQuizSubmissionResponse(result.Submission))
+	if result.Persistence.Status == usecase.PersistenceStatusAccepted {
+		w.Header().Set("X-Teaching-Write-Acceptance", "durable-log")
+		status = http.StatusAccepted
+		payload = toAcceptedQuizSubmissionResponse(result)
+	}
+	writeTeachingJSON(
+		w,
+		status,
+		payload,
+		handlerStart,
+		preUsecaseDuration,
+		time.Since(appStart),
+		timing,
+	)
 }
 
 func (s *Server) listQuizSubmissionMetadata(w http.ResponseWriter, r *http.Request, archiveItemID string) {

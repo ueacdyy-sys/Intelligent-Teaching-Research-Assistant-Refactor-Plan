@@ -59,6 +59,67 @@ func TestListAIGradingRequestsBuildsScopedIndexedQuery(t *testing.T) {
 	if requests[0].SourceAnswerRef != "local://answers/student_001/week-3.json" {
 		t.Fatalf("SourceAnswerRef = %q", requests[0].SourceAnswerRef)
 	}
+	if requests[0].SourceQuestionBankDraftRef != "local://question-bank-drafts/tutor_req_row.json" {
+		t.Fatalf("SourceQuestionBankDraftRef = %q", requests[0].SourceQuestionBankDraftRef)
+	}
+	if requests[0].SourceQuestionBankAnswerSubmissionID != "qbank_ans_sub_row" {
+		t.Fatalf("SourceQuestionBankAnswerSubmissionID = %q", requests[0].SourceQuestionBankAnswerSubmissionID)
+	}
+}
+
+func TestEnsureSchemaCreatesQuestionBankDraftAnswerScoringLookupIndex(t *testing.T) {
+	db := &recordingDB{}
+
+	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
+		t.Fatalf("EnsureSchema returned error: %v", err)
+	}
+
+	statements := strings.Join(db.execStatements, "\n")
+	for _, fragment := range []string{
+		"idx_teaching_ai_grading_requests_qbank_answer_student_created",
+		"source_question_bank_answer_submission_id, source_archive_student_id, created_at DESC, id DESC",
+		"WHERE source_question_bank_answer_submission_id IS NOT NULL",
+	} {
+		if !strings.Contains(statements, fragment) {
+			t.Fatalf("schema missing %q in: %s", fragment, statements)
+		}
+	}
+}
+
+func TestGetLatestQuestionBankDraftAnswerScoringRequestForStudentUsesScopedLookup(t *testing.T) {
+	db := &recordingDB{rows: &singleAIGradingRequestRow{}}
+	repository := postgres.NewArchiveRepository(db)
+
+	request, ok, err := repository.GetLatestQuestionBankDraftAnswerScoringRequestForStudent(
+		context.Background(),
+		"qbank_ans_sub_row",
+		"student_001",
+	)
+	if err != nil {
+		t.Fatalf("GetLatestQuestionBankDraftAnswerScoringRequestForStudent returned error: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected scoring request")
+	}
+	for _, fragment := range []string{
+		"FROM teaching_ai_grading_requests",
+		"source_question_bank_answer_submission_id = $1",
+		"source_archive_student_id = $2",
+		"source_question_bank_draft_ref IS NOT NULL",
+		"ORDER BY created_at DESC, id DESC",
+		"LIMIT 1",
+	} {
+		if !strings.Contains(db.lastSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastSQL)
+		}
+	}
+	if len(db.args) != 2 || db.args[0] != "qbank_ans_sub_row" || db.args[1] != "student_001" {
+		t.Fatalf("args = %#v", db.args)
+	}
+	if request.SourceQuestionBankAnswerSubmissionID != "qbank_ans_sub_row" ||
+		request.SourceArchiveStudentID != "student_001" {
+		t.Fatalf("request = %#v", request)
+	}
 }
 
 type singleAIGradingRequestRow struct {
@@ -95,17 +156,19 @@ func (r *singleAIGradingRequestRow) Scan(dest ...any) error {
 	*(dest[8].(*string)) = "local://archive/student/quiz.pdf"
 	*(dest[9].(*sql.NullString)) = sql.NullString{String: "quiz_sub_row", Valid: true}
 	*(dest[10].(*sql.NullString)) = sql.NullString{String: "local://answers/student_001/week-3.json", Valid: true}
-	*(dest[11].(*string)) = string(domain.MaterialTypeQuiz)
-	*(dest[12].(*string)) = string(domain.OCRStatusReserved)
-	*(dest[13].(*sql.NullString)) = sql.NullString{}
-	*(dest[14].(*sql.NullString)) = sql.NullString{}
+	*(dest[11].(*sql.NullString)) = sql.NullString{String: "local://question-bank-drafts/tutor_req_row.json", Valid: true}
+	*(dest[12].(*sql.NullString)) = sql.NullString{String: "qbank_ans_sub_row", Valid: true}
+	*(dest[13].(*string)) = string(domain.MaterialTypeQuiz)
+	*(dest[14].(*string)) = string(domain.OCRStatusReserved)
 	*(dest[15].(*sql.NullString)) = sql.NullString{}
 	*(dest[16].(*sql.NullString)) = sql.NullString{}
-	*(dest[17].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
-	*(dest[18].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
-	*(dest[19].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[20].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[17].(*sql.NullString)) = sql.NullString{}
+	*(dest[18].(*sql.NullString)) = sql.NullString{}
+	*(dest[19].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
+	*(dest[20].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
 	*(dest[21].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[22].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[23].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
 	return nil
 }
 

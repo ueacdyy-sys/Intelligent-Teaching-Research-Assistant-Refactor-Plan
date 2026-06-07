@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "2026-06-05.student-app.ai-tutor-result.v1",
+  "resultInvocationId": "student_app_ai_tutor_result_001",
+  "principal": {
+    "principalId": "svc_student_tutor_worker",
+    "subjectType": "SERVICE",
+    "role": "SERVICE",
+    "entryPoint": "AGENT_INTERNAL",
+    "scopes": ["TEACHING_WRITE", "STUDENT_ARCHIVE_WRITE", "AGENT_COMMAND_SUBMIT"],
+    "sessionId": "svc_session_student_tutor_worker"
+  },
+  "worker": {
+    "workerId": "worker_student_tutor_local_01",
+    "agent": "StudentTutorAgent",
+    "skillId": "tutor_student",
+    "nodeType": "LOCAL"
+  },
+  "claim": {
+    "requestId": "tutor_req_student_app_001",
+    "archiveItemId": "tarch_student_quiz_001",
+    "status": "IN_PROGRESS",
+    "claimedByWorkerId": "worker_student_tutor_local_01",
+    "claimExpiresAt": "2026-06-05T00:02:00.000Z",
+    "questionBankIntent": "GENERATE_PERSONALIZED_CHECK"
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "resultSummary": "The student understands fractions but needs more mixed-operation practice.",
+    "resultRef": "local://student-app-ai-tutor/tutor_req_student_app_001/result.json",
+    "questionBankDraftRef": "local://question-bank-drafts/tutor_req_student_app_001.json"
+  },
+  "resultPolicy": {
+    "queueName": "student_app_ai_tutor",
+    "queueTable": "teaching_tutoring_analysis_requests",
+    "targetUseCase": "RecordTutoringAnalysisResult.Execute",
+    "readRepositoryOperation": "ArchiveRepository.GetTutoringAnalysisRequestByID",
+    "writeRepositoryOperation": "ArchiveRepository.RecordTutoringAnalysisResult",
+    "internalServiceOnly": true,
+    "claimRequired": true,
+    "workerLeaseMustMatch": true,
+    "modelExecutionAlreadyCompletedElsewhere": true,
+    "executeModelNowAllowed": false,
+    "createQuestionBankDraftNowAllowed": false,
+    "studentVisiblePublishAllowed": false,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "evidenceRefs": [
+    "evidence:student-app-ai-tutor-worker-claim:tutor_req_student_app_001"
+  ],
+  "idempotencyKey": "student-app-ai-tutor-result:worker_student_tutor_local_01:tutor_req_student_app_001"
+}

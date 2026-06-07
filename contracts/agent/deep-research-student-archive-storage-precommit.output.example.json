@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "2026-06-05.research.deep-research-student-archive-storage-precommit-prepared.v1",
+  "runtimeId": "research_deep_research_student_archive_storage_precommit_runtime",
+  "commandPort": "DeepResearchStudentArchiveStoragePrecommitPort.prepareTeachingArchiveCreateCommand",
+  "status": "TEACHING_ARCHIVE_MAIN_DB_STORAGE_PRECOMMIT_PREPARED",
+  "recordId": "research_deep_research_student_archive_storage_precommit_deep-research-student-archive-storage-precommit_job-001",
+  "recordedAt": "2026-06-05T00:00:00.000Z",
+  "idempotencyKey": "deep-research-student-archive-storage-precommit:job-001",
+  "idempotentReplay": false,
+  "sourceProjection": {
+    "projectionRecordId": "research_deep_research_student_archive_projection_deep-research-student-archive-projection_job-001",
+    "projectionId": "deep_research_student_archive_projection_001",
+    "archiveScopeRef": "classroom_scope:grade8:math:unit-personalized-learning",
+    "sourceProjectionReviewRecordId": "research_deep_research_student_archive_projection_review_deep-research-student-archive-projection-review_job-001",
+    "sourcePersistenceRecordId": "research_deep_research_student_archive_persistence_deep-research-student-archive-persistence_job-001",
+    "sourceStudentDeliveryEnvelopeId": "deep_research_student_delivery_envelope_001",
+    "claimCount": 1,
+    "citationCount": 1,
+    "sourceHashCount": 1
+  },
+  "teachingArchiveCreateCommand": {
+    "commandId": "teaching_archive_create_archive_item_deep-research-student-archive-storage-precommit_job-001",
+    "operationId": "createTeachingArchiveItem",
+    "method": "POST",
+    "path": "/archive-items",
+    "preparedAt": "2026-06-05T00:00:00.000Z",
+    "targetUseCase": "CreateArchiveItem.ExecuteWithPersistence",
+    "targetRepository": "ArchiveRepository.Create",
+    "targetTable": "teaching_archive_items",
+    "principalContextHeader": {
+      "principalId": "deep_research_student_archive_storage_service_001",
+      "subjectType": "SERVICE",
+      "role": "SERVICE",
+      "entryPoint": "AGENT_INTERNAL",
+      "scopes": ["RESEARCH_READ", "STUDENT_ARCHIVE_WRITE", "STUDENT_ASSIGNED_READ"],
+      "knowledgeAccess": {
+        "public": true,
+        "private": "ASSIGNED"
+      },
+      "studentAccess": {
+        "mode": "ASSIGNED",
+        "studentIds": ["student_001"]
+      },
+      "requiresHarnessApproval": false,
+      "sessionId": "deep_research_student_archive_storage_session_001",
+      "issuedAt": "2026-06-05T00:00:00.000Z",
+      "expiresAt": "2036-06-05T00:00:00.000Z"
+    },
+    "requestBody": {
+      "ownerType": "STUDENT",
+      "studentId": "student_001",
+      "materialType": "HANDOUT",
+      "title": "Evidence grounded learning support draft",
+      "source": "SYSTEM_IMPORT",
+      "contentRef": "research-deep-research-projection:deep_research_student_archive_projection_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "tags": ["deep_research", "student_archive", "projection", "math_unit"],
+      "analysisIntents": ["ARCHIVE_ONLY", "TUTORING"],
+      "ocrReserved": false
+    },
+    "storageShape": {
+      "table": "teaching_archive_items",
+      "idPrefix": "tarch_",
+      "columns": [
+        "id",
+        "owner_type",
+        "student_id",
+        "material_type",
+        "title",
+        "source",
+        "content_ref",
+        "tags",
+        "analysis_intents",
+        "ocr_status",
+        "created_at"
+      ],
+      "evidenceLocation": "append_only_projection_log"
+    }
+  },
+  "evidenceRefs": [
+    "evidence:student-archive-storage-precommit:projection-consumed",
+    "evidence:student-archive-projection:review-consumed",
+    "evidence:student-archive-projection-review:job-001",
+    "evidence:student-archive-projection-input-hash:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "evidence:runtime:research_deep_research_student_archive_projection_runtime",
+    "evidence:command-port:DeepResearchStudentArchiveProjectionPort.projectReviewedStudentArchiveEntry",
+    "evidence:student-archive-projection-review-record:research_deep_research_student_archive_projection_review_deep-research-student-archive-projection-review_job-001",
+    "evidence:student-archive-storage-precommit-input-hash:sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "evidence:runtime:research_deep_research_student_archive_storage_precommit_runtime",
+    "evidence:command-port:DeepResearchStudentArchiveStoragePrecommitPort.prepareTeachingArchiveCreateCommand",
+    "evidence:student-archive-projection-record:research_deep_research_student_archive_projection_deep-research-student-archive-projection_job-001",
+    "evidence:teaching-archive-openapi:createTeachingArchiveItem",
+    "evidence:teaching-archive-main-table:teaching_archive_items"
+  ],
+  "boundary": {
+    "studentArchiveProjectionOutputVerified": true,
+    "teachingArchiveCreateItemCommandPrepared": true,
+    "teachingArchiveDomainValidationPrepared": true,
+    "projectionEvidencePreserved": true,
+    "studentAudienceScopeEnforced": true,
+    "studentArchiveProjectionWritten": true,
+    "studentArchivePersisted": true,
+    "studentArchiveWriteStarted": true,
+    "mainDatabaseWritePrepared": true,
+    "mainDatabaseWriteStarted": false,
+    "mainDatabaseWriteCommitted": false,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "finalAnswerPublished": false,
+    "publicationCandidateCreated": false,
+    "externalModelCallStarted": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 300,
+    "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_ARCHIVE_STORAGE_PRECOMMIT_BOUNDARY"
+  },
+  "nextAction": "Submit this command to the Teaching Archive createArchiveItem use case in a separate reviewed main DB commit slice."
+}

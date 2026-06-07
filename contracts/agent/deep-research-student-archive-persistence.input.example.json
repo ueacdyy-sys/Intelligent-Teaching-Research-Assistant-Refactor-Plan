@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "2026-06-05.research.deep-research-student-archive-persistence.v1",
+  "persistenceInvocationId": "deep_research_student_archive_persistence_inv_001",
+  "principal": {
+    "principalId": "student_archive_persistence_runtime_service_001",
+    "role": "SERVICE",
+    "subjectType": "SERVICE",
+    "entryPoint": "STUDENT_ARCHIVE_PERSISTENCE_RUNTIME",
+    "scopes": ["RESEARCH_READ", "STUDENT_ARCHIVE_PERSISTENCE", "STUDENT_APP_DELIVERY"],
+    "sessionId": "research_student_archive_persistence_service_session_001"
+  },
+  "studentDeliveryRecord": {
+    "schemaVersion": "2026-06-05.research.deep-research-student-delivery-recorded.v1",
+    "runtimeId": "research_deep_research_student_delivery_runtime",
+    "commandPort": "DeepResearchStudentDeliveryPort.recordStudentDeliveryEnvelope",
+    "status": "STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED",
+    "recordId": "research_deep_research_student_delivery_deep-research-student-delivery_job-001",
+    "recordedAt": "2026-06-05T00:00:00.000Z",
+    "idempotencyKey": "deep-research-student-delivery:job-001",
+    "idempotentReplay": false,
+    "job": {
+      "taskId": "agent_task_research_deep_001",
+      "contextRef": "shared_ctx_research_deep_001",
+      "jobId": "deep_research_job_001",
+      "queueName": "research_deep_research"
+    },
+    "studentDeliveryEnvelope": {
+      "envelopeId": "deep_research_student_delivery_envelope_001",
+      "envelopeKind": "EVIDENCE_GROUNDED_STUDENT_DELIVERY_ENVELOPE",
+      "deliveryMode": "STUDENT_APP_RENDERABLE_ENVELOPE",
+      "audience": "STUDENT_APP_LEARNING_SUPPORT",
+      "channel": "STUDENT_APP",
+      "scopeRef": "classroom_scope:grade8:math:unit-personalized-learning",
+      "visibilityState": "STUDENT_VISIBLE_DELIVERY_ENVELOPE_NOT_PERSISTED",
+      "deliveryState": "READY_FOR_STUDENT_APP_RENDER_NOT_ARCHIVED",
+      "teacherDeliveryPackageId": "deep_research_teacher_delivery_package_001",
+      "studentVisibilityReviewRecordId": "research_deep_research_student_visibility_review_deep-research-student-visibility-review_job-001",
+      "studentVisibilityReviewId": "deep_research_student_visibility_review_001",
+      "title": "个性化学习与智能教研助手的证据草稿",
+      "learnerFacingSummary": "当前证据支持把个性化辅导建立在可追踪的学习档案、检索证据和效果指标上。",
+      "claimCount": 2,
+      "citationCount": 2,
+      "sourceHashCount": 2,
+      "claims": [
+        {
+          "claimId": "claim_001",
+          "text": "个性化辅导能力需要绑定明确的学习结果指标。",
+          "citations": ["public_curriculum_knowledge#source:public-curriculum:001"],
+          "sourceHashes": ["sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+          "supportChunkIds": ["chunk_public_001"],
+          "confidence": 0.82,
+          "evidencePreserved": true
+        },
+        {
+          "claimId": "claim_002",
+          "text": "私密知识库内容进入综合草稿时必须保留引用和 sourceHash。",
+          "citations": ["private_research_notes#source:private-notes:001"],
+          "sourceHashes": ["sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+          "supportChunkIds": ["chunk_private_001"],
+          "confidence": 0.86,
+          "evidencePreserved": true
+        }
+      ],
+      "limitations": ["该草稿只覆盖已检索到的两个证据片段。", "最终学生端交付仍需后续审批边界。"],
+      "risk": {
+        "hallucinationRisk": "LOW",
+        "privateKnowledgeRisk": "MEDIUM",
+        "studentDataRisk": "LOW",
+        "publicationRisk": "LOW"
+      },
+      "evidencePreserved": true,
+      "sourceHashIntegrityPreserved": true,
+      "limitationsPreserved": true
+    },
+    "evidenceRefs": [
+      "evidence:student-delivery:approved-student-app-envelope",
+      "evidence:student-visibility-review:job-001",
+      "evidence:student-delivery-input-hash:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "evidence:runtime:research_deep_research_student_delivery_runtime",
+      "evidence:command-port:DeepResearchStudentDeliveryPort.recordStudentDeliveryEnvelope"
+    ],
+    "boundary": {
+      "teacherDeliveryVerified": true,
+      "humanStudentVisibilityReviewRecorded": true,
+      "studentVisibilityApprovedForDelivery": true,
+      "studentDeliveryEnvelopeCreated": true,
+      "studentVisible": true,
+      "studentDeliveryStarted": true,
+      "studentDeliveryPersisted": false,
+      "evidenceIntegrityPreserved": true,
+      "sourceHashIntegrityPreserved": true,
+      "limitationsPreserved": true,
+      "studentAudienceScopeEnforced": true,
+      "finalAnswerPublished": false,
+      "publicationCandidateCreated": false,
+      "directPublicationAllowed": false,
+      "externalModelCallStarted": false,
+      "mainDatabaseWriteStarted": false,
+      "studentArchiveWriteStarted": false,
+      "remoteDeviceControlAllowed": false,
+      "localToolMutationAllowed": false,
+      "swarmAllowed": false,
+      "requiresFuturePersistenceReview": true
+    },
+    "runtimeSlo": {
+      "targetP99Ms": 300,
+      "evidenceClass": "ASYNC_DEEP_RESEARCH_STUDENT_DELIVERY_BOUNDARY"
+    },
+    "nextAction": "Render this returned envelope only inside the approved student app flow; durable student archive persistence remains a separate reviewed slice."
+  },
+  "studentArchivePersistencePolicy": {
+    "reviewedStudentDeliveryRequired": true,
+    "studentArchivePersistenceCommandAllowed": true,
+    "appendOnlyCommandLogRequired": true,
+    "preserveEvidenceRequired": true,
+    "preserveSourceHashesRequired": true,
+    "preserveLimitationsRequired": true,
+    "studentAudienceScopeRequired": true,
+    "futureDurableProjectionReviewRequired": true,
+    "directPublicationAllowed": false,
+    "directDatabaseAccessAllowed": false,
+    "mainDatabaseWriteAllowed": false,
+    "studentArchiveProjectionWriteAllowed": false,
+    "externalModelCallAllowed": false,
+    "remoteDeviceControlAllowed": false,
+    "localToolMutationAllowed": false,
+    "swarmAllowed": false
+  },
+  "studentArchivePersistenceRequest": {
+    "commandId": "deep_research_student_archive_persistence_command_001",
+    "persistenceMode": "APPEND_ONLY_STUDENT_ARCHIVE_COMMAND",
+    "targetArchiveKind": "STUDENT_LEARNING_ARCHIVE",
+    "archiveScopeRef": "classroom_scope:grade8:math:unit-personalized-learning",
+    "studentDeliveryRecordId": "research_deep_research_student_delivery_deep-research-student-delivery_job-001",
+    "studentDeliveryEnvelopeId": "deep_research_student_delivery_envelope_001",
+    "studentVisibilityReviewId": "deep_research_student_visibility_review_001",
+    "teacherDeliveryPackageId": "deep_research_teacher_delivery_package_001",
+    "desiredArchiveState": "PERSISTENCE_COMMAND_RECORDED_NOT_PROJECTED"
+  },
+  "evidenceRefs": ["evidence:student-archive-persistence:command-reviewed", "evidence:student-delivery:job-001"],
+  "idempotencyKey": "deep-research-student-archive-persistence:job-001"
+}

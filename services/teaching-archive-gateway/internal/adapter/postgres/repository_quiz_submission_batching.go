@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"ita-refactor/services/teaching-archive-gateway/internal/domain"
+	"ita-refactor/services/teaching-archive-gateway/internal/usecase"
 )
 
 type QuizSubmissionBatchConfig struct {
@@ -85,14 +86,14 @@ func (r *BatchingQuizSubmissionRepository) GetByID(
 func (r *BatchingQuizSubmissionRepository) CreateQuizSubmission(
 	ctx context.Context,
 	submission domain.QuizSubmission,
-) error {
+) (usecase.WritePersistenceOutcome, error) {
 	return r.base.CreateQuizSubmission(ctx, submission)
 }
 
 func (r *BatchingQuizSubmissionRepository) CreateQuizSubmissionForExistingTeachingQuiz(
 	ctx context.Context,
 	submission domain.QuizSubmission,
-) (bool, error) {
+) (bool, usecase.WritePersistenceOutcome, error) {
 	request := quizSubmissionCreateRequest{
 		ctx:        ctx,
 		submission: submission,
@@ -103,7 +104,7 @@ func (r *BatchingQuizSubmissionRepository) CreateQuizSubmissionForExistingTeachi
 	r.enqueueMu.RLock()
 	if r.closed {
 		r.enqueueMu.RUnlock()
-		return false, ErrQuizSubmissionRepositoryClosed
+		return false, usecase.WritePersistenceOutcome{}, ErrQuizSubmissionRepositoryClosed
 	}
 	r.enqueueWG.Add(1)
 	r.enqueueMu.RUnlock()
@@ -112,14 +113,17 @@ func (r *BatchingQuizSubmissionRepository) CreateQuizSubmissionForExistingTeachi
 		r.enqueueWG.Done()
 	case <-ctx.Done():
 		r.enqueueWG.Done()
-		return false, ctx.Err()
+		return false, usecase.WritePersistenceOutcome{}, ctx.Err()
 	case <-r.closing:
 		r.enqueueWG.Done()
-		return false, ErrQuizSubmissionRepositoryClosed
+		return false, usecase.WritePersistenceOutcome{}, ErrQuizSubmissionRepositoryClosed
 	}
 
 	result := <-request.result
-	return result.created, result.err
+	if result.err != nil || !result.created {
+		return result.created, usecase.WritePersistenceOutcome{}, result.err
+	}
+	return true, usecase.PersistedWriteOutcome(), nil
 }
 
 func (r *BatchingQuizSubmissionRepository) Close() {

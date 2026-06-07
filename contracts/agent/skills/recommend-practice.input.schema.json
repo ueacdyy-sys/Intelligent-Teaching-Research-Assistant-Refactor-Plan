@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/skills/recommend-practice.input.schema.json",
+  "title": "Recommend Practice Skill Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "invocationId",
+    "taskId",
+    "contextRef",
+    "principalContextRef",
+    "query",
+    "targetStudentScope",
+    "learningSignals",
+    "filters",
+    "limits",
+    "evidenceRefs",
+    "latencyBudgetMs",
+    "writeIntent",
+    "studentDataAccess",
+    "externalModelAllowed",
+    "finalEvaluationAllowed"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-04.agent.skill.recommend-practice.input.v1"
+    },
+    "invocationId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "contextRef": { "type": "string", "minLength": 1 },
+    "principalContextRef": { "type": "string", "minLength": 1 },
+    "query": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "targetStudentScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "studentIds", "crossStudentComparisonAllowed"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["OWN", "ASSIGNED"] },
+        "studentIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+        },
+        "crossStudentComparisonAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "learningSignals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["knowledgePointIds", "recentMistakeRefs", "archiveItemRefs"],
+      "properties": {
+        "knowledgePointIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+        },
+        "recentMistakeRefs": {
+          "type": "array",
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+        },
+        "archiveItemRefs": {
+          "type": "array",
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["includeTeachingMaterials", "includeStudentArchive", "includeOtherStudents"],
+      "properties": {
+        "includeTeachingMaterials": { "type": "boolean", "const": true },
+        "includeStudentArchive": { "type": "boolean", "const": true },
+        "includeOtherStudents": { "type": "boolean", "const": false }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxRecommendations", "maxReasonChars"],
+      "properties": {
+        "maxRecommendations": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "maxReasonChars": { "type": "integer", "minimum": 1, "maximum": 500 }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "latencyBudgetMs": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "writeIntent": { "type": "boolean", "const": false },
+    "studentDataAccess": { "type": "string", "const": "OWN_OR_ASSIGNED" },
+    "externalModelAllowed": { "type": "boolean", "const": false },
+    "finalEvaluationAllowed": { "type": "boolean", "const": false }
+  }
+}

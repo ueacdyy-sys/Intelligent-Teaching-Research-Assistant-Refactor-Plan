@@ -1,0 +1,134 @@
+{
+  "generatedAt": "2026-06-07T12:29:36.822Z",
+  "readiness": "READY",
+  "workloadType": "WORKFLOW_PLUGIN_DRAFT_INTENT_RUNTIME",
+  "commandPort": "WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent",
+  "boundary": {
+    "status": "REVIEW_REQUIRED",
+    "executionCandidateAllowed": false,
+    "localGeneratedCodeExecuted": false,
+    "workflowPublishAllowed": false,
+    "registrySaveAllowed": false,
+    "directDatabaseWriteAllowed": false
+  },
+  "runtimeProbe": {
+    "status": "PASS",
+    "result": {
+      "schemaVersion": "2026-06-05.workflow-plugin.draft-intent-result.v1",
+      "intentId": "draft_workflow_plugin",
+      "commandPort": "WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent",
+      "status": "REVIEW_REQUIRED",
+      "eventType": "AGENT_WRITE_INTENT_REVIEW_REQUIRED",
+      "recordId": "workflow_plugin_draft_intent_audit-workflow-plugin-draft-intent",
+      "submittedAt": "2026-06-05T00:00:00.000Z",
+      "idempotencyKey": "audit-workflow-plugin-draft-intent",
+      "idempotentReplay": false,
+      "draft": {
+        "draftId": "plugin_draft_retry_failed_archive_export",
+        "artifactKind": "PLUGIN",
+        "capabilityKind": "SKILL",
+        "origin": "TASK_FAILURE_LEARNING"
+      },
+      "evidence": {
+        "sharedContextRef": "shared-context:audit-workflow-plugin-draft",
+        "guardrailResultRef": "guardrail:audit-workflow-plugin-draft",
+        "routeDecisionRef": "route:audit-workflow-plugin-draft",
+        "inputHash": "sha256:audit-workflow-plugin-draft-input",
+        "outputSummary": "Audit probe generated workflow/plugin draft intent for review only.",
+        "approvalArtifactRef": "approval-artifact:audit-workflow-plugin-draft",
+        "rollbackPlanRef": "rollback:audit-workflow-plugin-draft",
+        "auditTraceRef": "audit:audit-workflow-plugin-draft",
+        "idempotencyKey": "audit-workflow-plugin-draft-intent"
+      },
+      "boundary": {
+        "commandIntentRecorded": true,
+        "approvalRequired": true,
+        "sandboxRequired": true,
+        "executionCandidateAllowed": false,
+        "localGeneratedCodeExecuted": false,
+        "workflowPublishAllowed": false,
+        "registrySaveAllowed": false,
+        "directDatabaseWriteAllowed": false,
+        "localToolMutationAllowed": false,
+        "finalEvaluationWriteAllowed": false
+      },
+      "nextAction": "Queue the draft for Harness review, sandbox result inspection, human performance/effect evaluation, and later registry admission."
+    },
+    "logRecordCount": 1
+  },
+  "findings": [
+    {
+      "id": "contract.gateway_allowlists_workflow_plugin_draft",
+      "passed": true,
+      "severity": "info",
+      "actual": "draft_teaching_quiz:TeachingAgent:TeachingDraftCommandPort.submitQuizDraftIntent:approval=true:execute=false;draft_archive_material:TeachingAgent:TeachingDraftCommandPort.submitArchiveMaterialDraftIntent:approval=true:execute=false;draft_workflow_plugin:WorkflowAgent:WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent:approval=true:execute=false",
+      "expected": "draft_workflow_plugin -> WorkflowDraftCommandPort.submitWorkflowPluginDraftIntent, review-only",
+      "remediation": "Keep workflow/plugin drafts behind the shared controlled write-intent gateway."
+    },
+    {
+      "id": "draft_contract.generated_review_only",
+      "passed": true,
+      "severity": "info",
+      "actual": "required=generatedFiles,executionMode,sandboxRequired,humanApprovalRequired,allowedHostAccess,registrySaveAllowed executionMode=DRY_RUN_ONLY sandbox=true approval=true host=NONE registry=false",
+      "expected": "generated files + DRY_RUN_ONLY + sandbox + human approval + no host access + no registry save",
+      "remediation": "Workflow/plugin draft command intent must not weaken generated artifact safety constraints."
+    },
+    {
+      "id": "runtime.requires_principal_permission_and_evidence",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime principal, permission, draft safety, and evidence symbols scanned",
+      "expected": "principal authorization plus shared context, guardrail, route, approval, rollback, audit, hash, summary, and idempotency evidence",
+      "remediation": "Do not accept workflow/plugin draft intents without full review evidence and authorization."
+    },
+    {
+      "id": "runtime.append_only_no_execution_or_registry_save",
+      "passed": true,
+      "severity": "info",
+      "actual": "appendFileSync=true;ALLOW_SAVE=false;execSync(=false;executionCandidateAllowed: true=false",
+      "expected": "append-only command log; no registry admission, generated-code execution, workflow publish, or execution candidate",
+      "remediation": "This runtime may record a review intent only; sandbox execution and registry admission remain separate later gates."
+    },
+    {
+      "id": "runtime.probe_returns_review_required",
+      "passed": true,
+      "severity": "info",
+      "actual": "status=REVIEW_REQUIRED;records=1;registry=false",
+      "expected": "REVIEW_REQUIRED with one command-log record and registrySaveAllowed=false",
+      "remediation": "The runtime probe must prove the command intent path appends evidence without publishing a workflow/plugin."
+    },
+    {
+      "id": "tests.cover_negative_and_idempotency_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime test negative paths scanned",
+      "expected": "missing evidence, forbidden student, idempotency replay, and unsafe registry save are tested",
+      "remediation": "Keep failure modes covered before adding any generated-code execution path."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_audit",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:workflow-plugin-draft-intent=true;Workflow plugin draft intent runtime audit=true",
+      "expected": "npm script and strict quality command include workflow plugin draft intent audit",
+      "remediation": "Add this runtime audit to the strict quality gate so the slice cannot silently disappear."
+    },
+    {
+      "id": "root_workflow.requires_draft_intent_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "workflowPluginDraftIntent=true;workflow-plugin-draft-intent.current.json=true",
+      "expected": "workflow_plugin_self_evolution root coverage requires workflow plugin draft intent report",
+      "remediation": "Root workflow coverage should include the new command-intent runtime evidence."
+    },
+    {
+      "id": "quality.structure_tracks_slice",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires runtime, audit, tests, and SDD",
+      "remediation": "Add the slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as the workflow/plugin controlled write-intent runtime slice; continue module-by-module refactor without reopening production10k pressure tests."
+}

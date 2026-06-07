@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/deep-research-retrieval-plan.output.schema.json",
+  "title": "Deep Research Retrieval Plan Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeId",
+    "commandPort",
+    "status",
+    "recordId",
+    "recordedAt",
+    "idempotencyKey",
+    "idempotentReplay",
+    "job",
+    "worker",
+    "approval",
+    "retrievalPlan",
+    "evidenceRefs",
+    "boundary",
+    "runtimeSlo",
+    "nextAction"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.research.deep-research-retrieval-plan-recorded.v1"
+    },
+    "runtimeId": { "type": "string", "const": "research_deep_research_retrieval_plan_runtime" },
+    "commandPort": {
+      "type": "string",
+      "const": "DeepResearchRetrievalPlanPort.recordDeepResearchRetrievalPlan"
+    },
+    "status": { "type": "string", "const": "RETRIEVAL_PLAN_RECORDED" },
+    "recordId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 220 },
+    "idempotentReplay": { "type": "boolean" },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "contextRef", "jobId", "queueName"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "contextRef": { "type": "string", "minLength": 1 },
+        "jobId": { "type": "string", "minLength": 1 },
+        "queueName": { "type": "string", "const": "research_deep_research" }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workerId", "nodeType", "capabilityKinds"],
+      "properties": {
+        "workerId": { "type": "string", "minLength": 1 },
+        "nodeType": { "type": "string", "const": "LOCAL" },
+        "capabilityKinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approvalId", "approvalRecordRef", "reviewerPrincipalId", "decision"],
+      "properties": {
+        "approvalId": { "type": "string", "minLength": 1 },
+        "approvalRecordRef": { "type": "string", "minLength": 1 },
+        "reviewerPrincipalId": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "const": "APPROVED_FOR_ASYNC" }
+      }
+    },
+    "retrievalPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "planningOnly",
+        "sourcePlan",
+        "budget",
+        "citationPolicy"
+      ],
+      "properties": {
+        "strategy": { "type": "string", "const": "DIRECTORY_INDEX_THEN_VECTOR_RAG" },
+        "planningOnly": { "type": "boolean", "const": true },
+        "sourcePlan": { "type": "array", "minItems": 1 },
+        "budget": { "type": "object" },
+        "citationPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["citationRequired", "sourceHashRequired", "quoteScope"],
+          "properties": {
+            "citationRequired": { "type": "boolean", "const": true },
+            "sourceHashRequired": { "type": "boolean", "const": true },
+            "quoteScope": { "type": "string", "const": "RETRIEVED_SOURCE_ONLY" }
+          }
+        }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvalVerified",
+        "workerClaimVerified",
+        "retrievalPlanRecorded",
+        "retrievalExecuted",
+        "directoryIndexAccessStarted",
+        "vectorSearchStarted",
+        "externalModelCallStarted",
+        "ragSynthesisStarted",
+        "finalAnswerGenerated",
+        "directPublicationAllowed",
+        "localToolMutationAllowed",
+        "directMainDatabaseWriteAllowed",
+        "studentArchiveUsed",
+        "remoteDeviceSourcesUsed",
+        "swarmAllowed",
+        "requiresFutureRetrievalExecutionSlice"
+      ],
+      "properties": {
+        "approvalVerified": { "type": "boolean", "const": true },
+        "workerClaimVerified": { "type": "boolean", "const": true },
+        "retrievalPlanRecorded": { "type": "boolean", "const": true },
+        "retrievalExecuted": { "type": "boolean", "const": false },
+        "directoryIndexAccessStarted": { "type": "boolean", "const": false },
+        "vectorSearchStarted": { "type": "boolean", "const": false },
+        "externalModelCallStarted": { "type": "boolean", "const": false },
+        "ragSynthesisStarted": { "type": "boolean", "const": false },
+        "finalAnswerGenerated": { "type": "boolean", "const": false },
+        "directPublicationAllowed": { "type": "boolean", "const": false },
+        "localToolMutationAllowed": { "type": "boolean", "const": false },
+        "directMainDatabaseWriteAllowed": { "type": "boolean", "const": false },
+        "studentArchiveUsed": { "type": "boolean", "const": false },
+        "remoteDeviceSourcesUsed": { "type": "boolean", "const": false },
+        "swarmAllowed": { "type": "boolean", "const": false },
+        "requiresFutureRetrievalExecutionSlice": { "type": "boolean", "const": true }
+      }
+    },
+    "runtimeSlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetP99Ms", "evidenceClass"],
+      "properties": {
+        "targetP99Ms": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "evidenceClass": {
+          "type": "string",
+          "const": "ASYNC_DEEP_RESEARCH_RETRIEVAL_PLAN_CONTROL_PLANE"
+        }
+      }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}

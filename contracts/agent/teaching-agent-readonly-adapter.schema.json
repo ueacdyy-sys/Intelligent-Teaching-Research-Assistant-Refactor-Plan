@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/teaching-agent-readonly-adapter.schema.json",
+  "title": "TeachingAgent Read-Only Adapter",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "adapterId",
+    "workerAgent",
+    "skillId",
+    "routeMode",
+    "readPort",
+    "inputSchemaRef",
+    "outputSchemaRef",
+    "guards",
+    "evidence",
+    "slo",
+    "promotion"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-04.agent.teaching-readonly-adapter.v1"
+    },
+    "adapterId": { "type": "string", "const": "teaching_agent_search_material_readonly_adapter" },
+    "workerAgent": { "type": "string", "const": "TeachingAgent" },
+    "skillId": { "type": "string", "const": "search_teaching_material" },
+    "routeMode": { "type": "string", "const": "SINGLE_WORKER" },
+    "inputSchemaRef": {
+      "type": "string",
+      "const": "contracts/agent/skills/search-teaching-material.input.schema.json"
+    },
+    "outputSchemaRef": {
+      "type": "string",
+      "const": "contracts/agent/skills/search-teaching-material.output.schema.json"
+    },
+    "readPort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "portName",
+        "operation",
+        "transport",
+        "directDatabaseAccessAllowed",
+        "writeOperationAllowed"
+      ],
+      "properties": {
+        "portName": { "type": "string", "const": "TeachingArchiveReadPort" },
+        "operation": { "type": "string", "const": "searchTeachingMaterials" },
+        "transport": { "type": "string", "enum": ["HTTP", "IN_PROCESS"] },
+        "directDatabaseAccessAllowed": { "type": "boolean", "const": false },
+        "writeOperationAllowed": { "type": "boolean", "const": false }
+      }
+    },
+    "guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "principalContextRequired",
+        "sharedContextRequired",
+        "guardrailResultRequired",
+        "denyOnWriteIntent",
+        "denyOnStudentArchiveRequest",
+        "denyOnExternalModelRequest",
+        "dataScopes"
+      ],
+      "properties": {
+        "principalContextRequired": { "type": "boolean", "const": true },
+        "sharedContextRequired": { "type": "boolean", "const": true },
+        "guardrailResultRequired": { "type": "boolean", "const": true },
+        "denyOnWriteIntent": { "type": "boolean", "const": true },
+        "denyOnStudentArchiveRequest": { "type": "boolean", "const": true },
+        "denyOnExternalModelRequest": { "type": "boolean", "const": true },
+        "dataScopes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["knowledge", "student", "teaching", "research", "localTool"],
+          "properties": {
+            "knowledge": { "type": "string", "const": "PUBLIC" },
+            "student": { "type": "string", "const": "NONE" },
+            "teaching": { "type": "string", "const": "READ" },
+            "research": { "type": "string", "const": "NONE" },
+            "localTool": { "type": "string", "const": "NONE" }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skillInvocationTraceRequired",
+        "inputHashRequired",
+        "outputSummaryRequired",
+        "sourceEvidenceRefsRequired",
+        "runtimeTimingRequired"
+      ],
+      "properties": {
+        "skillInvocationTraceRequired": { "type": "boolean", "const": true },
+        "inputHashRequired": { "type": "boolean", "const": true },
+        "outputSummaryRequired": { "type": "boolean", "const": true },
+        "sourceEvidenceRefsRequired": { "type": "boolean", "const": true },
+        "runtimeTimingRequired": { "type": "boolean", "const": true }
+      }
+    },
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p99BudgetMs", "maxResults", "maxSnippetChars"],
+      "properties": {
+        "p99BudgetMs": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "maxResults": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "maxSnippetChars": { "type": "integer", "minimum": 0, "maximum": 500 }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currentEvidenceClass",
+        "runtimeEvidenceRequiredBeforePromotion",
+        "rootWorkflowRequired"
+      ],
+      "properties": {
+        "currentEvidenceClass": { "type": "string", "const": "CONTRACT_ONLY" },
+        "runtimeEvidenceRequiredBeforePromotion": { "type": "boolean", "const": true },
+        "rootWorkflowRequired": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

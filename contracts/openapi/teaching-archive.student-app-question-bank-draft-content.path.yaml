@@ -1,0 +1,87 @@
+get:
+  operationId: readStudentAppQuestionBankDraftContent
+  summary: Read a student-owned personalized question-bank draft content document.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: questionBankDraftRef
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 1000
+        pattern: '^local://question-bank-drafts/tutor_req_[A-Za-z0-9_-]+\.json$'
+  responses:
+    '200':
+      description: Student-owned personalized question-bank draft content.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - questionBankDraftRef
+              - tutoringAnalysisRequestId
+              - archiveItemId
+              - sourceArchiveMaterial
+              - resultSummary
+              - items
+              - createdAt
+              - updatedAt
+            properties:
+              questionBankDraftRef:
+                type: string
+                minLength: 1
+                maxLength: 1000
+              tutoringAnalysisRequestId:
+                type: string
+                pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              sourceArchiveMaterial:
+                $ref: './teaching-archive.yaml#/components/schemas/StudentArchiveMaterialType'
+              resultSummary:
+                type: string
+                minLength: 1
+                maxLength: 2000
+              items:
+                type: array
+                minItems: 1
+                maxItems: 100
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - id
+                    - questionText
+                  properties:
+                    id:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    questionText:
+                      type: string
+                      minLength: 1
+                      maxLength: 2000
+                    learningTarget:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+              createdAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

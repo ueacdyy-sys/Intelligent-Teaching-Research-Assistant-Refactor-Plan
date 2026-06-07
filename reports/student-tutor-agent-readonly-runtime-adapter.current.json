@@ -1,0 +1,227 @@
+{
+  "generatedAt": "2026-06-07T12:28:45.960Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_TUTOR_AGENT_READONLY_RUNTIME_ADAPTER",
+  "adapter": {
+    "adapterId": "student_tutor_recommend_practice_readonly_adapter",
+    "workerAgent": "StudentTutorAgent",
+    "skillId": "recommend_practice",
+    "readPort": "StudentLearningReadPort.recommendPracticeContext"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "RUNTIME_ADAPTER_PROBE_WITH_INJECTED_STUDENT_READ_PORT"
+  },
+  "safetyInvariants": {
+    "directDatabaseAccessAllowed": false,
+    "writeOperationAllowed": false,
+    "crossStudentDataReturned": false,
+    "rawStudentArchiveReturned": false,
+    "finalEvaluationReturned": false,
+    "externalModelUsed": false,
+    "localToolMutationAllowed": false,
+    "returnedWithinStudentScope": true,
+    "swarmAllowed": false
+  },
+  "runtimeProbes": {
+    "invoke": {
+      "status": "PASS",
+      "output": {
+        "schemaVersion": "2026-06-04.agent.skill.recommend-practice.output.v1",
+        "invocationId": "skill_call_recommend_practice_001",
+        "taskId": "agent_task_student_tutor_001",
+        "contextRef": "ctx_student_tutor_001",
+        "decision": "FOUND",
+        "summary": "Found 1 scoped practice recommendation(s) through the injected read port.",
+        "recommendations": [
+          {
+            "practiceId": "practice_function_monotonicity_001",
+            "title": "函数单调性基础巩固练习",
+            "sourceType": "TEACHING_MATERIAL",
+            "knowledgePointIds": [
+              "kp_function_monotonicity"
+            ],
+            "reason": "Recent mistakes point to interval judgment and monotonicity definition confusion.",
+            "sourceEvidenceRefs": [
+              "evidence:source:tarch_teaching_material_001",
+              "evidence:student-scope:student_001"
+            ],
+            "expiresAt": "2026-06-11T00:00:00.000Z"
+          }
+        ],
+        "evidenceRefs": [
+          "evidence:permission:student-own-read",
+          "evidence:student-app-flow:current",
+          "evidence:shared-context:ctx_student_tutor_001",
+          "evidence:source:tarch_teaching_material_001",
+          "evidence:student-scope:student_001",
+          "evidence:input-hash:c51324d465ff8f5ced3cdfbf",
+          "evidence:adapter:student_tutor_recommend_practice_readonly_adapter",
+          "evidence:read-port:StudentLearningReadPort.recommendPracticeContext",
+          "evidence:runtime-ms:3"
+        ],
+        "safety": {
+          "directDatabaseWriteAllowed": false,
+          "crossStudentDataReturned": false,
+          "rawStudentArchiveReturned": false,
+          "finalEvaluationReturned": false,
+          "externalModelUsed": false,
+          "localToolMutationAllowed": false,
+          "returnedWithinStudentScope": true
+        },
+        "slo": {
+          "p99BudgetMs": 50,
+          "runtimeEvidenceClass": "CONTRACT_ONLY",
+          "runtimeEvidenceRequiredBeforePromotion": true
+        }
+      },
+      "readPortRequest": {
+        "portName": "StudentLearningReadPort",
+        "operation": "recommendPracticeContext",
+        "invocationId": "skill_call_recommend_practice_001",
+        "taskId": "agent_task_student_tutor_001",
+        "contextRef": "ctx_student_tutor_001",
+        "principal": {
+          "principalId": "student_001",
+          "role": "STUDENT",
+          "scopes": [
+            "STUDENT_OWN_READ",
+            "TEACHING_READ",
+            "KNOWLEDGE_PUBLIC_READ"
+          ]
+        },
+        "query": "根据我最近函数单调性错题推荐练习",
+        "targetStudentScope": {
+          "mode": "OWN",
+          "studentIds": [
+            "student_001"
+          ],
+          "crossStudentComparisonAllowed": false
+        },
+        "learningSignals": {
+          "knowledgePointIds": [
+            "kp_function_monotonicity"
+          ],
+          "recentMistakeRefs": [
+            "mistake_ref_quiz_001_q3"
+          ],
+          "archiveItemRefs": [
+            "tarch_student_archive_001"
+          ]
+        },
+        "filters": {
+          "includeTeachingMaterials": true,
+          "includeStudentArchive": true,
+          "includeOtherStudents": false
+        },
+        "limits": {
+          "maxRecommendations": 3,
+          "maxReasonChars": 240
+        },
+        "evidenceRefs": [
+          "evidence:permission:student-own-read",
+          "evidence:student-app-flow:current",
+          "evidence:shared-context:ctx_student_tutor_001",
+          "evidence:guardrail:guardrail_allow_student_tutor_001",
+          "evidence:route:route_student_tutor_single_001",
+          "evidence:student-scope:student_001",
+          "evidence:input-hash:c51324d465ff8f5ced3cdfbf"
+        ],
+        "safety": {
+          "directDatabaseAccessAllowed": false,
+          "writeOperationAllowed": false,
+          "crossStudentComparisonAllowed": false,
+          "rawStudentArchiveAllowed": false,
+          "finalEvaluationAllowed": false,
+          "externalModelAllowed": false,
+          "localToolMutationAllowed": false
+        }
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 4,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "RUNTIME_ADAPTER_PROBE_WITH_INJECTED_STUDENT_READ_PORT"
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "contract.adapter_identity_and_read_port",
+      "passed": true,
+      "severity": "info",
+      "actual": "adapter=student_tutor_recommend_practice_readonly_adapter;worker=StudentTutorAgent;skill=recommend_practice;route=SINGLE_WORKER;port=StudentLearningReadPort.recommendPracticeContext;directDb=false;write=false",
+      "expected": "StudentTutorAgent.recommend_practice SINGLE_WORKER via StudentLearningReadPort.recommendPracticeContext with no direct DB or writes",
+      "remediation": "Keep the StudentTutor runtime adapter bound to the checked read port rather than a database, write repository, or model call."
+    },
+    {
+      "id": "contract.skill_input_output_boundaries",
+      "passed": true,
+      "severity": "info",
+      "actual": "write=false;student=OWN_OR_ASSIGNED;external=false;finalEval=false;cross=false;includeOther=false;reasonMin=1;outputRaw=false;outputWithinScope=true",
+      "expected": "input denies write/cross-student/final-eval/model; reason min=1; output denies raw archive and unsafe student data",
+      "remediation": "StudentTutorAgent boundaries must stay scoped before runtime invocation can count as student workflow evidence."
+    },
+    {
+      "id": "runtime.requires_injected_read_port_and_context_guards",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime guard symbols scanned",
+      "expected": "injected read port plus principal/shared context/guardrail/route gates",
+      "remediation": "The runtime adapter must validate every upstream control-plane artifact before it invokes the student read port."
+    },
+    {
+      "id": "runtime.no_side_effects_direct_db_model_or_raw_archive",
+      "passed": true,
+      "severity": "info",
+      "actual": "node:fs=false;readFileSync=false;writeFileSync=false;appendFileSync=false;mkdirSync=false;node:child_process=false;execSync(=false;spawn(=false;execFile(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;directDatabaseAccessAllowed: true=false;writeOperationAllowed: true=false;crossStudentDataReturned: true=false;rawStudentArchiveReturned: true=false;finalEvaluationReturned: true=false;externalModelUsed: true=false;localToolMutationAllowed: true=false",
+      "expected": "runtime is pure adapter logic with no fs writes, process launch, direct SQL, fetch, model call, raw archive, final eval, or local mutation",
+      "remediation": "Keep persistence, model, file, process, and raw student archive details behind outer read-port adapters."
+    },
+    {
+      "id": "runtime.probe_maps_scoped_read_port_output",
+      "passed": true,
+      "severity": "info",
+      "actual": "decision=FOUND;recommendations=1;p99=4;errors=0",
+      "expected": "probe returns FOUND scoped recommendations through injected read port with p99<=50 and zero errors",
+      "remediation": "Runtime adapter must produce executable scoped recommendation evidence, not contract-only prose."
+    },
+    {
+      "id": "tests.cover_runtime_negative_paths",
+      "passed": true,
+      "severity": "info",
+      "actual": "runtime tests scanned",
+      "expected": "happy path, no-match, unsafe input, principal scope, context, guardrail, route, read-port, and limit tests",
+      "remediation": "Keep runtime regression tests broad enough to catch student privacy boundary drift."
+    },
+    {
+      "id": "quality.gate_tracks_runtime_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "audit:student-tutor-agent-readonly-runtime-adapter=true;StudentTutorAgent read-only runtime adapter audit=true",
+      "expected": "npm script and strict quality command include the real StudentTutorAgent read-only runtime adapter audit",
+      "remediation": "Add this runtime adapter slice to the strict quality gate."
+    },
+    {
+      "id": "root_workflow.requires_runtime_adapter_report",
+      "passed": true,
+      "severity": "info",
+      "actual": "studentTutorAgentReadonlyRuntimeAdapter=true;student-tutor-agent-readonly-runtime-adapter.current.json=true;student_tutor_agent_readonly_runtime_adapter=true",
+      "expected": "student app root workflow requires the real StudentTutorAgent runtime adapter report",
+      "remediation": "Root workflow coverage should not claim this adapter is real unless its report is required."
+    },
+    {
+      "id": "quality.structure_tracks_runtime_adapter",
+      "passed": true,
+      "severity": "info",
+      "actual": "verify-structure scanned",
+      "expected": "structure verifier requires runtime adapter, tests, audit, audit test, and SDD",
+      "remediation": "Add the real StudentTutor adapter slice to structure verification."
+    }
+  ],
+  "nextAction": "Use this as the real StudentTutorAgent read-only runtime adapter evidence; next Agent slice can wire ResearchAgent or broaden dispatcher invocation without repeating broad production10k tests."
+}

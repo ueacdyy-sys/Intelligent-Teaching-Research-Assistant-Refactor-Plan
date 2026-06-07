@@ -1,16 +1,44 @@
 import fs from "node:fs";
-import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { tailText, writeJsonReport } from "./benchmark-runner-utils.mjs";
 import { collectPgbouncerDiagnostics, parsePsqlUnalignedRows } from "./identity-pgbouncer-diagnostics.mjs";
 import { collectGatewayDatabaseDiagnostics, identityInternalDiagnosticsSecretValue } from "./identity-gateway-diagnostics.mjs";
 import { addGatewayWriteLimiterSummary } from "./identity-gateway-diagnostics-summary.mjs";
-import { applySessionDbQueryExecModeArg, defaultSessionDbQueryExecMode, gatewaySessionQueryExecModeEnv, sessionDbQueryExecModeForProfile, validateSessionDbQueryExecMode } from "./identity-session-query-exec-mode-profile.mjs";
+import { applySessionDbQueryExecModeArg, defaultSessionDbQueryExecMode, gatewaySessionQueryExecModeEnv, validateSessionDbQueryExecMode } from "./identity-session-query-exec-mode-profile.mjs";
 import { applyPostgresDiagnosticsArg, collectPostgresDiagnostics, postgresDiagnosticsDefaults, runBenchmarkWithPostgresDiagnostics } from "./identity-postgres-diagnostics.mjs";
-import { addSessionPersistenceToDatabaseProfile, applySessionTablePersistenceArg, defaultSessionTablePersistence, gatewaySessionPersistenceEnv } from "./identity-http-benchmark-session-profile.mjs";
+import { applySessionTablePersistenceArg, defaultSessionTablePersistence, gatewaySessionPersistenceEnv } from "./identity-http-benchmark-session-profile.mjs";
+import {
+  benchmarkRuntimeDefaults,
+} from "./conversation-benchmark-runtime.mjs";
+import {
+  benchmarkBaseUrls,
+  benchmarkRuntimeProfile,
+  buildBenchmarkCommand,
+  combineGatewayOutput,
+  gatewayBaseUrls,
+  gatewayCount,
+  gatewayDatabaseProfile,
+  gatewayExitCodes,
+  gatewayPort,
+  gatewaySignals,
+  ingressBaseUrls,
+  ingressEnabled,
+  ingressPortAt,
+  ingressProfile,
+  maskSensitive,
+  maskURL,
+  parseIntegerOption,
+  parseStrictIntegerOption,
+  processExitCodes,
+  processSignals,
+  transportProfile,
+  urlPort,
+} from "./run-identity-http-benchmark-profiles.mjs";
 
-export { collectGatewayDatabaseDiagnostics, collectPgbouncerDiagnostics, collectPostgresDiagnostics, parsePsqlUnalignedRows, validateSessionDbQueryExecMode };
+export { collectGatewayDatabaseDiagnostics, collectPgbouncerDiagnostics, collectPostgresDiagnostics, parsePsqlUnalignedRows, tailText, validateSessionDbQueryExecMode, writeJsonReport };
+export { benchmarkRuntimeProfile, buildBenchmarkCommand, gatewayBaseUrls, gatewayDatabaseProfile };
 
 export const defaults = {
   dsn: "postgres://app_user:ueacd@127.0.0.1:16432/intelligent_teaching_assistant?sslmode=disable",
@@ -19,17 +47,27 @@ export const defaults = {
   out: "reports/identity-http-benchmark.current.json",
   concurrency: "64",
   operations: "300",
+  warmupOperations: "0",
   sessionDbMaxConns: "16",
   sessionDbMinConns: "0",
+  sessionDbPrewarmConns: "1",
+  sessionDbReadMaxConns: "0",
+  sessionDbReadMinConns: "0",
+  sessionDbReadPrewarmConns: "0",
   sessionDbQueryExecMode: defaultSessionDbQueryExecMode,
   sessionDbWriteConcurrency: "0",
+  sessionAccessCacheMaxEntries: "0",
+  sessionAccessCacheTtlMs: "30000",
   sessionDbSessionTablePersistence: defaultSessionTablePersistence,
   gatewayCount: "1",
   maxConnsPerHost: "0",
   warmConnectionsPerHost: "0",
   benchmarkRuntime: "local",
-  benchmarkDockerImage: "golang:1.26-alpine",
-  benchmarkDockerHost: "host.docker.internal",
+  benchmarkDockerImage: benchmarkRuntimeDefaults.benchmarkDockerImage,
+  benchmarkDockerHost: benchmarkRuntimeDefaults.benchmarkDockerHost,
+  benchmarkWslDistro: benchmarkRuntimeDefaults.benchmarkWslDistro,
+  benchmarkWslHost: benchmarkRuntimeDefaults.benchmarkWslHost,
+  benchmarkWslWorkspace: benchmarkRuntimeDefaults.benchmarkWslWorkspace,
   ingressProxy: "false",
   ingressPort: "18080",
   ingressCount: "1",
@@ -47,8 +85,6 @@ export const defaults = {
 };
 
 const phaseNames = ["passwordLogin", "principalLookup", "refreshRotation", "revokeCycle"];
-const localSecretValues = ["ueacd"];
-
 export function parseArgs(argv) {
   const parsed = { ...defaults };
   for (let index = 0; index < argv.length; index += 1) {
@@ -73,15 +109,25 @@ export function parseArgs(argv) {
     if (key === "--out") parsed.out = value;
     if (key === "--concurrency") parsed.concurrency = value;
     if (key === "--operations") parsed.operations = value;
+    if (key === "--warmup-operations") parsed.warmupOperations = value;
     if (key === "--session-db-max-conns") parsed.sessionDbMaxConns = value;
     if (key === "--session-db-min-conns") parsed.sessionDbMinConns = value;
+    if (key === "--session-db-prewarm-conns") parsed.sessionDbPrewarmConns = value;
+    if (key === "--session-db-read-max-conns") parsed.sessionDbReadMaxConns = value;
+    if (key === "--session-db-read-min-conns") parsed.sessionDbReadMinConns = value;
+    if (key === "--session-db-read-prewarm-conns") parsed.sessionDbReadPrewarmConns = value;
     if (key === "--session-db-write-concurrency") parsed.sessionDbWriteConcurrency = value;
+    if (key === "--session-access-cache-max-entries") parsed.sessionAccessCacheMaxEntries = value;
+    if (key === "--session-access-cache-ttl-ms") parsed.sessionAccessCacheTtlMs = value;
     if (key === "--gateway-count") parsed.gatewayCount = value;
     if (key === "--max-conns-per-host") parsed.maxConnsPerHost = value;
     if (key === "--warm-connections-per-host") parsed.warmConnectionsPerHost = value;
     if (key === "--benchmark-runtime") parsed.benchmarkRuntime = value;
     if (key === "--benchmark-docker-image") parsed.benchmarkDockerImage = value;
     if (key === "--benchmark-docker-host") parsed.benchmarkDockerHost = value;
+    if (key === "--benchmark-wsl-distro") parsed.benchmarkWslDistro = value;
+    if (key === "--benchmark-wsl-host") parsed.benchmarkWslHost = value;
+    if (key === "--benchmark-wsl-workspace") parsed.benchmarkWslWorkspace = value;
     if (key === "--ingress-proxy") parsed.ingressProxy = value;
     if (key === "--ingress-port") parsed.ingressPort = value;
     if (key === "--ingress-count") parsed.ingressCount = value;
@@ -127,9 +173,16 @@ export function buildFailureReport({
     baseUrl: maskURL(options.baseUrl),
     concurrency: parseIntegerOption(options.concurrency),
     operationsPerPhase: parseIntegerOption(options.operations),
+    warmupOperations: parseIntegerOption(options.warmupOperations),
     sessionDbMaxConns: parseIntegerOption(options.sessionDbMaxConns),
     sessionDbMinConns: parseIntegerOption(options.sessionDbMinConns),
+    sessionDbPrewarmConns: parseIntegerOption(options.sessionDbPrewarmConns),
+    sessionDbReadMaxConns: parseIntegerOption(options.sessionDbReadMaxConns),
+    sessionDbReadMinConns: parseIntegerOption(options.sessionDbReadMinConns),
+    sessionDbReadPrewarmConns: parseIntegerOption(options.sessionDbReadPrewarmConns),
     sessionDbWriteConcurrency: parseIntegerOption(options.sessionDbWriteConcurrency),
+    sessionAccessCacheMaxEntries: parseIntegerOption(options.sessionAccessCacheMaxEntries),
+    sessionAccessCacheTtlMs: parseIntegerOption(options.sessionAccessCacheTtlMs),
     gatewayCount: gatewayCount(options),
     gatewayDatabaseProfile: gatewayDatabaseProfile(options),
     gatewayBaseUrls: gatewayBaseUrls(options).map(maskURL),
@@ -165,21 +218,6 @@ export function inferFailurePhase(message) {
   return phaseNames.find((phase) => text.includes(phase));
 }
 
-export function tailText(value, maxLines = 80) {
-  const text = String(value ?? "").replace(/\s+$/u, "");
-  if (!text) return "";
-  return text.split(/\r\n|\r|\n/u).slice(-maxLines).join("\n");
-}
-
-export function gatewayBaseUrls(options) {
-  const count = gatewayCount(options);
-  const urls = [];
-  for (let index = 0; index < count; index += 1) {
-    urls.push(gatewayBaseUrlAt(options, index));
-  }
-  return urls;
-}
-
 export function validateRuntimePortPlan(options) {
   if (!ingressEnabled(options)) return;
   const gatewayPorts = new Set(gatewayBaseUrls(options).map(urlPort).filter((port) => port !== null));
@@ -195,8 +233,13 @@ export function validateRuntimePortPlan(options) {
 }
 
 export function validateSessionDbPoolProfile(options) {
+  const warmupOperations = parseStrictIntegerOption(options.warmupOperations, "warmup-operations");
+  if (warmupOperations < 0) {
+    throw new Error("warmup-operations must be non-negative");
+  }
   const maxConns = parseStrictIntegerOption(options.sessionDbMaxConns, "session-db-max-conns");
   const minConns = parseStrictIntegerOption(options.sessionDbMinConns, "session-db-min-conns");
+  const prewarmConns = parseStrictIntegerOption(options.sessionDbPrewarmConns, "session-db-prewarm-conns");
   if (maxConns < 1) {
     throw new Error("session-db-max-conns must be positive");
   }
@@ -206,11 +249,41 @@ export function validateSessionDbPoolProfile(options) {
   if (minConns > maxConns) {
     throw new Error("session-db-min-conns must be <= session-db-max-conns");
   }
-}
-
-export function writeJsonReport(outPath, report) {
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
+  if (prewarmConns < 0) {
+    throw new Error("session-db-prewarm-conns must be non-negative");
+  }
+  if (prewarmConns > maxConns) {
+    throw new Error("session-db-prewarm-conns must be <= session-db-max-conns");
+  }
+  const readMaxConns = parseStrictIntegerOption(options.sessionDbReadMaxConns, "session-db-read-max-conns");
+  const readMinConns = parseStrictIntegerOption(options.sessionDbReadMinConns, "session-db-read-min-conns");
+  const readPrewarmConns = parseStrictIntegerOption(options.sessionDbReadPrewarmConns, "session-db-read-prewarm-conns");
+  if (readMaxConns < 0) {
+    throw new Error("session-db-read-max-conns must be non-negative");
+  }
+  if (readMinConns < 0) {
+    throw new Error("session-db-read-min-conns must be non-negative");
+  }
+  if (readPrewarmConns < 0) {
+    throw new Error("session-db-read-prewarm-conns must be non-negative");
+  }
+  if (readMaxConns === 0 && (readMinConns > 0 || readPrewarmConns > 0)) {
+    throw new Error("session-db-read-min-conns and session-db-read-prewarm-conns require session-db-read-max-conns");
+  }
+  if (readMaxConns > 0 && readMinConns > readMaxConns) {
+    throw new Error("session-db-read-min-conns must be <= session-db-read-max-conns");
+  }
+  if (readMaxConns > 0 && readPrewarmConns > readMaxConns) {
+    throw new Error("session-db-read-prewarm-conns must be <= session-db-read-max-conns");
+  }
+  const cacheMaxEntries = parseStrictIntegerOption(options.sessionAccessCacheMaxEntries, "session-access-cache-max-entries");
+  const cacheTtlMs = parseStrictIntegerOption(options.sessionAccessCacheTtlMs, "session-access-cache-ttl-ms");
+  if (cacheMaxEntries < 0) {
+    throw new Error("session-access-cache-max-entries must be non-negative");
+  }
+  if (cacheTtlMs < 0) {
+    throw new Error("session-access-cache-ttl-ms must be non-negative");
+  }
 }
 
 export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dependencies = {}) {
@@ -234,7 +307,7 @@ export async function runIdentityHttpBenchmark(argv = process.argv.slice(2), dep
   const spawnCommandSync = dependencies.spawnSync ?? spawnSync;
   const sleepFn = dependencies.sleep ?? sleep;
   const fetchFn = dependencies.fetch ?? fetch;
-  const gateways = baseUrls.map((baseUrl) => spawnGateway(baseUrl, options, spawnProcess));
+  const gateways = baseUrls.map((baseUrl, index) => spawnGateway(baseUrl, options, index, spawnProcess));
   const ingressBaseURLs = ingressBaseUrls(options);
   const gatewayOutputs = gateways.map(() => "");
   let ingresses = [];
@@ -407,7 +480,7 @@ function addPgbouncerDiagnosticsSnapshot(current, name, snapshot) {
   };
 }
 
-function spawnGateway(baseUrl, options, spawnProcess) {
+function spawnGateway(baseUrl, options, index, spawnProcess) {
   return spawnProcess(
     "go",
     ["run", "./services/identity-access-gateway/cmd/gateway"],
@@ -419,7 +492,14 @@ function spawnGateway(baseUrl, options, spawnProcess) {
         SESSION_DATABASE_URL: options.dsn,
         SESSION_DB_MAX_CONNS: options.sessionDbMaxConns,
         SESSION_DB_MIN_CONNS: options.sessionDbMinConns,
+        SESSION_DB_PREWARM_CONNS: options.sessionDbPrewarmConns,
+        SESSION_DB_READ_MAX_CONNS: options.sessionDbReadMaxConns,
+        SESSION_DB_READ_MIN_CONNS: options.sessionDbReadMinConns,
+        SESSION_DB_READ_PREWARM_CONNS: options.sessionDbReadPrewarmConns,
         SESSION_DB_WRITE_CONCURRENCY: options.sessionDbWriteConcurrency,
+        SESSION_ACCESS_CACHE_MAX_ENTRIES: options.sessionAccessCacheMaxEntries,
+        SESSION_ACCESS_CACHE_TTL_MS: options.sessionAccessCacheTtlMs,
+        IDENTITY_TOKEN_OWNER: `g${index}`,
         ...gatewaySessionQueryExecModeEnv(options),
         ...gatewaySessionPersistenceEnv(options),
         BOOTSTRAP_PASSWORD: "ueacd",
@@ -476,110 +556,6 @@ function stopGateway(processHandle, spawnCommandSync = spawnSync) {
   processHandle.kill("SIGTERM");
 }
 
-function maskURL(value) {
-  try {
-    const parsed = new URL(value);
-    if (!parsed.password) return value;
-    parsed.password = "***";
-    return parsed.toString();
-  } catch {
-    return value;
-  }
-}
-
-function gatewayCount(options) {
-  return Math.max(1, parseIntegerOption(options.gatewayCount));
-}
-
-function transportProfile(options) {
-  const warmConnectionsPerHost = parseIntegerOption(options.warmConnectionsPerHost);
-  const targetHostCount = ingressEnabled(options) ? ingressCount(options) : gatewayCount(options);
-  return {
-    maxConnsPerHost: parseIntegerOption(options.maxConnsPerHost),
-    warmConnectionsPerHost,
-    warmConnectionsTotal: targetHostCount * warmConnectionsPerHost,
-  };
-}
-
-function gatewayBaseUrlAt(options, index) {
-  try {
-    const parsed = new URL(options.baseUrl);
-    const basePort = Number.parseInt(parsed.port || options.port, 10);
-    if (!Number.isNaN(basePort)) {
-      parsed.port = String(basePort + index);
-    }
-    return trimURL(parsed.toString());
-  } catch {
-    return options.baseUrl;
-  }
-}
-
-function gatewayPort(baseUrl, fallback) {
-  try {
-    const parsed = new URL(baseUrl);
-    return parsed.port || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function gatewayExitCodes(gateways) {
-  return processExitCodes(gateways);
-}
-
-function gatewaySignals(gateways) {
-  return processSignals(gateways);
-}
-
-function processExitCodes(processes) {
-  if (processes.length === 0) return undefined;
-  const values = processes.map((processHandle) => processHandle.exitCode);
-  return values.length === 1 ? values[0] : values;
-}
-
-function processSignals(processes) {
-  if (processes.length === 0) return undefined;
-  const values = processes.map((processHandle) => processHandle.signalCode);
-  return values.length === 1 ? values[0] : values;
-}
-
-function combineGatewayOutput(outputs, ingressOutputs = []) {
-  const ingressValues = Array.isArray(ingressOutputs) ? ingressOutputs : [ingressOutputs];
-  const ingress = ingressValues
-    .map((output, index) => output.trim() ? `[ingress ${index + 1}]\n${output.trim()}` : "")
-    .filter(Boolean);
-  return outputs
-    .map((output, index) => output.trim() ? `[gateway ${index + 1}]\n${output.trim()}` : "")
-    .concat(ingress)
-    .filter(Boolean)
-    .join("\n");
-}
-
-function trimURL(value) {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
-}
-
-function urlPort(value) {
-  try {
-    const parsed = new URL(value);
-    if (parsed.port) return Number.parseInt(parsed.port, 10);
-    if (parsed.protocol === "https:") return 443;
-    if (parsed.protocol === "http:") return 80;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function maskSensitive(value) {
-  let text = String(value ?? "");
-  text = text.replace(/postgres:\/\/[^\s"']+/giu, "[masked-postgres-dsn]");
-  for (const secret of localSecretValues) {
-    text = text.replaceAll(secret, "***");
-  }
-  return text;
-}
-
 function enhanceSuccessReport(options, gatewayDatabaseDiagnostics, pgbouncerDiagnostics, postgresDiagnostics) {
   if (!options.out || !fs.existsSync(options.out)) return;
   const report = JSON.parse(fs.readFileSync(options.out, "utf8"));
@@ -615,172 +591,6 @@ export function addRuntimeProfileToReport(report, options, gatewayDatabaseDiagno
     ...enhancedWithLimiterSummary,
     ingressProfile: ingressProfile(options),
   };
-}
-
-export function gatewayDatabaseProfile(options) {
-  const workerCount = gatewayCount(options);
-  const sessionDbMaxConnsPerWorker = parseIntegerOption(options.sessionDbMaxConns);
-  const sessionDbMinConnsPerWorker = parseIntegerOption(options.sessionDbMinConns);
-  const sessionDbWriteConcurrencyPerWorker = parseIntegerOption(options.sessionDbWriteConcurrency);
-  return addSessionPersistenceToDatabaseProfile({
-    workerCount,
-    sessionDbMaxConnsPerWorker,
-    sessionDbMaxConnsTotal: workerCount * sessionDbMaxConnsPerWorker,
-    sessionDbMinConnsPerWorker,
-    sessionDbMinConnsTotal: workerCount * sessionDbMinConnsPerWorker,
-    sessionDbQueryExecMode: sessionDbQueryExecModeForProfile(options),
-    sessionDbWriteConcurrencyPerWorker,
-    sessionDbWriteConcurrencyTotal: workerCount * sessionDbWriteConcurrencyPerWorker,
-  }, options);
-}
-
-export function buildBenchmarkCommand(options, baseUrls) {
-  const args = [
-    "run",
-    "./services/identity-access-gateway/cmd/httpbench",
-    "-timeout",
-    options.timeout,
-    "-base-url",
-    benchmarkTargetBaseUrls(options, baseUrls).join(","),
-    "-gateway-diagnostics-base-url",
-    gatewayDiagnosticsTargetBaseUrls(options).join(","),
-    "-gateway-diagnostics-secret",
-    identityInternalDiagnosticsSecretValue,
-    "-out",
-    options.out,
-    "-concurrency",
-    options.concurrency,
-    "-operations",
-    options.operations,
-    "-max-conns-per-host",
-    options.maxConnsPerHost,
-    "-warm-connections-per-host",
-    options.warmConnectionsPerHost,
-  ];
-  if (!dockerBenchmarkRuntime(options)) {
-    return { command: "go", args };
-  }
-  return {
-    command: "docker",
-    args: [
-      "run",
-      "--rm",
-      "-v",
-      `${process.cwd()}:/workspace`,
-      "-w",
-      "/workspace",
-      options.benchmarkDockerImage,
-      "go",
-      ...args,
-    ],
-  };
-}
-
-export function benchmarkRuntimeProfile(options, baseUrls) {
-  const dockerRuntime = dockerBenchmarkRuntime(options);
-  return {
-    executor: dockerRuntime ? "DOCKER_GO" : "LOCAL_GO",
-    dockerImage: dockerRuntime ? options.benchmarkDockerImage : null,
-    dockerHostAlias: dockerRuntime ? options.benchmarkDockerHost : null,
-    targetBaseUrls: benchmarkTargetBaseUrls(options, baseUrls),
-  };
-}
-
-function ingressProfile(options) {
-  return {
-    enabled: ingressEnabled(options),
-    workerCount: ingressCount(options),
-    baseUrl: maskURL(ingressBaseUrl(options)),
-    baseUrls: ingressBaseUrls(options).map(maskURL),
-    upstreamBaseUrls: gatewayBaseUrls(options).map(maskURL),
-    upstreamTransportProfile: ingressTransportProfile(options),
-  };
-}
-
-function ingressTransportProfile(options) {
-  const warmConnectionsPerHost = parseIntegerOption(options.ingressWarmConnectionsPerHost);
-  return {
-    maxConnsPerHost: parseIntegerOption(options.ingressMaxConnsPerHost),
-    warmConnectionsPerHost,
-    warmConnectionsTotal: ingressCount(options) * gatewayCount(options) * warmConnectionsPerHost,
-  };
-}
-
-function benchmarkBaseUrls(options) {
-  return ingressEnabled(options) ? ingressBaseUrls(options) : gatewayBaseUrls(options);
-}
-
-function benchmarkTargetBaseUrls(options, baseUrls) {
-  if (!dockerBenchmarkRuntime(options)) return baseUrls.map(trimURL);
-  return baseUrls.map((baseUrl) => dockerReachableBaseUrl(baseUrl, options.benchmarkDockerHost));
-}
-
-function gatewayDiagnosticsTargetBaseUrls(options) {
-  return benchmarkTargetBaseUrls(options, gatewayBaseUrls(options));
-}
-
-function dockerReachableBaseUrl(value, hostAlias) {
-  try {
-    const parsed = new URL(value);
-    if (["127.0.0.1", "localhost", "::1"].includes(parsed.hostname)) {
-      parsed.hostname = hostAlias;
-    }
-    return trimURL(parsed.toString());
-  } catch {
-    return value;
-  }
-}
-
-function dockerBenchmarkRuntime(options) {
-  return String(options.benchmarkRuntime ?? "").toLowerCase() === "docker";
-}
-
-function ingressEnabled(options) {
-  return ["1", "true", "yes", "on"].includes(String(options.ingressProxy).toLowerCase());
-}
-
-function ingressCount(options) {
-  return Math.max(1, parseIntegerOption(options.ingressCount));
-}
-
-function ingressBaseUrls(options) {
-  const urls = [];
-  for (let index = 0; index < ingressCount(options); index += 1) {
-    urls.push(ingressBaseUrlAt(options, index));
-  }
-  return urls;
-}
-
-function ingressBaseUrl(options) {
-  return ingressBaseUrlAt(options, 0);
-}
-
-function ingressBaseUrlAt(options, index) {
-  try {
-    const parsed = new URL(options.baseUrl);
-    parsed.port = String(ingressPortAt(options, index));
-    return trimURL(parsed.toString());
-  } catch {
-    return `http://127.0.0.1:${ingressPortAt(options, index)}`;
-  }
-}
-
-function ingressPortAt(options, index) {
-  const basePort = parseIntegerOption(options.ingressPort);
-  return basePort + index;
-}
-
-function parseIntegerOption(value) {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function parseStrictIntegerOption(value, name) {
-  const text = String(value ?? "").trim();
-  if (!/^-?\d+$/u.test(text)) {
-    throw new Error(`${name} must be an integer`);
-  }
-  return Number.parseInt(text, 10);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

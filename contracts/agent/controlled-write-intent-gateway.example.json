@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "2026-06-04.agent.controlled-write-intent-gateway.v1",
+  "gatewayId": "agent_controlled_write_intent_gateway",
+  "gatewayMode": "REVIEW_ONLY_COMMAND_INTENT",
+  "acceptedIntents": [
+    {
+      "intentId": "draft_teaching_quiz",
+      "workerAgent": "TeachingAgent",
+      "taskKind": "TEACHING",
+      "targetCapability": "QUIZ_DRAFT",
+      "rootRequirementAnchors": ["教学模式", "随堂测验", "统筹智能体"],
+      "commandPort": {
+        "portName": "TeachingDraftCommandPort",
+        "operation": "submitQuizDraftIntent",
+        "idempotencyKeyRequired": true,
+        "outboxEventRequired": true
+      },
+      "approvalRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "executionCandidateAllowed": false,
+      "finalEvaluationWriteAllowed": false
+    },
+    {
+      "intentId": "draft_archive_material",
+      "workerAgent": "TeachingAgent",
+      "taskKind": "TEACHING",
+      "targetCapability": "ARCHIVE_MATERIAL_DRAFT",
+      "rootRequirementAnchors": ["教学模式", "档案资料", "学生档案"],
+      "commandPort": {
+        "portName": "TeachingDraftCommandPort",
+        "operation": "submitArchiveMaterialDraftIntent",
+        "idempotencyKeyRequired": true,
+        "outboxEventRequired": true
+      },
+      "approvalRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "executionCandidateAllowed": false,
+      "finalEvaluationWriteAllowed": false
+    },
+    {
+      "intentId": "draft_workflow_plugin",
+      "workerAgent": "WorkflowAgent",
+      "taskKind": "WORKFLOW",
+      "targetCapability": "WORKFLOW_PLUGIN_DRAFT",
+      "rootRequirementAnchors": ["工作流", "插件", "自动测试", "人类评估性能与效果"],
+      "commandPort": {
+        "portName": "WorkflowDraftCommandPort",
+        "operation": "submitWorkflowPluginDraftIntent",
+        "idempotencyKeyRequired": true,
+        "outboxEventRequired": true
+      },
+      "approvalRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "executionCandidateAllowed": false,
+      "finalEvaluationWriteAllowed": false
+    }
+  ],
+  "writeBoundary": {
+    "commandIntentRecordingAllowed": true,
+    "immediateBusinessWriteAllowed": false,
+    "directDatabaseWriteAllowed": false,
+    "localToolMutationAllowed": false,
+    "finalAiGradingWriteAllowed": false,
+    "workflowPublishAllowed": false,
+    "modelTrainingWriteAllowed": false,
+    "rejectionMode": "DENY_OR_REVIEW_WITH_EVIDENCE"
+  },
+  "admissionGuards": {
+    "principalContextRequired": true,
+    "sharedContextRequired": true,
+    "guardrailResultRequired": true,
+    "routeDecisionRequired": true,
+    "humanApprovalRequiredForEveryIntent": true,
+    "denyUnknownIntent": true,
+    "denyOnMissingRollbackPlan": true,
+    "denyOnCrossScopeData": true,
+    "denyOnDirectDatabaseRequest": true,
+    "denyOnFinalEvaluationWrite": true,
+    "denyOnWorkflowPublish": true,
+    "denyOnLocalToolMutation": true
+  },
+  "harnessBoundary": {
+    "harnessApprovalRequired": true,
+    "approvalArtifactRequired": true,
+    "approvalDecisionRequiredBeforeExecution": true,
+    "executionCandidateAllowed": false,
+    "executionCandidateViewRef": "contracts/harness/execution-candidate-view.schema.json",
+    "executionDisabledReason": "real local execution is disabled by current SDD"
+  },
+  "evidence": {
+    "permissionTraceRequired": true,
+    "guardrailTraceRequired": true,
+    "routeDecisionRequired": true,
+    "inputHashRequired": true,
+    "outputSummaryRequired": true,
+    "commandIntentRecordRequired": true,
+    "approvalArtifactRefRequired": true,
+    "eventEnvelopeRequired": true,
+    "rollbackPlanRequired": true,
+    "idempotencyKeyRequired": true,
+    "auditTraceRequired": true
+  },
+  "eventing": {
+    "appendOnlyEventRequired": true,
+    "outboxRequired": true,
+    "eventBeforeExecutionRequired": true,
+    "requiredEventTypes": [
+      "AGENT_WRITE_INTENT_SUBMITTED",
+      "AGENT_WRITE_INTENT_REVIEW_REQUIRED",
+      "AGENT_WRITE_INTENT_REJECTED"
+    ]
+  },
+  "rollback": {
+    "rollbackPlanRequired": true,
+    "dryRunDiffRequired": true,
+    "compensatingActionRequiredBeforeExecution": true,
+    "humanRollbackReviewRequired": true
+  },
+  "promotion": {
+    "currentEvidenceClass": "CONTRACT_REVIEW_ONLY_NO_EXECUTION",
+    "rootWorkflowRequired": true,
+    "businessWriteExecutionClaimAllowed": false,
+    "finalAiGradingClaimAllowed": false,
+    "workflowPublishClaimAllowed": false,
+    "localToolMutationClaimAllowed": false
+  }
+}

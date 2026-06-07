@@ -96,9 +96,32 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
+	body, err := encodeJSONPayload(payload)
+	if err != nil {
+		writeResponseEncodingError(w)
+		return
+	}
+	writeJSONBytes(w, status, body)
+}
+
+func encodeJSONPayload(payload any) ([]byte, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return append(body, '\n'), nil
+}
+
+func writeJSONBytes(w http.ResponseWriter, status int, body []byte) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
+	_, _ = w.Write(body)
+}
+
+func writeResponseEncodingError(w http.ResponseWriter) {
+	body := []byte(`{"error":{"code":"INTERNAL_ERROR","message":"failed to encode response"}}` + "\n")
+	writeJSONBytes(w, http.StatusInternalServerError, body)
 }
 
 func writeError(w http.ResponseWriter, status int, code string, message string) {

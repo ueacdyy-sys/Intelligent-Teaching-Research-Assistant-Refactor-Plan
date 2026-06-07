@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "2026-06-04.agent.guardrail-result.examples.v1",
+  "results": [
+    {
+      "schemaVersion": "2026-06-04.agent.guardrail-result.v1",
+      "guardrailId": "guardrail_allow_read_teaching_001",
+      "taskId": "agent_task_lesson_quiz_001",
+      "skillId": "search_teaching_material",
+      "decision": "ALLOW",
+      "reasons": ["Read-only teaching material search within assigned scope."],
+      "harnessActionRequired": false,
+      "rollbackRequired": false,
+      "evidenceRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "safetyChecks": [
+        { "checkId": "principal_scope", "status": "PASS" },
+        { "checkId": "evidence_policy", "status": "PASS" }
+      ]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.guardrail-result.v1",
+      "guardrailId": "guardrail_approval_benchmark_001",
+      "taskId": "agent_task_system_perf_triage_001",
+      "skillId": "run_benchmark",
+      "decision": "APPROVAL_REQUIRED",
+      "reasons": ["Benchmark command may mutate reports and must show command preview first."],
+      "harnessActionRequired": true,
+      "rollbackRequired": true,
+      "evidenceRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "safetyChecks": [
+        { "checkId": "command_preview", "status": "PASS" },
+        { "checkId": "rollback_plan", "status": "PASS" }
+      ]
+    },
+    {
+      "schemaVersion": "2026-06-04.agent.guardrail-result.v1",
+      "guardrailId": "guardrail_deny_direct_db_001",
+      "taskId": "agent_task_lesson_quiz_001",
+      "skillId": "draft_workflow",
+      "decision": "DENY",
+      "reasons": ["Skill attempted to bypass Harness and write the main database directly."],
+      "harnessActionRequired": true,
+      "rollbackRequired": true,
+      "evidenceRequired": true,
+      "directDatabaseWriteAllowed": false,
+      "safetyChecks": [
+        { "checkId": "direct_database_write", "status": "FAIL" },
+        { "checkId": "harness_required", "status": "PASS" }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,15 @@ import (
 	"time"
 )
 
-func createArchiveItem(ctx context.Context, client *http.Client, baseURL string, agentAPIKey string, opIndex int, clientTrace bool) (operationResult, error) {
+func createArchiveItem(
+	ctx context.Context,
+	client *http.Client,
+	baseURL string,
+	agentAPIKey string,
+	opIndex int,
+	expectedStatus int,
+	clientTrace bool,
+) (operationResult, error) {
 	body := map[string]any{
 		"ownerType":       "TEACHING",
 		"materialType":    "QUIZ",
@@ -24,7 +32,7 @@ func createArchiveItem(ctx context.Context, client *http.Client, baseURL string,
 		"analysisIntents": []string{"AI_GRADING", "ARCHIVE_ONLY"},
 	}
 	var response archiveItemResponse
-	result, err := doJSON(ctx, client, http.MethodPost, baseURL+"/v1/teaching/archive-items", agentAPIKey, principalHeader(teacherPrincipal()), body, http.StatusCreated, clientTrace, &response)
+	result, err := doJSON(ctx, client, http.MethodPost, baseURL+"/v1/teaching/archive-items", agentAPIKey, principalHeader(teacherPrincipal()), body, expectedStatus, clientTrace, &response)
 	result.archiveItemID = response.ID
 	return result, err
 }
@@ -36,6 +44,7 @@ func createQuizSubmission(
 	agentAPIKey string,
 	archiveItemID string,
 	opIndex int,
+	expectedStatus int,
 	clientTrace bool,
 ) (operationResult, error) {
 	body := map[string]any{
@@ -49,7 +58,7 @@ func createQuizSubmission(
 		agentAPIKey,
 		principalHeader(studentPrincipal()),
 		body,
-		http.StatusCreated,
+		expectedStatus,
 		clientTrace,
 		nil,
 	)

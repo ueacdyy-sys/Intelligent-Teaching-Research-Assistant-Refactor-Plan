@@ -147,14 +147,22 @@ func TestListArchiveItemsPreventsStudentReadingOtherArchive(t *testing.T) {
 }
 
 type fakeReader struct {
-	query domain.ArchiveItemQuery
-	items []domain.ArchiveItem
-	reads int
+	query          domain.ArchiveItemQuery
+	publishedQuery domain.ArchiveItemQuery
+	items          []domain.ArchiveItem
+	reads          int
+	publishedReads int
 }
 
 func (f *fakeReader) List(_ context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
 	f.query = query
 	f.reads++
+	return f.items, nil
+}
+
+func (f *fakeReader) ListPublishedForStudentApp(_ context.Context, query domain.ArchiveItemQuery) ([]domain.ArchiveItem, error) {
+	f.publishedQuery = query
+	f.publishedReads++
 	return f.items, nil
 }
 

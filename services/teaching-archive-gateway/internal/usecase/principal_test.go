@@ -103,3 +103,47 @@ func servicePrincipal() domain.PrincipalContext {
 		ExpiresAt:       time.Now().Add(time.Hour).UTC(),
 	}
 }
+
+func studentArchiveStorageServicePrincipal(studentIDs ...string) domain.PrincipalContext {
+	return domain.PrincipalContext{
+		PrincipalID: "deep_research_student_archive_storage_service_001",
+		SubjectType: domain.SubjectService,
+		Role:        domain.RoleService,
+		EntryPoint:  domain.EntryPointAgentInternal,
+		Scopes: []domain.Scope{
+			domain.ScopeResearchRead,
+			domain.ScopeStudentArchiveWrite,
+			domain.ScopeStudentAssignedRead,
+		},
+		KnowledgeAccess: domain.KnowledgeAccess{Public: true, Private: domain.PrivateAccessAssigned},
+		StudentAccess: domain.StudentAccess{
+			Mode:       domain.StudentAccessAssigned,
+			StudentIDs: append([]string(nil), studentIDs...),
+		},
+		SessionID: "deep_research_student_archive_storage_session_001",
+		IssuedAt:  time.Now().Add(-time.Minute).UTC(),
+		ExpiresAt: time.Now().Add(time.Hour).UTC(),
+	}
+}
+
+func studentAppAiTutorFeedbackArchiveStorageServicePrincipal(studentIDs ...string) domain.PrincipalContext {
+	return domain.PrincipalContext{
+		PrincipalID: "student_app_ai_tutor_feedback_archive_storage_service_001",
+		SubjectType: domain.SubjectService,
+		Role:        domain.RoleService,
+		EntryPoint:  domain.EntryPointAgentInternal,
+		Scopes: []domain.Scope{
+			domain.ScopeTeachingRead,
+			domain.ScopeStudentArchiveWrite,
+			domain.ScopeStudentAssignedRead,
+		},
+		KnowledgeAccess: domain.KnowledgeAccess{Public: true, Private: domain.PrivateAccessAssigned},
+		StudentAccess: domain.StudentAccess{
+			Mode:       domain.StudentAccessAssigned,
+			StudentIDs: append([]string(nil), studentIDs...),
+		},
+		SessionID: "student_app_ai_tutor_feedback_archive_storage_session_001",
+		IssuedAt:  time.Now().Add(-time.Minute).UTC(),
+		ExpiresAt: time.Now().Add(time.Hour).UTC(),
+	}
+}

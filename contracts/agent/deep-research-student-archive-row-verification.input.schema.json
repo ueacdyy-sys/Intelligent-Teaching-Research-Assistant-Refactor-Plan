@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-teaching-assistant.local/contracts/agent/deep-research-student-archive-row-verification.input.schema.json",
+  "title": "Research deep_research student archive physical row verification input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "verificationInvocationId",
+    "studentArchiveStorageCommitOutput",
+    "studentArchiveRowVerificationPolicy",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2026-06-05.research.deep-research-student-archive-row-verification.v1"
+    },
+    "verificationInvocationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "studentArchiveStorageCommitOutput": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "runtimeId", "commandPort", "status", "recordId", "teachingArchiveCommit", "boundary"],
+      "properties": {
+        "schemaVersion": {
+          "const": "2026-06-05.research.deep-research-student-archive-storage-commit-committed.v1"
+        },
+        "runtimeId": {
+          "const": "research_deep_research_student_archive_storage_commit_runtime"
+        },
+        "commandPort": {
+          "const": "DeepResearchStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand"
+        },
+        "status": {
+          "const": "TEACHING_ARCHIVE_MAIN_DB_STORAGE_COMMITTED"
+        },
+        "teachingArchiveCommit": {
+          "type": "object",
+          "required": ["targetUseCase", "targetRepository", "targetTable", "archiveItem", "persistence"],
+          "properties": {
+            "targetUseCase": { "const": "CreateArchiveItem.ExecuteWithPersistence" },
+            "targetRepository": { "const": "ArchiveRepository.Create" },
+            "targetTable": { "const": "teaching_archive_items" },
+            "archiveItem": {
+              "type": "object",
+              "required": ["id", "ownerType", "studentId", "materialType", "title", "source", "contentRef", "tags", "analysisIntents", "ocrStatus", "createdAt"],
+              "properties": {
+                "id": { "type": "string", "pattern": "^tarch_" },
+                "ownerType": { "const": "STUDENT" },
+                "source": { "const": "SYSTEM_IMPORT" }
+              }
+            },
+            "persistence": {
+              "type": "object",
+              "properties": {
+                "status": { "const": "persisted" }
+              }
+            }
+          }
+        },
+        "boundary": {
+          "type": "object",
+          "properties": {
+            "mainDatabaseWritePrepared": { "const": true },
+            "mainDatabaseWriteStarted": { "const": true },
+            "mainDatabaseWriteCommitted": { "const": true },
+            "directDatabaseAccessAllowed": { "const": false },
+            "executeHttpRequestAllowed": { "const": false }
+          }
+        }
+      }
+    },
+    "studentArchiveRowVerificationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storageCommitRequired",
+        "physicalRowVerificationRequired",
+        "injectedTeachingArchiveRowReadPortRequired",
+        "teachingArchiveRepositoryReadRequired",
+        "committedArchiveItemMatchRequired",
+        "idempotentRowVerificationRequired",
+        "mainDatabaseReadAllowed",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "externalModelCallAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "storageCommitRequired": { "const": true },
+        "physicalRowVerificationRequired": { "const": true },
+        "injectedTeachingArchiveRowReadPortRequired": { "const": true },
+        "teachingArchiveRepositoryReadRequired": { "const": true },
+        "committedArchiveItemMatchRequired": { "const": true },
+        "idempotentRowVerificationRequired": { "const": true },
+        "mainDatabaseReadAllowed": { "const": true },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "externalModelCallAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 240,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 240
+    }
+  }
+}

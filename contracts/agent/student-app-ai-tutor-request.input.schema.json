@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ita.local/contracts/agent/student-app-ai-tutor-request.input.schema.json",
+  "title": "Student App AI Tutor Request Runtime Input",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "requestInvocationId",
+    "agentTask",
+    "principalContext",
+    "sharedContext",
+    "guardrailResult",
+    "routeDecision",
+    "studentArchiveScope",
+    "analysisGoal",
+    "questionBankIntent",
+    "aiTutorRequestPolicy",
+    "evidenceRefs",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2026-06-05.student-app.ai-tutor-request.v1"
+    },
+    "requestInvocationId": { "type": "string", "minLength": 1 },
+    "agentTask": {
+      "type": "object",
+      "required": ["schemaVersion", "taskKind", "writeIntent", "requiresHumanApproval", "riskLevel"],
+      "properties": {
+        "schemaVersion": { "const": "2026-06-04.agent.task.v1" },
+        "taskKind": { "const": "STUDENT_TUTORING" },
+        "writeIntent": { "const": true },
+        "requiresHumanApproval": { "const": false },
+        "riskLevel": { "const": "MEDIUM" }
+      }
+    },
+    "principalContext": {
+      "type": "object",
+      "required": ["subjectType", "role", "entryPoint", "studentAccess", "scopes"],
+      "properties": {
+        "subjectType": { "const": "USER" },
+        "role": { "const": "STUDENT" },
+        "entryPoint": { "const": "STUDENT_APP" },
+        "scopes": {
+          "type": "array",
+          "contains": { "const": "STUDENT_OWN_READ" }
+        },
+        "studentAccess": {
+          "type": "object",
+          "properties": {
+            "mode": { "const": "OWN" }
+          }
+        }
+      }
+    },
+    "guardrailResult": {
+      "type": "object",
+      "required": ["skillId", "decision", "directDatabaseWriteAllowed"],
+      "properties": {
+        "skillId": { "const": "tutor_student" },
+        "decision": { "const": "ALLOW" },
+        "directDatabaseWriteAllowed": { "const": false }
+      }
+    },
+    "routeDecision": {
+      "type": "object",
+      "required": ["mode", "workerAgents", "selectedSkills"],
+      "properties": {
+        "mode": { "const": "SINGLE_WORKER" },
+        "workerAgents": {
+          "type": "array",
+          "prefixItems": [{ "const": "StudentTutorAgent" }]
+        },
+        "selectedSkills": {
+          "type": "array",
+          "prefixItems": [{ "const": "tutor_student" }]
+        }
+      }
+    },
+    "studentArchiveScope": {
+      "type": "object",
+      "required": ["mode", "studentId", "archiveItemId", "expectedSourceOwnerType"],
+      "properties": {
+        "mode": { "const": "OWN" },
+        "studentId": { "type": "string", "minLength": 1 },
+        "archiveItemId": { "type": "string", "pattern": "^tarch_" },
+        "expectedSourceOwnerType": { "const": "STUDENT" }
+      }
+    },
+    "analysisGoal": { "type": "string", "minLength": 8, "maxLength": 500 },
+    "questionBankIntent": {
+      "type": "string",
+      "enum": ["NONE", "GENERATE_PERSONALIZED_CHECK"]
+    },
+    "aiTutorRequestPolicy": {
+      "type": "object",
+      "required": [
+        "studentOwnArchiveRequired",
+        "teachingArchiveReadRequired",
+        "injectedUseCasePortRequired",
+        "asyncAnalysisRequired",
+        "questionBankDraftDeferred",
+        "idempotentQueueAdmissionRequired",
+        "queueName",
+        "directDatabaseAccessAllowed",
+        "executeHttpRequestAllowed",
+        "externalModelCallNowAllowed",
+        "finalEvaluationNowAllowed",
+        "remoteDeviceControlAllowed",
+        "localToolMutationAllowed",
+        "swarmAllowed"
+      ],
+      "properties": {
+        "studentOwnArchiveRequired": { "const": true },
+        "teachingArchiveReadRequired": { "const": true },
+        "injectedUseCasePortRequired": { "const": true },
+        "asyncAnalysisRequired": { "const": true },
+        "questionBankDraftDeferred": { "const": true },
+        "idempotentQueueAdmissionRequired": { "const": true },
+        "queueName": { "const": "teaching_tutoring_analysis_requests" },
+        "directDatabaseAccessAllowed": { "const": false },
+        "executeHttpRequestAllowed": { "const": false },
+        "externalModelCallNowAllowed": { "const": false },
+        "finalEvaluationNowAllowed": { "const": false },
+        "remoteDeviceControlAllowed": { "const": false },
+        "localToolMutationAllowed": { "const": false },
+        "swarmAllowed": { "const": false }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8 }
+  }
+}
