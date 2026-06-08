@@ -187,6 +187,50 @@ func TestCreateArchiveItemAcceptsStudentAppAiTutorFeedbackArchiveStorageCommitCo
 	}
 }
 
+func TestCreateArchiveItemAcceptsStudentAppAiTutorResultArchiveStorageCommitCommandShape(t *testing.T) {
+	repo := &fakeRepository{}
+	now := time.Date(2026, 6, 8, 12, 20, 0, 0, time.UTC)
+	uc := usecase.NewCreateArchiveItem(repo, fixedIDs{id: "tarch_student_ai_tutor_result_001"}, fixedClock{now: now})
+
+	result, err := uc.ExecuteWithPersistence(context.Background(), domain.CreateArchiveItemInput{
+		Principal:       studentAppAiTutorFeedbackArchiveStorageServicePrincipal("student_001"),
+		OwnerType:       domain.OwnerTypeStudent,
+		StudentID:       "student_001",
+		MaterialType:    domain.MaterialTypeHandout,
+		Title:           "Student AI Tutor result archive tutor_req_student_app_001",
+		Source:          domain.SourceSystemImport,
+		ContentRef:      "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_001:sha256_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Tags:            []string{"student_app_ai_tutor", "result", "safe_guidance", "archive_commit"},
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly, domain.AnalysisIntentTutoring},
+		OCRReserved:     false,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteWithPersistence returned error: %v", err)
+	}
+
+	if result.Persistence.Status != usecase.PersistenceStatusPersisted {
+		t.Fatalf("Persistence.Status = %q", result.Persistence.Status)
+	}
+	if result.Item.ID != "tarch_student_ai_tutor_result_001" {
+		t.Fatalf("Item.ID = %q", result.Item.ID)
+	}
+	if result.Item.OwnerType != domain.OwnerTypeStudent || result.Item.StudentID != "student_001" {
+		t.Fatalf("student archive target = %q/%q", result.Item.OwnerType, result.Item.StudentID)
+	}
+	if result.Item.Source != domain.SourceSystemImport {
+		t.Fatalf("Source = %q", result.Item.Source)
+	}
+	if result.Item.OCRStatus != domain.OCRStatusNotRequired {
+		t.Fatalf("OCRStatus = %q", result.Item.OCRStatus)
+	}
+	if !reflect.DeepEqual(result.Item.Tags, []string{"student_app_ai_tutor", "result", "safe_guidance", "archive_commit"}) {
+		t.Fatalf("Tags = %#v", result.Item.Tags)
+	}
+	if repo.created.ContentRef != result.Item.ContentRef {
+		t.Fatal("repository did not receive the committed Student App AI Tutor result archive command")
+	}
+}
+
 func TestCreateArchiveItemAcceptsStudentAppAiTutorFeedbackArchiveStorageCommitControlledDraftSourceShape(t *testing.T) {
 	repo := &fakeRepository{}
 	now := time.Date(2026, 6, 7, 5, 50, 0, 0, time.UTC)
