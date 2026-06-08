@@ -614,6 +614,7 @@ function main() {
   const required0329 = ["docs/sdd/0329-student-app-ai-tutor-result-student-delivery-envelope.md", "tools/student-app-ai-tutor-result-student-delivery-envelope-runtime.mjs", "tools/student-app-ai-tutor-result-student-delivery-envelope-runtime.test.mjs", "tools/student-app-ai-tutor-result-student-delivery-envelope-audit.mjs", "tools/student-app-ai-tutor-result-student-delivery-envelope-audit.test.mjs"];
   const required0330 = ["docs/sdd/0330-student-app-ai-tutor-result-student-archive-persistence-command.md", "tools/student-app-ai-tutor-result-student-archive-persistence-command-runtime.mjs", "tools/student-app-ai-tutor-result-student-archive-persistence-command-runtime.test.mjs", "tools/student-app-ai-tutor-result-student-archive-persistence-command-audit.mjs", "tools/student-app-ai-tutor-result-student-archive-persistence-command-audit.test.mjs"];
   const required0331 = ["docs/sdd/0331-student-app-ai-tutor-result-student-archive-storage-commit.md", "tools/student-app-ai-tutor-result-student-archive-storage-commit-runtime.mjs", "tools/student-app-ai-tutor-result-student-archive-storage-commit-runtime.test.mjs", "tools/student-app-ai-tutor-result-student-archive-storage-commit-audit.mjs", "tools/student-app-ai-tutor-result-student-archive-storage-commit-audit.test.mjs"];
+  const required0332 = ["docs/sdd/0332-student-app-ai-tutor-result-student-archive-row-verification.md", "tools/student-app-ai-tutor-result-student-archive-row-verification-runtime.mjs", "tools/student-app-ai-tutor-result-student-archive-row-verification-runtime.test.mjs", "tools/student-app-ai-tutor-result-student-archive-row-verification-audit.mjs", "tools/student-app-ai-tutor-result-student-archive-row-verification-audit.test.mjs"];
   const required0302RuntimeEvidence = "teaching_archive_material_draft_human_review_runtime";
   const required0303RuntimeEvidence = "teaching_archive_material_draft_storage_precommit_runtime";
   const required0304RuntimeEvidence = "teaching_archive_material_draft_storage_commit_runtime";
@@ -644,7 +645,8 @@ function main() {
   const required0329RuntimeEvidence = "student_app_ai_tutor_result_student_delivery_envelope_runtime";
   const required0330RuntimeEvidence = "student_app_ai_tutor_result_student_archive_persistence_command_runtime";
   const required0331RuntimeEvidence = "student_app_ai_tutor_result_student_archive_storage_commit_runtime";
-  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314, ...required0315, ...required0316, ...required0317, ...required0318, ...required0319, ...required0320, ...required0321, ...required0322, ...required0323, ...required0324, ...required0325, ...required0326, ...required0327, ...required0328, ...required0329, ...required0330, ...required0331].filter((file) => !fs.existsSync(path.join(root, file)));
+  const required0332RuntimeEvidence = "student_app_ai_tutor_result_student_archive_row_verification_runtime";
+  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314, ...required0315, ...required0316, ...required0317, ...required0318, ...required0319, ...required0320, ...required0321, ...required0322, ...required0323, ...required0324, ...required0325, ...required0326, ...required0327, ...required0328, ...required0329, ...required0330, ...required0331, ...required0332].filter((file) => !fs.existsSync(path.join(root, file)));
   if (missing.length > 0) {
     console.error("Missing required refactor files:");
     for (const file of missing) console.error(`- ${file}`);
@@ -710,34 +712,19 @@ function main() {
   if (!fs.readFileSync(path.join(root, "tools/teaching-archive-material-published-learning-actions-audit.mjs"), "utf8").includes(required0321RuntimeEvidence)) {
     fail("0321 teaching archive material published learning actions evidence id is missing.");
   }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-published-learning-action-source-audit.mjs"), "utf8").includes(required0322RuntimeEvidence)) {
-    fail("0322 student app ai tutor published learning action source evidence id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-worker-study-packet-input-audit.mjs"), "utf8").includes(required0323RuntimeEvidence)) {
-    fail("0323 student app ai tutor worker study packet input evidence id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-model-execution-precheck-runtime.mjs"), "utf8").includes(required0324RuntimeEvidence)) {
-    fail("0324 student app ai tutor model execution precheck runtime id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-controlled-answer-artifact-runtime.mjs"), "utf8").includes(required0325RuntimeEvidence)) {
-    fail("0325 student app ai tutor controlled answer artifact runtime id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-answer-review-gate-runtime.mjs"), "utf8").includes(required0326RuntimeEvidence)) {
-    fail("0326 student app ai tutor answer review gate runtime id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-reviewed-result-persistence-bridge-runtime.mjs"), "utf8").includes(required0327RuntimeEvidence)) {
-    fail("0327 student app ai tutor reviewed result persistence bridge runtime id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-result-student-visibility-review-runtime.mjs"), "utf8").includes(required0328RuntimeEvidence)) {
-    fail("0328 student app ai tutor result student visibility review runtime id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-result-student-delivery-envelope-runtime.mjs"), "utf8").includes(required0329RuntimeEvidence)) {
-    fail("0329 student app ai tutor result student delivery envelope runtime id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-result-student-archive-persistence-command-runtime.mjs"), "utf8").includes(required0330RuntimeEvidence)) {
-    fail("0330 student app ai tutor result student archive persistence command runtime id is missing.");
-  }
-  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-result-student-archive-storage-commit-runtime.mjs"), "utf8").includes(required0331RuntimeEvidence)) fail("0331 student app ai tutor result student archive storage commit runtime id is missing.");
+  for (const [slice, file, evidence] of [
+    ["0322 student app ai tutor published learning action source", "tools/student-app-ai-tutor-published-learning-action-source-audit.mjs", required0322RuntimeEvidence],
+    ["0323 student app ai tutor worker study packet input", "tools/student-app-ai-tutor-worker-study-packet-input-audit.mjs", required0323RuntimeEvidence],
+    ["0324 student app ai tutor model execution precheck", "tools/student-app-ai-tutor-model-execution-precheck-runtime.mjs", required0324RuntimeEvidence],
+    ["0325 student app ai tutor controlled answer artifact", "tools/student-app-ai-tutor-controlled-answer-artifact-runtime.mjs", required0325RuntimeEvidence],
+    ["0326 student app ai tutor answer review gate", "tools/student-app-ai-tutor-answer-review-gate-runtime.mjs", required0326RuntimeEvidence],
+    ["0327 student app ai tutor reviewed result persistence bridge", "tools/student-app-ai-tutor-reviewed-result-persistence-bridge-runtime.mjs", required0327RuntimeEvidence],
+    ["0328 student app ai tutor result student visibility review", "tools/student-app-ai-tutor-result-student-visibility-review-runtime.mjs", required0328RuntimeEvidence],
+    ["0329 student app ai tutor result student delivery envelope", "tools/student-app-ai-tutor-result-student-delivery-envelope-runtime.mjs", required0329RuntimeEvidence],
+    ["0330 student app ai tutor result student archive persistence command", "tools/student-app-ai-tutor-result-student-archive-persistence-command-runtime.mjs", required0330RuntimeEvidence],
+    ["0331 student app ai tutor result student archive storage commit", "tools/student-app-ai-tutor-result-student-archive-storage-commit-runtime.mjs", required0331RuntimeEvidence],
+    ["0332 student app ai tutor result student archive row verification", "tools/student-app-ai-tutor-result-student-archive-row-verification-runtime.mjs", required0332RuntimeEvidence],
+  ]) if (!fs.readFileSync(path.join(root, file), "utf8").includes(evidence)) fail(`${slice} runtime id is missing.`);
   for (const finding of verifySddDocuments(root)) {
     fail(finding.message);
   }

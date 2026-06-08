@@ -88,6 +88,7 @@ import (
       "Student App AI Tutor result student delivery envelope runtime audit",
       "Student App AI Tutor result student archive persistence command runtime audit",
       "Student App AI Tutor result student archive storage commit runtime audit",
+      "Student App AI Tutor result student archive row verification runtime audit",
       "Student App AI Tutor worker claim runtime audit",
       "Student App AI Tutor result runtime audit",
       "Student App AI Tutor question-bank draft generation plan runtime audit",
