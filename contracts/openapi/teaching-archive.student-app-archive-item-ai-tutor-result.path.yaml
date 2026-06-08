@@ -1,0 +1,127 @@
+get:
+  operationId: readStudentAppAITutorResultArchive
+  summary: Read a safe AI Tutor result card from one Student App archive item.
+  tags: [student-app, teaching-archive, ai-tutor]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+        maxLength: 1000
+  responses:
+    '200':
+      description: Safe AI Tutor result card for the authenticated student's own archived result.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - archiveItemId
+              - status
+              - materialType
+              - title
+              - source
+              - tags
+              - analysisIntents
+              - ocrStatus
+              - summary
+              - guidanceSections
+              - guidanceSectionsHash
+              - safetyLabels
+              - createdAt
+            properties:
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              status:
+                type: string
+                const: READY_FOR_STUDENT_APP_READ
+              materialType:
+                type: string
+                const: HOMEWORK
+              title:
+                type: string
+                minLength: 1
+                maxLength: 200
+              source:
+                type: string
+                const: SYSTEM_IMPORT
+              tags:
+                type: array
+                minItems: 4
+                maxItems: 4
+                items:
+                  type: string
+                  enum: [student_app_ai_tutor, result, safe_guidance, archive_commit]
+              analysisIntents:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items:
+                  type: string
+                  enum: [ARCHIVE_ONLY, TUTORING]
+              ocrStatus:
+                type: string
+                const: NOT_REQUIRED
+              summary:
+                type: string
+                minLength: 1
+                maxLength: 1200
+              guidanceSections:
+                type: array
+                minItems: 1
+                maxItems: 8
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [sectionId, title, text, sourceBlockRefs]
+                  properties:
+                    sectionId:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    title:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 1200
+                    sourceBlockRefs:
+                      type: array
+                      minItems: 1
+                      maxItems: 8
+                      items:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+              guidanceSectionsHash:
+                type: string
+                minLength: 1
+                maxLength: 128
+              safetyLabels:
+                type: array
+                minItems: 1
+                maxItems: 8
+                items:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+              createdAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

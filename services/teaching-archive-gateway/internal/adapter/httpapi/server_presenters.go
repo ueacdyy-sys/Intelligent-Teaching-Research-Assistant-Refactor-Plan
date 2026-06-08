@@ -146,6 +146,35 @@ func toStudentAppArchiveItemLearningActionsResponse(
 	return response
 }
 
+func toStudentAppAITutorResultArchiveCardResponse(
+	card domain.StudentAppAITutorResultArchiveCard,
+) studentAppAITutorResultArchiveCardResponse {
+	sections := make([]studentAppAITutorResultArchiveGuidanceSection, 0, len(card.GuidanceSections))
+	for _, section := range card.GuidanceSections {
+		sections = append(sections, studentAppAITutorResultArchiveGuidanceSection{
+			SectionID:       section.SectionID,
+			Title:           section.Title,
+			Text:            section.Text,
+			SourceBlockRefs: section.SourceBlockRefs,
+		})
+	}
+	return studentAppAITutorResultArchiveCardResponse{
+		ArchiveItemID:        card.ArchiveItemID,
+		Status:               card.Status,
+		MaterialType:         card.MaterialType,
+		Title:                card.Title,
+		Source:               card.Source,
+		Tags:                 card.Tags,
+		AnalysisIntents:      card.AnalysisIntents,
+		OCRStatus:            card.OCRStatus,
+		Summary:              card.Summary,
+		GuidanceSections:     sections,
+		GuidanceSectionsHash: card.GuidanceSectionsHash,
+		SafetyLabels:         card.SafetyLabels,
+		CreatedAt:            formatTime(card.CreatedAt),
+	}
+}
+
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
 	return archiveItemAcceptedResponse{
 		archiveItemResponse: toResponse(result.Item),

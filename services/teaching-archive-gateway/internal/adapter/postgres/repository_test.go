@@ -80,7 +80,7 @@ func TestEnsureSchemaUsesTransactionAdvisoryLockAroundStatements(t *testing.T) {
 }
 
 func TestEnsureSchemaSkipsMigrationWhenCurrentVersionExists(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.6"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-08.schema.7"}}
 
 	if err := postgres.EnsureSchema(context.Background(), db); err != nil {
 		t.Fatalf("EnsureSchema returned error: %v", err)
@@ -130,7 +130,7 @@ func TestEnsureSchemaWithHotWriteProfileDropsRedundantArchiveItemPageIndexes(t *
 }
 
 func TestEnsureSchemaWithFullProfileRestoresArchiveItemPageIndexes(t *testing.T) {
-	db := &recordingDB{rows: &singleStringRow{value: "2026-06-07.schema.6"}}
+	db := &recordingDB{rows: &singleStringRow{value: "2026-06-08.schema.7"}}
 
 	err := postgres.EnsureSchemaWithOptions(context.Background(), db, postgres.SchemaOptions{
 		IndexProfile: postgres.SchemaIndexProfileFull,

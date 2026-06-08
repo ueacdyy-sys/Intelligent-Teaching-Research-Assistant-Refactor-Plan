@@ -110,6 +110,29 @@ type studentAppArchiveItemLearningActionResponse struct {
 	RequiresTutorRequest bool                                            `json:"requiresTutorRequest"`
 }
 
+type studentAppAITutorResultArchiveCardResponse struct {
+	ArchiveItemID        string                                          `json:"archiveItemId"`
+	Status               domain.StudentAppAITutorResultArchiveStatus     `json:"status"`
+	MaterialType         domain.MaterialType                             `json:"materialType"`
+	Title                string                                          `json:"title"`
+	Source               domain.Source                                   `json:"source"`
+	Tags                 []string                                        `json:"tags"`
+	AnalysisIntents      []domain.AnalysisIntent                         `json:"analysisIntents"`
+	OCRStatus            domain.OCRStatus                                `json:"ocrStatus"`
+	Summary              string                                          `json:"summary"`
+	GuidanceSections     []studentAppAITutorResultArchiveGuidanceSection `json:"guidanceSections"`
+	GuidanceSectionsHash string                                          `json:"guidanceSectionsHash"`
+	SafetyLabels         []string                                        `json:"safetyLabels"`
+	CreatedAt            string                                          `json:"createdAt"`
+}
+
+type studentAppAITutorResultArchiveGuidanceSection struct {
+	SectionID       string   `json:"sectionId"`
+	Title           string   `json:"title"`
+	Text            string   `json:"text"`
+	SourceBlockRefs []string `json:"sourceBlockRefs"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`
