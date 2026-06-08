@@ -121,6 +121,7 @@ export function buildQualityCommandPlan() {
     { name: "Student App AI Tutor worker study packet input audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-worker-study-packet-input"] },
     { name: "Student App AI Tutor model execution precheck runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-model-execution-precheck"] },
     { name: "Student App AI Tutor controlled answer artifact runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-controlled-answer-artifact"] },
+    { name: "Student App AI Tutor answer review gate runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-answer-review-gate"] },
     { name: "Student App AI Tutor worker claim runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-worker-claim"] },
     { name: "Student App AI Tutor result runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result"] },
     { name: "Student App AI Tutor question-bank draft generation plan runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-draft-generation-plan"] },
