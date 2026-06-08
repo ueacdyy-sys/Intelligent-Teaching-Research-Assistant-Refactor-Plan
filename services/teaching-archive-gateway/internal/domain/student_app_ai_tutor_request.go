@@ -5,13 +5,25 @@ type CreateStudentAppAITutorRequestInput struct {
 	StudentArchiveItemID string
 	AnalysisGoal         string
 	QuestionBankIntent   QuestionBankIntent
+	LearningActionSource StudentAppAITutorLearningActionSource
 }
 
 type NormalizedCreateStudentAppAITutorRequestInput struct {
-	Principal          PrincipalContext
-	ArchiveItemID      string
-	AnalysisGoal       string
-	QuestionBankIntent QuestionBankIntent
+	Principal            PrincipalContext
+	ArchiveItemID        string
+	StudentID            string
+	AnalysisGoal         string
+	QuestionBankIntent   QuestionBankIntent
+	LearningActionSource StudentAppAITutorLearningActionSource
+}
+
+type StudentAppAITutorLearningActionSource struct {
+	ActionType   StudentAppArchiveItemLearningActionType
+	PacketStatus StudentAppArchiveItemStudyPacketStatus
+}
+
+func (source StudentAppAITutorLearningActionSource) IsZero() bool {
+	return source.ActionType == "" && source.PacketStatus == ""
 }
 
 func NormalizeCreateStudentAppAITutorRequestInput(
@@ -35,11 +47,17 @@ func NormalizeCreateStudentAppAITutorRequestInput(
 	if !validQuestionBankIntent(questionBankIntent) {
 		return NormalizedCreateStudentAppAITutorRequestInput{}, validationError("questionBankIntent is unsupported")
 	}
+	learningActionSource, err := normalizeStudentAppAITutorLearningActionSource(input.LearningActionSource)
+	if err != nil {
+		return NormalizedCreateStudentAppAITutorRequestInput{}, err
+	}
 	return NormalizedCreateStudentAppAITutorRequestInput{
-		Principal:          input.Principal,
-		ArchiveItemID:      archiveItemID,
-		AnalysisGoal:       analysisGoal,
-		QuestionBankIntent: questionBankIntent,
+		Principal:            input.Principal,
+		ArchiveItemID:        archiveItemID,
+		StudentID:            primaryOwnStudentID(input.Principal),
+		AnalysisGoal:         analysisGoal,
+		QuestionBankIntent:   questionBankIntent,
+		LearningActionSource: learningActionSource,
 	}, nil
 }
 
@@ -61,4 +79,20 @@ func AuthorizeCreateStudentAppAITutorRequest(principal PrincipalContext) error {
 		return ErrForbidden
 	}
 	return nil
+}
+
+func normalizeStudentAppAITutorLearningActionSource(
+	source StudentAppAITutorLearningActionSource,
+) (StudentAppAITutorLearningActionSource, error) {
+	if source.IsZero() {
+		return StudentAppAITutorLearningActionSource{}, nil
+	}
+	if source.ActionType != StudentAppArchiveItemLearningActionAITutorRequest &&
+		source.ActionType != StudentAppArchiveItemLearningActionPersonalizedQuestionBank {
+		return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.actionType is unsupported")
+	}
+	if source.PacketStatus != StudentAppArchiveItemStudyPacketStatusReady {
+		return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.packetStatus must be READY")
+	}
+	return source, nil
 }

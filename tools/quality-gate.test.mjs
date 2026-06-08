@@ -78,6 +78,7 @@ import (
       "StudentTutorAgent read-only runtime SLO audit",
       "StudentTutorAgent read-only runtime adapter audit",
       "Student App AI Tutor request runtime audit",
+      "Student App AI Tutor published learning action source audit",
       "Student App AI Tutor worker claim runtime audit",
       "Student App AI Tutor result runtime audit",
       "Student App AI Tutor question-bank draft generation plan runtime audit",

@@ -41,6 +41,7 @@ func (s *Server) createStudentAppAITutorRequestMetadata(w http.ResponseWriter, r
 		StudentArchiveItemID: request.StudentArchiveItemID,
 		AnalysisGoal:         request.AnalysisGoal,
 		QuestionBankIntent:   request.QuestionBankIntent,
+		LearningActionSource: request.LearningActionSource,
 	})
 	if handleArchiveError(w, err, "failed to create student app ai tutor request") {
 		return

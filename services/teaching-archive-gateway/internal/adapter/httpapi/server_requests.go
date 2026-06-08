@@ -20,9 +20,10 @@ type createTutoringAnalysisRequestRequest struct {
 }
 
 type createStudentAppAITutorRequestRequest struct {
-	StudentArchiveItemID string                    `json:"studentArchiveItemId"`
-	AnalysisGoal         string                    `json:"analysisGoal"`
-	QuestionBankIntent   domain.QuestionBankIntent `json:"questionBankIntent,omitempty"`
+	StudentArchiveItemID string                                       `json:"studentArchiveItemId"`
+	AnalysisGoal         string                                       `json:"analysisGoal"`
+	QuestionBankIntent   domain.QuestionBankIntent                    `json:"questionBankIntent,omitempty"`
+	LearningActionSource domain.StudentAppAITutorLearningActionSource `json:"learningActionSource,omitempty"`
 }
 
 type createAIGradingRequestRequest struct {

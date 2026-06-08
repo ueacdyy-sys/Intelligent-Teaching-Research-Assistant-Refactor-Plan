@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-06-08T06:51:22.349Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_PUBLISHED_LEARNING_ACTION_SOURCE",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_published_learning_action_source",
+    "useCase": "CreateStudentAppAITutorRequest.Execute",
+    "sourceLearningActions": "ReadStudentAppArchiveItemLearningActions.Execute",
+    "endpoint": "POST /v1/student-app/ai-tutor-requests",
+    "status": "STUDENT_APP_AI_TUTOR_PUBLISHED_LEARNING_ACTION_SOURCE_READY"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_SOURCED_AI_TUTOR_ADMISSION_AUDIT"
+  },
+  "safetyInvariants": {
+    "source0321ReadyRequired": true,
+    "ownStudentOnly": true,
+    "publishedStudyPacketRequired": true,
+    "safeTextBlocksPreviewBoundaryRequired": true,
+    "genericGetByIDBypassBlockedForSourcedRequests": true,
+    "queueCreationOnly": true,
+    "promptExcluded": true,
+    "previewContentExcludedFromResponse": true,
+    "contentRefExcludedFromResponse": true,
+    "answerKeyOrModelOutputAllowed": false,
+    "modelInferenceAllowed": false,
+    "questionBankDraftCreated": false,
+    "semanticRetrievalAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0321_learning_actions_ready",
+      "passed": true,
+      "actual": "READY:TEACHING_ARCHIVE_MATERIAL_PUBLISHED_LEARNING_ACTIONS_READY",
+      "expected": "0321 learning actions report is READY",
+      "remediation": "Regenerate or fix 0321 learning action evidence before accepting sourced AI Tutor requests."
+    },
+    {
+      "severity": "info",
+      "id": "go.sourced_request_uses_ready_study_packet",
+      "passed": true,
+      "actual": "StudentAppAITutorLearningActionSource=true;readPublishedStudyPacketActionSource=true;GetPublishedForStudentApp=true;BuildStudentAppArchiveItemLearningActions=true",
+      "expected": "sourced AI Tutor admission proves the 0321 action through the published study-packet boundary",
+      "remediation": "Route sourced requests through published metadata and safe preview reads before queue creation."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_request_source_without_response_leak",
+      "passed": true,
+      "actual": "learningActionSource=false;contentPreview=false;contentRef=false;prompt=false;ragChunks=false;expectedAnswer=false;rawModelOutput=false",
+      "expected": "HTTP/OpenAPI accept safe source metadata in the request and keep response output to queue metadata",
+      "remediation": "Do not echo learning action source, preview content, storage refs, prompts, RAG, answers, or model output."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-published-learning-action-source=true;studentAppAiTutorPublishedLearningActionSource=true;11.02/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD trace, and architecture board track 0322",
+      "remediation": "Wire the sourced AI Tutor queue admission through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the safe source bridge from published material learning actions to the existing AI Tutor queue; keep model/RAG/question-bank generation in later reviewed worker slices."
+}

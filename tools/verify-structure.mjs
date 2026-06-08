@@ -564,6 +564,11 @@ function main() {
     "services/teaching-archive-gateway/internal/usecase/read_student_app_archive_item_learning_actions.go",
     "contracts/openapi/teaching-archive.student-app-archive-item-learning-actions.path.yaml",
   ];
+  const required0322 = [
+    "docs/sdd/0322-student-app-ai-tutor-published-learning-action-source.md",
+    "tools/student-app-ai-tutor-published-learning-action-source-audit.mjs",
+    "tools/student-app-ai-tutor-published-learning-action-source-audit.test.mjs",
+  ];
   const required0302RuntimeEvidence = "teaching_archive_material_draft_human_review_runtime";
   const required0303RuntimeEvidence = "teaching_archive_material_draft_storage_precommit_runtime";
   const required0304RuntimeEvidence = "teaching_archive_material_draft_storage_commit_runtime";
@@ -584,7 +589,8 @@ function main() {
   const required0319RuntimeEvidence = "teaching_archive_material_published_content_preview_render_envelope";
   const required0320RuntimeEvidence = "teaching_archive_material_published_study_packet";
   const required0321RuntimeEvidence = "teaching_archive_material_published_learning_actions";
-  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314, ...required0315, ...required0316, ...required0317, ...required0318, ...required0319, ...required0320, ...required0321].filter((file) => !fs.existsSync(path.join(root, file)));
+  const required0322RuntimeEvidence = "student_app_ai_tutor_published_learning_action_source";
+  const missing = [...required, ...required0302, ...required0303, ...required0304, ...required0305, ...required0306, ...required0307, ...required0308, ...required0309, ...required0310, ...required0311, ...required0312, ...required0313, ...required0314, ...required0315, ...required0316, ...required0317, ...required0318, ...required0319, ...required0320, ...required0321, ...required0322].filter((file) => !fs.existsSync(path.join(root, file)));
   if (missing.length > 0) {
     console.error("Missing required refactor files:");
     for (const file of missing) console.error(`- ${file}`);
@@ -649,6 +655,9 @@ function main() {
   }
   if (!fs.readFileSync(path.join(root, "tools/teaching-archive-material-published-learning-actions-audit.mjs"), "utf8").includes(required0321RuntimeEvidence)) {
     fail("0321 teaching archive material published learning actions evidence id is missing.");
+  }
+  if (!fs.readFileSync(path.join(root, "tools/student-app-ai-tutor-published-learning-action-source-audit.mjs"), "utf8").includes(required0322RuntimeEvidence)) {
+    fail("0322 student app ai tutor published learning action source evidence id is missing.");
   }
   for (const finding of verifySddDocuments(root)) {
     fail(finding.message);

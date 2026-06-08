@@ -89,13 +89,39 @@ func TestCreateTutoringAnalysisRequestRejectsRemotePrincipal(t *testing.T) {
 }
 
 type fakeTutoringRepository struct {
-	items   map[string]domain.ArchiveItem
-	creates int
+	items               map[string]domain.ArchiveItem
+	creates             int
+	genericGetReads     int
+	publishedItem       domain.ArchiveItem
+	publishedOK         bool
+	publishedGetReads   int
+	contentPreview      domain.PublishedArchiveMaterialContentPreview
+	contentPreviewOK    bool
+	contentPreviewReads int
 }
 
 func (f *fakeTutoringRepository) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {
+	f.genericGetReads++
 	item, ok := f.items[id]
 	return item, ok, nil
+}
+
+func (f *fakeTutoringRepository) GetPublishedForStudentApp(
+	_ context.Context,
+	_ string,
+	_ string,
+) (domain.ArchiveItem, bool, error) {
+	f.publishedGetReads++
+	return f.publishedItem, f.publishedOK, nil
+}
+
+func (f *fakeTutoringRepository) GetPublishedContentPreviewForStudentApp(
+	_ context.Context,
+	_ string,
+	_ string,
+) (domain.PublishedArchiveMaterialContentPreview, bool, error) {
+	f.contentPreviewReads++
+	return f.contentPreview, f.contentPreviewOK, nil
 }
 
 func (f *fakeTutoringRepository) CreateTutoringAnalysisRequest(
