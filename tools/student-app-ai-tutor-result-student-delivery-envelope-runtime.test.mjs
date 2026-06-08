@@ -259,6 +259,7 @@ function deliveryPort(overrides = {}) {
           guidanceSectionsHash: request.deliveryRequest.guidanceSectionsHash,
           visibilityState: "STUDENT_VISIBLE_AI_TUTOR_RESULT_DELIVERY_ENVELOPE_NOT_ARCHIVED",
           deliveryState: "READY_FOR_STUDENT_APP_RENDER_NOT_ARCHIVED",
+          scopeRef: request.deliveryRequest.scopeRef,
           studentVisiblePublished: true,
           durableStudentArchivePersistenceStarted: false,
           mainDatabaseWriteStarted: false,

@@ -323,6 +323,7 @@ function assertPortResult(portResult, normalized) {
   requireConst(envelope.guidanceSectionsHash, normalized.visibilityRecord.guidanceSectionsHash, "portResult.studentResultDeliveryEnvelope.guidanceSectionsHash");
   requireConst(envelope.visibilityState, "STUDENT_VISIBLE_AI_TUTOR_RESULT_DELIVERY_ENVELOPE_NOT_ARCHIVED", "portResult.studentResultDeliveryEnvelope.visibilityState");
   requireConst(envelope.deliveryState, "READY_FOR_STUDENT_APP_RENDER_NOT_ARCHIVED", "portResult.studentResultDeliveryEnvelope.deliveryState");
+  requireConst(envelope.scopeRef, normalized.deliveryRequest.scopeRef, "portResult.studentResultDeliveryEnvelope.scopeRef");
   requireConst(envelope.studentVisiblePublished, true, "portResult.studentResultDeliveryEnvelope.studentVisiblePublished");
   requireConst(envelope.durableStudentArchivePersistenceStarted, false, "portResult.studentResultDeliveryEnvelope.durableStudentArchivePersistenceStarted");
   requireConst(envelope.mainDatabaseWriteStarted, false, "portResult.studentResultDeliveryEnvelope.mainDatabaseWriteStarted");
