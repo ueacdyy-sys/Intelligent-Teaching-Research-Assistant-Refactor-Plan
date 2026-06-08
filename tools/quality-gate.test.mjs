@@ -83,6 +83,7 @@ import (
       "Student App AI Tutor model execution precheck runtime audit",
       "Student App AI Tutor controlled answer artifact runtime audit",
       "Student App AI Tutor answer review gate runtime audit",
+      "Student App AI Tutor reviewed result persistence bridge runtime audit",
       "Student App AI Tutor worker claim runtime audit",
       "Student App AI Tutor result runtime audit",
       "Student App AI Tutor question-bank draft generation plan runtime audit",
