@@ -80,6 +80,7 @@ import (
       "Student App AI Tutor request runtime audit",
       "Student App AI Tutor published learning action source audit",
       "Student App AI Tutor worker study packet input audit",
+      "Student App AI Tutor model execution precheck runtime audit",
       "Student App AI Tutor worker claim runtime audit",
       "Student App AI Tutor result runtime audit",
       "Student App AI Tutor question-bank draft generation plan runtime audit",

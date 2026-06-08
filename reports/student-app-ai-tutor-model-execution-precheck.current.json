@@ -1,0 +1,159 @@
+{
+  "generatedAt": "2026-06-08T08:18:14.759Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_MODEL_EXECUTION_PRECHECK",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_model_execution_precheck_runtime",
+    "commandPort": "StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_worker_study_packet_input"
+    ],
+    "modelRoute": "student_tutor_guided_help_v1",
+    "status": "STUDENT_APP_AI_TUTOR_MODEL_EXECUTION_PRECHECKED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 9,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "JS_AI_TUTOR_MODEL_EXECUTION_PRECHECK_RUNTIME_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorModelExecutionPrecheck": {
+      "status": "PASS",
+      "result": {
+        "schemaVersion": "2026-06-08.student-app.ai-tutor-model-execution-prechecked.v1",
+        "runtimeId": "student_app_ai_tutor_model_execution_precheck_runtime",
+        "commandPort": "StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck",
+        "status": "STUDENT_APP_AI_TUTOR_MODEL_EXECUTION_PRECHECKED",
+        "precheckedAt": "2026-06-08T08:00:00.000Z",
+        "idempotencyKey": "student-app-ai-tutor-model-precheck:tutor_req_student_app_001:worker_student_tutor_01",
+        "inputHash": "6baa5a0d27ab0dcd80c4f9a44ef507bbffa6f0e5b2fd9aa6326f65aac0c300c1",
+        "requestId": "tutor_req_student_app_001",
+        "archiveItemId": "tarch_archive_material_001",
+        "workerId": "worker_student_tutor_01",
+        "approvalId": "ai_tutor_model_approval_001",
+        "modelExecutionPrecheck": {
+          "precheckId": "ai_tutor_model_precheck_001",
+          "queueRef": "ai_tutor_model_queue_001",
+          "modelRoute": "student_tutor_guided_help_v1",
+          "requestId": "tutor_req_student_app_001",
+          "workerId": "worker_student_tutor_01",
+          "inputHash": "6baa5a0d27ab0dcd80c4f9a44ef507bbffa6f0e5b2fd9aa6326f65aac0c300c1",
+          "safeBlockCount": 2,
+          "status": "AI_TUTOR_MODEL_EXECUTION_PRECHECKED_NOT_STARTED",
+          "queueAdmissionOnly": true,
+          "modelInferenceStarted": false,
+          "tutorResultRecorded": false,
+          "studentVisiblePublished": false
+        },
+        "evidenceRefs": [
+          "evidence:worker-study-packet-input:student-app-ai-tutor-worker-study-packet-input",
+          "evidence:model-execution-approval:ai_tutor_model_approval_001"
+        ],
+        "boundary": {
+          "sourceWorkerStudyPacketInputVerified": true,
+          "serviceAgentInternalOnly": true,
+          "approvalVerified": true,
+          "modelExecutionQueueAdmissionOnly": true,
+          "futureModelExecutionApproved": true,
+          "safeTextBlocksOnly": true,
+          "safeTextBlockTextSentToPort": false,
+          "inputHashRecorded": true,
+          "promptConstructed": false,
+          "modelInferenceStarted": false,
+          "tutorAnswerGenerated": false,
+          "tutoringResultRecorded": false,
+          "studentVisiblePublished": false,
+          "directDatabaseAccessAllowed": false,
+          "executeHttpRequestAllowed": false,
+          "externalToolUseAllowed": false,
+          "retrievalAllowed": false,
+          "swarmAllowed": false,
+          "requiresFutureReviewedGeneration": true,
+          "requiresFutureResultPersistence": true
+        },
+        "idempotentReplay": false
+      },
+      "portCalls": 1,
+      "portSawSafeText": false,
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 9,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "JS_AI_TUTOR_MODEL_EXECUTION_PRECHECK_RUNTIME_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "sourceWorkerStudyPacketInputRequired": true,
+    "internalServiceOnly": true,
+    "approvalRequired": true,
+    "modelExecutionQueueAdmissionOnly": true,
+    "safeTextBlocksOnly": true,
+    "safeTextBlockTextSentToPort": false,
+    "inputHashRecorded": true,
+    "promptConstructed": false,
+    "modelInferenceAllowed": false,
+    "tutorAnswerGenerated": false,
+    "tutoringResultRecorded": false,
+    "studentVisiblePublished": false,
+    "directDatabaseAccessAllowed": false,
+    "executeHttpRequestAllowed": false,
+    "externalToolUseAllowed": false,
+    "retrievalAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0323_worker_study_packet_input_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_WORKER_STUDY_PACKET_INPUT_READY",
+      "expected": "READY 0323 worker-safe study packet input with no model inference",
+      "remediation": "Run the 0323 worker study-packet input audit before model execution precheck."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.identity_port_and_idempotency",
+      "passed": true,
+      "actual": "student_app_ai_tutor_model_execution_precheck_runtime=true;StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck=true;STUDENT_APP_AI_TUTOR_MODEL_EXECUTION_PRECHECKED=true",
+      "expected": "runtime records an idempotent AI Tutor model execution precheck through a named injected port",
+      "remediation": "Keep model execution precheck as a replay-safe port-recorded queue admission gate."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.safety_boundaries",
+      "passed": true,
+      "actual": "node:child_process=false;spawn(=false;execSync(=false;fetch(=false;postgres://=false;SELECT =false;INSERT =false;UPDATE =false;DELETE =false;promptConstructed: true=false;modelInferenceStarted: true=false;tutorAnswerGenerated: true=false;tutoringResultRecorded: true=false;studentVisiblePublished: true=false;directDatabaseAccessAllowed: true=false;executeHttpRequestAllowed: true=false;externalToolUseAllowed: true=false;retrievalAllowed: true=false;swarmAllowed: true=false;innerHTML=false;dangerouslySetInnerHTML=false",
+      "expected": "runtime admits a future model queue only and does not execute model, prompt, DB, HTTP, tools, retrieval, or Swarm",
+      "remediation": "Do not collapse model execution precheck into model inference, prompt construction, result persistence, or tool execution."
+    },
+    {
+      "severity": "info",
+      "id": "runtime.probe_records_queue_only_precheck",
+      "passed": true,
+      "actual": "status=STUDENT_APP_AI_TUTOR_MODEL_EXECUTION_PRECHECKED;blocks=2;calls=1;textToPort=false;p99=9",
+      "expected": "probe records one queue-only AI Tutor model execution precheck without sending safe text to the port",
+      "remediation": "Precheck evidence must prove 0323 linkage, approval, budget, idempotency, no text-to-port, and no model start."
+    },
+    {
+      "severity": "info",
+      "id": "tests.cover_model_precheck_negative_paths",
+      "passed": true,
+      "actual": "runtime tests scanned",
+      "expected": "positive, no text-to-port, idempotency, missing port, auth, policy, source, leak, and unsafe port tests",
+      "remediation": "Add regression coverage before using 0324 as AI Tutor model execution precheck evidence."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_and_board_track_runtime",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-model-execution-precheck=true;studentAppAiTutorModelExecutionPrecheck=true;11.08/10=true",
+      "expected": "package, strict quality, root workflow coverage, structure verifier, root trace, SDD, and architecture board track 0324",
+      "remediation": "Wire AI Tutor model execution precheck evidence through every root project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the AI Tutor model execution precheck gate; actual model inference, answer artifact, result persistence, and student visibility remain future reviewed slices."
+}
