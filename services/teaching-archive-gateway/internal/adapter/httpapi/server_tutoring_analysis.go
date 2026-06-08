@@ -133,3 +133,37 @@ func (s *Server) recordTutoringResult(w http.ResponseWriter, r *http.Request, re
 
 	writeJSON(w, http.StatusOK, toTutoringAnalysisRequestResponse(updated))
 }
+
+func (s *Server) readAITutorStudyPacketInput(w http.ResponseWriter, r *http.Request, requestID string) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+
+	var request readAITutorWorkerStudyPacketInputRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if s.readAITutorWorkerStudyPacketInput == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "ai tutor worker study packet input use case is not configured")
+		return
+	}
+
+	input, err := s.readAITutorWorkerStudyPacketInput.Execute(
+		r.Context(),
+		domain.ReadAITutorWorkerStudyPacketInputInput{
+			Principal: principal,
+			RequestID: requestID,
+			WorkerID:  request.WorkerID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to read ai tutor worker study packet input") {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toAITutorWorkerStudyPacketInputResponse(input))
+}

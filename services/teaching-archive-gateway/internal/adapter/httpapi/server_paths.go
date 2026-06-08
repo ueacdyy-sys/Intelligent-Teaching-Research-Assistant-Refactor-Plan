@@ -256,3 +256,16 @@ func parseTutoringAnalysisWorkerResultPath(path string) (string, bool) {
 	}
 	return requestID, true
 }
+
+func parseTutoringAnalysisAITutorStudyPacketInputPath(path string) (string, bool) {
+	const prefix = "/v1/teaching/tutoring-analysis-requests/"
+	const suffix = "/ai-tutor-study-packet-input"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	requestID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if requestID == "" || strings.Contains(requestID, "/") {
+		return "", false
+	}
+	return requestID, true
+}

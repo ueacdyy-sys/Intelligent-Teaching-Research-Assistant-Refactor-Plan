@@ -140,6 +140,10 @@ func main() {
 		archiveRepository,
 		platform.Clock{},
 	)
+	readAITutorWorkerStudyPacketInput := usecase.NewReadAITutorWorkerStudyPacketInput(
+		archiveRepository,
+		platform.Clock{},
+	)
 	recordTutoringAnalysisResult := usecase.NewRecordTutoringAnalysisResult(
 		archiveRepository,
 		platform.Clock{},
@@ -200,6 +204,7 @@ func main() {
 			CreateTutoringAnalysisRequest:                         createTutoringAnalysisRequest,
 			ListTutoringAnalysisRequests:                          listTutoringAnalysisRequests,
 			ClaimTutoringAnalysisRequest:                          claimTutoringAnalysisRequest,
+			ReadAITutorWorkerStudyPacketInput:                     readAITutorWorkerStudyPacketInput,
 			RecordTutoringAnalysisResult:                          recordTutoringAnalysisResult,
 			SubmitTeachingQuizDraftIntent:                         submitTeachingQuizDraftIntent,
 			SubmitArchiveMaterialDraftIntent:                      submitArchiveMaterialDraftIntent,

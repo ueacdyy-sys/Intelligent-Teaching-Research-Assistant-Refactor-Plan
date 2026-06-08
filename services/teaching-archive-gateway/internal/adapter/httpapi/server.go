@@ -34,6 +34,7 @@ type Server struct {
 	createTutoringAnalysisRequest                         *usecase.CreateTutoringAnalysisRequest
 	listTutoringAnalysisRequests                          *usecase.ListTutoringAnalysisRequests
 	claimTutoringAnalysisRequest                          *usecase.ClaimTutoringAnalysisRequest
+	readAITutorWorkerStudyPacketInput                     *usecase.ReadAITutorWorkerStudyPacketInput
 	recordTutoringAnalysisResult                          *usecase.RecordTutoringAnalysisResult
 	submitTeachingQuizDraftIntent                         *usecase.SubmitTeachingQuizDraftIntent
 	submitTeachingArchiveMaterialDraftIntent              *usecase.SubmitTeachingArchiveMaterialDraftIntent
@@ -82,6 +83,7 @@ func NewServer(config ServerConfig) *Server {
 		createTutoringAnalysisRequest:                         config.CreateTutoringAnalysisRequest,
 		listTutoringAnalysisRequests:                          config.ListTutoringAnalysisRequests,
 		claimTutoringAnalysisRequest:                          config.ClaimTutoringAnalysisRequest,
+		readAITutorWorkerStudyPacketInput:                     config.ReadAITutorWorkerStudyPacketInput,
 		recordTutoringAnalysisResult:                          config.RecordTutoringAnalysisResult,
 		submitTeachingQuizDraftIntent:                         config.SubmitTeachingQuizDraftIntent,
 		submitTeachingArchiveMaterialDraftIntent:              config.SubmitArchiveMaterialDraftIntent,

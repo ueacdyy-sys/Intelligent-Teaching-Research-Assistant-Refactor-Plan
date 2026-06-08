@@ -375,6 +375,30 @@ type tutoringAnalysisWorkerClaimResponse struct {
 	UpdatedAt              string                        `json:"updatedAt"`
 }
 
+type aiTutorWorkerStudyPacketInputResponse struct {
+	RequestID              string                                                    `json:"requestId"`
+	ArchiveItemID          string                                                    `json:"archiveItemId"`
+	AnalysisGoal           string                                                    `json:"analysisGoal"`
+	QuestionBankIntent     domain.QuestionBankIntent                                 `json:"questionBankIntent"`
+	Status                 domain.TutoringAnalysisStatus                             `json:"status"`
+	WorkerID               string                                                    `json:"workerId"`
+	ClaimExpiresAt         string                                                    `json:"claimExpiresAt"`
+	SourceArchiveStudentID string                                                    `json:"sourceArchiveStudentId"`
+	SourceArchiveMaterial  domain.MaterialType                                       `json:"sourceArchiveMaterial"`
+	PacketStatus           domain.StudentAppArchiveItemStudyPacketStatus             `json:"packetStatus"`
+	RenderFormat           domain.PublishedArchiveMaterialContentPreviewRenderFormat `json:"renderFormat"`
+	Blocks                 []aiTutorWorkerStudyPacketInputBlock                      `json:"blocks"`
+}
+
+type aiTutorWorkerStudyPacketInputBlock struct {
+	BlockID   string                                                 `json:"blockId"`
+	BlockType domain.PublishedArchiveMaterialContentPreviewBlockType `json:"blockType"`
+	SectionID string                                                 `json:"sectionId"`
+	Title     string                                                 `json:"title"`
+	Text      string                                                 `json:"text"`
+	PageHint  string                                                 `json:"pageHint,omitempty"`
+}
+
 type pageInfoResponse struct {
 	PageSize   int     `json:"pageSize"`
 	HasMore    bool    `json:"hasMore"`

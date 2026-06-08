@@ -170,6 +170,15 @@ func (s *Server) tutoringAnalysisRequestSubresources(w http.ResponseWriter, r *h
 		return
 	}
 
+	if requestID, ok := parseTutoringAnalysisAITutorStudyPacketInputPath(r.URL.Path); ok {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.readAITutorStudyPacketInput(w, r, requestID)
+		return
+	}
+
 	requestID, ok := parseTutoringAnalysisWorkerResultPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "tutoring analysis request subresource not found")

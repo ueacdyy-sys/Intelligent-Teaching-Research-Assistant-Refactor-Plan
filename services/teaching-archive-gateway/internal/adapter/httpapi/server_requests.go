@@ -116,3 +116,7 @@ type claimAIGradingRequestRequest struct {
 type readQuestionBankDraftAnswerScoringInputRequest struct {
 	WorkerID string `json:"workerId"`
 }
+
+type readAITutorWorkerStudyPacketInputRequest struct {
+	WorkerID string `json:"workerId"`
+}

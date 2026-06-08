@@ -522,6 +522,36 @@ func toTutoringAnalysisWorkerClaimResponse(request domain.TutoringAnalysisReques
 	}
 }
 
+func toAITutorWorkerStudyPacketInputResponse(
+	input domain.AITutorWorkerStudyPacketInput,
+) aiTutorWorkerStudyPacketInputResponse {
+	blocks := make([]aiTutorWorkerStudyPacketInputBlock, 0, len(input.Blocks))
+	for _, block := range input.Blocks {
+		blocks = append(blocks, aiTutorWorkerStudyPacketInputBlock{
+			BlockID:   block.BlockID,
+			BlockType: block.BlockType,
+			SectionID: block.SectionID,
+			Title:     block.Title,
+			Text:      block.Text,
+			PageHint:  block.PageHint,
+		})
+	}
+	return aiTutorWorkerStudyPacketInputResponse{
+		RequestID:              input.RequestID,
+		ArchiveItemID:          input.ArchiveItemID,
+		AnalysisGoal:           input.AnalysisGoal,
+		QuestionBankIntent:     input.QuestionBankIntent,
+		Status:                 input.Status,
+		WorkerID:               input.WorkerID,
+		ClaimExpiresAt:         formatTime(input.ClaimExpiresAt),
+		SourceArchiveStudentID: input.SourceArchiveStudentID,
+		SourceArchiveMaterial:  input.SourceArchiveMaterial,
+		PacketStatus:           input.PacketStatus,
+		RenderFormat:           input.RenderFormat,
+		Blocks:                 blocks,
+	}
+}
+
 func optionalString(value string) *string {
 	if value == "" {
 		return nil

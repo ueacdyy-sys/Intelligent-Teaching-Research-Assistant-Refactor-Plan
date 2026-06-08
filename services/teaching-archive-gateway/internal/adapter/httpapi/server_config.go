@@ -34,6 +34,7 @@ type ServerConfig struct {
 	CreateTutoringAnalysisRequest                         *usecase.CreateTutoringAnalysisRequest
 	ListTutoringAnalysisRequests                          *usecase.ListTutoringAnalysisRequests
 	ClaimTutoringAnalysisRequest                          *usecase.ClaimTutoringAnalysisRequest
+	ReadAITutorWorkerStudyPacketInput                     *usecase.ReadAITutorWorkerStudyPacketInput
 	RecordTutoringAnalysisResult                          *usecase.RecordTutoringAnalysisResult
 	SubmitTeachingQuizDraftIntent                         *usecase.SubmitTeachingQuizDraftIntent
 	SubmitArchiveMaterialDraftIntent                      *usecase.SubmitTeachingArchiveMaterialDraftIntent

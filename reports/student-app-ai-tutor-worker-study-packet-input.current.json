@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-06-08T07:46:58.583Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_WORKER_STUDY_PACKET_INPUT",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_worker_study_packet_input",
+    "useCase": "ReadAITutorWorkerStudyPacketInput.Execute",
+    "sourceQueueAdmission": "CreateStudentAppAITutorRequest.Execute",
+    "endpoint": "POST /v1/teaching/tutoring-analysis-requests/{requestId}/ai-tutor-study-packet-input",
+    "status": "STUDENT_APP_AI_TUTOR_WORKER_STUDY_PACKET_INPUT_READY"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_AI_TUTOR_WORKER_STUDY_PACKET_INPUT_AUDIT"
+  },
+  "safetyInvariants": {
+    "source0322ReadyRequired": true,
+    "serviceAgentInternalOnly": true,
+    "claimedWorkerLeaseRequired": true,
+    "ownStudentSourceRequired": true,
+    "publishedStudyPacketRequired": true,
+    "safeTextBlocksPreviewBoundaryRequired": true,
+    "learningActionBoundaryRequired": true,
+    "genericGetByIDBypassBlockedForWorkerInput": true,
+    "contentRefExcludedFromResponse": true,
+    "promptExcluded": true,
+    "rawContentExcluded": true,
+    "answerKeyOrModelOutputAllowed": false,
+    "modelInferenceAllowed": false,
+    "questionBankDraftCreated": false,
+    "semanticRetrievalAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0322_published_learning_action_source_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_PUBLISHED_LEARNING_ACTION_SOURCE_READY",
+      "expected": "0322 sourced AI Tutor queue admission report is READY",
+      "remediation": "Regenerate or fix 0322 evidence before claiming worker study-packet input is safe."
+    },
+    {
+      "severity": "info",
+      "id": "go.worker_input_rebuilds_ready_study_packet",
+      "passed": true,
+      "actual": "ValidateAITutorWorkerStudyPacketRequest=true;GetTutoringAnalysisRequestByID=true;BuildStudentAppArchiveItemStudyPacket=true;BuildStudentAppArchiveItemLearningActions=true",
+      "expected": "claimed worker input proves request lease and rebuilds the READY SAFE_TEXT_BLOCKS study-packet boundary",
+      "remediation": "Route worker input through request lease validation, published detail, safe preview, study packet, and learning actions."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_worker_input_without_leaks",
+      "passed": true,
+      "actual": "contentRef=false;contentPreview=false;rawContent=false;prompt=false;ragChunks=false;expectedAnswer=false;rawModelOutput=false;resultRef=false",
+      "expected": "HTTP/OpenAPI expose only claimed worker SAFE_TEXT_BLOCKS input and no raw/prompt/model/result fields",
+      "remediation": "Keep worker input limited to queue metadata and SAFE_TEXT_BLOCKS blocks."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-worker-study-packet-input=true;studentAppAiTutorWorkerStudyPacketInput=true;11.05/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD trace, and architecture board track 0323",
+      "remediation": "Wire worker study-packet input through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this worker-safe study packet input as the model-execution precheck boundary for later reviewed AI Tutor generation slices."
+}

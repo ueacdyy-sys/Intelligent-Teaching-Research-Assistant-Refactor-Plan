@@ -1,0 +1,109 @@
+post:
+  operationId: readTeachingAITutorWorkerStudyPacketInput
+  summary: Read worker-only SAFE_TEXT_BLOCKS input for a claimed Student App AI Tutor request.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required: [workerId]
+          properties:
+            workerId:
+              type: string
+              minLength: 1
+              maxLength: 128
+  responses:
+    '200':
+      description: Worker-only AI Tutor study packet input package.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - requestId
+              - archiveItemId
+              - analysisGoal
+              - questionBankIntent
+              - status
+              - workerId
+              - claimExpiresAt
+              - sourceArchiveStudentId
+              - sourceArchiveMaterial
+              - packetStatus
+              - renderFormat
+              - blocks
+            properties:
+              requestId:
+                type: string
+                pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              analysisGoal:
+                type: string
+                minLength: 1
+                maxLength: 500
+              questionBankIntent:
+                $ref: './teaching-archive.yaml#/components/schemas/QuestionBankIntent'
+              status:
+                type: string
+                const: IN_PROGRESS
+              workerId:
+                type: string
+                minLength: 1
+                maxLength: 128
+              claimExpiresAt:
+                type: string
+                format: date-time
+              sourceArchiveStudentId:
+                type: string
+                minLength: 1
+              sourceArchiveMaterial:
+                $ref: './teaching-archive.yaml#/components/schemas/ArchiveMaterialType'
+              packetStatus:
+                type: string
+                const: READY
+              renderFormat:
+                type: string
+                const: SAFE_TEXT_BLOCKS
+              blocks:
+                type: array
+                minItems: 1
+                maxItems: 20
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [blockId, blockType, sectionId, title, text]
+                  properties:
+                    blockId: { type: string, minLength: 1, maxLength: 128 }
+                    blockType:
+                      type: string
+                      const: SECTION
+                    sectionId: { type: string, minLength: 1, maxLength: 128 }
+                    title: { type: string, minLength: 1, maxLength: 1200 }
+                    text: { type: string, minLength: 1, maxLength: 1200 }
+                    pageHint: { type: string, maxLength: 80 }
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '409':
+      $ref: './teaching-archive.yaml#/components/responses/Conflict'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
