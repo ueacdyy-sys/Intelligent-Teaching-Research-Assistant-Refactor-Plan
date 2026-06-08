@@ -133,6 +133,27 @@ type studentAppAITutorResultArchiveGuidanceSection struct {
 	SourceBlockRefs []string `json:"sourceBlockRefs"`
 }
 
+type studentAppAITutorResultArchiveRenderResponse struct {
+	ArchiveItemID        string                                            `json:"archiveItemId"`
+	Status               domain.StudentAppAITutorResultArchiveStatus       `json:"status"`
+	MaterialType         domain.MaterialType                               `json:"materialType"`
+	Title                string                                            `json:"title"`
+	RenderFormat         domain.StudentAppAITutorResultArchiveRenderFormat `json:"renderFormat"`
+	Blocks               []studentAppAITutorResultArchiveRenderBlock       `json:"blocks"`
+	GuidanceSectionsHash string                                            `json:"guidanceSectionsHash"`
+	SafetyLabels         []string                                          `json:"safetyLabels"`
+	CreatedAt            string                                            `json:"createdAt"`
+}
+
+type studentAppAITutorResultArchiveRenderBlock struct {
+	BlockID         string                                         `json:"blockId"`
+	BlockType       domain.StudentAppAITutorResultArchiveBlockType `json:"blockType"`
+	SectionID       string                                         `json:"sectionId,omitempty"`
+	Title           string                                         `json:"title"`
+	Text            string                                         `json:"text"`
+	SourceBlockRefs []string                                       `json:"sourceBlockRefs,omitempty"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`

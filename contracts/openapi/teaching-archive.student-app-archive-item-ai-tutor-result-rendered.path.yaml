@@ -1,0 +1,109 @@
+get:
+  operationId: renderStudentAppAITutorResultArchive
+  summary: Render a safe AI Tutor result card as Student App text blocks.
+  tags: [student-app, teaching-archive, ai-tutor]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+        maxLength: 1000
+  responses:
+    '200':
+      description: Safe AI Tutor result render envelope for the authenticated student's own archived result.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - archiveItemId
+              - status
+              - materialType
+              - title
+              - renderFormat
+              - blocks
+              - guidanceSectionsHash
+              - safetyLabels
+              - createdAt
+            properties:
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              status:
+                type: string
+                const: READY_FOR_STUDENT_APP_READ
+              materialType:
+                type: string
+                const: HOMEWORK
+              title:
+                type: string
+                minLength: 1
+                maxLength: 200
+              renderFormat:
+                type: string
+                const: SAFE_TEXT_BLOCKS
+              blocks:
+                type: array
+                minItems: 2
+                maxItems: 9
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [blockId, blockType, title, text]
+                  properties:
+                    blockId:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    blockType:
+                      type: string
+                      enum: [SUMMARY, GUIDANCE_SECTION]
+                    sectionId:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    title:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 1200
+                    sourceBlockRefs:
+                      type: array
+                      minItems: 1
+                      maxItems: 8
+                      items:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+              guidanceSectionsHash:
+                type: string
+                minLength: 1
+                maxLength: 128
+              safetyLabels:
+                type: array
+                minItems: 1
+                maxItems: 8
+                items:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+              createdAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

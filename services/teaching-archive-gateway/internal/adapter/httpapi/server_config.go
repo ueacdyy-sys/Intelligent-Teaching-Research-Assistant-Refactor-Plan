@@ -16,6 +16,7 @@ type ServerConfig struct {
 	ReadStudentAppArchiveItemStudyPacket                  *usecase.ReadStudentAppArchiveItemStudyPacket
 	ReadStudentAppArchiveItemLearningActions              *usecase.ReadStudentAppArchiveItemLearningActions
 	ReadStudentAppAITutorResultArchive                    *usecase.ReadStudentAppAITutorResultArchive
+	RenderStudentAppAITutorResultArchive                  *usecase.RenderStudentAppAITutorResultArchive
 	CreateStudentAppAITutorRequest                        *usecase.CreateStudentAppAITutorRequest
 	ListStudentAppAITutorRequests                         *usecase.ListStudentAppAITutorRequests
 	ListStudentAppQuizSubmissions                         *usecase.ListStudentAppQuizSubmissions

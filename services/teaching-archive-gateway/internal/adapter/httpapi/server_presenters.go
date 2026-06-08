@@ -175,6 +175,33 @@ func toStudentAppAITutorResultArchiveCardResponse(
 	}
 }
 
+func toStudentAppAITutorResultArchiveRenderResponse(
+	rendered domain.StudentAppAITutorResultArchiveRenderEnvelope,
+) studentAppAITutorResultArchiveRenderResponse {
+	blocks := make([]studentAppAITutorResultArchiveRenderBlock, 0, len(rendered.Blocks))
+	for _, block := range rendered.Blocks {
+		blocks = append(blocks, studentAppAITutorResultArchiveRenderBlock{
+			BlockID:         block.BlockID,
+			BlockType:       block.BlockType,
+			SectionID:       block.SectionID,
+			Title:           block.Title,
+			Text:            block.Text,
+			SourceBlockRefs: block.SourceBlockRefs,
+		})
+	}
+	return studentAppAITutorResultArchiveRenderResponse{
+		ArchiveItemID:        rendered.ArchiveItemID,
+		Status:               rendered.Status,
+		MaterialType:         rendered.MaterialType,
+		Title:                rendered.Title,
+		RenderFormat:         rendered.RenderFormat,
+		Blocks:               blocks,
+		GuidanceSectionsHash: rendered.GuidanceSectionsHash,
+		SafetyLabels:         rendered.SafetyLabels,
+		CreatedAt:            formatTime(rendered.CreatedAt),
+	}
+}
+
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
 	return archiveItemAcceptedResponse{
 		archiveItemResponse: toResponse(result.Item),

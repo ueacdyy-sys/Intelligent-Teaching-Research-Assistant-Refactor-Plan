@@ -100,6 +100,94 @@ func TestReadStudentAppAITutorResultArchiveRejectsCrossStudentTeacherAndMethod(t
 	}
 }
 
+func TestRenderStudentAppAITutorResultArchiveReturnsSafeTextBlocks(t *testing.T) {
+	handler := newTestHandlerWithAITutorResultArchive()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered",
+		nil,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"archiveItemId":"tarch_student_ai_tutor_result_001"`),
+		[]byte(`"renderFormat":"SAFE_TEXT_BLOCKS"`),
+		[]byte(`"blockType":"SUMMARY"`),
+		[]byte(`"blockType":"GUIDANCE_SECTION"`),
+		[]byte(`"sectionId":"ai_tutor_answer_section_001"`),
+		[]byte(`"text":"Convert both fractions to the same denominator, then compare the numerators."`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"studentId"`),
+		[]byte(`"contentRef"`),
+		[]byte(`resultRef`),
+		[]byte(`rawModelOutput`),
+		[]byte(`answerKey`),
+		[]byte(`expectedAnswer`),
+		[]byte(`internalError`),
+		[]byte(`workerId`),
+		[]byte(`innerHTML`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestRenderStudentAppAITutorResultArchiveRejectsCrossStudentTeacherAndMethod(t *testing.T) {
+	handler := newTestHandlerWithAITutorResultArchive()
+
+	crossStudent := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_student_ai_tutor_result_other/ai-tutor-result/rendered",
+		nil,
+	)
+	crossStudent.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, crossStudent, studentPrincipal("student_001"))
+	crossStudentResponse := httptest.NewRecorder()
+	handler.ServeHTTP(crossStudentResponse, crossStudent)
+	if crossStudentResponse.Code != http.StatusForbidden {
+		t.Fatalf("cross student status = %d, body = %s", crossStudentResponse.Code, crossStudentResponse.Body.String())
+	}
+
+	teacher := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered",
+		nil,
+	)
+	teacher.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, teacher, teacherPrincipal())
+	teacherResponse := httptest.NewRecorder()
+	handler.ServeHTTP(teacherResponse, teacher)
+	if teacherResponse.Code != http.StatusForbidden {
+		t.Fatalf("teacher status = %d, body = %s", teacherResponse.Code, teacherResponse.Body.String())
+	}
+
+	post := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered",
+		http.NoBody,
+	)
+	post.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, post, studentPrincipal("student_001"))
+	postResponse := httptest.NewRecorder()
+	handler.ServeHTTP(postResponse, post)
+	if postResponse.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("post status = %d, body = %s", postResponse.Code, postResponse.Body.String())
+	}
+}
+
 func newTestHandlerWithAITutorResultArchive() http.Handler {
 	store := &fakeRepository{
 		items: []domain.ArchiveItem{
@@ -111,9 +199,11 @@ func newTestHandlerWithAITutorResultArchive() http.Handler {
 			aiTutorResultArchiveHTTPSnapshot("tarch_student_ai_tutor_result_other", "student_002"),
 		},
 	}
+	readResult := usecase.NewReadStudentAppAITutorResultArchive(store)
 	return httpapi.NewServer(httpapi.ServerConfig{
-		ReadStudentAppAITutorResultArchive: usecase.NewReadStudentAppAITutorResultArchive(store),
-		AgentAPIKey:                        "ueacd",
+		ReadStudentAppAITutorResultArchive:   readResult,
+		RenderStudentAppAITutorResultArchive: usecase.NewRenderStudentAppAITutorResultArchive(readResult),
+		AgentAPIKey:                          "ueacd",
 	}).Handler()
 }
 

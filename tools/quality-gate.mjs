@@ -129,6 +129,7 @@ export function buildQualityCommandPlan() {
     { name: "Student App AI Tutor result student archive storage commit runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-student-archive-storage-commit"] },
     { name: "Student App AI Tutor result student archive row verification runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-student-archive-row-verification"] },
     { name: "Student App AI Tutor result student archive read runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-student-archive-read"] },
+    { name: "Student App AI Tutor result student archive render runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-student-archive-render"] },
     { name: "Student App AI Tutor worker claim runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-worker-claim"] },
     { name: "Student App AI Tutor result runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result"] },
     { name: "Student App AI Tutor question-bank draft generation plan runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-draft-generation-plan"] },

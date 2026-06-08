@@ -227,3 +227,34 @@ func (s *Server) readStudentAppArchiveItemAITutorResultHTTP(
 	}
 	writeJSON(w, http.StatusOK, toStudentAppAITutorResultArchiveCardResponse(card))
 }
+
+func (s *Server) renderStudentAppArchiveItemAITutorResultHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+	archiveItemID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.renderStudentAppAITutorResultArchive == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app ai tutor result archive renderer use case is not configured")
+		return
+	}
+
+	rendered, err := s.renderStudentAppAITutorResultArchive.Execute(
+		r.Context(),
+		domain.ReadStudentAppArchiveItemInput{
+			Principal:     principal,
+			ArchiveItemID: archiveItemID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to render student app ai tutor result archive") {
+		return
+	}
+	writeJSON(w, http.StatusOK, toStudentAppAITutorResultArchiveRenderResponse(rendered))
+}
