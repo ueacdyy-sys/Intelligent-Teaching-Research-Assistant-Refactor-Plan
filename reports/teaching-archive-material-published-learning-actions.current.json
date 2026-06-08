@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-06-08T05:46:19.455Z",
+  "readiness": "READY",
+  "workloadType": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_LEARNING_ACTIONS",
+  "runtime": {
+    "runtimeId": "teaching_archive_material_published_learning_actions",
+    "useCase": "ReadStudentAppArchiveItemLearningActions.Execute",
+    "sourceStudyPacket": "ReadStudentAppArchiveItemStudyPacket.Execute",
+    "actionTarget": "POST /v1/student-app/ai-tutor-requests",
+    "endpoint": "GET /v1/student-app/archive-items/{archiveItemId}/learning-actions",
+    "status": "TEACHING_ARCHIVE_MATERIAL_PUBLISHED_LEARNING_ACTIONS_READY"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_SAFE_LEARNING_ACTIONS_AUDIT"
+  },
+  "safetyInvariants": {
+    "readyStudyPacketRequired": true,
+    "ownStudentOnly": true,
+    "teachingReadRequired": true,
+    "actionTargetRestrictedToStudentAppAiTutorRequests": true,
+    "promptExcluded": true,
+    "previewContentExcluded": true,
+    "studentIdExcluded": true,
+    "contentRefExcluded": true,
+    "rawContentReadAllowed": false,
+    "ocrOrRagReadAllowed": false,
+    "semanticRetrievalAllowed": false,
+    "answerKeyOrModelOutputAllowed": false,
+    "modelInferenceAllowed": false,
+    "aiTutorRequestCreated": false,
+    "questionBankDraftCreated": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0320_study_packet_ready",
+      "passed": true,
+      "actual": "READY:TEACHING_ARCHIVE_MATERIAL_PUBLISHED_STUDY_PACKET_READY",
+      "expected": "0320 study packet report is READY",
+      "remediation": "Regenerate or fix 0320 study packet evidence before exposing learning actions."
+    },
+    {
+      "severity": "info",
+      "id": "go.safe_learning_actions_from_ready_packet",
+      "passed": true,
+      "actual": "BuildStudentAppArchiveItemLearningActions=true;ReadStudentAppArchiveItemLearningActions=true;AuthorizeCreateStudentAppAITutorRequest=true",
+      "expected": "domain and use case expose action affordances only after the READY study packet boundary",
+      "remediation": "Keep learning actions behind Student App own-student and AI tutor request permissions."
+    },
+    {
+      "severity": "info",
+      "id": "http.openapi_safe_learning_actions_endpoint",
+      "passed": true,
+      "actual": "studentId=false;contentRef=false;contentPreview=false;rawContent=false;ragChunks=false;expectedAnswer=false;rawModelOutput=false;workerId=false;prompt=false",
+      "expected": "HTTP/OpenAPI exposes only action affordances and existing AI tutor request target metadata",
+      "remediation": "Remove preview content, ownership internals, storage refs, prompts, RAG, answers, model, worker, and publication fields."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_board_hooks",
+      "passed": true,
+      "actual": "audit:teaching-archive-material-published-learning-actions=true;teachingArchiveMaterialPublishedLearningActions=true;10.99/10=true",
+      "expected": "package, quality gate, root workflow coverage, structure verifier, SDD trace, and architecture board track 0321",
+      "remediation": "Wire this learning-actions affordance through every project evidence hook."
+    }
+  ],
+  "nextAction": "Use this as the Student App study packet learning action affordance; keep actual AI tutor request creation, model/RAG execution, and question-bank generation in later reviewed queues."
+}

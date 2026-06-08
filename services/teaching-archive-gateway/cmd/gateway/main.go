@@ -63,6 +63,7 @@ func main() {
 	readStudentAppArchiveItemContentPreview := usecase.NewReadStudentAppArchiveItemContentPreview(archiveRepository)
 	renderStudentAppArchiveItemContentPreview := usecase.NewRenderStudentAppArchiveItemContentPreview(archiveRepository)
 	readStudentAppArchiveItemStudyPacket := usecase.NewReadStudentAppArchiveItemStudyPacket(archiveRepository)
+	readStudentAppArchiveItemLearningActions := usecase.NewReadStudentAppArchiveItemLearningActions(archiveRepository)
 	listStudentAppQuizSubmissions := usecase.NewListStudentAppQuizSubmissions(archiveRepository)
 	listStudentAppQuestionBankDrafts := usecase.NewListStudentAppQuestionBankDrafts(archiveRepository)
 	readStudentAppQuestionBankDraftContent := usecase.NewReadStudentAppQuestionBankDraftContent(archiveRepository)
@@ -181,6 +182,7 @@ func main() {
 			ReadStudentAppArchiveItemContentPreview:               readStudentAppArchiveItemContentPreview,
 			RenderStudentAppArchiveItemContentPreview:             renderStudentAppArchiveItemContentPreview,
 			ReadStudentAppArchiveItemStudyPacket:                  readStudentAppArchiveItemStudyPacket,
+			ReadStudentAppArchiveItemLearningActions:              readStudentAppArchiveItemLearningActions,
 			ListStudentAppQuizSubmissions:                         listStudentAppQuizSubmissions,
 			ListStudentAppQuestionBankDrafts:                      listStudentAppQuestionBankDrafts,
 			ReadStudentAppQuestionBankDraftContent:                readStudentAppQuestionBankDraftContent,

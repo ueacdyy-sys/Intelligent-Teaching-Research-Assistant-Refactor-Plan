@@ -315,6 +315,98 @@ func TestReadStudentAppArchiveItemStudyPacketRejectsCrossStudentTeacherAndMethod
 	}
 }
 
+func TestReadStudentAppArchiveItemLearningActionsReturnsSafeActionAffordances(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001/learning-actions",
+		nil,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"archiveItemId":"tarch_archive_material_001"`),
+		[]byte(`"packetStatus":"READY"`),
+		[]byte(`"actionType":"AI_TUTOR_REQUEST"`),
+		[]byte(`"state":"AVAILABLE"`),
+		[]byte(`"targetEndpoint":"/v1/student-app/ai-tutor-requests"`),
+		[]byte(`"method":"POST"`),
+		[]byte(`"questionBankIntent":"GENERATE_PERSONALIZED_CHECK"`),
+		[]byte(`"actionType":"PERSONALIZED_QUESTION_BANK"`),
+		[]byte(`"state":"DEFERRED_THROUGH_AI_TUTOR"`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"studentId"`),
+		[]byte(`"contentRef"`),
+		[]byte(`"contentPreview"`),
+		[]byte(`rawContent`),
+		[]byte(`ragChunks`),
+		[]byte(`expectedAnswer`),
+		[]byte(`rawModelOutput`),
+		[]byte(`workerId`),
+		[]byte(`publicationId`),
+		[]byte(`prompt`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestReadStudentAppArchiveItemLearningActionsRejectsCrossStudentTeacherAndMethod(t *testing.T) {
+	handler := newTestHandlerWithPublishedArchiveItemContentPreview()
+
+	crossStudent := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_other/learning-actions",
+		nil,
+	)
+	crossStudent.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, crossStudent, studentPrincipal("student_001"))
+	crossStudentResponse := httptest.NewRecorder()
+	handler.ServeHTTP(crossStudentResponse, crossStudent)
+	if crossStudentResponse.Code != http.StatusNotFound {
+		t.Fatalf("cross student status = %d, body = %s", crossStudentResponse.Code, crossStudentResponse.Body.String())
+	}
+
+	teacher := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_archive_material_001/learning-actions",
+		nil,
+	)
+	teacher.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, teacher, teacherPrincipal())
+	teacherResponse := httptest.NewRecorder()
+	handler.ServeHTTP(teacherResponse, teacher)
+	if teacherResponse.Code != http.StatusForbidden {
+		t.Fatalf("teacher status = %d, body = %s", teacherResponse.Code, teacherResponse.Body.String())
+	}
+
+	post := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/archive-items/tarch_archive_material_001/learning-actions",
+		http.NoBody,
+	)
+	post.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, post, studentPrincipal("student_001"))
+	postResponse := httptest.NewRecorder()
+	handler.ServeHTTP(postResponse, post)
+	if postResponse.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("post status = %d, body = %s", postResponse.Code, postResponse.Body.String())
+	}
+}
+
 func newTestHandlerWithPublishedArchiveItemContentPreview() http.Handler {
 	store := &fakeRepository{
 		items: []domain.ArchiveItem{
@@ -334,6 +426,7 @@ func newTestHandlerWithPublishedArchiveItemContentPreview() http.Handler {
 		ReadStudentAppArchiveItemContentPreview:   usecase.NewReadStudentAppArchiveItemContentPreview(store),
 		RenderStudentAppArchiveItemContentPreview: usecase.NewRenderStudentAppArchiveItemContentPreview(store),
 		ReadStudentAppArchiveItemStudyPacket:      usecase.NewReadStudentAppArchiveItemStudyPacket(store),
+		ReadStudentAppArchiveItemLearningActions:  usecase.NewReadStudentAppArchiveItemLearningActions(store),
 		AgentAPIKey:                               "ueacd",
 	}).Handler()
 }

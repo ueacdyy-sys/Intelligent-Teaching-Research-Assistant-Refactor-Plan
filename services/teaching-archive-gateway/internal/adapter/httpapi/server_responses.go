@@ -94,6 +94,22 @@ type studentAppArchiveItemStudyPacketMetadata struct {
 	CreatedAt       string                  `json:"createdAt"`
 }
 
+type studentAppArchiveItemLearningActionsResponse struct {
+	ArchiveItemID string                                        `json:"archiveItemId"`
+	MaterialType  domain.MaterialType                           `json:"materialType"`
+	PacketStatus  domain.StudentAppArchiveItemStudyPacketStatus `json:"packetStatus"`
+	Actions       []studentAppArchiveItemLearningActionResponse `json:"actions"`
+}
+
+type studentAppArchiveItemLearningActionResponse struct {
+	ActionType           domain.StudentAppArchiveItemLearningActionType  `json:"actionType"`
+	State                domain.StudentAppArchiveItemLearningActionState `json:"state"`
+	TargetEndpoint       string                                          `json:"targetEndpoint"`
+	Method               string                                          `json:"method"`
+	QuestionBankIntent   domain.QuestionBankIntent                       `json:"questionBankIntent,omitempty"`
+	RequiresTutorRequest bool                                            `json:"requiresTutorRequest"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`

@@ -235,6 +235,83 @@ func TestBuildStudentAppArchiveItemStudyPacketRejectsPreviewMetadataMismatch(t *
 	}
 }
 
+func TestBuildStudentAppArchiveItemLearningActionsRequiresReadyStudyPacket(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_archive_material_001",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemInput returned error: %v", err)
+	}
+	packet, err := domain.BuildStudentAppArchiveItemStudyPacket(
+		input,
+		domain.ArchiveItem{
+			ID:              "tarch_archive_material_001",
+			OwnerType:       domain.OwnerTypeStudent,
+			StudentID:       "student_001",
+			MaterialType:    domain.MaterialTypeHandout,
+			Title:           "Fractions practice packet",
+			Source:          domain.SourceSystemImport,
+			Tags:            []string{"fractions"},
+			AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentTutoring},
+			OCRStatus:       domain.OCRStatusNotRequired,
+		},
+		studentAppStudyPacketContentPreviewFixture("tarch_archive_material_001", "student_001"),
+	)
+	if err != nil {
+		t.Fatalf("BuildStudentAppArchiveItemStudyPacket returned error: %v", err)
+	}
+
+	actions, err := domain.BuildStudentAppArchiveItemLearningActions(input, packet)
+	if err != nil {
+		t.Fatalf("BuildStudentAppArchiveItemLearningActions returned error: %v", err)
+	}
+	if actions.ArchiveItemID != "tarch_archive_material_001" ||
+		actions.PacketStatus != domain.StudentAppArchiveItemStudyPacketStatusReady ||
+		len(actions.Actions) != 2 {
+		t.Fatalf("actions = %#v", actions)
+	}
+	first := actions.Actions[0]
+	if first.ActionType != domain.StudentAppArchiveItemLearningActionAITutorRequest ||
+		first.State != domain.StudentAppArchiveItemLearningActionAvailable ||
+		first.TargetEndpoint != "/v1/student-app/ai-tutor-requests" ||
+		first.Method != "POST" ||
+		first.QuestionBankIntent != domain.QuestionBankIntentGeneratePersonalizedCheck {
+		t.Fatalf("first action = %#v", first)
+	}
+	second := actions.Actions[1]
+	if second.ActionType != domain.StudentAppArchiveItemLearningActionPersonalizedQuestionBank ||
+		second.State != domain.StudentAppArchiveItemLearningActionDeferredThroughAITutor ||
+		!second.RequiresTutorRequest {
+		t.Fatalf("second action = %#v", second)
+	}
+}
+
+func TestBuildStudentAppArchiveItemLearningActionsRejectsPacketMismatch(t *testing.T) {
+	input, err := domain.NormalizeReadStudentAppArchiveItemInput(domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_archive_material_001",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemInput returned error: %v", err)
+	}
+	packet := domain.StudentAppArchiveItemStudyPacket{
+		PacketStatus: domain.StudentAppArchiveItemStudyPacketStatusReady,
+		ArchiveItem: domain.ArchiveItem{
+			ID:           "tarch_archive_material_other",
+			OwnerType:    domain.OwnerTypeStudent,
+			StudentID:    "student_001",
+			MaterialType: domain.MaterialTypeHandout,
+			Title:        "Fractions practice packet",
+		},
+	}
+
+	_, err = domain.BuildStudentAppArchiveItemLearningActions(input, packet)
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}
+
 func studentAppStudyPacketContentPreviewFixture(
 	archiveItemID string,
 	studentID string,

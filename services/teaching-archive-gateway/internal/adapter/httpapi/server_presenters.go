@@ -124,6 +124,28 @@ func toStudentAppArchiveItemStudyPacketResponse(
 	}
 }
 
+func toStudentAppArchiveItemLearningActionsResponse(
+	actions domain.StudentAppArchiveItemLearningActions,
+) studentAppArchiveItemLearningActionsResponse {
+	response := studentAppArchiveItemLearningActionsResponse{
+		ArchiveItemID: actions.ArchiveItemID,
+		MaterialType:  actions.MaterialType,
+		PacketStatus:  actions.PacketStatus,
+		Actions:       make([]studentAppArchiveItemLearningActionResponse, 0, len(actions.Actions)),
+	}
+	for _, action := range actions.Actions {
+		response.Actions = append(response.Actions, studentAppArchiveItemLearningActionResponse{
+			ActionType:           action.ActionType,
+			State:                action.State,
+			TargetEndpoint:       action.TargetEndpoint,
+			Method:               action.Method,
+			QuestionBankIntent:   action.QuestionBankIntent,
+			RequiresTutorRequest: action.RequiresTutorRequest,
+		})
+	}
+	return response
+}
+
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
 	return archiveItemAcceptedResponse{
 		archiveItemResponse: toResponse(result.Item),

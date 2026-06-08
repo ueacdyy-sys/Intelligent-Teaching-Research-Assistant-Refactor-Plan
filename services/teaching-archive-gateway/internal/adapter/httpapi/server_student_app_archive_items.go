@@ -165,3 +165,34 @@ func (s *Server) readStudentAppArchiveItemStudyPacketHTTP(
 	}
 	writeJSON(w, http.StatusOK, toStudentAppArchiveItemStudyPacketResponse(packet))
 }
+
+func (s *Server) readStudentAppArchiveItemLearningActionsHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+	archiveItemID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.readStudentAppArchiveItemLearningActions == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app archive item learning actions use case is not configured")
+		return
+	}
+
+	actions, err := s.readStudentAppArchiveItemLearningActions.Execute(
+		r.Context(),
+		domain.ReadStudentAppArchiveItemInput{
+			Principal:     principal,
+			ArchiveItemID: archiveItemID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to read student app archive item learning actions") {
+		return
+	}
+	writeJSON(w, http.StatusOK, toStudentAppArchiveItemLearningActionsResponse(actions))
+}

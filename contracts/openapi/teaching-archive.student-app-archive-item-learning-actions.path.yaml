@@ -1,0 +1,77 @@
+get:
+  operationId: readStudentAppArchiveItemLearningActions
+  summary: Read safe learning action affordances for one Student App study packet.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+        maxLength: 1000
+  responses:
+    '200':
+      description: Safe action affordances for the authenticated student's own READY study packet.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - archiveItemId
+              - materialType
+              - packetStatus
+              - actions
+            properties:
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              materialType:
+                type: string
+                enum: [QUIZ, PAPER, HANDOUT, HOMEWORK]
+              packetStatus:
+                type: string
+                const: READY
+              actions:
+                type: array
+                minItems: 1
+                maxItems: 8
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - actionType
+                    - state
+                    - targetEndpoint
+                    - method
+                    - requiresTutorRequest
+                  properties:
+                    actionType:
+                      type: string
+                      enum: [AI_TUTOR_REQUEST, PERSONALIZED_QUESTION_BANK]
+                    state:
+                      type: string
+                      enum: [AVAILABLE, DEFERRED_THROUGH_AI_TUTOR]
+                    targetEndpoint:
+                      type: string
+                      const: /v1/student-app/ai-tutor-requests
+                    method:
+                      type: string
+                      const: POST
+                    questionBankIntent:
+                      type: string
+                      const: GENERATE_PERSONALIZED_CHECK
+                    requiresTutorRequest:
+                      type: boolean
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

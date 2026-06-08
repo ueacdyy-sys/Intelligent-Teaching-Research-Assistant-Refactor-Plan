@@ -78,6 +78,36 @@ type StudentAppArchiveItemStudyPacket struct {
 	ContentPreview PublishedArchiveMaterialContentPreviewRenderEnvelope
 }
 
+type StudentAppArchiveItemLearningActionType string
+
+const (
+	StudentAppArchiveItemLearningActionAITutorRequest           StudentAppArchiveItemLearningActionType = "AI_TUTOR_REQUEST"
+	StudentAppArchiveItemLearningActionPersonalizedQuestionBank StudentAppArchiveItemLearningActionType = "PERSONALIZED_QUESTION_BANK"
+)
+
+type StudentAppArchiveItemLearningActionState string
+
+const (
+	StudentAppArchiveItemLearningActionAvailable              StudentAppArchiveItemLearningActionState = "AVAILABLE"
+	StudentAppArchiveItemLearningActionDeferredThroughAITutor StudentAppArchiveItemLearningActionState = "DEFERRED_THROUGH_AI_TUTOR"
+)
+
+type StudentAppArchiveItemLearningActions struct {
+	ArchiveItemID string
+	MaterialType  MaterialType
+	PacketStatus  StudentAppArchiveItemStudyPacketStatus
+	Actions       []StudentAppArchiveItemLearningAction
+}
+
+type StudentAppArchiveItemLearningAction struct {
+	ActionType           StudentAppArchiveItemLearningActionType
+	State                StudentAppArchiveItemLearningActionState
+	TargetEndpoint       string
+	Method               string
+	QuestionBankIntent   QuestionBankIntent
+	RequiresTutorRequest bool
+}
+
 func NormalizeReadStudentAppArchiveItemInput(
 	input ReadStudentAppArchiveItemInput,
 ) (NormalizedReadStudentAppArchiveItemInput, error) {
@@ -145,6 +175,52 @@ func BuildStudentAppArchiveItemStudyPacket(
 		PacketStatus:   StudentAppArchiveItemStudyPacketStatusReady,
 		ArchiveItem:    metadata,
 		ContentPreview: rendered,
+	}, nil
+}
+
+func BuildStudentAppArchiveItemLearningActions(
+	input NormalizedReadStudentAppArchiveItemInput,
+	packet StudentAppArchiveItemStudyPacket,
+) (StudentAppArchiveItemLearningActions, error) {
+	if err := AuthorizeCreateStudentAppAITutorRequest(input.Principal); err != nil {
+		return StudentAppArchiveItemLearningActions{}, err
+	}
+	if packet.PacketStatus != StudentAppArchiveItemStudyPacketStatusReady {
+		return StudentAppArchiveItemLearningActions{}, ErrForbidden
+	}
+	metadata, err := BuildStudentAppArchiveItemMetadata(input, packet.ArchiveItem)
+	if err != nil {
+		return StudentAppArchiveItemLearningActions{}, err
+	}
+	if packet.ContentPreview.ArchiveItemID != metadata.ID ||
+		packet.ContentPreview.MaterialType != metadata.MaterialType ||
+		packet.ContentPreview.Title != metadata.Title ||
+		packet.ContentPreview.PreviewStatus != PublishedArchiveMaterialContentPreviewStatusReady ||
+		packet.ContentPreview.RenderFormat != PublishedArchiveMaterialContentPreviewRenderFormatSafeTextBlocks {
+		return StudentAppArchiveItemLearningActions{}, ErrForbidden
+	}
+	return StudentAppArchiveItemLearningActions{
+		ArchiveItemID: metadata.ID,
+		MaterialType:  metadata.MaterialType,
+		PacketStatus:  packet.PacketStatus,
+		Actions: []StudentAppArchiveItemLearningAction{
+			{
+				ActionType:           StudentAppArchiveItemLearningActionAITutorRequest,
+				State:                StudentAppArchiveItemLearningActionAvailable,
+				TargetEndpoint:       "/v1/student-app/ai-tutor-requests",
+				Method:               "POST",
+				QuestionBankIntent:   QuestionBankIntentGeneratePersonalizedCheck,
+				RequiresTutorRequest: true,
+			},
+			{
+				ActionType:           StudentAppArchiveItemLearningActionPersonalizedQuestionBank,
+				State:                StudentAppArchiveItemLearningActionDeferredThroughAITutor,
+				TargetEndpoint:       "/v1/student-app/ai-tutor-requests",
+				Method:               "POST",
+				QuestionBankIntent:   QuestionBankIntentGeneratePersonalizedCheck,
+				RequiresTutorRequest: true,
+			},
+		},
 	}, nil
 }
 

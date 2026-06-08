@@ -53,6 +53,19 @@ func parseStudentAppArchiveItemStudyPacketPath(path string) (string, bool) {
 	return archiveItemID, true
 }
 
+func parseStudentAppArchiveItemLearningActionsPath(path string) (string, bool) {
+	const prefix = "/v1/student-app/archive-items/"
+	const suffix = "/learning-actions"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	archiveItemID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if archiveItemID == "" || strings.Contains(archiveItemID, "/") {
+		return "", false
+	}
+	return archiveItemID, true
+}
+
 func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/archive-items/"
 	const suffix = "/tutoring-analysis-requests"
