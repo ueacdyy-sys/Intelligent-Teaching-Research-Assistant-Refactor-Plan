@@ -50,3 +50,34 @@ func TestNormalizeListStudentAppAITutorRequestsRejectsNonStudentAppPrincipals(t 
 		})
 	}
 }
+
+func TestNormalizeReadStudentAppAITutorRequestProgressScopesOwnRequest(t *testing.T) {
+	query, err := domain.NormalizeReadStudentAppAITutorRequestProgressInput(
+		domain.ReadStudentAppAITutorRequestProgressInput{
+			Principal: studentPrincipal("student_001"),
+			RequestID: " tutor_req_progress_detail ",
+		},
+	)
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppAITutorRequestProgressInput returned error: %v", err)
+	}
+	if query.ID != "tutor_req_progress_detail" ||
+		query.SourceArchiveOwnerType != domain.OwnerTypeStudent ||
+		query.StudentID != "student_001" ||
+		query.PageSize != 1 ||
+		query.FetchLimit != 1 {
+		t.Fatalf("query = %#v", query)
+	}
+}
+
+func TestNormalizeReadStudentAppAITutorRequestProgressRejectsUnsafeRequestID(t *testing.T) {
+	_, err := domain.NormalizeReadStudentAppAITutorRequestProgressInput(
+		domain.ReadStudentAppAITutorRequestProgressInput{
+			Principal: studentPrincipal("student_001"),
+			RequestID: "grading_req_wrong",
+		},
+	)
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}

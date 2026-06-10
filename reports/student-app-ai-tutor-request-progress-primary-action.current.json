@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-06-10T09:21:48.216Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PRIMARY_ACTION",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_primary_action",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_detail"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PRIMARY_ACTION_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 4,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PRIMARY_ACTION_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressPrimaryAction": {
+      "status": "PASS",
+      "resultReadyAction": "GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered",
+      "questionBankReadyAction": "GET /v1/student-app/question-bank-draft-content",
+      "waitingEndpointPresent": false,
+      "teacherReviewEndpointPresent": false,
+      "forbiddenLeaks": [],
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 4,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PRIMARY_ACTION_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0355ProgressDetailRequired": true,
+    "serverDrivenActionRequired": true,
+    "studentAppInternalFieldExposureAllowed": false,
+    "directDatabaseAccessFromJavaScriptAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0355_progress_detail_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_DETAIL_VERIFIED:0",
+      "expected": "READY 0355 progress detail evidence with zero errors",
+      "remediation": "Run or fix 0355 before claiming Student App progress primary actions."
+    },
+    {
+      "severity": "info",
+      "id": "domain_builds_server_driven_primary_action",
+      "passed": true,
+      "actual": "StudentAppAITutorRequestProgressAction=true;buildStudentAppAITutorRequestProgressPrimaryAction=true;NormalizeQuestionBankDraftRef=true",
+      "expected": "domain progress card owns result/archive/question-bank/waiting/teacher-review primary action construction",
+      "remediation": "Build the primary action in the domain progress card instead of deriving it in the HTTP adapter."
+    },
+    {
+      "severity": "info",
+      "id": "http_and_openapi_expose_safe_primary_action",
+      "passed": true,
+      "actual": "primaryAction=true;StudentAppAITutorRequestProgressAction=true;resultRef=false;claimedByWorkerId=false;errorMessage=false",
+      "expected": "HTTP response, presenter, and OpenAPI expose primaryAction without internal Student App leaks",
+      "remediation": "Expose only the safe server-driven action contract on Student App progress responses."
+    },
+    {
+      "severity": "info",
+      "id": "tests_cover_available_question_bank_and_review_actions",
+      "passed": true,
+      "actual": "BuildsQuestionBankAction=true;UsesSafeFailureMessage=true;\"primaryAction\"=true;resultRef=true",
+      "expected": "Go tests prove primary actions and forbidden leak prevention",
+      "remediation": "Add domain and HTTP regression tests for every primary action state."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0356",
+      "passed": true,
+      "actual": "request-progress-primary-action=true;studentAppAiTutorRequestProgressPrimaryAction=true;12.04/10=true;SDD 0356=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0356",
+      "remediation": "Wire 0356 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use this as the Student App server-driven AI Tutor progress action contract and continue the whole-system refactor on the next root-requirement slice."
+}

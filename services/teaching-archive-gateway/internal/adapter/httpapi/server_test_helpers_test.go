@@ -453,6 +453,9 @@ func (f *fakeRepository) ListTutoringAnalysisRequests(
 ) ([]domain.TutoringAnalysisRequest, error) {
 	requests := make([]domain.TutoringAnalysisRequest, 0, len(f.requests))
 	for _, request := range f.requests {
+		if query.ID != "" && request.ID != query.ID {
+			continue
+		}
 		if query.Status != "" && request.Status != query.Status {
 			continue
 		}

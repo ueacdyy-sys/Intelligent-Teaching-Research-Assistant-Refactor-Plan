@@ -205,11 +205,22 @@ type studentAppAITutorRequestProgressResponse struct {
 	SourceArchiveMaterial domain.MaterialType                              `json:"sourceArchiveMaterial"`
 	ProgressStage         domain.StudentAppAITutorProgressStage            `json:"progressStage"`
 	NextStudentAction     domain.StudentAppAITutorNextAction               `json:"nextStudentAction"`
+	PrimaryAction         studentAppAITutorRequestProgressActionResponse   `json:"primaryAction"`
 	SafeStatusMessage     string                                           `json:"safeStatusMessage"`
 	Timeline              []studentAppAITutorRequestProgressStepResponse   `json:"timeline"`
 	CreatedAt             string                                           `json:"createdAt"`
 	CompletedAt           *string                                          `json:"completedAt,omitempty"`
 	UpdatedAt             string                                           `json:"updatedAt"`
+}
+
+type studentAppAITutorRequestProgressActionResponse struct {
+	ActionType           domain.StudentAppAITutorNextAction          `json:"actionType"`
+	State                domain.StudentAppAITutorProgressActionState `json:"state"`
+	TargetEndpoint       string                                      `json:"targetEndpoint,omitempty"`
+	TargetURL            string                                      `json:"targetUrl,omitempty"`
+	Method               string                                      `json:"method,omitempty"`
+	ArchiveItemID        string                                      `json:"archiveItemId,omitempty"`
+	QuestionBankDraftRef string                                      `json:"questionBankDraftRef,omitempty"`
 }
 
 type studentAppAITutorRequestProgressStepResponse struct {

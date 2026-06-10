@@ -617,11 +617,20 @@ func toStudentAppAITutorRequestProgressResponse(
 		SourceArchiveMaterial: card.SourceArchiveMaterial,
 		ProgressStage:         card.ProgressStage,
 		NextStudentAction:     card.NextStudentAction,
-		SafeStatusMessage:     card.SafeStatusMessage,
-		Timeline:              timeline,
-		CreatedAt:             formatTime(card.CreatedAt),
-		CompletedAt:           optionalTime(card.CompletedAt),
-		UpdatedAt:             formatTime(card.UpdatedAt),
+		PrimaryAction: studentAppAITutorRequestProgressActionResponse{
+			ActionType:           card.PrimaryAction.ActionType,
+			State:                card.PrimaryAction.State,
+			TargetEndpoint:       card.PrimaryAction.TargetEndpoint,
+			TargetURL:            card.PrimaryAction.TargetURL,
+			Method:               card.PrimaryAction.Method,
+			ArchiveItemID:        card.PrimaryAction.ArchiveItemID,
+			QuestionBankDraftRef: card.PrimaryAction.QuestionBankDraftRef,
+		},
+		SafeStatusMessage: card.SafeStatusMessage,
+		Timeline:          timeline,
+		CreatedAt:         formatTime(card.CreatedAt),
+		CompletedAt:       optionalTime(card.CompletedAt),
+		UpdatedAt:         formatTime(card.UpdatedAt),
 	}
 }
 

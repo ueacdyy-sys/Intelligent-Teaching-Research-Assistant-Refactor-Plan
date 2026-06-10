@@ -711,15 +711,15 @@
       <div>
         <h1>智能教研助手重构架构板</h1>
         <p class="subtitle">
-          目标架构：平台化模块单体优先，Agent Harness 统一管控 Agent、Skills、审批、证据链和回滚边界。当前 11.98/10 已补齐 0354 学生端 AI Tutor 请求进度卡：移动端列表只展示 progressStage、nextStudentAction、安全状态文案和四步 timeline，不再暴露 resultRef、workerId、内部错误或学生内部字段。性能证据沿用 production10k：22,435.1 RPS、P99 44.44ms、0 errors；OCR/RAG、多模型融合和 AI 批改联动继续后置。
+          目标架构：平台化模块单体优先，Agent Harness 统一管控 Agent、Skills、审批、证据链和回滚边界。当前 12.07/10 已补齐 0357 学生端 AI Tutor 请求进度直达 URL：移动端列表和单请求详情都能直接消费 primaryAction.targetUrl，结果就绪指向安全渲染结果，题库就绪指向带编码草稿引用的本人题库草稿内容，等待和教师复核状态不暴露 URL/endpoint/method。性能证据沿用 production10k：22,435.1 RPS、P99 44.44ms、0 errors；OCR/RAG、多模型融合和 AI 批改联动继续后置。
         </p>
       </div>
       <div class="top-meta" aria-label="Architecture summary">
         <div class="metric"><strong>目标形态</strong><span>工作台 + 子系统 + 平台能力</span></div>
         <div class="metric"><strong>语言策略</strong><span>TS/Python 保留，Go/Rust 按边界引入</span></div>
-        <div class="metric"><strong>重构进度</strong><span>约 11.98/10；学生端进度卡已补齐。</span></div>
+        <div class="metric"><strong>重构进度</strong><span>约 12.07/10；学生端进度直达 URL 已补齐。</span></div>
         <div class="metric"><strong>当前证据</strong><span>10k/50ms 支持；10ms 仍是优秀目标</span></div>
-        <div class="metric"><strong>本轮切片</strong><span>0354 请求进度 timeline；P99 5ms，0 errors。</span></div>
+        <div class="metric"><strong>本轮切片</strong><span>0357 请求进度直达 URL；P99 5ms，0 errors。</span></div>
       </div>
     </header>
 
@@ -1339,7 +1339,10 @@
       <div class="callout">
         11.92/10 补充：SDD 0352 student app ai tutor result archive follow-up queue idempotency guard 已新增。它消费 READY 0351 depth budget 证据，让同一学生、同一 archived AI Tutor result、同一 questionBankIntent、同一 followUpDepth 的 pending 追问复用已有 tutoring request，避免移动端重试、连点或弱网重复提交造成 queued write amplification；终态 SUCCEEDED/FAILED 不再阻塞后续学生动作。Go 侧 CreateStudentAppAITutorRequest.Execute 会在写入前通过 FindPendingStudentAppAITutorResultArchiveFollowUpRequest 查重，写入失败后再查询一次以覆盖并发竞争；PostgreSQL 增加 pending result-archive follow-up partial unique index 作为最后防线。该切片不新增端点、不扩大模型/RAG/OCR/Swarm 范围，性能证据为 5ms contract probe + 既有 production10k 基线。
         11.95/10 补充：SDD 0353 student app ai tutor result archive follow-up lineage guard 已新增。它消费 READY 0352 queue idempotency 证据，让 teaching_ai_tutor_result_archive_snapshots 必须保存 source_archive_item_id 与内部 source_tutoring_analysis_request_id；ReadStudentAppAITutorResultArchive、RenderStudentAppAITutorResultArchive、ReadStudentAppAITutorResultArchiveLearningActions 和 worker-only AI Tutor input 全链路保留谱系，缺失谱系或 self lineage 直接拒绝。学生端只暴露安全 sourceArchiveItemId，不暴露 sourceTutoringRequestId；worker-only 输入暴露 resultArchiveSourceItemId，支撑后续模型预检和归档回写继续沿父子链路推进。runtimeId=student_app_ai_tutor_result_archive_follow_up_lineage_guard，status=STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_LINEAGE_GUARD_VERIFIED，性能证据为 5ms contract probe + 既有 production10k 基线。
-        11.98/10 补充：SDD 0354 student app ai tutor request progress timeline 已新增。它消费 READY 0353 lineage guard 证据，将 GET /v1/student-app/ai-tutor-requests 从通用 tutoring request response 改为 StudentAppAITutorRequestProgressListResponse；domain 统一映射 QUEUED/IN_PROGRESS/SUCCEEDED/FAILED 到安全 progressStage、nextStudentAction、safeStatusMessage 和四步 timeline，学生端不再暴露 requestedByPrincipalId、sourceArchiveStudentId、resultRef、claimedByWorkerId、errorMessage。runtimeId=student_app_ai_tutor_request_progress_timeline，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TIMELINE_VERIFIED，性能证据为 5ms contract probe + 既有 production10k 基线。
+        0354 进度时间线历史证据保持为 11.98/10；12.01/10 补充：SDD 0355 student app ai tutor request progress detail 已新增。它消费 READY 0354 progress timeline 证据，为 GET /v1/student-app/ai-tutor-requests/{requestId} 增加单请求安全进度详情；domain 按 Student App principal、sourceArchiveOwnerType=STUDENT、本人 studentId 和规范化 requestId 先行收敛，再复用 StudentAppAITutorRequestProgressResponse，跨学生请求隐藏为 NOT_FOUND。学生端仍不暴露 requestedByPrincipalId、sourceArchiveStudentId、resultRef、claimedByWorkerId、errorMessage 或内部 lineage id。runtimeId=student_app_ai_tutor_request_progress_detail，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_DETAIL_VERIFIED，性能证据为 5ms contract probe + 既有 production10k 基线。
+        12.04/10 补充：SDD 0356 student app ai tutor request progress primary action 已新增。它消费 READY 0355 progress detail 证据，为 StudentAppAITutorRequestProgressResponse 增加 server-driven primaryAction：RESULT_READY 指向 GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered，QUESTION_BANK_READY 指向 GET /v1/student-app/question-bank-draft-content 并携带规范化 questionBankDraftRef，WAIT/NEEDS_TEACHER_REVIEW 不暴露 endpoint/method。runtimeId=student_app_ai_tutor_request_progress_primary_action，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PRIMARY_ACTION_VERIFIED，性能证据为 5ms contract probe + 既有 production10k 基线。
+        <br><br>
+        12.07/10 补充：SDD 0357 student app ai tutor request progress target url 已新增。它消费 READY 0356 primary action 证据，为 StudentAppAITutorRequestProgressResponse.primaryAction 增加 server-generated targetUrl：RESULT_READY 的 targetUrl 等于渲染结果归档 endpoint，QUESTION_BANK_READY 的 targetUrl 为 /v1/student-app/question-bank-draft-content?questionBankDraftRef={encodedRef}，WAIT/NEEDS_TEACHER_REVIEW 不暴露 URL/endpoint/method。runtimeId=student_app_ai_tutor_request_progress_target_url，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TARGET_URL_VERIFIED，性能证据为 5ms contract probe + 既有 production10k 基线。
       </div>
 
       <div style="height: 12px"></div>
@@ -1931,7 +1934,7 @@
       <div style="height: 12px"></div>
 
       <div class="callout">
-        本轮已落地 Agent 契约门禁和 Student App AI Tutor 11.98/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck、controlled scoring artifact，到结果归档追问 queue/worker 连续性、0351 followUpDepth 深度预算守卫、0352 pending follow-up 队列幂等守卫、0353 follow-up lineage guard 和 0354 request progress timeline 均有审计入口。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
+        本轮已落地 Agent 契约门禁和 Student App AI Tutor 12.07/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck、controlled scoring artifact，到结果归档追问 queue/worker 连续性、0351 followUpDepth 深度预算守卫、0352 pending follow-up 队列幂等守卫、0353 follow-up lineage guard、0354 request progress timeline、0355 request progress detail、0356 request progress primary action 和 0357 request progress target url 均有审计入口。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
       </div>
       <div class="callout">
         8.4/10 到 9.1/10 历史里程碑保留：8.4/10 是 ResearchAgent.deep_research approved retrieval planning，只记录目录索引优先、引用和 sourceHash 必填的检索计划，不执行检索；8.5/10 是 approved retrieval execution，通过注入 DeepResearchRetrievalReadPort.retrieveApprovedSources 返回 cited source evidence，不做 RAG 综合；8.6/10 是 approved reasoning/synthesis draft，通过注入 DeepResearchReasoningPort.composeEvidenceGroundedDraft 生成证据约束草稿，不发布最终答案；8.7/10 是 final-answer review gate，只记录人审结论；8.8/10 是 finalization runtime，封存 FINALIZED_NOT_PUBLISHED artifact envelope；8.9/10 是 render preview runtime，生成教师可审阅 SAFE_TEXT_BLOCKS 预览；9.0/10 是 publication precheck runtime，只记录发布前审查；9.1/10 是 teacher delivery runtime，生成教师科研工作区证据交付包。这些里程碑仍然不代表真正多模型融合、公开发布、学生档案主库写入或完整 AI Tutor worker 已完成。

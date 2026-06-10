@@ -1,0 +1,29 @@
+get:
+  operationId: readStudentAppAITutorRequestProgress
+  summary: Read one AI tutor request progress card for the authenticated student's own archive materials.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+  responses:
+    '200':
+      description: Safe AI tutor request progress visible to the Student App.
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.student-app-ai-tutor-request-progress.schema.yaml#/StudentAppAITutorRequestProgressResponse'
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

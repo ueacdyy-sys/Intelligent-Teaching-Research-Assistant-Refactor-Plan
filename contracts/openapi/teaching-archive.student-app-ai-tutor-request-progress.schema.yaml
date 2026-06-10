@@ -26,6 +26,7 @@ StudentAppAITutorRequestProgressResponse:
     - sourceArchiveMaterial
     - progressStage
     - nextStudentAction
+    - primaryAction
     - safeStatusMessage
     - timeline
     - createdAt
@@ -59,6 +60,8 @@ StudentAppAITutorRequestProgressResponse:
     nextStudentAction:
       type: string
       enum: [WAIT_FOR_AI_TUTOR, WAIT_FOR_REVIEWED_RESULT, VIEW_AI_TUTOR_RESULT_ARCHIVE, OPEN_QUESTION_BANK_DRAFT, ASK_TEACHER]
+    primaryAction:
+      $ref: '#/StudentAppAITutorRequestProgressAction'
     safeStatusMessage:
       type: string
       minLength: 1
@@ -77,6 +80,35 @@ StudentAppAITutorRequestProgressResponse:
     updatedAt:
       type: string
       format: date-time
+
+StudentAppAITutorRequestProgressAction:
+  type: object
+  additionalProperties: false
+  required:
+    - actionType
+    - state
+  properties:
+    actionType:
+      type: string
+      enum: [WAIT_FOR_AI_TUTOR, WAIT_FOR_REVIEWED_RESULT, VIEW_AI_TUTOR_RESULT_ARCHIVE, OPEN_QUESTION_BANK_DRAFT, ASK_TEACHER]
+    state:
+      type: string
+      enum: [AVAILABLE, WAITING, NEEDS_TEACHER_REVIEW]
+    targetEndpoint:
+      type: string
+      pattern: '^/v1/student-app/(archive-items/tarch_[A-Za-z0-9_-]+/ai-tutor-result/rendered|question-bank-draft-content)$'
+    targetUrl:
+      type: string
+      pattern: '^/v1/student-app/(archive-items/tarch_[A-Za-z0-9_-]+/ai-tutor-result/rendered|question-bank-draft-content\?questionBankDraftRef=local%3A%2F%2Fquestion-bank-drafts%2Ftutor_req_[A-Za-z0-9_-]+\.json)$'
+    method:
+      type: string
+      enum: [GET]
+    archiveItemId:
+      type: string
+      pattern: '^tarch_[A-Za-z0-9_-]+$'
+    questionBankDraftRef:
+      type: string
+      pattern: '^local://question-bank-drafts/tutor_req_[A-Za-z0-9_-]+\\.json$'
 
 StudentAppAITutorRequestProgressTimelineStep:
   type: object

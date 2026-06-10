@@ -89,6 +89,7 @@ func main() {
 		platform.Clock{},
 	)
 	listStudentAppAITutorRequests := usecase.NewListStudentAppAITutorRequests(archiveRepository)
+	readStudentAppAITutorRequestProgress := usecase.NewReadStudentAppAITutorRequestProgress(archiveRepository)
 	createQuizSubmission := usecase.NewCreateQuizSubmission(
 		quizSubmissionRepository,
 		platform.QuizSubmissionIDGenerator{},
@@ -201,6 +202,7 @@ func main() {
 			ReadStudentAppQuestionBankDraftAnswerScoringResult:    readStudentAppQuestionBankDraftAnswerScoringResult,
 			CreateStudentAppAITutorRequest:                        createStudentAppAITutorRequest,
 			ListStudentAppAITutorRequests:                         listStudentAppAITutorRequests,
+			ReadStudentAppAITutorRequestProgress:                  readStudentAppAITutorRequestProgress,
 			CreateAIGradingRequest:                                createAIGradingRequest,
 			CreateQuizSubmissionAIGrading:                         createQuizSubmissionAIGradingRequest,
 			ListAIGradingRequests:                                 listAIGradingRequests,

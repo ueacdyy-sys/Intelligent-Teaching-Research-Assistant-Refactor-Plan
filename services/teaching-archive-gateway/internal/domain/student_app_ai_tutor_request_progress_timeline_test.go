@@ -30,6 +30,14 @@ func TestBuildStudentAppAITutorRequestProgressCardPreservesSafeFollowUpProgress(
 	if card.NextStudentAction != domain.StudentAppAITutorNextActionViewResultArchive {
 		t.Fatalf("NextStudentAction = %q", card.NextStudentAction)
 	}
+	if card.PrimaryAction.ActionType != domain.StudentAppAITutorNextActionViewResultArchive ||
+		card.PrimaryAction.State != domain.StudentAppAITutorProgressActionAvailable ||
+		card.PrimaryAction.Method != "GET" ||
+		card.PrimaryAction.ArchiveItemID != "tarch_student_ai_tutor_result_001" ||
+		card.PrimaryAction.TargetEndpoint != "/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered" ||
+		card.PrimaryAction.TargetURL != "/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered" {
+		t.Fatalf("PrimaryAction = %#v", card.PrimaryAction)
+	}
 	if card.LearningActionSource != domain.StudentAppAITutorLearningActionSourceResultArchive {
 		t.Fatalf("LearningActionSource = %q", card.LearningActionSource)
 	}
@@ -71,6 +79,36 @@ func TestBuildStudentAppAITutorRequestProgressCardUsesSafeFailureMessage(t *test
 	if strings.Contains(card.SafeStatusMessage, request.ErrorCode) ||
 		strings.Contains(card.SafeStatusMessage, request.ErrorMessage) {
 		t.Fatalf("failure message leaked internal error: %q", card.SafeStatusMessage)
+	}
+	if card.PrimaryAction.State != domain.StudentAppAITutorProgressActionNeedsTeacherReview ||
+		card.PrimaryAction.TargetEndpoint != "" ||
+		card.PrimaryAction.TargetURL != "" ||
+		card.PrimaryAction.Method != "" {
+		t.Fatalf("PrimaryAction = %#v", card.PrimaryAction)
+	}
+}
+
+func TestBuildStudentAppAITutorRequestProgressCardBuildsQuestionBankAction(t *testing.T) {
+	request := studentAppAITutorProgressRequest(domain.TutoringAnalysisStatusSucceeded)
+	request.QuestionBankDraftRef = " local://question-bank-drafts/tutor_req_progress_001.json "
+	request.CompletedAt = time.Date(2026, 6, 10, 10, 4, 0, 0, time.UTC)
+	request.UpdatedAt = request.CompletedAt
+
+	card, err := domain.BuildStudentAppAITutorRequestProgressCard(request)
+	if err != nil {
+		t.Fatalf("BuildStudentAppAITutorRequestProgressCard returned error: %v", err)
+	}
+
+	if card.ProgressStage != domain.StudentAppAITutorProgressStageQuestionBankReady {
+		t.Fatalf("ProgressStage = %q", card.ProgressStage)
+	}
+	if card.PrimaryAction.ActionType != domain.StudentAppAITutorNextActionOpenQuestionBankDraft ||
+		card.PrimaryAction.State != domain.StudentAppAITutorProgressActionAvailable ||
+		card.PrimaryAction.Method != "GET" ||
+		card.PrimaryAction.TargetEndpoint != "/v1/student-app/question-bank-draft-content" ||
+		card.PrimaryAction.TargetURL != "/v1/student-app/question-bank-draft-content?questionBankDraftRef=local%3A%2F%2Fquestion-bank-drafts%2Ftutor_req_progress_001.json" ||
+		card.PrimaryAction.QuestionBankDraftRef != "local://question-bank-drafts/tutor_req_progress_001.json" {
+		t.Fatalf("PrimaryAction = %#v", card.PrimaryAction)
 	}
 }
 

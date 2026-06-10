@@ -309,6 +309,9 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 	args := make([]any, 0, 8)
 	clauses := []string{"TRUE"}
 
+	if query.ID != "" {
+		clauses = append(clauses, "id = "+nextArg(&args, query.ID))
+	}
 	if query.Status != "" {
 		clauses = append(clauses, "status = "+nextArg(&args, string(query.Status)))
 	}

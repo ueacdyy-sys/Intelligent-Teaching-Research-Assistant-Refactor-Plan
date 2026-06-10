@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"net/url"
+	"time"
+)
 
 type StudentAppAITutorProgressStage string
 
@@ -31,6 +34,14 @@ const (
 	StudentAppAITutorProgressStepBlocked   StudentAppAITutorProgressStepStatus = "BLOCKED"
 )
 
+type StudentAppAITutorProgressActionState string
+
+const (
+	StudentAppAITutorProgressActionAvailable          StudentAppAITutorProgressActionState = "AVAILABLE"
+	StudentAppAITutorProgressActionWaiting            StudentAppAITutorProgressActionState = "WAITING"
+	StudentAppAITutorProgressActionNeedsTeacherReview StudentAppAITutorProgressActionState = "NEEDS_TEACHER_REVIEW"
+)
+
 type StudentAppAITutorRequestProgressCard struct {
 	ID                    string
 	ArchiveItemID         string
@@ -42,6 +53,7 @@ type StudentAppAITutorRequestProgressCard struct {
 	SourceArchiveMaterial MaterialType
 	ProgressStage         StudentAppAITutorProgressStage
 	NextStudentAction     StudentAppAITutorNextAction
+	PrimaryAction         StudentAppAITutorRequestProgressAction
 	SafeStatusMessage     string
 	Timeline              []StudentAppAITutorRequestProgressTimelineStep
 	CreatedAt             time.Time
@@ -54,6 +66,16 @@ type StudentAppAITutorRequestProgressTimelineStep struct {
 	Title       string
 	Status      StudentAppAITutorProgressStepStatus
 	CompletedAt time.Time
+}
+
+type StudentAppAITutorRequestProgressAction struct {
+	ActionType           StudentAppAITutorNextAction
+	State                StudentAppAITutorProgressActionState
+	TargetEndpoint       string
+	TargetURL            string
+	Method               string
+	ArchiveItemID        string
+	QuestionBankDraftRef string
 }
 
 func BuildStudentAppAITutorRequestProgressCard(
@@ -100,6 +122,10 @@ func BuildStudentAppAITutorRequestProgressCard(
 	}
 
 	stage, nextAction, message := resolveStudentAppAITutorProgressState(request)
+	primaryAction, err := buildStudentAppAITutorRequestProgressPrimaryAction(request, archiveItemID, nextAction)
+	if err != nil {
+		return StudentAppAITutorRequestProgressCard{}, err
+	}
 	return StudentAppAITutorRequestProgressCard{
 		ID:                    id,
 		ArchiveItemID:         archiveItemID,
@@ -111,12 +137,54 @@ func BuildStudentAppAITutorRequestProgressCard(
 		SourceArchiveMaterial: request.SourceArchiveMaterial,
 		ProgressStage:         stage,
 		NextStudentAction:     nextAction,
+		PrimaryAction:         primaryAction,
 		SafeStatusMessage:     message,
 		Timeline:              buildStudentAppAITutorProgressTimeline(request),
 		CreatedAt:             request.CreatedAt.UTC(),
 		CompletedAt:           request.CompletedAt.UTC(),
 		UpdatedAt:             request.UpdatedAt.UTC(),
 	}, nil
+}
+
+func buildStudentAppAITutorRequestProgressPrimaryAction(
+	request TutoringAnalysisRequest,
+	archiveItemID string,
+	nextAction StudentAppAITutorNextAction,
+) (StudentAppAITutorRequestProgressAction, error) {
+	switch nextAction {
+	case StudentAppAITutorNextActionViewResultArchive:
+		return StudentAppAITutorRequestProgressAction{
+			ActionType:     nextAction,
+			State:          StudentAppAITutorProgressActionAvailable,
+			TargetEndpoint: "/v1/student-app/archive-items/" + archiveItemID + "/ai-tutor-result/rendered",
+			TargetURL:      "/v1/student-app/archive-items/" + archiveItemID + "/ai-tutor-result/rendered",
+			Method:         "GET",
+			ArchiveItemID:  archiveItemID,
+		}, nil
+	case StudentAppAITutorNextActionOpenQuestionBankDraft:
+		draftRef, err := NormalizeQuestionBankDraftRef(request.QuestionBankDraftRef)
+		if err != nil {
+			return StudentAppAITutorRequestProgressAction{}, err
+		}
+		return StudentAppAITutorRequestProgressAction{
+			ActionType:           nextAction,
+			State:                StudentAppAITutorProgressActionAvailable,
+			TargetEndpoint:       "/v1/student-app/question-bank-draft-content",
+			TargetURL:            "/v1/student-app/question-bank-draft-content?questionBankDraftRef=" + url.QueryEscape(draftRef),
+			Method:               "GET",
+			QuestionBankDraftRef: draftRef,
+		}, nil
+	case StudentAppAITutorNextActionAskTeacher:
+		return StudentAppAITutorRequestProgressAction{
+			ActionType: nextAction,
+			State:      StudentAppAITutorProgressActionNeedsTeacherReview,
+		}, nil
+	default:
+		return StudentAppAITutorRequestProgressAction{
+			ActionType: nextAction,
+			State:      StudentAppAITutorProgressActionWaiting,
+		}, nil
+	}
 }
 
 func resolveStudentAppAITutorProgressState(

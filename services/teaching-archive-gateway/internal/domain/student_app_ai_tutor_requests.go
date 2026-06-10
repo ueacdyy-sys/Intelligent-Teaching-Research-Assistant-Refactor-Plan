@@ -7,6 +7,11 @@ type ListStudentAppAITutorRequestsInput struct {
 	Cursor    string
 }
 
+type ReadStudentAppAITutorRequestProgressInput struct {
+	Principal PrincipalContext
+	RequestID string
+}
+
 func NormalizeListStudentAppAITutorRequestsInput(
 	input ListStudentAppAITutorRequestsInput,
 ) (TutoringAnalysisRequestQuery, error) {
@@ -21,6 +26,30 @@ func NormalizeListStudentAppAITutorRequestsInput(
 		PageSize:               input.PageSize,
 		Cursor:                 input.Cursor,
 	})
+}
+
+func NormalizeReadStudentAppAITutorRequestProgressInput(
+	input ReadStudentAppAITutorRequestProgressInput,
+) (TutoringAnalysisRequestQuery, error) {
+	if err := AuthorizeListStudentAppAITutorRequests(input.Principal); err != nil {
+		return TutoringAnalysisRequestQuery{}, err
+	}
+	requestID, err := NormalizeTutoringAnalysisRequestID(input.RequestID)
+	if err != nil {
+		return TutoringAnalysisRequestQuery{}, err
+	}
+	query, err := NormalizeListTutoringAnalysisRequestsInput(ListTutoringAnalysisRequestsInput{
+		Principal:              input.Principal,
+		SourceArchiveOwnerType: OwnerTypeStudent,
+		StudentID:              primaryOwnStudentID(input.Principal),
+		PageSize:               1,
+	})
+	if err != nil {
+		return TutoringAnalysisRequestQuery{}, err
+	}
+	query.ID = requestID
+	query.FetchLimit = 1
+	return query, nil
 }
 
 func AuthorizeListStudentAppAITutorRequests(principal PrincipalContext) error {

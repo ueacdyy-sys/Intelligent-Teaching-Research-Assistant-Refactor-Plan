@@ -105,6 +105,18 @@ func parseStudentAppArchiveItemAITutorResultLearningActionsPath(path string) (st
 	return archiveItemID, true
 }
 
+func parseStudentAppAITutorRequestProgressPath(path string) (string, bool) {
+	const prefix = "/v1/student-app/ai-tutor-requests/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", false
+	}
+	requestID := strings.TrimPrefix(path, prefix)
+	if requestID == "" || strings.Contains(requestID, "/") {
+		return "", false
+	}
+	return requestID, true
+}
+
 func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/archive-items/"
 	const suffix = "/tutoring-analysis-requests"

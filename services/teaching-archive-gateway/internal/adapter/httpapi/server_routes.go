@@ -19,6 +19,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/student-app/question-bank-draft-answer-submissions", s.studentAppQuestionBankDraftAnswerSubmissions)
 	mux.HandleFunc("/v1/student-app/question-bank-draft-answer-submissions/", s.studentAppQuestionBankDraftAnswerSubmissionSubresources)
 	mux.HandleFunc("/v1/student-app/ai-tutor-requests", s.studentAppAITutorRequests)
+	mux.HandleFunc("/v1/student-app/ai-tutor-requests/", s.studentAppAITutorRequestSubresources)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests", s.aiGradingRequests)
 	mux.HandleFunc("/v1/teaching/ai-grading-requests/", s.aiGradingRequestSubresources)
 	mux.HandleFunc("/v1/teaching/quiz-draft-intents", s.quizDraftIntents)
@@ -182,6 +183,19 @@ func (s *Server) tutoringAnalysisRequests(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.listTutoringRequests(w, r)
+}
+
+func (s *Server) studentAppAITutorRequestSubresources(w http.ResponseWriter, r *http.Request) {
+	requestID, ok := parseStudentAppAITutorRequestProgressPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "student app ai tutor request subresource not found")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	s.readStudentAppAITutorRequestProgressMetadata(w, r, requestID)
 }
 
 func (s *Server) tutoringAnalysisRequestSubresources(w http.ResponseWriter, r *http.Request) {

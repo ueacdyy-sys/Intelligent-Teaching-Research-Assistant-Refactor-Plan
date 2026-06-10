@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-06-10T09:21:49.135Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TARGET_URL",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_target_url",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_primary_action"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TARGET_URL_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 4,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TARGET_URL_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressTargetURL": {
+      "status": "PASS",
+      "resultReadyTargetURL": "/v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered",
+      "questionBankReadyTargetURL": "/v1/student-app/question-bank-draft-content?questionBankDraftRef=local%3A%2F%2Fquestion-bank-drafts%2F{requestId}.json",
+      "waitingTargetURLPresent": false,
+      "teacherReviewTargetURLPresent": false,
+      "forbiddenLeaks": [],
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 4,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TARGET_URL_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0356PrimaryActionRequired": true,
+    "serverEncodedTargetURLRequired": true,
+    "studentAppInternalFieldExposureAllowed": false,
+    "directDatabaseAccessFromJavaScriptAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0356_primary_action_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PRIMARY_ACTION_VERIFIED:0",
+      "expected": "READY 0356 primary action evidence with zero errors",
+      "remediation": "Run or fix 0356 before claiming Student App progress target URLs."
+    },
+    {
+      "severity": "info",
+      "id": "domain_builds_encoded_target_url",
+      "passed": true,
+      "actual": "TargetURL=true;url.QueryEscape(draftRef)=true;questionBankDraftRef==true",
+      "expected": "domain progress action builds direct targetUrl and encodes questionBankDraftRef",
+      "remediation": "Keep targetUrl construction server-side and encoded."
+    },
+    {
+      "severity": "info",
+      "id": "http_and_openapi_expose_constrained_target_url",
+      "passed": true,
+      "actual": "targetUrl=true;questionBankDraftRef=local%3A=true;resultRef=false;claimedByWorkerId=false;errorMessage=false",
+      "expected": "HTTP response, presenter, and OpenAPI expose only constrained safe target URLs",
+      "remediation": "Expose targetUrl only on the safe Student App progress action contract."
+    },
+    {
+      "severity": "info",
+      "id": "tests_cover_result_and_question_bank_target_url",
+      "passed": true,
+      "actual": "targetUrl=true;local%3A%2F%2Fquestion-bank-drafts=true;TargetURL != \"\"=true",
+      "expected": "Go tests prove targetUrl for result, question-bank, and no URL for review states",
+      "remediation": "Add targetUrl regression coverage to domain and HTTP tests."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0357",
+      "passed": true,
+      "actual": "request-progress-target-url=true;studentAppAiTutorRequestProgressTargetURL=true;12.07/10=true;SDD 0357=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0357",
+      "remediation": "Wire 0357 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use targetUrl as the direct Student App progress action URL and continue the whole-system refactor on the next root-requirement slice."
+}

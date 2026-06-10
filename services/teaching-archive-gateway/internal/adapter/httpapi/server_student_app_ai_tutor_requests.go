@@ -39,3 +39,34 @@ func (s *Server) listStudentAppAITutorRequestMetadata(w http.ResponseWriter, r *
 	}
 	writeJSON(w, http.StatusOK, response)
 }
+
+func (s *Server) readStudentAppAITutorRequestProgressMetadata(
+	w http.ResponseWriter,
+	r *http.Request,
+	requestID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.readStudentAppAITutorRequestProgress == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app ai tutor request progress use case is not configured")
+		return
+	}
+
+	card, err := s.readStudentAppAITutorRequestProgress.Execute(
+		r.Context(),
+		domain.ReadStudentAppAITutorRequestProgressInput{
+			Principal: principal,
+			RequestID: requestID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to read student app ai tutor request progress") {
+		return
+	}
+	writeJSON(w, http.StatusOK, toStudentAppAITutorRequestProgressResponse(card))
+}
