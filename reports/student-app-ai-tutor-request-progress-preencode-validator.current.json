@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-06-10T11:16:13.534Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PREENCODE_VALIDATOR",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_preencode_validator",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_conditional_cache"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PREENCODE_VALIDATOR_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 3,
+    "totalErrors": 0,
+    "operations": 4,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PREENCODE_VALIDATOR_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressPreencodeValidator": {
+      "status": "PASS",
+      "conditionalStatus": 304,
+      "payloadFactoryCallsOn304": 0,
+      "responseMappingOn304": false,
+      "jsonEncodingOn304": false,
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 3,
+        "totalErrors": 0,
+        "operations": 4,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PREENCODE_VALIDATOR_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0359ConditionalCacheRequired": true,
+    "privateCacheControlRequired": true,
+    "sharedPublicCacheAllowed": false,
+    "responseBodyOn304Allowed": false,
+    "responseMappingOn304Allowed": false,
+    "jsonEncodingOn304Allowed": false,
+    "databaseReadEliminationClaimAllowed": false,
+    "directDatabaseAccessFromJavaScriptAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false
+  },
+  "preencodeValidatorPolicy": {
+    "validatorHeader": "ETag",
+    "requestHeader": "If-None-Match",
+    "notModifiedStatus": 304,
+    "skipsOnMatch": [
+      "response DTO mapping",
+      "JSON response encoding",
+      "response body write"
+    ],
+    "stillRunsBeforeMatch": [
+      "authorization",
+      "principal parsing",
+      "use-case read",
+      "safe progress card construction"
+    ]
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0359_conditional_cache_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_CONDITIONAL_CACHE_VERIFIED:0",
+      "expected": "READY 0359 conditional-cache evidence with zero errors",
+      "remediation": "Run or fix 0359 before claiming pre-encode 304 behavior."
+    },
+    {
+      "severity": "info",
+      "id": "http_304_checks_validator_before_payload_encoding",
+      "passed": true,
+      "actual": "writePrivateConditionalJSONWithETag=true;studentAppAITutorRequestProgressListETag=true;studentAppAITutorRequestProgressETag=true;payload func() any=true",
+      "expected": "list/detail handlers compute validators before calling a lazy payload JSON writer",
+      "remediation": "Do not build/encode the response body before testing If-None-Match."
+    },
+    {
+      "severity": "info",
+      "id": "validator_covers_visible_progress_representation",
+      "passed": true,
+      "actual": "card.ID=true;card.PrimaryAction.TargetURL=true;card.RefreshPolicy.RefreshAfterMs=true;card.Timeline=true;pageInfo.NextCursor=true;strconv.Itoa(len(value))=true",
+      "expected": "validator hash includes every visible progress/card and list page field with unambiguous field framing",
+      "remediation": "Include all response-visible fields in the canonical validator seed."
+    },
+    {
+      "severity": "info",
+      "id": "tests_prove_304_skips_payload_factory_and_validator_sensitivity",
+      "passed": true,
+      "actual": "SkipsPayloadFactoryOnMatch=true;BuildsPayloadOnMiss=true;ETagChangesWithVisibleFields=true;ListETagChangesWithPageInfo=true",
+      "expected": "Go tests prove pre-encode short-circuit and visible-field sensitivity",
+      "remediation": "Add direct helper and validator-sensitivity tests."
+    },
+    {
+      "severity": "info",
+      "id": "claims_remain_scoped_to_encoding_not_database_cache",
+      "passed": true,
+      "actual": "does not skip the use-case or database read=true;response mapping and JSON encoding=true;Redis=true;shared cache=true",
+      "expected": "0360 evidence is honest about saving response construction/encoding only",
+      "remediation": "Remove unsupported claims about DB-read elimination or shared/public caching."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0360",
+      "passed": true,
+      "actual": "request-progress-preencode-validator=true;studentAppAiTutorRequestProgressPreencodeValidator=true;12.16/10=true;SDD 0360=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0360",
+      "remediation": "Wire 0360 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use pre-encode progress validators to reduce repeated Student App polling CPU, then continue the whole-system refactor on the next root-requirement slice."
+}

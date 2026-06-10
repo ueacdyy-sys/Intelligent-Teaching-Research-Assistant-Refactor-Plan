@@ -135,6 +135,21 @@ func writePrivateConditionalJSON(w http.ResponseWriter, r *http.Request, status 
 	writeJSONBytes(w, status, body)
 }
 
+func writePrivateConditionalJSONWithETag(
+	w http.ResponseWriter,
+	r *http.Request,
+	status int,
+	etag string,
+	payload func() any,
+) {
+	setPrivateConditionalHeaders(w, etag)
+	if status == http.StatusOK && requestMatchesETag(r.Header.Get("If-None-Match"), etag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	writeJSON(w, status, payload())
+}
+
 func setPrivateConditionalHeaders(w http.ResponseWriter, etag string) {
 	w.Header().Set("Cache-Control", "private, no-cache")
 	w.Header().Set("ETag", etag)

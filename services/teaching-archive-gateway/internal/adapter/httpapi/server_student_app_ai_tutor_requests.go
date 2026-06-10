@@ -33,11 +33,14 @@ func (s *Server) listStudentAppAITutorRequestMetadata(w http.ResponseWriter, r *
 	if handleArchiveError(w, err, "failed to list student app ai tutor requests") {
 		return
 	}
-	response, err := toStudentAppAITutorRequestProgressListResponse(page)
+	cards, err := buildStudentAppAITutorRequestProgressCards(page.Items)
 	if handleArchiveError(w, err, "failed to build student app ai tutor request progress") {
 		return
 	}
-	writePrivateConditionalJSON(w, r, http.StatusOK, response)
+	etag := studentAppAITutorRequestProgressListETag(cards, page.PageInfo)
+	writePrivateConditionalJSONWithETag(w, r, http.StatusOK, etag, func() any {
+		return toStudentAppAITutorRequestProgressListResponseFromCards(cards, page.PageInfo)
+	})
 }
 
 func (s *Server) readStudentAppAITutorRequestProgressMetadata(
@@ -68,5 +71,8 @@ func (s *Server) readStudentAppAITutorRequestProgressMetadata(
 	if handleArchiveError(w, err, "failed to read student app ai tutor request progress") {
 		return
 	}
-	writePrivateConditionalJSON(w, r, http.StatusOK, toStudentAppAITutorRequestProgressResponse(card))
+	etag := studentAppAITutorRequestProgressETag(card)
+	writePrivateConditionalJSONWithETag(w, r, http.StatusOK, etag, func() any {
+		return toStudentAppAITutorRequestProgressResponse(card)
+	})
 }

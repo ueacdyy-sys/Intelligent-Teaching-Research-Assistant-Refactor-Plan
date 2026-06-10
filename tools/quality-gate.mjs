@@ -144,6 +144,7 @@ export function buildQualityCommandPlan() {
     { name: "Student App AI Tutor request progress target URL audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-request-progress-target-url"] },
     { name: "Student App AI Tutor request progress refresh policy audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-request-progress-refresh-policy"] },
     { name: "Student App AI Tutor request progress conditional cache audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-request-progress-conditional-cache"] },
+    { name: "Student App AI Tutor request progress pre-encode validator audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-request-progress-preencode-validator"] },
     { name: "Student App AI Tutor controlled answer artifact runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-controlled-answer-artifact"] },
     { name: "Student App AI Tutor answer review gate runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-answer-review-gate"] },
     { name: "Student App AI Tutor reviewed result persistence bridge runtime audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-reviewed-result-persistence-bridge"] },

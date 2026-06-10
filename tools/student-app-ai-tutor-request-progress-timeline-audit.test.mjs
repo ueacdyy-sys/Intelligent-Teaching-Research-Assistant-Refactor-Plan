@@ -34,7 +34,7 @@ describe("Student App AI Tutor request progress timeline audit", () => {
   it("fails when Student App GET falls back to generic request serialization", () => {
     const inputs = validInputs();
     inputs.httpHandler = inputs.httpHandler.replace(
-      "toStudentAppAITutorRequestProgressListResponse(page)",
+      "toStudentAppAITutorRequestProgressListResponseFromCards(cards, page.PageInfo)",
       "toTutoringAnalysisRequestListResponse(page)",
     );
 

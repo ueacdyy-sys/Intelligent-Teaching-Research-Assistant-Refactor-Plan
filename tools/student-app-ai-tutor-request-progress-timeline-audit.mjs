@@ -47,6 +47,14 @@ export function auditStudentAppAITutorRequestProgressTimeline(inputs = loadCurre
   ].join("\n");
   const probe = runProgressTimelineProbe(source0353, options);
   const findings = [];
+  const handlerUsesSafeProgressList =
+    includesAll(inputs.httpHandler ?? "", [
+      "toStudentAppAITutorRequestProgressListResponse(page)",
+    ]) ||
+    includesAll(inputs.httpHandler ?? "", [
+      "buildStudentAppAITutorRequestProgressCards(page.Items)",
+      "toStudentAppAITutorRequestProgressListResponseFromCards(cards, page.PageInfo)",
+    ]);
 
   addFinding(findings, {
     id: "source.0353_lineage_guard_ready",
@@ -86,9 +94,7 @@ export function auditStudentAppAITutorRequestProgressTimeline(inputs = loadCurre
 
   addFinding(findings, {
     id: "student_http_uses_progress_response_not_generic_request",
-    passed: includesAll(inputs.httpHandler ?? "", [
-      "toStudentAppAITutorRequestProgressListResponse",
-    ]) &&
+    passed: handlerUsesSafeProgressList &&
       includesAll(`${inputs.httpPresenter ?? ""}\n${inputs.httpResponses ?? ""}`, [
         "studentAppAITutorRequestProgressListResponse",
         "studentAppAITutorRequestProgressResponse",
@@ -96,7 +102,7 @@ export function auditStudentAppAITutorRequestProgressTimeline(inputs = loadCurre
         "BuildStudentAppAITutorRequestProgressCard",
       ]) &&
       !inputs.httpHandler?.includes("toTutoringAnalysisRequestListResponse(page)"),
-    actual: summarizePresence(`${inputs.httpHandler ?? ""}\n${inputs.httpPresenter ?? ""}\n${inputs.httpResponses ?? ""}`, ["toStudentAppAITutorRequestProgressListResponse", "toTutoringAnalysisRequestListResponse(page)", "studentAppAITutorRequestProgressResponse"]),
+    actual: summarizePresence(`${inputs.httpHandler ?? ""}\n${inputs.httpPresenter ?? ""}\n${inputs.httpResponses ?? ""}`, ["buildStudentAppAITutorRequestProgressCards(page.Items)", "toStudentAppAITutorRequestProgressListResponseFromCards", "toTutoringAnalysisRequestListResponse(page)", "studentAppAITutorRequestProgressResponse"]),
     expected: "Student App GET /ai-tutor-requests serializes a safe progress list",
     remediation: "Route the Student App list endpoint through the safe progress presenter.",
   });

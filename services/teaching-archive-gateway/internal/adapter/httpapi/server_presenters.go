@@ -576,22 +576,43 @@ func toTutoringAnalysisRequestListResponse(page domain.TutoringAnalysisRequestPa
 func toStudentAppAITutorRequestProgressListResponse(
 	page domain.TutoringAnalysisRequestPage,
 ) (studentAppAITutorRequestProgressListResponse, error) {
-	requests := make([]studentAppAITutorRequestProgressResponse, 0, len(page.Items))
-	for _, request := range page.Items {
+	cards, err := buildStudentAppAITutorRequestProgressCards(page.Items)
+	if err != nil {
+		return studentAppAITutorRequestProgressListResponse{}, err
+	}
+	return toStudentAppAITutorRequestProgressListResponseFromCards(cards, page.PageInfo), nil
+}
+
+func buildStudentAppAITutorRequestProgressCards(
+	requests []domain.TutoringAnalysisRequest,
+) ([]domain.StudentAppAITutorRequestProgressCard, error) {
+	cards := make([]domain.StudentAppAITutorRequestProgressCard, 0, len(requests))
+	for _, request := range requests {
 		card, err := domain.BuildStudentAppAITutorRequestProgressCard(request)
 		if err != nil {
-			return studentAppAITutorRequestProgressListResponse{}, err
+			return nil, err
 		}
+		cards = append(cards, card)
+	}
+	return cards, nil
+}
+
+func toStudentAppAITutorRequestProgressListResponseFromCards(
+	cards []domain.StudentAppAITutorRequestProgressCard,
+	pageInfo domain.ArchivePageInfo,
+) studentAppAITutorRequestProgressListResponse {
+	requests := make([]studentAppAITutorRequestProgressResponse, 0, len(cards))
+	for _, card := range cards {
 		requests = append(requests, toStudentAppAITutorRequestProgressResponse(card))
 	}
 	return studentAppAITutorRequestProgressListResponse{
 		Data: requests,
 		PageInfo: pageInfoResponse{
-			PageSize:   page.PageInfo.PageSize,
-			HasMore:    page.PageInfo.HasMore,
-			NextCursor: optionalString(page.PageInfo.NextCursor),
+			PageSize:   pageInfo.PageSize,
+			HasMore:    pageInfo.HasMore,
+			NextCursor: optionalString(pageInfo.NextCursor),
 		},
-	}, nil
+	}
 }
 
 func toStudentAppAITutorRequestProgressResponse(
