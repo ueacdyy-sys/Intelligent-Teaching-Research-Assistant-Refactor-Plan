@@ -21,6 +21,7 @@ type Server struct {
 	createStudentAppAITutorRequest                        *usecase.CreateStudentAppAITutorRequest
 	listStudentAppAITutorRequests                         *usecase.ListStudentAppAITutorRequests
 	readStudentAppAITutorRequestProgress                  *usecase.ReadStudentAppAITutorRequestProgress
+	readStudentAppAITutorRequestProgressSummary           *usecase.ReadStudentAppAITutorRequestProgressSummary
 	listStudentAppQuizSubmissions                         *usecase.ListStudentAppQuizSubmissions
 	listStudentAppQuestionBankDrafts                      *usecase.ListStudentAppQuestionBankDrafts
 	readStudentAppQuestionBankDraftContentUseCase         *usecase.ReadStudentAppQuestionBankDraftContent
@@ -74,6 +75,7 @@ func NewServer(config ServerConfig) *Server {
 		createStudentAppAITutorRequest:                        config.CreateStudentAppAITutorRequest,
 		listStudentAppAITutorRequests:                         config.ListStudentAppAITutorRequests,
 		readStudentAppAITutorRequestProgress:                  config.ReadStudentAppAITutorRequestProgress,
+		readStudentAppAITutorRequestProgressSummary:           config.ReadStudentAppAITutorRequestProgressSummary,
 		listStudentAppQuizSubmissions:                         config.ListStudentAppQuizSubmissions,
 		listStudentAppQuestionBankDrafts:                      config.ListStudentAppQuestionBankDrafts,
 		readStudentAppQuestionBankDraftContentUseCase:         config.ReadStudentAppQuestionBankDraftContent,

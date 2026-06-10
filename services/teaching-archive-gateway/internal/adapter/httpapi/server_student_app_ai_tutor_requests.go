@@ -77,3 +77,35 @@ func (s *Server) readStudentAppAITutorRequestProgressMetadata(
 		return toStudentAppAITutorRequestProgressResponse(card)
 	})
 }
+
+func (s *Server) readStudentAppAITutorRequestProgressSummaryMetadata(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.readStudentAppAITutorRequestProgressSummary == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app ai tutor request progress summary use case is not configured")
+		return
+	}
+
+	summary, err := s.readStudentAppAITutorRequestProgressSummary.Execute(
+		r.Context(),
+		domain.ReadStudentAppAITutorRequestProgressSummaryInput{
+			Principal: principal,
+		},
+	)
+	if handleArchiveError(w, err, "failed to read student app ai tutor request progress summary") {
+		return
+	}
+	etag := studentAppAITutorRequestProgressSummaryETag(summary)
+	writePrivateConditionalJSONWithETag(w, r, http.StatusOK, etag, func() any {
+		return toStudentAppAITutorRequestProgressSummaryOnlyResponse(summary)
+	})
+}

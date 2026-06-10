@@ -25,6 +25,18 @@ type ReadStudentAppAITutorRequestProgressInput struct {
 	RequestID string
 }
 
+type ReadStudentAppAITutorRequestProgressSummaryInput struct {
+	Principal PrincipalContext
+}
+
+type StudentAppAITutorRequestProgressSummary struct {
+	TotalCount                 int
+	AutoRefreshCount           int
+	ActionReadyCount           int
+	TeacherReviewRequiredCount int
+	FailedCount                int
+}
+
 func NormalizeListStudentAppAITutorRequestsInput(
 	input ListStudentAppAITutorRequestsInput,
 ) (TutoringAnalysisRequestQuery, error) {
@@ -77,6 +89,26 @@ func NormalizeReadStudentAppAITutorRequestProgressInput(
 	return query, nil
 }
 
+func NormalizeReadStudentAppAITutorRequestProgressSummaryInput(
+	input ReadStudentAppAITutorRequestProgressSummaryInput,
+) (TutoringAnalysisRequestQuery, error) {
+	if err := AuthorizeListStudentAppAITutorRequests(input.Principal); err != nil {
+		return TutoringAnalysisRequestQuery{}, err
+	}
+	query, err := NormalizeListTutoringAnalysisRequestsInput(ListTutoringAnalysisRequestsInput{
+		Principal:              input.Principal,
+		SourceArchiveOwnerType: OwnerTypeStudent,
+		StudentID:              primaryOwnStudentID(input.Principal),
+		PageSize:               1,
+	})
+	if err != nil {
+		return TutoringAnalysisRequestQuery{}, err
+	}
+	query.PageSize = 0
+	query.FetchLimit = 0
+	return query, nil
+}
+
 func AuthorizeListStudentAppAITutorRequests(principal PrincipalContext) error {
 	if err := ValidatePrincipalContext(principal); err != nil {
 		return err
@@ -112,6 +144,31 @@ func NormalizeStudentAppAITutorRequestProgressView(
 	default:
 		return "", validationError("progressView is unsupported")
 	}
+}
+
+func BuildStudentAppAITutorRequestProgressSummary(
+	statusCounts map[TutoringAnalysisStatus]int,
+) (StudentAppAITutorRequestProgressSummary, error) {
+	summary := StudentAppAITutorRequestProgressSummary{}
+	for status, count := range statusCounts {
+		if !validTutoringAnalysisStatus(status) {
+			return StudentAppAITutorRequestProgressSummary{}, validationError("status is unsupported")
+		}
+		if count < 0 {
+			return StudentAppAITutorRequestProgressSummary{}, validationError("status count must be non-negative")
+		}
+		summary.TotalCount += count
+		switch status {
+		case TutoringAnalysisStatusQueued, TutoringAnalysisStatusInProgress:
+			summary.AutoRefreshCount += count
+		case TutoringAnalysisStatusSucceeded:
+			summary.ActionReadyCount += count
+		case TutoringAnalysisStatusFailed:
+			summary.TeacherReviewRequiredCount += count
+			summary.FailedCount += count
+		}
+	}
+	return summary, nil
 }
 
 func StudentAppAITutorRequestProgressViewStatuses(

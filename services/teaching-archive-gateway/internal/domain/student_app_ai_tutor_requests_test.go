@@ -121,3 +121,58 @@ func TestNormalizeReadStudentAppAITutorRequestProgressRejectsUnsafeRequestID(t *
 		t.Fatalf("error = %v, want ErrValidation", err)
 	}
 }
+
+func TestNormalizeReadStudentAppAITutorRequestProgressSummaryScopesOwnStudent(t *testing.T) {
+	query, err := domain.NormalizeReadStudentAppAITutorRequestProgressSummaryInput(
+		domain.ReadStudentAppAITutorRequestProgressSummaryInput{
+			Principal: studentPrincipal("student_001"),
+		},
+	)
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppAITutorRequestProgressSummaryInput returned error: %v", err)
+	}
+	if query.SourceArchiveOwnerType != domain.OwnerTypeStudent ||
+		query.StudentID != "student_001" ||
+		query.Status != "" ||
+		query.FetchLimit != 0 ||
+		query.Cursor != nil {
+		t.Fatalf("query = %#v", query)
+	}
+}
+
+func TestBuildStudentAppAITutorRequestProgressSummaryMapsStatusCounts(t *testing.T) {
+	summary, err := domain.BuildStudentAppAITutorRequestProgressSummary(map[domain.TutoringAnalysisStatus]int{
+		domain.TutoringAnalysisStatusQueued:     1,
+		domain.TutoringAnalysisStatusInProgress: 1,
+		domain.TutoringAnalysisStatusSucceeded:  2,
+		domain.TutoringAnalysisStatusFailed:     1,
+	})
+	if err != nil {
+		t.Fatalf("BuildStudentAppAITutorRequestProgressSummary returned error: %v", err)
+	}
+	if summary.TotalCount != 5 ||
+		summary.AutoRefreshCount != 2 ||
+		summary.ActionReadyCount != 2 ||
+		summary.TeacherReviewRequiredCount != 1 ||
+		summary.FailedCount != 1 {
+		t.Fatalf("summary = %#v", summary)
+	}
+}
+
+func TestBuildStudentAppAITutorRequestProgressSummaryRejectsUnsafeCounts(t *testing.T) {
+	for name, counts := range map[string]map[domain.TutoringAnalysisStatus]int{
+		"unsupported status": {
+			domain.TutoringAnalysisStatus("RAW_WORKER_TRACE"): 1,
+		},
+		"negative count": {
+			domain.TutoringAnalysisStatusQueued: -1,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := domain.BuildStudentAppAITutorRequestProgressSummary(counts)
+			if !errors.Is(err, domain.ErrValidation) {
+				t.Fatalf("error = %v, want ErrValidation", err)
+			}
+		})
+	}
+}

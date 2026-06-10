@@ -33,6 +33,19 @@ func studentAppAITutorRequestProgressETag(card domain.StudentAppAITutorRequestPr
 	return etagFromHash(h.Sum(nil))
 }
 
+func studentAppAITutorRequestProgressSummaryETag(
+	summary domain.StudentAppAITutorRequestProgressSummary,
+) string {
+	h := sha256.New()
+	writeETagField(h, "student-app-ai-tutor-request-progress-summary/v1")
+	writeETagInt(h, summary.TotalCount)
+	writeETagInt(h, summary.AutoRefreshCount)
+	writeETagInt(h, summary.ActionReadyCount)
+	writeETagInt(h, summary.TeacherReviewRequiredCount)
+	writeETagInt(h, summary.FailedCount)
+	return etagFromHash(h.Sum(nil))
+}
+
 func writeStudentAppAITutorRequestProgressCardETagFields(
 	h hash.Hash,
 	card domain.StudentAppAITutorRequestProgressCard,

@@ -639,6 +639,26 @@ func toStudentAppAITutorRequestProgressSummaryResponse(
 	return summary
 }
 
+func toStudentAppAITutorRequestProgressSummaryOnlyResponse(
+	summary domain.StudentAppAITutorRequestProgressSummary,
+) studentAppAITutorRequestProgressSummaryOnlyResponse {
+	return studentAppAITutorRequestProgressSummaryOnlyResponse{
+		Summary: toStudentAppAITutorRequestProgressSummaryCountsResponse(summary),
+	}
+}
+
+func toStudentAppAITutorRequestProgressSummaryCountsResponse(
+	summary domain.StudentAppAITutorRequestProgressSummary,
+) studentAppAITutorRequestProgressSummaryResponse {
+	return studentAppAITutorRequestProgressSummaryResponse{
+		TotalCount:                 summary.TotalCount,
+		AutoRefreshCount:           summary.AutoRefreshCount,
+		ActionReadyCount:           summary.ActionReadyCount,
+		TeacherReviewRequiredCount: summary.TeacherReviewRequiredCount,
+		FailedCount:                summary.FailedCount,
+	}
+}
+
 func toStudentAppAITutorRequestProgressResponse(
 	card domain.StudentAppAITutorRequestProgressCard,
 ) studentAppAITutorRequestProgressResponse {

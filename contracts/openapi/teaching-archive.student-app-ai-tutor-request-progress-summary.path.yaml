@@ -1,0 +1,59 @@
+get:
+  operationId: readStudentAppAITutorRequestProgressSummary
+  summary: Read count-only AI tutor progress summary for the authenticated student's own requests.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Private ETag validator returned by the Student App AI Tutor progress summary.
+  responses:
+    '200':
+      description: Count-only progress summary visible to the Student App.
+      headers:
+        ETag:
+          description: Private response validator for Student App summary polling.
+          schema:
+            type: string
+            pattern: '^"sha256-[A-Za-z0-9_-]+"$'
+        Cache-Control:
+          description: Student-owned progress summaries must be revalidated before reuse.
+          schema:
+            type: string
+            enum: ['private, no-cache']
+        Vary:
+          description: Response varies by authenticated principal context and agent API key.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.student-app-ai-tutor-request-progress.schema.yaml#/StudentAppAITutorRequestProgressSummaryOnlyResponse'
+    '304':
+      description: Progress summary unchanged for the supplied If-None-Match validator.
+      headers:
+        ETag:
+          description: Current private response validator.
+          schema:
+            type: string
+            pattern: '^"sha256-[A-Za-z0-9_-]+"$'
+        Cache-Control:
+          description: Student-owned progress summaries must be revalidated before reuse.
+          schema:
+            type: string
+            enum: ['private, no-cache']
+        Vary:
+          description: Response varies by authenticated principal context and agent API key.
+          schema:
+            type: string
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

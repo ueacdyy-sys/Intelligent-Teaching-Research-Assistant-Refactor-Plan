@@ -118,7 +118,11 @@ export function auditStudentAppAITutorRequestProgressDetail(inputs = loadCurrent
 
   addFinding(findings, {
     id: "repository_and_http_route_filter_by_request_id",
-    passed: includesAll(inputs.postgresRepository ?? "", ["id = \"+nextArg(&args, query.ID)"]) &&
+    passed: includesAll(inputs.postgresRepository ?? "", [
+      "buildTutoringAnalysisRequestWhereClauses",
+      "query.ID",
+      "id = \"+nextArg(args, query.ID)",
+    ]) &&
       includesAll(`${inputs.httpRoutes ?? ""}\n${inputs.httpPaths ?? ""}\n${inputs.httpHandler ?? ""}`, [
         "/v1/student-app/ai-tutor-requests/",
         "studentAppAITutorRequestSubresources",

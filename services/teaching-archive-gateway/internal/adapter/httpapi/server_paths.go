@@ -117,6 +117,10 @@ func parseStudentAppAITutorRequestProgressPath(path string) (string, bool) {
 	return requestID, true
 }
 
+func parseStudentAppAITutorRequestProgressSummaryPath(path string) bool {
+	return path == "/v1/student-app/ai-tutor-requests/summary"
+}
+
 func parseArchiveItemTutoringAnalysisRequestPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/archive-items/"
 	const suffix = "/tutoring-analysis-requests"

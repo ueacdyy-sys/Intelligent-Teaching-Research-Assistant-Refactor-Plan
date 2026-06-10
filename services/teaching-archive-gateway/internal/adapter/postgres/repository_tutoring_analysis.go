@@ -307,39 +307,7 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 	query domain.TutoringAnalysisRequestQuery,
 ) ([]domain.TutoringAnalysisRequest, error) {
 	args := make([]any, 0, 8)
-	clauses := []string{"TRUE"}
-
-	if query.ID != "" {
-		clauses = append(clauses, "id = "+nextArg(&args, query.ID))
-	}
-	if query.Status != "" {
-		clauses = append(clauses, "status = "+nextArg(&args, string(query.Status)))
-	}
-	if len(query.Statuses) > 0 {
-		statuses := make([]string, 0, len(query.Statuses))
-		for _, status := range query.Statuses {
-			statuses = append(statuses, string(status))
-		}
-		clauses = append(clauses, "status = ANY("+nextArg(&args, statuses)+")")
-	}
-	if query.ArchiveItemID != "" {
-		clauses = append(clauses, "archive_item_id = "+nextArg(&args, query.ArchiveItemID))
-	}
-	if query.RequestedByPrincipalID != "" {
-		clauses = append(clauses, "requested_by_principal_id = "+nextArg(&args, query.RequestedByPrincipalID))
-	}
-	if query.SourceArchiveOwnerType != "" {
-		clauses = append(clauses, "source_archive_owner_type = "+nextArg(&args, string(query.SourceArchiveOwnerType)))
-	}
-	if query.StudentID != "" {
-		clauses = append(clauses, "source_archive_student_id = "+nextArg(&args, query.StudentID))
-	}
-	if len(query.StudentIDs) > 0 {
-		clauses = append(clauses, "source_archive_student_id = ANY("+nextArg(&args, query.StudentIDs)+")")
-	}
-	if query.RequireQuestionBankDraftRef {
-		clauses = append(clauses, "question_bank_draft_ref IS NOT NULL")
-	}
+	clauses := buildTutoringAnalysisRequestWhereClauses(&args, query)
 	if query.Cursor != nil {
 		createdAtArg := nextArg(&args, query.Cursor.CreatedAt)
 		idArg := nextArg(&args, query.Cursor.ID)
@@ -393,4 +361,80 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 		return nil, err
 	}
 	return requests, nil
+}
+
+func (r *ArchiveRepository) CountTutoringAnalysisRequestsByStatus(
+	ctx context.Context,
+	query domain.TutoringAnalysisRequestQuery,
+) (map[domain.TutoringAnalysisStatus]int, error) {
+	args := make([]any, 0, 8)
+	clauses := buildTutoringAnalysisRequestWhereClauses(&args, query)
+
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			status,
+			COUNT(*)
+		FROM teaching_tutoring_analysis_requests
+		WHERE `+strings.Join(clauses, " AND ")+`
+		GROUP BY status`,
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[domain.TutoringAnalysisStatus]int{}
+	for rows.Next() {
+		var rawStatus string
+		var count int64
+		if err := rows.Scan(&rawStatus, &count); err != nil {
+			return nil, err
+		}
+		counts[domain.TutoringAnalysisStatus(rawStatus)] = int(count)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return counts, nil
+}
+
+func buildTutoringAnalysisRequestWhereClauses(
+	args *[]any,
+	query domain.TutoringAnalysisRequestQuery,
+) []string {
+	clauses := []string{"TRUE"}
+
+	if query.ID != "" {
+		clauses = append(clauses, "id = "+nextArg(args, query.ID))
+	}
+	if query.Status != "" {
+		clauses = append(clauses, "status = "+nextArg(args, string(query.Status)))
+	}
+	if len(query.Statuses) > 0 {
+		statuses := make([]string, 0, len(query.Statuses))
+		for _, status := range query.Statuses {
+			statuses = append(statuses, string(status))
+		}
+		clauses = append(clauses, "status = ANY("+nextArg(args, statuses)+")")
+	}
+	if query.ArchiveItemID != "" {
+		clauses = append(clauses, "archive_item_id = "+nextArg(args, query.ArchiveItemID))
+	}
+	if query.RequestedByPrincipalID != "" {
+		clauses = append(clauses, "requested_by_principal_id = "+nextArg(args, query.RequestedByPrincipalID))
+	}
+	if query.SourceArchiveOwnerType != "" {
+		clauses = append(clauses, "source_archive_owner_type = "+nextArg(args, string(query.SourceArchiveOwnerType)))
+	}
+	if query.StudentID != "" {
+		clauses = append(clauses, "source_archive_student_id = "+nextArg(args, query.StudentID))
+	}
+	if len(query.StudentIDs) > 0 {
+		clauses = append(clauses, "source_archive_student_id = ANY("+nextArg(args, query.StudentIDs)+")")
+	}
+	if query.RequireQuestionBankDraftRef {
+		clauses = append(clauses, "question_bank_draft_ref IS NOT NULL")
+	}
+	return clauses
 }

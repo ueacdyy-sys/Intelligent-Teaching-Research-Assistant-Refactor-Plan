@@ -1,0 +1,127 @@
+{
+  "generatedAt": "2026-06-10T14:20:53.348Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_COUNT",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_summary_count",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_view_filter"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_COUNT_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 2,
+    "totalErrors": 0,
+    "operations": 5,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_COUNT_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressSummaryCount": {
+      "status": "PASS",
+      "countedSummary": {
+        "totalCount": 5,
+        "autoRefreshCount": 2,
+        "actionReadyCount": 2,
+        "teacherReviewRequiredCount": 1,
+        "failedCount": 1
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 2,
+        "totalErrors": 0,
+        "operations": 5,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_COUNT_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0362ViewFilterRequired": true,
+    "ownStudentOnly": true,
+    "databaseGroupedCountRequired": true,
+    "returnsSummaryOnly": true,
+    "rawRequestInternalsAllowed": false,
+    "workerIdsAllowed": false,
+    "internalErrorsAllowed": false,
+    "rawResultRefsAllowed": false,
+    "modelOutputAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false,
+    "sharedCacheChanged": false,
+    "databaseSchemaChanged": false
+  },
+  "summaryCountPolicy": {
+    "endpoint": "GET /v1/student-app/ai-tutor-requests/summary",
+    "repositoryOperation": "SELECT status, COUNT(*) GROUP BY status",
+    "responseFields": [
+      "summary"
+    ],
+    "countMapping": {
+      "autoRefreshCount": [
+        "QUEUED",
+        "IN_PROGRESS"
+      ],
+      "actionReadyCount": [
+        "SUCCEEDED"
+      ],
+      "teacherReviewRequiredCount": [
+        "FAILED"
+      ],
+      "failedCount": [
+        "FAILED"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0362_view_filter_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_VIEW_FILTER_VERIFIED:0",
+      "expected": "READY 0362 progress-view filter evidence with zero errors",
+      "remediation": "Run or fix 0362 before claiming count-only progress summary."
+    },
+    {
+      "severity": "info",
+      "id": "domain_usecase_own_summary_count_contract",
+      "passed": true,
+      "actual": "ReadStudentAppAITutorRequestProgressSummaryInput=true;BuildStudentAppAITutorRequestProgressSummary=true;CountTutoringAnalysisRequestsByStatus=true;ListTutoringAnalysisRequests(=false",
+      "expected": "domain owns count mapping and use case calls the count-only reader",
+      "remediation": "Keep summary-count rules inside domain/usecase and avoid list-row reads."
+    },
+    {
+      "severity": "info",
+      "id": "postgres_uses_count_only_grouped_query",
+      "passed": true,
+      "actual": "COUNT(*)=true;GROUP BY status=true;ORDER BY=false;scanTutoringAnalysisRequest=false",
+      "expected": "PostgreSQL summary path selects only status counts and groups in SQL",
+      "remediation": "Do not load full request rows for count-only summary."
+    },
+    {
+      "severity": "info",
+      "id": "http_openapi_expose_private_count_only_summary",
+      "passed": true,
+      "actual": "/summary=true;SummaryOnlyResponse=true;studentAppAITutorRequestProgressSummaryETag=true;private, no-cache=true;teaching-archive.student-app-ai-tutor-request-progress-summary.path.yaml=true",
+      "expected": "HTTP and OpenAPI expose a private summary-only endpoint",
+      "remediation": "Wire the summary endpoint before the requestId route and keep the schema count-only."
+    },
+    {
+      "severity": "info",
+      "id": "tests_cover_count_only_summary_and_leak_guards",
+      "passed": true,
+      "actual": "SummaryScopesOwnStudent=true;CountOnlyGroupedQuery=true;CountOnlySafeResponse=true;pageInfo=true;claimedByWorkerId=true",
+      "expected": "domain, usecase, PostgreSQL, and HTTP tests cover count-only behavior and leak guards",
+      "remediation": "Add regression coverage across every summary-count boundary."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0363",
+      "passed": true,
+      "actual": "request-progress-summary-count=true;studentAppAiTutorRequestProgressSummaryCount=true;12.25/10=true;SDD 0363=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0363",
+      "remediation": "Wire 0363 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use the count-only summary endpoint for Student App home badges and continue the whole-system refactor on the next root-requirement slice."
+}

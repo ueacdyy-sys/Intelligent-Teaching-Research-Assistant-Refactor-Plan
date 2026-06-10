@@ -195,6 +195,10 @@ type studentAppAITutorRequestProgressListResponse struct {
 	Summary  studentAppAITutorRequestProgressSummaryResponse `json:"summary"`
 }
 
+type studentAppAITutorRequestProgressSummaryOnlyResponse struct {
+	Summary studentAppAITutorRequestProgressSummaryResponse `json:"summary"`
+}
+
 type studentAppAITutorRequestProgressSummaryResponse struct {
 	TotalCount                 int `json:"totalCount"`
 	AutoRefreshCount           int `json:"autoRefreshCount"`

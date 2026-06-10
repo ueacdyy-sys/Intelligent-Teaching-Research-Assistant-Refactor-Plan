@@ -225,6 +225,103 @@ func TestListStudentAppAITutorRequestsFiltersSafeProgressView(t *testing.T) {
 	assertPrivateConditionalProgressHeaders(t, response)
 }
 
+func TestReadStudentAppAITutorRequestProgressSummaryReturnsCountOnlySafeResponse(t *testing.T) {
+	baseTime := time.Date(2026, 6, 10, 13, 0, 0, 0, time.UTC)
+	requests := []domain.TutoringAnalysisRequest{
+		progressRequestWithStatus(
+			"tutor_req_progress_count_queued",
+			"tarch_progress_count_queued",
+			domain.TutoringAnalysisStatusQueued,
+			baseTime,
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_count_working",
+			"tarch_progress_count_working",
+			domain.TutoringAnalysisStatusInProgress,
+			baseTime.Add(time.Minute),
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_count_result",
+			"tarch_progress_count_result",
+			domain.TutoringAnalysisStatusSucceeded,
+			baseTime.Add(2*time.Minute),
+		),
+		progressRequestWithQuestionBankDraft(
+			"tutor_req_progress_count_qbank",
+			"tarch_progress_count_qbank",
+			baseTime.Add(3*time.Minute),
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_count_failed",
+			"tarch_progress_count_failed",
+			domain.TutoringAnalysisStatusFailed,
+			baseTime.Add(4*time.Minute),
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_count_other_student",
+			"tarch_progress_count_other_student",
+			domain.TutoringAnalysisStatusSucceeded,
+			baseTime.Add(5*time.Minute),
+		),
+	}
+	requests[len(requests)-1].RequestedByPrincipalID = "student_002"
+	requests[len(requests)-1].SourceArchiveStudentID = "student_002"
+	handler := newTestHandlerWithStudentAppAITutorProgressRequests(requests)
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/ai-tutor-requests/summary",
+		http.NoBody,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if got := response.Body.String(); got != `{"summary":{"totalCount":5,"autoRefreshCount":2,"actionReadyCount":2,"teacherReviewRequiredCount":1,"failedCount":1}}`+"\n" {
+		t.Fatalf("body = %s", got)
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"data"`),
+		[]byte(`"pageInfo"`),
+		[]byte(`tutor_req_progress_count_`),
+		[]byte(`tarch_progress_count_`),
+		[]byte(`student_002`),
+		[]byte(`resultRef`),
+		[]byte(`errorMessage`),
+		[]byte(`claimedByWorkerId`),
+		[]byte(`local://internal`),
+		[]byte(`worker_internal_summary`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+	assertPrivateConditionalProgressHeaders(t, response)
+
+	conditionalRequest := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/ai-tutor-requests/summary",
+		http.NoBody,
+	)
+	conditionalRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	conditionalRequest.Header.Set("If-None-Match", response.Header().Get("ETag"))
+	setPrincipalHeader(t, conditionalRequest, studentPrincipal("student_001"))
+
+	conditionalResponse := httptest.NewRecorder()
+	handler.ServeHTTP(conditionalResponse, conditionalRequest)
+
+	if conditionalResponse.Code != http.StatusNotModified {
+		t.Fatalf("conditional status = %d, body = %s", conditionalResponse.Code, conditionalResponse.Body.String())
+	}
+	if conditionalResponse.Body.Len() != 0 {
+		t.Fatalf("conditional body = %s, want empty", conditionalResponse.Body.String())
+	}
+}
+
 func TestListStudentAppAITutorRequestsRejectsAmbiguousProgressFilters(t *testing.T) {
 	handler := newTestHandlerWithStudentAppAITutorProgressRequests(nil)
 	request := httptest.NewRequest(
@@ -404,9 +501,10 @@ func newTestHandlerWithStudentAppAITutorProgressRequests(
 		requests: append([]domain.TutoringAnalysisRequest(nil), requests...),
 	}
 	return httpapi.NewServer(httpapi.ServerConfig{
-		ListStudentAppAITutorRequests:        usecase.NewListStudentAppAITutorRequests(store),
-		ReadStudentAppAITutorRequestProgress: usecase.NewReadStudentAppAITutorRequestProgress(store),
-		AgentAPIKey:                          "ueacd",
+		ListStudentAppAITutorRequests:               usecase.NewListStudentAppAITutorRequests(store),
+		ReadStudentAppAITutorRequestProgress:        usecase.NewReadStudentAppAITutorRequestProgress(store),
+		ReadStudentAppAITutorRequestProgressSummary: usecase.NewReadStudentAppAITutorRequestProgressSummary(store),
+		AgentAPIKey: "ueacd",
 	}).Handler()
 }
 

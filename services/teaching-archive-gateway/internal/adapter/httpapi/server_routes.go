@@ -186,6 +186,14 @@ func (s *Server) tutoringAnalysisRequests(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) studentAppAITutorRequestSubresources(w http.ResponseWriter, r *http.Request) {
+	if parseStudentAppAITutorRequestProgressSummaryPath(r.URL.Path) {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.readStudentAppAITutorRequestProgressSummaryMetadata(w, r)
+		return
+	}
 	requestID, ok := parseStudentAppAITutorRequestProgressPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "student app ai tutor request subresource not found")

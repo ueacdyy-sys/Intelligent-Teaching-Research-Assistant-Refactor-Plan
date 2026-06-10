@@ -485,6 +485,41 @@ func (f *fakeRepository) ListTutoringAnalysisRequests(
 	return requests, nil
 }
 
+func (f *fakeRepository) CountTutoringAnalysisRequestsByStatus(
+	_ context.Context,
+	query domain.TutoringAnalysisRequestQuery,
+) (map[domain.TutoringAnalysisStatus]int, error) {
+	counts := map[domain.TutoringAnalysisStatus]int{}
+	for _, request := range f.requests {
+		if query.ID != "" && request.ID != query.ID {
+			continue
+		}
+		if query.Status != "" && request.Status != query.Status {
+			continue
+		}
+		if len(query.Statuses) > 0 && !containsTutoringAnalysisStatus(query.Statuses, request.Status) {
+			continue
+		}
+		if query.ArchiveItemID != "" && request.ArchiveItemID != query.ArchiveItemID {
+			continue
+		}
+		if query.SourceArchiveOwnerType != "" && request.SourceArchiveOwnerType != query.SourceArchiveOwnerType {
+			continue
+		}
+		if query.StudentID != "" && request.SourceArchiveStudentID != query.StudentID {
+			continue
+		}
+		if len(query.StudentIDs) > 0 && !containsString(query.StudentIDs, request.SourceArchiveStudentID) {
+			continue
+		}
+		if query.RequireQuestionBankDraftRef && request.QuestionBankDraftRef == "" {
+			continue
+		}
+		counts[request.Status]++
+	}
+	return counts, nil
+}
+
 func containsTutoringAnalysisStatus(
 	statuses []domain.TutoringAnalysisStatus,
 	status domain.TutoringAnalysisStatus,
