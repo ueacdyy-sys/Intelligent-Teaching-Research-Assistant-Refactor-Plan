@@ -479,6 +479,32 @@ func (f *fakeRepository) ListTutoringAnalysisRequests(
 	return requests, nil
 }
 
+func (f *fakeRepository) FindPendingStudentAppAITutorResultArchiveFollowUpRequest(
+	_ context.Context,
+	query domain.StudentAppAITutorResultArchiveFollowUpPendingRequestQuery,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	var matched domain.TutoringAnalysisRequest
+	found := false
+	for _, request := range f.requests {
+		if request.ArchiveItemID != query.ArchiveItemID ||
+			request.RequestedByPrincipalID != query.RequestedByPrincipalID ||
+			request.QuestionBankIntent != query.QuestionBankIntent ||
+			request.LearningActionSource != domain.StudentAppAITutorLearningActionSourceResultArchive ||
+			request.FollowUpDepth != query.FollowUpDepth ||
+			request.SourceArchiveStudentID != query.StudentID ||
+			!domain.IsPendingTutoringAnalysisStatus(request.Status) {
+			continue
+		}
+		if !found ||
+			request.CreatedAt.Before(matched.CreatedAt) ||
+			(request.CreatedAt.Equal(matched.CreatedAt) && request.ID < matched.ID) {
+			matched = request
+			found = true
+		}
+	}
+	return matched, found, nil
+}
+
 func (f *fakeRepository) GetTutoringAnalysisRequestByID(
 	_ context.Context,
 	id string,

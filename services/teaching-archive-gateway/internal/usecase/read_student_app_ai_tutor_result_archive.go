@@ -8,6 +8,10 @@ import (
 
 type StudentAppAITutorResultArchiveReader interface {
 	GetByID(ctx context.Context, id string) (domain.ArchiveItem, bool, error)
+	StudentAppAITutorResultArchiveSnapshotReader
+}
+
+type StudentAppAITutorResultArchiveSnapshotReader interface {
 	GetStudentAppAITutorResultArchiveSnapshot(
 		ctx context.Context,
 		archiveItemID string,

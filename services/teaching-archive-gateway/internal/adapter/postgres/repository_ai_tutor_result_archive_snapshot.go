@@ -16,11 +16,14 @@ func (r *ArchiveRepository) GetStudentAppAITutorResultArchiveSnapshot(
 		SELECT
 			snapshot.archive_item_id,
 			snapshot.student_id,
+			snapshot.source_archive_item_id,
+			snapshot.source_tutoring_analysis_request_id,
 			snapshot.summary,
 			snapshot.guidance_sections,
 			snapshot.guidance_sections_hash,
 			snapshot.safety_labels,
-			snapshot.safe_guidance_only
+			snapshot.safe_guidance_only,
+			snapshot.follow_up_depth
 		FROM teaching_ai_tutor_result_archive_snapshots AS snapshot
 		WHERE snapshot.archive_item_id = $1
 			AND snapshot.student_id = $2
@@ -59,11 +62,14 @@ func scanStudentAppAITutorResultArchiveSnapshot(
 	if err := rows.Scan(
 		&snapshot.ArchiveItemID,
 		&snapshot.StudentID,
+		&snapshot.SourceArchiveItemID,
+		&snapshot.SourceTutoringRequestID,
 		&snapshot.Summary,
 		&sections,
 		&snapshot.GuidanceSectionsHash,
 		&labels,
 		&snapshot.SafeGuidanceOnly,
+		&snapshot.FollowUpDepth,
 	); err != nil {
 		return domain.StudentAppAITutorResultArchiveSnapshot{}, err
 	}

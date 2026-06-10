@@ -31,6 +31,26 @@ describe("Student App AI Tutor answer review gate runtime", () => {
     assert.equal(JSON.stringify(calls[0]).includes("Convert both fractions"), false);
   });
 
+  it("records a result-archive-sourced answer review gate without leaking guidance text", async () => {
+    const calls = [];
+    const input = baseInput("reports/student-app-ai-tutor-result-archive-controlled-answer-artifact.current.json");
+    input.reviewInvocationId = "ai_tutor_answer_review_result_archive_001";
+    input.evidenceRefs[0] = "evidence:result-archive-controlled-answer-artifact:student-app-ai-tutor-result-archive-controlled-answer-artifact";
+    input.idempotencyKey = `${input.idempotencyKey}:result-archive`;
+    const result = await recordStudentAppAITutorAnswerReviewGate(input, {
+      generatedAt: "2026-06-09T11:40:00.000Z",
+      reviewLogPath: tempLog(),
+      answerReviewGatePort: port(calls),
+    });
+
+    assert.equal(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.answerReviewGate.status, "AI_TUTOR_ANSWER_REVIEW_APPROVED_NOT_PERSISTED");
+    assert.equal(result.boundary.tutoringResultRecorded, false);
+    assert.equal(result.boundary.studentVisiblePublished, false);
+    assert.equal(JSON.stringify(calls[0]).includes("Review the previous correction"), false);
+  });
+
   it("uses idempotency for safe replay and rejects conflicting review gates", async () => {
     const reviewLogPath = tempLog();
     const first = await recordStudentAppAITutorAnswerReviewGate(baseInput(), {
@@ -79,6 +99,16 @@ describe("Student App AI Tutor answer review gate runtime", () => {
         answerReviewGatePort: port(),
       }),
       /readiness must be READY/,
+    );
+
+    const unsafeResultArchiveSource = baseInput("reports/student-app-ai-tutor-result-archive-controlled-answer-artifact.current.json");
+    unsafeResultArchiveSource.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired = "PUBLISHED_STUDY_PACKET";
+    await assert.rejects(
+      () => recordStudentAppAITutorAnswerReviewGate(unsafeResultArchiveSource, {
+        reviewLogPath: tempLog(),
+        answerReviewGatePort: port(),
+      }),
+      /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/,
     );
   });
 
@@ -162,9 +192,9 @@ function port(calls = []) {
   };
 }
 
-function baseInput() {
-  const controlledAnswerArtifactReport = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-controlled-answer-artifact.current.json", "utf8"));
-  const result = controlledAnswerArtifactReport.runtimeProbes.studentAppAiTutorControlledAnswerArtifact.result;
+function baseInput(reportPath = "reports/student-app-ai-tutor-controlled-answer-artifact.current.json") {
+  const controlledAnswerArtifactReport = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const result = artifactResult(controlledAnswerArtifactReport);
   const artifact = result.controlledAnswerArtifact;
   const guidanceSectionsHash = hashGuidanceSections(artifact.guidanceSections);
   return {
@@ -205,6 +235,11 @@ function baseInput() {
     ],
     idempotencyKey: `student-app-ai-tutor-answer-review-gate:${artifact.artifactId}`,
   };
+}
+
+function artifactResult(report) {
+  return report.runtimeProbes.studentAppAiTutorControlledAnswerArtifact?.result
+    ?? report.runtimeProbes.studentAppAiTutorResultArchiveControlledAnswerArtifact.result;
 }
 
 function hashGuidanceSections(sections) {

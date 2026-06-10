@@ -36,6 +36,25 @@ describe("Student App AI Tutor result student delivery envelope runtime", () => 
     assert.match(formatStudentAppAITutorResultStudentDeliveryEnvelope(result), /Student visible: true/u);
   });
 
+  it("records a result-archive-sourced student delivery envelope through the same delivery port", async () => {
+    const port = deliveryPort();
+    const result = await recordStudentAppAITutorResultStudentDeliveryEnvelope(resultArchiveInput(), {
+      resultStudentDeliveryEnvelopePort: port,
+      commandLogPath: tempLog(),
+      generatedAt: "2026-06-09T12:40:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED");
+    assert.equal(result.sourceStudentVisibilityReview.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.sourceStudentVisibilityReview.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.studentResultDeliveryEnvelope.deliveryState, "READY_FOR_STUDENT_APP_RENDER_NOT_ARCHIVED");
+    assert.equal(result.boundary.studentDeliveryEnvelopeCreated, true);
+    assert.equal(result.boundary.durableStudentArchivePersistenceStarted, false);
+    assert.equal(port.calls.length, 1);
+    assert.equal(port.calls[0].sourceStudentVisibilityReview.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(JSON.stringify(port.calls[0]).includes("resultRefHash"), false);
+  });
+
   it("uses idempotency for replay and rejects conflicting delivery envelopes", async () => {
     const commandLogPath = tempLog();
     const port = deliveryPort();
@@ -63,7 +82,7 @@ describe("Student App AI Tutor result student delivery envelope runtime", () => 
     );
   });
 
-  it("rejects unsafe principals, non-ready sources, unapproved visibility, and hash mismatches", async () => {
+  it("rejects unsafe principals, non-ready sources, unapproved visibility, hash mismatches, and unsafe result-archive source metadata", async () => {
     await assert.rejects(
       () => recordStudentAppAITutorResultStudentDeliveryEnvelope(baseInput(), { commandLogPath: tempLog() }),
       /delivery envelope port is required/u,
@@ -107,6 +126,16 @@ describe("Student App AI Tutor result student delivery envelope runtime", () => 
         commandLogPath: tempLog(),
       }),
       /guidanceSectionsHash must be/u,
+    );
+
+    const unsafeArchiveSource = resultArchiveInput();
+    unsafeArchiveSource.studentVisibilityReviewReport.runtimeProbes.studentAppAiTutorResultArchiveStudentVisibilityReview.result.sourceReviewedResult.learningActionSource = "PUBLISHED_STUDY_PACKET";
+    await assert.rejects(
+      () => recordStudentAppAITutorResultStudentDeliveryEnvelope(unsafeArchiveSource, {
+        resultStudentDeliveryEnvelopePort: deliveryPort(),
+        commandLogPath: tempLog(),
+      }),
+      /learningActionSource must be AI_TUTOR_RESULT_ARCHIVE/u,
     );
   });
 
@@ -239,6 +268,73 @@ function baseInput() {
       "evidence:controlled-answer-artifact:student-app-ai-tutor-controlled-answer-artifact",
     ],
     idempotencyKey: "student-app-ai-tutor-result-student-delivery-envelope:ai_tutor_result_visibility_review_001",
+  };
+}
+
+function resultArchiveInput() {
+  const visibility = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-visibility-review.current.json", "utf8"));
+  const artifact = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-controlled-answer-artifact.current.json", "utf8"));
+  const visibilityResult = visibility.runtimeProbes.studentAppAiTutorResultArchiveStudentVisibilityReview.result;
+  const source = visibilityResult.sourceReviewedResult;
+  return {
+    schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-delivery-envelope.v1",
+    deliveryInvocationId: "ai_tutor_result_student_delivery_result_archive_001",
+    studentVisibilityReviewReport: visibility,
+    controlledAnswerArtifactReport: artifact,
+    principal: {
+      principalId: "student_delivery_runtime_result_archive_001",
+      subjectType: "SERVICE",
+      role: "SERVICE",
+      entryPoint: "STUDENT_DELIVERY_RUNTIME",
+      sessionId: "session_student_delivery_result_archive_001",
+      scopes: ["TEACHING_READ", "STUDENT_DELIVERY_ENVELOPE", "STUDENT_APP_DELIVERY"],
+    },
+    studentDeliveryRequest: {
+      envelopeId: "ai_tutor_result_delivery_env_result_archive_001",
+      deliveryMode: "STUDENT_APP_RENDERABLE_AI_TUTOR_RESULT_ENVELOPE",
+      channel: "STUDENT_APP",
+      audienceKind: "STUDENT_APP_LEARNING_SUPPORT",
+      visibilityState: "STUDENT_VISIBLE_AI_TUTOR_RESULT_DELIVERY_ENVELOPE_NOT_ARCHIVED",
+      scopeRef: "student:student_001",
+      studentVisibilityReviewRecordId: visibilityResult.recordId,
+      studentVisibilityReviewId: visibilityResult.studentVisibilityReview.reviewId,
+      persistenceRecordId: source.persistenceRecordId,
+      artifactId: source.artifactId,
+      requestId: source.requestId,
+      archiveItemId: source.archiveItemId,
+      guidanceSectionsHash: source.guidanceSectionsHash,
+      studentOwnScopeConfirmed: true,
+    },
+    studentDeliveryPolicy: {
+      studentVisibilityReviewRequired: true,
+      controlledAnswerArtifactRequired: true,
+      guidanceHashMatchRequired: true,
+      studentDeliveryEnvelopeAllowed: true,
+      studentVisibleEnvelopeAllowed: true,
+      safeGuidanceOnlyRequired: true,
+      studentOwnScopeRequired: true,
+      futureDurableArchivePersistenceReviewRequired: true,
+      directDatabaseAccessAllowed: false,
+      mainDatabaseWriteAllowed: false,
+      studentArchiveWriteAllowed: false,
+      durableArchivePersistenceAllowed: false,
+      executeHttpRequestAllowed: false,
+      modelInferenceAllowed: false,
+      retrievalAllowed: false,
+      answerKeyDisclosureAllowed: false,
+      rawModelOutputDisclosureAllowed: false,
+      resultRefDisclosureAllowed: false,
+      promptDisclosureAllowed: false,
+      contentRefDisclosureAllowed: false,
+      remoteDeviceControlAllowed: false,
+      localToolMutationAllowed: false,
+      swarmAllowed: false,
+    },
+    evidenceRefs: [
+      "evidence:result-archive-student-visibility-review:student-app-ai-tutor-result-archive-student-visibility-review",
+      "evidence:result-archive-controlled-answer-artifact:student-app-ai-tutor-result-archive-controlled-answer-artifact",
+    ],
+    idempotencyKey: "student-app-ai-tutor-result-archive-student-delivery-envelope:ai_tutor_result_visibility_review_archive_001",
   };
 }
 

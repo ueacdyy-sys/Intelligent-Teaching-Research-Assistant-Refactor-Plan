@@ -10,10 +10,15 @@ export const STUDENT_APP_AI_TUTOR_RESULT_STUDENT_DELIVERY_ENVELOPE_PORT =
 const inputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-delivery-envelope.v1";
 const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-delivery-envelope-recorded.v1";
 const visibilityReviewRuntimeId = "student_app_ai_tutor_result_student_visibility_review_runtime";
+const resultArchiveVisibilityReviewRuntimeId = "student_app_ai_tutor_result_archive_student_visibility_review";
 const visibilityReviewPort = "StudentAppAITutorResultStudentVisibilityReviewPort.recordResultStudentVisibilityReview";
 const visibilityReviewStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_VISIBILITY_REVIEW_RECORDED";
+const resultArchiveVisibilityReviewStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_VISIBILITY_REVIEW_RECORDED";
 const controlledArtifactRuntimeId = "student_app_ai_tutor_controlled_answer_artifact_runtime";
+const resultArchiveControlledArtifactRuntimeId = "student_app_ai_tutor_result_archive_controlled_answer_artifact";
 const controlledArtifactPort = "StudentAppAITutorControlledAnswerArtifactPort.recordControlledAnswerArtifact";
+const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
+const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const readyStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED";
 const defaultCommandLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-delivery-envelope.jsonl";
@@ -122,6 +127,13 @@ function assertDeliveryPrincipal(principal) {
 function assertVisibilityReviewReport(report) {
   assertPlainObject(report, "input.studentVisibilityReviewReport");
   requireConst(report.readiness, "READY", "input.studentVisibilityReviewReport.readiness");
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_VISIBILITY_REVIEW") {
+    return assertResultArchiveVisibilityReviewReport(report);
+  }
+  return assertPublishedVisibilityReviewReport(report);
+}
+
+function assertPublishedVisibilityReviewReport(report) {
   requireConst(report.workloadType, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_VISIBILITY_REVIEW", "input.studentVisibilityReviewReport.workloadType");
   requireConst(report.runtime?.runtimeId, visibilityReviewRuntimeId, "input.studentVisibilityReviewReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, visibilityReviewPort, "input.studentVisibilityReviewReport.runtime.commandPort");
@@ -137,8 +149,28 @@ function assertVisibilityReviewReport(report) {
   return report;
 }
 
+function assertResultArchiveVisibilityReviewReport(report) {
+  requireConst(report.runtime?.runtimeId, resultArchiveVisibilityReviewRuntimeId, "input.studentVisibilityReviewReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, visibilityReviewRuntimeId, "input.studentVisibilityReviewReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, visibilityReviewPort, "input.studentVisibilityReviewReport.runtime.commandPort");
+  requireConst(report.runtime?.status, resultArchiveVisibilityReviewStatus, "input.studentVisibilityReviewReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentVisibilityReviewReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.studentVisibilityReviewReport.safetyInvariants");
+  for (const field of ["source0340ResultArchiveReviewedResultPersistenceRequired", "humanStudentVisibilityReviewRequired", "approvedForFutureStudentDelivery"]) {
+    requireConst(invariants[field], true, `input.studentVisibilityReviewReport.safetyInvariants.${field}`);
+  }
+  requireConst(invariants.learningActionSourceRequired, resultArchiveSource, "input.studentVisibilityReviewReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.resultArchiveStatusRequired, resultArchiveReadyStatus, "input.studentVisibilityReviewReport.safetyInvariants.resultArchiveStatusRequired");
+  for (const field of ["studentVisiblePublished", "studentDeliveryEnvelopeCreated", "guidanceTextSentToPort", "rawResultRefSentToPort", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]) {
+    requireConst(invariants[field], false, `input.studentVisibilityReviewReport.safetyInvariants.${field}`);
+  }
+  return report;
+}
+
 function assertVisibilityReviewRecord(report) {
-  const result = report.runtimeProbes?.studentAppAiTutorResultStudentVisibilityReview?.result;
+  const isResultArchive = report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_VISIBILITY_REVIEW";
+  const result = report.runtimeProbes?.studentAppAiTutorResultStudentVisibilityReview?.result ??
+    report.runtimeProbes?.studentAppAiTutorResultArchiveStudentVisibilityReview?.result;
   assertPlainObject(result, "source.studentVisibilityReview.result");
   requireConst(result.runtimeId, visibilityReviewRuntimeId, "source.studentVisibilityReview.runtimeId");
   requireConst(result.commandPort, visibilityReviewPort, "source.studentVisibilityReview.commandPort");
@@ -151,6 +183,10 @@ function assertVisibilityReviewRecord(report) {
   const review = assertPlainObject(result.studentVisibilityReview, "source.studentVisibilityReview.studentVisibilityReview");
   requireConst(review.status, "AI_TUTOR_RESULT_STUDENT_VISIBILITY_APPROVED_NOT_DELIVERED", "source.studentVisibilityReview.review.status");
   requireConst(review.decision, "APPROVE_FOR_STUDENT_DELIVERY_RUNTIME", "source.studentVisibilityReview.review.decision");
+  if (isResultArchive) {
+    requireConst(source.learningActionSource, resultArchiveSource, "source.studentVisibilityReview.source.learningActionSource");
+    requireConst(source.resultArchiveStatus, resultArchiveReadyStatus, "source.studentVisibilityReview.source.resultArchiveStatus");
+  }
   return {
     recordId: requireBoundedString(result.recordId, "source.studentVisibilityReview.recordId", 1, 260),
     reviewId: requireToken(review.reviewId, "source.studentVisibilityReview.review.reviewId", "ai_tutor_result_visibility_review_"),
@@ -161,12 +197,21 @@ function assertVisibilityReviewRecord(report) {
     artifactId: requireToken(source.artifactId, "source.studentVisibilityReview.source.artifactId", "ai_tutor_answer_artifact_"),
     guidanceSectionsHash: requireHex(source.guidanceSectionsHash, "source.studentVisibilityReview.source.guidanceSectionsHash"),
     resultRefHash: requireHex(source.resultRefHash, "source.studentVisibilityReview.source.resultRefHash"),
+    learningActionSource: source.learningActionSource,
+    resultArchiveStatus: source.resultArchiveStatus,
   };
 }
 
 function assertControlledAnswerArtifactReport(report, visibilityRecord) {
   assertPlainObject(report, "input.controlledAnswerArtifactReport");
   requireConst(report.readiness, "READY", "input.controlledAnswerArtifactReport.readiness");
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT") {
+    return assertResultArchiveControlledAnswerArtifactReport(report);
+  }
+  return assertPublishedControlledAnswerArtifactReport(report);
+}
+
+function assertPublishedControlledAnswerArtifactReport(report) {
   requireConst(report.workloadType, "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT", "input.controlledAnswerArtifactReport.workloadType");
   requireConst(report.runtime?.runtimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, controlledArtifactPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
@@ -182,12 +227,34 @@ function assertControlledAnswerArtifactReport(report, visibilityRecord) {
   return report;
 }
 
+function assertResultArchiveControlledAnswerArtifactReport(report) {
+  requireConst(report.runtime?.runtimeId, resultArchiveControlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, controlledArtifactPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
+  requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.controlledAnswerArtifactReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.controlledAnswerArtifactReport.safetyInvariants");
+  for (const field of ["source0337ResultArchiveModelPrecheckRequired", "controlledAnswerArtifactRecorded", "rawModelOutputExcluded", "promptExcluded", "answerKeyExcluded"]) {
+    requireConst(invariants[field], true, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  }
+  requireConst(invariants.learningActionSourceRequired, resultArchiveSource, "input.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired");
+  for (const field of ["studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "swarmAllowed"]) {
+    requireConst(invariants[field], false, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  }
+  return report;
+}
+
 function assertControlledAnswerArtifact(report, visibilityRecord) {
-  const result = report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact?.result;
+  const result = report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact?.result ??
+    report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact?.result;
   assertPlainObject(result, "source.controlledAnswerArtifact.result");
   requireConst(result.runtimeId, controlledArtifactRuntimeId, "source.controlledAnswerArtifact.runtimeId");
   requireConst(result.requestId, visibilityRecord.requestId, "source.controlledAnswerArtifact.requestId");
   requireConst(result.archiveItemId, visibilityRecord.archiveItemId, "source.controlledAnswerArtifact.archiveItemId");
+  if (visibilityRecord.learningActionSource === resultArchiveSource) {
+    requireConst(result.learningActionSource, resultArchiveSource, "source.controlledAnswerArtifact.learningActionSource");
+    requireConst(result.resultArchiveStatus, resultArchiveReadyStatus, "source.controlledAnswerArtifact.resultArchiveStatus");
+  }
   const artifact = assertPlainObject(result.controlledAnswerArtifact, "source.controlledAnswerArtifact.artifact");
   requireConst(artifact.artifactId, visibilityRecord.artifactId, "source.controlledAnswerArtifact.artifactId");
   requireConst(artifact.status, "AI_TUTOR_CONTROLLED_ANSWER_RECORDED_NOT_REVIEWED", "source.controlledAnswerArtifact.status");
@@ -204,6 +271,8 @@ function assertControlledAnswerArtifact(report, visibilityRecord) {
     guidanceSections: sections,
     guidanceSectionsHash,
     safetyLabels: uniqueStringArray(artifact.safetyLabels, "source.controlledAnswerArtifact.safetyLabels", 1, 8, 3, 80),
+    learningActionSource: result.learningActionSource,
+    resultArchiveStatus: result.resultArchiveStatus,
   };
 }
 
@@ -349,6 +418,8 @@ function buildRecord(normalized, portRequest, deliveryEnvelope, deliveredAt) {
       safetyLabels: normalized.controlledArtifact.safetyLabels,
       guidanceSectionsHash: normalized.controlledArtifact.guidanceSectionsHash,
       guidanceSectionCount: normalized.controlledArtifact.guidanceSections.length,
+      learningActionSource: normalized.controlledArtifact.learningActionSource,
+      resultArchiveStatus: normalized.controlledArtifact.resultArchiveStatus,
     },
     portRequest: {
       operation: portRequest.operation,
@@ -406,6 +477,8 @@ function deliverySafeVisibilityRecord(record) {
     archiveItemId: record.archiveItemId,
     artifactId: record.artifactId,
     guidanceSectionsHash: record.guidanceSectionsHash,
+    learningActionSource: record.learningActionSource,
+    resultArchiveStatus: record.resultArchiveStatus,
   };
 }
 

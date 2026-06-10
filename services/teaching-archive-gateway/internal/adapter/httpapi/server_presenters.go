@@ -160,6 +160,7 @@ func toStudentAppAITutorResultArchiveCardResponse(
 	}
 	return studentAppAITutorResultArchiveCardResponse{
 		ArchiveItemID:        card.ArchiveItemID,
+		SourceArchiveItemID:  card.SourceArchiveItemID,
 		Status:               card.Status,
 		MaterialType:         card.MaterialType,
 		Title:                card.Title,
@@ -191,6 +192,7 @@ func toStudentAppAITutorResultArchiveRenderResponse(
 	}
 	return studentAppAITutorResultArchiveRenderResponse{
 		ArchiveItemID:        rendered.ArchiveItemID,
+		SourceArchiveItemID:  rendered.SourceArchiveItemID,
 		Status:               rendered.Status,
 		MaterialType:         rendered.MaterialType,
 		Title:                rendered.Title,
@@ -200,6 +202,38 @@ func toStudentAppAITutorResultArchiveRenderResponse(
 		SafetyLabels:         rendered.SafetyLabels,
 		CreatedAt:            formatTime(rendered.CreatedAt),
 	}
+}
+
+func toStudentAppAITutorResultArchiveLearningActionsResponse(
+	actions domain.StudentAppAITutorResultArchiveLearningActions,
+) studentAppAITutorResultArchiveLearningActionsResponse {
+	response := studentAppAITutorResultArchiveLearningActionsResponse{
+		ArchiveItemID:       actions.ArchiveItemID,
+		SourceArchiveItemID: actions.SourceArchiveItemID,
+		Status:              actions.Status,
+		MaterialType:        actions.MaterialType,
+		RenderFormat:        actions.RenderFormat,
+		FollowUpDepth:       actions.FollowUpDepth,
+		Actions:             make([]studentAppAITutorResultArchiveLearningActionResponse, 0, len(actions.Actions)),
+	}
+	for _, action := range actions.Actions {
+		response.Actions = append(response.Actions, studentAppAITutorResultArchiveLearningActionResponse{
+			ActionType:           action.ActionType,
+			State:                action.State,
+			TargetEndpoint:       action.TargetEndpoint,
+			Method:               action.Method,
+			QuestionBankIntent:   action.QuestionBankIntent,
+			RequiresTutorRequest: action.RequiresTutorRequest,
+			LearningActionSource: studentAppAITutorResultArchiveLearningActionSource{
+				SourceType:          action.SourceType,
+				ActionType:          action.ActionType,
+				ResultArchiveStatus: actions.Status,
+				RenderFormat:        actions.RenderFormat,
+				FollowUpDepth:       action.FollowUpDepth,
+			},
+		})
+	}
+	return response
 }
 
 func toAcceptedArchiveItemResponse(result usecase.CreateArchiveItemResult) archiveItemAcceptedResponse {
@@ -539,6 +573,58 @@ func toTutoringAnalysisRequestListResponse(page domain.TutoringAnalysisRequestPa
 	}
 }
 
+func toStudentAppAITutorRequestProgressListResponse(
+	page domain.TutoringAnalysisRequestPage,
+) (studentAppAITutorRequestProgressListResponse, error) {
+	requests := make([]studentAppAITutorRequestProgressResponse, 0, len(page.Items))
+	for _, request := range page.Items {
+		card, err := domain.BuildStudentAppAITutorRequestProgressCard(request)
+		if err != nil {
+			return studentAppAITutorRequestProgressListResponse{}, err
+		}
+		requests = append(requests, toStudentAppAITutorRequestProgressResponse(card))
+	}
+	return studentAppAITutorRequestProgressListResponse{
+		Data: requests,
+		PageInfo: pageInfoResponse{
+			PageSize:   page.PageInfo.PageSize,
+			HasMore:    page.PageInfo.HasMore,
+			NextCursor: optionalString(page.PageInfo.NextCursor),
+		},
+	}, nil
+}
+
+func toStudentAppAITutorRequestProgressResponse(
+	card domain.StudentAppAITutorRequestProgressCard,
+) studentAppAITutorRequestProgressResponse {
+	timeline := make([]studentAppAITutorRequestProgressStepResponse, 0, len(card.Timeline))
+	for _, step := range card.Timeline {
+		timeline = append(timeline, studentAppAITutorRequestProgressStepResponse{
+			StepID:      step.StepID,
+			Title:       step.Title,
+			Status:      step.Status,
+			CompletedAt: optionalTime(step.CompletedAt),
+		})
+	}
+	return studentAppAITutorRequestProgressResponse{
+		ID:                    card.ID,
+		ArchiveItemID:         card.ArchiveItemID,
+		AnalysisGoal:          card.AnalysisGoal,
+		QuestionBankIntent:    card.QuestionBankIntent,
+		Status:                card.Status,
+		LearningActionSource:  card.LearningActionSource,
+		FollowUpDepth:         card.FollowUpDepth,
+		SourceArchiveMaterial: card.SourceArchiveMaterial,
+		ProgressStage:         card.ProgressStage,
+		NextStudentAction:     card.NextStudentAction,
+		SafeStatusMessage:     card.SafeStatusMessage,
+		Timeline:              timeline,
+		CreatedAt:             formatTime(card.CreatedAt),
+		CompletedAt:           optionalTime(card.CompletedAt),
+		UpdatedAt:             formatTime(card.UpdatedAt),
+	}
+}
+
 func toTutoringAnalysisRequestResponse(request domain.TutoringAnalysisRequest) tutoringAnalysisRequestResponse {
 	return tutoringAnalysisRequestResponse{
 		ID:                     request.ID,
@@ -568,6 +654,7 @@ func toTutoringAnalysisWorkerClaimResponse(request domain.TutoringAnalysisReques
 		AnalysisGoal:           request.AnalysisGoal,
 		QuestionBankIntent:     request.QuestionBankIntent,
 		Status:                 request.Status,
+		LearningActionSource:   domain.TutoringAnalysisRequestLearningActionSource(request),
 		SourceArchiveOwnerType: request.SourceArchiveOwnerType,
 		SourceArchiveStudentID: optionalString(request.SourceArchiveStudentID),
 		SourceArchiveMaterial:  request.SourceArchiveMaterial,
@@ -584,27 +671,32 @@ func toAITutorWorkerStudyPacketInputResponse(
 	blocks := make([]aiTutorWorkerStudyPacketInputBlock, 0, len(input.Blocks))
 	for _, block := range input.Blocks {
 		blocks = append(blocks, aiTutorWorkerStudyPacketInputBlock{
-			BlockID:   block.BlockID,
-			BlockType: block.BlockType,
-			SectionID: block.SectionID,
-			Title:     block.Title,
-			Text:      block.Text,
-			PageHint:  block.PageHint,
+			BlockID:         block.BlockID,
+			BlockType:       block.BlockType,
+			SectionID:       block.SectionID,
+			Title:           block.Title,
+			Text:            block.Text,
+			PageHint:        block.PageHint,
+			SourceBlockRefs: block.SourceBlockRefs,
 		})
 	}
 	return aiTutorWorkerStudyPacketInputResponse{
-		RequestID:              input.RequestID,
-		ArchiveItemID:          input.ArchiveItemID,
-		AnalysisGoal:           input.AnalysisGoal,
-		QuestionBankIntent:     input.QuestionBankIntent,
-		Status:                 input.Status,
-		WorkerID:               input.WorkerID,
-		ClaimExpiresAt:         formatTime(input.ClaimExpiresAt),
-		SourceArchiveStudentID: input.SourceArchiveStudentID,
-		SourceArchiveMaterial:  input.SourceArchiveMaterial,
-		PacketStatus:           input.PacketStatus,
-		RenderFormat:           input.RenderFormat,
-		Blocks:                 blocks,
+		RequestID:                 input.RequestID,
+		ArchiveItemID:             input.ArchiveItemID,
+		AnalysisGoal:              input.AnalysisGoal,
+		QuestionBankIntent:        input.QuestionBankIntent,
+		Status:                    input.Status,
+		LearningActionSource:      input.LearningActionSource,
+		FollowUpDepth:             input.FollowUpDepth,
+		WorkerID:                  input.WorkerID,
+		ClaimExpiresAt:            formatTime(input.ClaimExpiresAt),
+		SourceArchiveStudentID:    input.SourceArchiveStudentID,
+		SourceArchiveMaterial:     input.SourceArchiveMaterial,
+		PacketStatus:              input.PacketStatus,
+		ResultArchiveStatus:       input.ResultArchiveStatus,
+		ResultArchiveSourceItemID: input.ResultArchiveSourceItemID,
+		RenderFormat:              input.RenderFormat,
+		Blocks:                    blocks,
 	}
 }
 

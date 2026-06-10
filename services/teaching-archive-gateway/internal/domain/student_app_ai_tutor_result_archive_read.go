@@ -11,6 +11,7 @@ const (
 	maxAITutorResultArchiveSectionSourceRefs = 8
 	maxAITutorResultArchiveHashLength        = 128
 	maxAITutorResultArchiveSafetyLabels      = 8
+	maxAITutorResultArchiveFollowUpDepth     = 2
 )
 
 type StudentAppAITutorResultArchiveStatus string
@@ -20,13 +21,16 @@ const (
 )
 
 type StudentAppAITutorResultArchiveSnapshot struct {
-	ArchiveItemID        string
-	StudentID            string
-	Summary              string
-	GuidanceSections     []StudentAppAITutorResultArchiveGuidanceSection
-	GuidanceSectionsHash string
-	SafetyLabels         []string
-	SafeGuidanceOnly     bool
+	ArchiveItemID           string
+	StudentID               string
+	SourceArchiveItemID     string
+	SourceTutoringRequestID string
+	Summary                 string
+	GuidanceSections        []StudentAppAITutorResultArchiveGuidanceSection
+	GuidanceSectionsHash    string
+	SafetyLabels            []string
+	SafeGuidanceOnly        bool
+	FollowUpDepth           int
 }
 
 type StudentAppAITutorResultArchiveGuidanceSection struct {
@@ -37,19 +41,22 @@ type StudentAppAITutorResultArchiveGuidanceSection struct {
 }
 
 type StudentAppAITutorResultArchiveCard struct {
-	ArchiveItemID        string
-	Status               StudentAppAITutorResultArchiveStatus
-	MaterialType         MaterialType
-	Title                string
-	Source               Source
-	Tags                 []string
-	AnalysisIntents      []AnalysisIntent
-	OCRStatus            OCRStatus
-	Summary              string
-	GuidanceSections     []StudentAppAITutorResultArchiveGuidanceSection
-	GuidanceSectionsHash string
-	SafetyLabels         []string
-	CreatedAt            time.Time
+	ArchiveItemID           string
+	SourceArchiveItemID     string
+	SourceTutoringRequestID string
+	Status                  StudentAppAITutorResultArchiveStatus
+	MaterialType            MaterialType
+	Title                   string
+	Source                  Source
+	Tags                    []string
+	AnalysisIntents         []AnalysisIntent
+	OCRStatus               OCRStatus
+	Summary                 string
+	GuidanceSections        []StudentAppAITutorResultArchiveGuidanceSection
+	GuidanceSectionsHash    string
+	SafetyLabels            []string
+	CreatedAt               time.Time
+	FollowUpDepth           int
 }
 
 func NormalizeStudentAppAITutorResultArchiveSnapshot(
@@ -60,6 +67,17 @@ func NormalizeStudentAppAITutorResultArchiveSnapshot(
 		return StudentAppAITutorResultArchiveSnapshot{}, err
 	}
 	studentID, err := normalizeRequiredText(snapshot.StudentID, maxArchiveStudentIDLength, "studentId")
+	if err != nil {
+		return StudentAppAITutorResultArchiveSnapshot{}, err
+	}
+	sourceArchiveItemID, err := NormalizeArchiveItemID(snapshot.SourceArchiveItemID)
+	if err != nil {
+		return StudentAppAITutorResultArchiveSnapshot{}, err
+	}
+	if sourceArchiveItemID == archiveItemID {
+		return StudentAppAITutorResultArchiveSnapshot{}, ErrForbidden
+	}
+	sourceTutoringRequestID, err := NormalizeTutoringAnalysisRequestID(snapshot.SourceTutoringRequestID)
 	if err != nil {
 		return StudentAppAITutorResultArchiveSnapshot{}, err
 	}
@@ -82,14 +100,21 @@ func NormalizeStudentAppAITutorResultArchiveSnapshot(
 	if !snapshot.SafeGuidanceOnly {
 		return StudentAppAITutorResultArchiveSnapshot{}, ErrForbidden
 	}
+	followUpDepth, err := normalizeAITutorResultArchiveFollowUpDepth(snapshot.FollowUpDepth)
+	if err != nil {
+		return StudentAppAITutorResultArchiveSnapshot{}, err
+	}
 	return StudentAppAITutorResultArchiveSnapshot{
-		ArchiveItemID:        archiveItemID,
-		StudentID:            studentID,
-		Summary:              summary,
-		GuidanceSections:     sections,
-		GuidanceSectionsHash: hash,
-		SafetyLabels:         labels,
-		SafeGuidanceOnly:     true,
+		ArchiveItemID:           archiveItemID,
+		StudentID:               studentID,
+		SourceArchiveItemID:     sourceArchiveItemID,
+		SourceTutoringRequestID: sourceTutoringRequestID,
+		Summary:                 summary,
+		GuidanceSections:        sections,
+		GuidanceSectionsHash:    hash,
+		SafetyLabels:            labels,
+		SafeGuidanceOnly:        true,
+		FollowUpDepth:           followUpDepth,
 	}, nil
 }
 
@@ -134,20 +159,37 @@ func BuildStudentAppAITutorResultArchiveCard(
 		return StudentAppAITutorResultArchiveCard{}, ErrForbidden
 	}
 	return StudentAppAITutorResultArchiveCard{
-		ArchiveItemID:        item.ID,
-		Status:               StudentAppAITutorResultArchiveStatusReady,
-		MaterialType:         item.MaterialType,
-		Title:                item.Title,
-		Source:               item.Source,
-		Tags:                 item.Tags,
-		AnalysisIntents:      item.AnalysisIntents,
-		OCRStatus:            item.OCRStatus,
-		Summary:              normalized.Summary,
-		GuidanceSections:     normalized.GuidanceSections,
-		GuidanceSectionsHash: normalized.GuidanceSectionsHash,
-		SafetyLabels:         normalized.SafetyLabels,
-		CreatedAt:            item.CreatedAt,
+		ArchiveItemID:           item.ID,
+		SourceArchiveItemID:     normalized.SourceArchiveItemID,
+		SourceTutoringRequestID: normalized.SourceTutoringRequestID,
+		Status:                  StudentAppAITutorResultArchiveStatusReady,
+		MaterialType:            item.MaterialType,
+		Title:                   item.Title,
+		Source:                  item.Source,
+		Tags:                    item.Tags,
+		AnalysisIntents:         item.AnalysisIntents,
+		OCRStatus:               item.OCRStatus,
+		Summary:                 normalized.Summary,
+		GuidanceSections:        normalized.GuidanceSections,
+		GuidanceSectionsHash:    normalized.GuidanceSectionsHash,
+		SafetyLabels:            normalized.SafetyLabels,
+		CreatedAt:               item.CreatedAt,
+		FollowUpDepth:           normalized.FollowUpDepth,
 	}, nil
+}
+
+func normalizeAITutorResultArchiveFollowUpDepth(value int) (int, error) {
+	if value < 0 || value > maxAITutorResultArchiveFollowUpDepth {
+		return 0, validationError("followUpDepth is out of bounds")
+	}
+	return value, nil
+}
+
+func normalizeAITutorResultArchiveNextFollowUpDepth(value int) (int, error) {
+	if value < 1 || value > maxAITutorResultArchiveFollowUpDepth {
+		return 0, validationError("learningActionSource.followUpDepth is out of bounds")
+	}
+	return value, nil
 }
 
 func normalizeAITutorResultArchiveGuidanceSections(

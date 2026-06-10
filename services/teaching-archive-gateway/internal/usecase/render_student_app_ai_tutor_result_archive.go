@@ -13,6 +13,13 @@ type StudentAppAITutorResultArchiveCardReader interface {
 	) (domain.StudentAppAITutorResultArchiveCard, error)
 }
 
+type StudentAppAITutorResultArchiveRenderer interface {
+	Execute(
+		ctx context.Context,
+		input domain.ReadStudentAppArchiveItemInput,
+	) (domain.StudentAppAITutorResultArchiveRenderEnvelope, error)
+}
+
 type RenderStudentAppAITutorResultArchive struct {
 	reader StudentAppAITutorResultArchiveCardReader
 }

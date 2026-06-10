@@ -49,6 +49,30 @@ func TestNormalizeCreateStudentAppAITutorRequestAcceptsLearningActionSource(t *t
 	}
 }
 
+func TestNormalizeCreateStudentAppAITutorRequestAcceptsResultArchiveLearningActionSource(t *testing.T) {
+	normalized, err := domain.NormalizeCreateStudentAppAITutorRequestInput(domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: " tarch_student_ai_tutor_result_001 ",
+		AnalysisGoal:         " continue guided practice ",
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCreateStudentAppAITutorRequestInput returned error: %v", err)
+	}
+	if normalized.LearningActionSource.SourceType != domain.StudentAppAITutorLearningActionSourceResultArchive ||
+		normalized.LearningActionSource.ResultArchiveStatus != domain.StudentAppAITutorResultArchiveStatusReady ||
+		normalized.LearningActionSource.RenderFormat != domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks ||
+		normalized.LearningActionSource.FollowUpDepth != 1 {
+		t.Fatalf("LearningActionSource = %#v", normalized.LearningActionSource)
+	}
+}
+
 func TestNormalizeCreateStudentAppAITutorRequestRejectsUnsupportedQuestionBankIntent(t *testing.T) {
 	_, err := domain.NormalizeCreateStudentAppAITutorRequestInput(domain.CreateStudentAppAITutorRequestInput{
 		Principal:            studentPrincipal("student_001"),
@@ -62,17 +86,48 @@ func TestNormalizeCreateStudentAppAITutorRequestRejectsUnsupportedQuestionBankIn
 }
 
 func TestNormalizeCreateStudentAppAITutorRequestRejectsInvalidLearningActionSource(t *testing.T) {
-	_, err := domain.NormalizeCreateStudentAppAITutorRequestInput(domain.CreateStudentAppAITutorRequestInput{
-		Principal:            studentPrincipal("student_001"),
-		StudentArchiveItemID: "tarch_archive_material_001",
-		AnalysisGoal:         "generate practice",
-		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+	for name, source := range map[string]domain.StudentAppAITutorLearningActionSource{
+		"draft published packet": {
 			ActionType:   domain.StudentAppArchiveItemLearningActionPersonalizedQuestionBank,
 			PacketStatus: domain.StudentAppArchiveItemStudyPacketStatus("DRAFT"),
 		},
-	})
-	if !errors.Is(err, domain.ErrValidation) {
-		t.Fatalf("error = %v, want ErrValidation", err)
+		"wrong result archive status": {
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatus("DRAFT"),
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       1,
+		},
+		"wrong result archive render format": {
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormat("HTML"),
+			FollowUpDepth:       1,
+		},
+		"missing result archive follow up depth": {
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+		},
+		"published packet with follow up depth": {
+			ActionType:    domain.StudentAppArchiveItemLearningActionPersonalizedQuestionBank,
+			PacketStatus:  domain.StudentAppArchiveItemStudyPacketStatusReady,
+			FollowUpDepth: 1,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := domain.NormalizeCreateStudentAppAITutorRequestInput(domain.CreateStudentAppAITutorRequestInput{
+				Principal:            studentPrincipal("student_001"),
+				StudentArchiveItemID: "tarch_archive_material_001",
+				AnalysisGoal:         "generate practice",
+				LearningActionSource: source,
+			})
+			if !errors.Is(err, domain.ErrValidation) {
+				t.Fatalf("error = %v, want ErrValidation", err)
+			}
+		})
 	}
 }
 

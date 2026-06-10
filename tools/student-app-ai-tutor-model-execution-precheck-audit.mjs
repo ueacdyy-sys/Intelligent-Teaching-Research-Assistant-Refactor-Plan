@@ -99,7 +99,8 @@ export async function auditStudentAppAITutorModelExecutionPrecheck(inputs, optio
   addFinding(findings, {
     id: "runtime.safety_boundaries",
     passed: includesAll(runtime, [
-      "sourceWorkerStudyPacketInputVerified: true",
+      "sourceWorkerInputVerified: true",
+      "sourceWorkerStudyPacketInputVerified:",
       "serviceAgentInternalOnly: true",
       "approvalVerified: true",
       "modelExecutionQueueAdmissionOnly: true",

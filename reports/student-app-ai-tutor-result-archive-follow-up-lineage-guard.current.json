@@ -1,0 +1,113 @@
+{
+  "generatedAt": "2026-06-10T07:55:28.813Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_LINEAGE_GUARD",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_result_archive_follow_up_lineage_guard",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_result_archive_follow_up_queue_idempotency_guard"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_LINEAGE_GUARD_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 4,
+    "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_LINEAGE_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorResultArchiveFollowUpLineageGuard": {
+      "status": "PASS",
+      "initialResult": {
+        "archiveItemId": "tarch_student_ai_tutor_result_001",
+        "sourceArchiveItemId": "tarch_source_student_homework_001",
+        "sourceTutoringRequestId": "tutor_req_student_app_001",
+        "followUpDepth": 0
+      },
+      "followUpResult": {
+        "archiveItemId": "tarch_student_ai_tutor_result_archive_001",
+        "sourceArchiveItemId": "tarch_student_ai_tutor_result_001",
+        "sourceTutoringRequestId": "tutor_req_student_app_result_archive_001",
+        "followUpDepth": 1
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 4,
+        "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_LINEAGE_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0352IdempotencyRequired": true,
+    "safeSnapshotLineageRequired": true,
+    "selfLineageRejected": true,
+    "studentAppSourceTutoringRequestIdExposureAllowed": false,
+    "workerReceivesResultArchiveSourceItemId": true,
+    "directDatabaseAccessFromJavaScriptAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0352_idempotency_guard_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_QUEUE_IDEMPOTENCY_GUARD_VERIFIED:0",
+      "expected": "READY 0352 pending follow-up idempotency evidence with zero errors",
+      "remediation": "Run or fix 0352 before claiming result-archive follow-up lineage."
+    },
+    {
+      "severity": "info",
+      "id": "domain.snapshot_card_render_actions_preserve_lineage",
+      "passed": true,
+      "actual": "SourceArchiveItemID=true;SourceTutoringRequestID=true;self lineage=true",
+      "expected": "snapshot, card, render, and actions require and preserve source lineage",
+      "remediation": "Keep sourceArchiveItemId and sourceTutoringRequestId in the safe result archive domain path."
+    },
+    {
+      "severity": "info",
+      "id": "worker_input_receives_internal_lineage_without_student_leak",
+      "passed": true,
+      "actual": "ResultArchiveSourceItemID=true;ResultArchiveSourceTutoringReqID=true;resultArchiveSourceItemId=true",
+      "expected": "worker-only result-archive input receives source item lineage while keeping source request id internal",
+      "remediation": "Expose the source item to worker input and keep source tutoring request id out of HTTP payloads."
+    },
+    {
+      "severity": "info",
+      "id": "postgres_projection_reads_and_indexes_lineage",
+      "passed": true,
+      "actual": "source_archive_item_id=true;source_tutoring_analysis_request_id=true;source_lineage=true",
+      "expected": "PostgreSQL safe snapshot projection stores, selects, scans, and indexes lineage fields",
+      "remediation": "Add the lineage projection columns and keep reads limited to safe snapshot metadata."
+    },
+    {
+      "severity": "info",
+      "id": "http_openapi_expose_safe_source_item_only",
+      "passed": true,
+      "actual": "sourceArchiveItemId=true;resultArchiveSourceItemId=true;sourceTutoringRequestId=true",
+      "expected": "Student App exposes safe parent item id only; worker OpenAPI exposes resultArchiveSourceItemId",
+      "remediation": "Sync HTTP presenters, response structs, tests, and OpenAPI with the lineage contract."
+    },
+    {
+      "severity": "info",
+      "id": "lineage_probe_preserves_parent_chain",
+      "passed": true,
+      "actual": "initial=tarch_source_student_homework_001->tarch_student_ai_tutor_result_001;followUp=tarch_student_ai_tutor_result_001->tarch_student_ai_tutor_result_archive_001;p99=5;errors=0",
+      "expected": "contract probe shows initial and follow-up result archive lineage remains parent-linked",
+      "remediation": "Keep current archive item id and source archive item id distinct through the result archive chain."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0353",
+      "passed": true,
+      "actual": "follow-up-lineage-guard=true;studentAppAiTutorResultArchiveFollowUpLineageGuard=true;11.95/10=true;SDD 0353=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0353",
+      "remediation": "Wire 0353 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use this as the result-archive follow-up lineage guard; continue the whole-system refactor on the next product slice without reopening broad production10k tests."
+}

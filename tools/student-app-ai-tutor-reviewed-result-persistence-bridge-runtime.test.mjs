@@ -37,6 +37,25 @@ describe("Student App AI Tutor reviewed result persistence bridge runtime", () =
     assert.match(formatStudentAppAITutorReviewedResultPersistenceBridge(result), /Student visible: false/u);
   });
 
+  it("persists a result-archive-sourced approved answer review through the same result port", async () => {
+    const port = resultPort();
+    const result = await recordStudentAppAITutorReviewedResultPersistenceBridge(resultArchiveInput(), {
+      studentAppAITutorResultPort: port,
+      persistenceLogPath: tempLog(),
+      generatedAt: "2026-06-09T12:10:00.000Z",
+    });
+
+    assert.equal(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.recordTutoringAnalysisResultCommand.targetUseCase, "RecordTutoringAnalysisResult.Execute");
+    assert.equal(result.boundary.tutoringResultRecorded, true);
+    assert.equal(result.boundary.studentVisiblePublished, false);
+    assert.equal(result.boundary.guidanceTextSentToPort, false);
+    assert.equal(port.calls[0].learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(port.calls[0].resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(JSON.stringify(port.calls[0]).includes("Review the previous correction"), false);
+  });
+
   it("uses idempotency for safe replay and rejects conflicting persistence commands", async () => {
     const persistenceLogPath = tempLog();
     const port = resultPort();
@@ -150,6 +169,16 @@ describe("Student App AI Tutor reviewed result persistence bridge runtime", () =
       }),
       /reviewed-result-persistence evidence ref is required/u,
     );
+
+    const unsafeResultArchiveSource = resultArchiveInput();
+    unsafeResultArchiveSource.answerReviewGateReport.safetyInvariants.learningActionSourceRequired = "PUBLISHED_STUDY_PACKET";
+    await assert.rejects(
+      () => recordStudentAppAITutorReviewedResultPersistenceBridge(unsafeResultArchiveSource, {
+        studentAppAITutorResultPort: resultPort(),
+        persistenceLogPath: tempLog(),
+      }),
+      /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/u,
+    );
   });
 });
 
@@ -199,6 +228,19 @@ function baseInput() {
       "evidence:reviewed-result-persistence:record-tutoring-analysis-result",
     ],
     idempotencyKey: "student-app-ai-tutor-reviewed-result-persistence:ai_tutor_answer_review_gate_001",
+  };
+}
+
+function resultArchiveInput() {
+  return {
+    ...baseInput(),
+    persistenceInvocationId: "ai_tutor_reviewed_result_persist_result_archive_001",
+    answerReviewGateReport: JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-answer-review-gate.current.json", "utf8")),
+    evidenceRefs: [
+      "evidence:answer-review-gate:student-app-ai-tutor-result-archive-answer-review-gate",
+      "evidence:reviewed-result-persistence:record-tutoring-analysis-result",
+    ],
+    idempotencyKey: "student-app-ai-tutor-result-archive-reviewed-result-persistence:ai_tutor_answer_review_gate_result_archive_001",
   };
 }
 

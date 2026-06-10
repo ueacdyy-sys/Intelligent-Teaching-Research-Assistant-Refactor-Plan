@@ -72,6 +72,7 @@ function validInputs() {
       "findExistingRecordByIdempotencyKey",
       "assertReplayMatches",
       "sourceWorkerStudyPacketInputVerified: true",
+      "sourceWorkerInputVerified: true",
       "serviceAgentInternalOnly: true",
       "approvalVerified: true",
       "modelExecutionQueueAdmissionOnly: true",

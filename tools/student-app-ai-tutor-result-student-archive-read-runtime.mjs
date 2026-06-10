@@ -14,7 +14,13 @@ const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-arch
 const rowVerificationRuntimeId = "student_app_ai_tutor_result_student_archive_row_verification_runtime";
 const rowVerificationCommandPort =
   "StudentAppAITutorResultStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow";
+const rowVerificationWorkload = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_ROW_VERIFICATION";
 const rowVerificationStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED";
+const resultArchiveRowVerificationWorkload = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_ROW_VERIFICATION";
+const resultArchiveRowVerificationRuntimeId = "student_app_ai_tutor_result_archive_student_archive_row_verification";
+const resultArchiveRowVerificationStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED";
+const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
+const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const verifiedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ_VERIFIED";
 const targetEndpoint = "GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result";
 const targetUseCase = "ReadStudentAppAITutorResultArchive.Execute";
@@ -83,7 +89,7 @@ function normalizeInput(input) {
   if (!evidenceRefs.some((ref) => ref.includes("student-archive-row-verification"))) {
     throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_READ_MISSING_ROW_EVIDENCE", "row verification evidence ref is required");
   }
-  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-archive-read"))) {
+  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-archive-read") || ref.includes("student-app-ai-tutor-result-archive-student-archive-read"))) {
     throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_READ_MISSING_PRODUCT_EVIDENCE", "student archive read evidence ref is required");
   }
   const idempotencyKey = requireBoundedString(input.idempotencyKey, "input.idempotencyKey", 8, 360);
@@ -116,7 +122,8 @@ function assertStudentPrincipal(principal) {
 function assertRowVerificationReport(report) {
   assertPlainObject(report, "input.studentArchiveRowVerificationReport");
   requireConst(report.readiness, "READY", "input.studentArchiveRowVerificationReport.readiness");
-  requireConst(report.workloadType, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_ROW_VERIFICATION", "input.studentArchiveRowVerificationReport.workloadType");
+  if (report.workloadType === resultArchiveRowVerificationWorkload) return assertResultArchiveRowVerificationReport(report);
+  requireConst(report.workloadType, rowVerificationWorkload, "input.studentArchiveRowVerificationReport.workloadType");
   requireConst(report.runtime?.runtimeId, rowVerificationRuntimeId, "input.studentArchiveRowVerificationReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, rowVerificationCommandPort, "input.studentArchiveRowVerificationReport.runtime.commandPort");
   requireConst(report.runtime?.status, rowVerificationStatus, "input.studentArchiveRowVerificationReport.runtime.status");
@@ -126,8 +133,23 @@ function assertRowVerificationReport(report) {
   return report;
 }
 
+function assertResultArchiveRowVerificationReport(report) {
+  requireConst(report.runtime?.runtimeId, resultArchiveRowVerificationRuntimeId, "input.studentArchiveRowVerificationReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, rowVerificationRuntimeId, "input.studentArchiveRowVerificationReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, rowVerificationCommandPort, "input.studentArchiveRowVerificationReport.runtime.commandPort");
+  requireConst(report.runtime?.status, resultArchiveRowVerificationStatus, "input.studentArchiveRowVerificationReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentArchiveRowVerificationReport.runtimeSlo.totalErrors");
+  const invariants = report.safetyInvariants ?? {};
+  for (const field of ["source0344ResultArchiveStudentArchiveStorageCommitRequired", "injectedTeachingArchiveRowReadPortRequired", "teachingArchiveRepositoryGetByIDUsed", "physicalDatabaseRowVerified", "committedArchiveItemMatchedPhysicalRow", "studentArchivePersisted"]) requireConst(invariants[field], true, `input.studentArchiveRowVerificationReport.safetyInvariants.${field}`);
+  requireConst(invariants.learningActionSourceRequired, resultArchiveSource, "input.studentArchiveRowVerificationReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.resultArchiveStatusRequired, resultArchiveReadyStatus, "input.studentArchiveRowVerificationReport.safetyInvariants.resultArchiveStatusRequired");
+  for (const field of ["directDatabaseAccessAllowed", "executeHttpRequestAllowed", "modelInferenceAllowed", "swarmAllowed", "contentRefDisclosureAllowed", "rawModelOutputDisclosureAllowed", "answerKeyDisclosureAllowed", "promptDisclosureAllowed", "resultRefDisclosureAllowed"]) requireConst(invariants[field], false, `input.studentArchiveRowVerificationReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertRowVerificationResult(report) {
-  const result = report.runtimeProbes?.studentAppAiTutorResultStudentArchiveRowVerification?.result;
+  const isResultArchive = report.workloadType === resultArchiveRowVerificationWorkload;
+  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentArchiveRowVerification : report.runtimeProbes?.studentAppAiTutorResultStudentArchiveRowVerification)?.result;
   assertPlainObject(result, "input.studentArchiveRowVerificationReport.runtimeProbes.result");
   requireConst(result.schemaVersion, "2026-06-08.student-app.ai-tutor-result-student-archive-row-verified.v1", "row.source.schemaVersion");
   requireConst(result.runtimeId, rowVerificationRuntimeId, "row.source.runtimeId");
@@ -135,6 +157,12 @@ function assertRowVerificationResult(report) {
   requireConst(result.status, rowVerificationStatus, "row.source.status");
   requireConst(result.boundary?.physicalDatabaseRowVerified, true, "row.source.boundary.physicalDatabaseRowVerified");
   requireConst(result.boundary?.directDatabaseAccessAllowed, false, "row.source.boundary.directDatabaseAccessAllowed");
+  if (isResultArchive) {
+    requireConst(result.sourceStorageCommit?.learningActionSource, resultArchiveSource, "row.source.sourceStorageCommit.learningActionSource");
+    requireConst(result.sourceStorageCommit?.resultArchiveStatus, resultArchiveReadyStatus, "row.source.sourceStorageCommit.resultArchiveStatus");
+    requireConst(result.safeGuidanceSnapshot?.learningActionSource, resultArchiveSource, "row.source.safeGuidanceSnapshot.learningActionSource");
+    requireConst(result.safeGuidanceSnapshot?.resultArchiveStatus, resultArchiveReadyStatus, "row.source.safeGuidanceSnapshot.resultArchiveStatus");
+  }
   const row = assertArchiveItem(result.teachingArchivePhysicalRow?.archiveItem, "row.source.teachingArchivePhysicalRow.archiveItem");
   return { ...result, recordId: requireBoundedString(result.recordId, "row.source.recordId", 1, 520), teachingArchivePhysicalRow: { archiveItem: row }, evidenceRefs: uniqueStringArray(result.evidenceRefs ?? [], "row.source.evidenceRefs", 1, 1800) };
 }
@@ -242,6 +270,8 @@ function buildVerificationRecord(normalized, verified, verifiedAt) {
       archiveItemId: normalized.archiveItem.id,
       targetRepository,
       targetSnapshotRepository,
+      learningActionSource: normalized.rowVerificationResult.sourceStorageCommit?.learningActionSource,
+      resultArchiveStatus: normalized.rowVerificationResult.sourceStorageCommit?.resultArchiveStatus,
     },
     principal: normalized.principal,
     studentResultReadSource: verified.source,

@@ -1,0 +1,122 @@
+{
+  "generatedAt": "2026-06-10T07:55:25.635Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_WORKER_CONTINUITY",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_result_archive_follow_up_worker_continuity",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_result_archive_follow_up_queue_admission",
+      "student_app_ai_tutor_worker_result_archive_input",
+      "student_app_ai_tutor_result_archive_model_execution_precheck"
+    ],
+    "queueEndpoint": "POST /v1/student-app/ai-tutor-requests",
+    "workerInputEndpoint": "POST /v1/teaching/tutoring-analysis-requests/{requestId}/ai-tutor-study-packet-input",
+    "status": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_WORKER_CONTINUITY_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_WORKER_CONTINUITY_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorResultArchiveFollowUpWorkerContinuity": {
+      "status": "PASS",
+      "result": {
+        "status": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_WORKER_CONTINUITY_VERIFIED",
+        "followUpArchiveItemId": "tarch_student_ai_tutor_result_follow_up_002",
+        "queueEndpoint": "POST /v1/student-app/ai-tutor-requests",
+        "workerInputEndpoint": "POST /v1/teaching/tutoring-analysis-requests/{requestId}/ai-tutor-study-packet-input",
+        "learningActionSource": "AI_TUTOR_RESULT_ARCHIVE",
+        "resultArchiveStatus": "READY_FOR_STUDENT_APP_READ",
+        "renderFormat": "SAFE_TEXT_BLOCKS",
+        "continuity": {
+          "existingWorkerClaim": true,
+          "persistedSourceTypeRequired": true,
+          "genericArchiveItemRead": true,
+          "safeRenderRebuilt": true,
+          "publishedPreviewReadsBlocked": true,
+          "modelPrecheckOnly": true
+        }
+      },
+      "outputLeaks": false,
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_WORKER_CONTINUITY_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0349FollowUpQueueAdmissionRequired": true,
+    "existingQueueEndpointOnly": true,
+    "existingWorkerClaimRequired": true,
+    "persistedLearningActionSourceRequired": "AI_TUTOR_RESULT_ARCHIVE",
+    "followUpArchiveItemIdIndependent": true,
+    "publishedPreviewReadsBlockedForResultArchiveSource": true,
+    "safeTextBlocksOnly": true,
+    "studentFacingSourceDisclosureAllowed": false,
+    "contentRefDisclosureAllowed": false,
+    "rawResultRefDisclosureAllowed": false,
+    "rawModelOutputDisclosureAllowed": false,
+    "promptDisclosureAllowed": false,
+    "answerKeyDisclosureAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0349_follow_up_queue_admission_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_QUEUE_ADMISSION_VERIFIED:0",
+      "expected": "READY 0349 result-archive follow-up queue admission with zero errors",
+      "remediation": "Run or fix 0349 before claiming follow-up worker continuity."
+    },
+    {
+      "severity": "info",
+      "id": "existing_worker_result_archive_input_and_claim_evidence_ready",
+      "passed": true,
+      "actual": "0336=READY;claim=READY;skipLocked=true",
+      "expected": "READY worker claim and READY result-archive worker-safe input evidence",
+      "remediation": "Keep result-archive follow-up requests on the existing leased worker path."
+    },
+    {
+      "severity": "info",
+      "id": "go.worker_input_is_follow_up_archive_item_independent",
+      "passed": true,
+      "actual": "TestReadAITutorWorkerStudyPacketInputUsesFollowUpResultArchiveItem=true;GetByID(ctx, request.ArchiveItemID)=true;tarch_student_ai_tutor_result_001=true;GetPublishedForStudentApp=true",
+      "expected": "worker input branches by persisted source and reads any follow-up archive item through injected ports, without published-preview fallback",
+      "remediation": "Add or restore the follow-up archive item worker input regression and keep implementation free of sample-id coupling."
+    },
+    {
+      "severity": "info",
+      "id": "queue_source_survives_into_worker_and_precheck",
+      "passed": true,
+      "actual": "tutoringRequestLearningActionSource=true;AI_TUTOR_RESULT_ARCHIVE=true;sourceWorkerResultArchiveInputVerified=true;modelInferenceStarted: false=true",
+      "expected": "queue source type is persisted, exposed only to internal worker routing, then admitted to precheck without model execution",
+      "remediation": "Do not let follow-up requests lose AI_TUTOR_RESULT_ARCHIVE provenance before worker input or precheck."
+    },
+    {
+      "severity": "info",
+      "id": "continuity_probe_keeps_student_output_safe",
+      "passed": true,
+      "actual": "source=AI_TUTOR_RESULT_ARCHIVE;p99=6;leaks=false",
+      "expected": "probe models 0349 -> leased worker -> result-archive input -> precheck continuity with no student/raw leaks",
+      "remediation": "Keep follow-up continuity as an internal worker boundary, not a student-facing or model-executing shortcut."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0350",
+      "passed": true,
+      "actual": "follow-up-worker-continuity=true;studentAppAiTutorResultArchiveFollowUpWorkerContinuity=true;11.86/10=true;SDD 0350=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0350",
+      "remediation": "Wire 0350 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use this as the second-turn result-archive follow-up worker continuity boundary; deeper loops can reuse the same audited queue and worker-safe input path while downstream model/result gates stay reviewed."
+}

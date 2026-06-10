@@ -299,16 +299,28 @@ var schemaFeatureStatements = []string{
 	`CREATE TABLE IF NOT EXISTS teaching_ai_tutor_result_archive_snapshots (
 		archive_item_id TEXT PRIMARY KEY REFERENCES teaching_archive_items(id),
 		student_id TEXT NOT NULL,
+		source_archive_item_id TEXT NOT NULL,
+		source_tutoring_analysis_request_id TEXT NOT NULL,
 		summary TEXT NOT NULL,
 		guidance_sections JSONB NOT NULL,
 		guidance_sections_hash TEXT NOT NULL,
 		safety_labels JSONB NOT NULL,
 		safe_guidance_only BOOLEAN NOT NULL,
+		follow_up_depth INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 		updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
+	`ALTER TABLE teaching_ai_tutor_result_archive_snapshots
+		ADD COLUMN IF NOT EXISTS follow_up_depth INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE teaching_ai_tutor_result_archive_snapshots
+		ADD COLUMN IF NOT EXISTS source_archive_item_id TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE teaching_ai_tutor_result_archive_snapshots
+		ADD COLUMN IF NOT EXISTS source_tutoring_analysis_request_id TEXT NOT NULL DEFAULT ''`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_tutor_result_archive_snapshots_student_ready
 		ON teaching_ai_tutor_result_archive_snapshots (student_id, updated_at DESC, archive_item_id)
+		WHERE safe_guidance_only = TRUE`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_ai_tutor_result_archive_snapshots_source_lineage
+		ON teaching_ai_tutor_result_archive_snapshots (source_archive_item_id, source_tutoring_analysis_request_id, archive_item_id)
 		WHERE safe_guidance_only = TRUE`,
 	`CREATE TABLE IF NOT EXISTS teaching_ai_grading_requests (
 		id TEXT PRIMARY KEY,
@@ -392,6 +404,8 @@ var schemaFeatureStatements = []string{
 		analysis_goal TEXT NOT NULL,
 		question_bank_intent TEXT NOT NULL,
 		status TEXT NOT NULL,
+		source_type TEXT NOT NULL DEFAULT 'PUBLISHED_STUDY_PACKET',
+		source_follow_up_depth INTEGER NOT NULL DEFAULT 0,
 		source_archive_owner_type TEXT NOT NULL,
 		source_archive_student_id TEXT,
 		source_archive_material TEXT NOT NULL,
@@ -424,6 +438,10 @@ var schemaFeatureStatements = []string{
 		ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
 	`ALTER TABLE teaching_tutoring_analysis_requests
 		ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'PUBLISHED_STUDY_PACKET'`,
+	`ALTER TABLE teaching_tutoring_analysis_requests
+		ADD COLUMN IF NOT EXISTS source_follow_up_depth INTEGER NOT NULL DEFAULT 0`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_archive_created
 		ON teaching_tutoring_analysis_requests (archive_item_id, created_at DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_principal_created
@@ -437,6 +455,16 @@ var schemaFeatureStatements = []string{
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_source_student_created
 		ON teaching_tutoring_analysis_requests (source_archive_student_id, created_at DESC, id DESC)
 		WHERE source_archive_student_id IS NOT NULL`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_pending_result_archive_follow_up_unique
+		ON teaching_tutoring_analysis_requests (
+			archive_item_id,
+			requested_by_principal_id,
+			question_bank_intent,
+			source_follow_up_depth,
+			source_archive_student_id
+		)
+		WHERE source_type = 'AI_TUTOR_RESULT_ARCHIVE'
+			AND status IN ('QUEUED', 'IN_PROGRESS')`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_created_page
 		ON teaching_tutoring_analysis_requests (created_at DESC, id DESC)`,
 	`CREATE TABLE IF NOT EXISTS teaching_question_bank_draft_contents (

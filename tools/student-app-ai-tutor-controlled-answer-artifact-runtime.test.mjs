@@ -31,6 +31,40 @@ describe("Student App AI Tutor controlled answer artifact runtime", () => {
     assert.equal(JSON.stringify(calls[0]).includes("Convert both fractions"), false);
   });
 
+  it("records a result-archive-sourced controlled answer artifact for human review only", async () => {
+    const calls = [];
+    const input = baseInput();
+    input.artifactInvocationId = "ai_tutor_answer_artifact_invocation_result_archive_001";
+    input.modelExecutionPrecheckReport = resultArchivePrecheckReport();
+    input.generationAttempt = {
+      ...input.generationAttempt,
+      attemptId: "ai_tutor_answer_attempt_result_archive_001",
+      precheckId: "ai_tutor_model_precheck_result_archive_001",
+      queueRef: "ai_tutor_model_queue_result_archive_001",
+      requestId: "tutor_req_student_app_result_archive_001",
+      workerId: "worker_student_tutor_02",
+      inputHash: "a81a6025e7ebe70f730722ac145d7f0b7add977b0050be2dc9284e5b61aab0d7",
+    };
+    input.evidenceRefs = [
+      "evidence:result-archive-model-execution-precheck:student-app-ai-tutor-result-archive-model-execution-precheck",
+      "evidence:controlled-answer-policy:review-before-result",
+    ];
+    input.idempotencyKey = "student-app-ai-tutor-controlled-answer:tutor_req_student_app_result_archive_001:ai_tutor_model_precheck_result_archive_001";
+
+    const result = await recordStudentAppAITutorControlledAnswerArtifact(input, {
+      generatedAt: "2026-06-09T11:20:00.000Z",
+      artifactLogPath: tempLog(),
+      controlledAnswerArtifactPort: resultArchivePort(calls),
+    });
+
+    assert.equal(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.controlledAnswerArtifact.reviewState, "PENDING_HUMAN_REVIEW");
+    assert.equal(result.boundary.studentVisiblePublished, false);
+    assert.equal(calls.length, 1);
+    assert.equal(JSON.stringify(calls[0]).includes("Review your previous mistake pattern"), false);
+  });
+
   it("uses idempotency for safe replay and rejects conflicting artifacts", async () => {
     const artifactLogPath = tempLog();
     const first = await recordStudentAppAITutorControlledAnswerArtifact(baseInput(), {
@@ -119,6 +153,19 @@ describe("Student App AI Tutor controlled answer artifact runtime", () => {
       /rawModelOutput is not allowed/,
     );
   });
+
+  it("rejects unsafe result-archive precheck source reports", async () => {
+    const input = baseInput();
+    input.modelExecutionPrecheckReport = resultArchivePrecheckReport();
+    input.modelExecutionPrecheckReport.safetyInvariants.learningActionSourceRequired = "PUBLISHED_STUDY_PACKET";
+    await assert.rejects(
+      () => recordStudentAppAITutorControlledAnswerArtifact(input, {
+        artifactLogPath: tempLog(),
+        controlledAnswerArtifactPort: port(),
+      }),
+      /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/,
+    );
+  });
 });
 
 function tempLog() {
@@ -154,6 +201,38 @@ function port(calls = []) {
             },
           ],
           safetyLabels: ["NO_DIAGNOSIS", "STUDY_GUIDANCE_ONLY"],
+          resultPersistenceAllowed: false,
+          tutoringResultRecorded: false,
+          studentVisiblePublished: false,
+        },
+      };
+    },
+  };
+}
+
+function resultArchivePort(calls = []) {
+  return {
+    async recordControlledAnswerArtifact(request) {
+      calls.push(request);
+      return {
+        controlledAnswerArtifact: {
+          artifactId: "ai_tutor_answer_artifact_result_archive_001",
+          requestId: request.requestId,
+          workerId: request.workerId,
+          precheckId: request.precheckId,
+          queueRef: request.queueRef,
+          status: "AI_TUTOR_CONTROLLED_ANSWER_RECORDED_NOT_REVIEWED",
+          reviewState: "PENDING_HUMAN_REVIEW",
+          summary: "Follow-up help based on a reviewed AI Tutor result.",
+          guidanceSections: [
+            {
+              sectionId: "ai_tutor_answer_section_result_archive_001",
+              title: "Review the previous correction",
+              text: "Restate the corrected reasoning before attempting a similar practice item.",
+              sourceBlockRefs: ["source_block_001"],
+            },
+          ],
+          safetyLabels: ["STUDY_GUIDANCE_ONLY", "FOLLOW_UP_REVIEW"],
           resultPersistenceAllowed: false,
           tutoringResultRecorded: false,
           studentVisiblePublished: false,
@@ -265,6 +344,80 @@ function sourcePrecheckReport() {
       studentVisiblePublished: false,
       directDatabaseAccessAllowed: false,
       executeHttpRequestAllowed: false,
+      swarmAllowed: false,
+    },
+  };
+}
+
+function resultArchivePrecheckReport() {
+  return {
+    readiness: "READY",
+    workloadType: "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_MODEL_EXECUTION_PRECHECK",
+    runtime: {
+      runtimeId: "student_app_ai_tutor_result_archive_model_execution_precheck",
+      sharedRuntimeId: "student_app_ai_tutor_model_execution_precheck_runtime",
+      commandPort: "StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck",
+      status: "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_MODEL_EXECUTION_PRECHECKED",
+    },
+    runtimeSlo: { p99Ms: 6, totalErrors: 0 },
+    runtimeProbes: {
+      studentAppAiTutorResultArchiveModelExecutionPrecheck: {
+        result: {
+          schemaVersion: "2026-06-08.student-app.ai-tutor-model-execution-prechecked.v1",
+          runtimeId: "student_app_ai_tutor_model_execution_precheck_runtime",
+          commandPort: "StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck",
+          status: "STUDENT_APP_AI_TUTOR_MODEL_EXECUTION_PRECHECKED",
+          requestId: "tutor_req_student_app_result_archive_001",
+          archiveItemId: "tarch_student_ai_tutor_result_001",
+          workerId: "worker_student_tutor_02",
+          approvalId: "ai_tutor_model_approval_result_archive_001",
+          learningActionSource: "AI_TUTOR_RESULT_ARCHIVE",
+          resultArchiveStatus: "READY_FOR_STUDENT_APP_READ",
+          inputHash: "a81a6025e7ebe70f730722ac145d7f0b7add977b0050be2dc9284e5b61aab0d7",
+          modelExecutionPrecheck: {
+            precheckId: "ai_tutor_model_precheck_result_archive_001",
+            queueRef: "ai_tutor_model_queue_result_archive_001",
+            modelRoute: "student_tutor_guided_help_v1",
+            requestId: "tutor_req_student_app_result_archive_001",
+            workerId: "worker_student_tutor_02",
+            inputHash: "a81a6025e7ebe70f730722ac145d7f0b7add977b0050be2dc9284e5b61aab0d7",
+            safeBlockCount: 2,
+            status: "AI_TUTOR_MODEL_EXECUTION_PRECHECKED_NOT_STARTED",
+            queueAdmissionOnly: true,
+            modelInferenceStarted: false,
+            tutorResultRecorded: false,
+            studentVisiblePublished: false,
+          },
+          boundary: {
+            sourceWorkerResultArchiveInputVerified: true,
+            sourceWorkerStudyPacketInputVerified: false,
+            modelExecutionQueueAdmissionOnly: true,
+            safeTextBlockTextSentToPort: false,
+            modelInferenceStarted: false,
+            tutorAnswerGenerated: false,
+            tutoringResultRecorded: false,
+            studentVisiblePublished: false,
+          },
+        },
+      },
+    },
+    safetyInvariants: {
+      source0336WorkerResultArchiveInputRequired: true,
+      learningActionSourceRequired: "AI_TUTOR_RESULT_ARCHIVE",
+      internalServiceOnly: true,
+      approvalRequired: true,
+      modelExecutionQueueAdmissionOnly: true,
+      safeTextBlocksOnly: true,
+      inputHashRecorded: true,
+      promptConstructed: false,
+      modelInferenceAllowed: false,
+      tutorAnswerGenerated: false,
+      tutoringResultRecorded: false,
+      studentVisiblePublished: false,
+      directDatabaseAccessAllowed: false,
+      executeHttpRequestAllowed: false,
+      externalToolUseAllowed: false,
+      retrievalAllowed: false,
       swarmAllowed: false,
     },
   };

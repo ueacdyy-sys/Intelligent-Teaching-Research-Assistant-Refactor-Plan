@@ -171,6 +171,36 @@ func TestGetByIDReturnsStudentAppAiTutorResultArchiveStorageCommitPhysicalRow(t 
 	}
 }
 
+func TestGetByIDReturnsStudentAppAiTutorResultArchiveStorageCommitResultArchiveSourcePhysicalRow(t *testing.T) {
+	db := &recordingDB{rows: &singleStudentAppAiTutorResultArchiveItemRow{
+		title:      "Student AI Tutor result archive tutor_req_student_app_result_archive_001",
+		contentRef: "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_result_archive_001:sha256_fca56f06fe276b7f151662647a31ff0dde640358f3fdad476a813738dbd569b5",
+	}}
+	repository := postgres.NewArchiveRepository(db)
+
+	item, ok, err := repository.GetByID(context.Background(), "tarch_student_ai_tutor_result_001")
+	if err != nil {
+		t.Fatalf("GetByID returned error: %v", err)
+	}
+	if !ok {
+		t.Fatalf("GetByID ok = false, want true")
+	}
+	if item.ID != "tarch_student_ai_tutor_result_001" ||
+		item.Title != "Student AI Tutor result archive tutor_req_student_app_result_archive_001" ||
+		item.Source != domain.SourceSystemImport ||
+		!strings.HasPrefix(item.ContentRef, "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_result_archive_001:sha256_") {
+		t.Fatalf("result-archive source item shape = %#v", item)
+	}
+	if strings.Join(item.Tags, ",") != "student_app_ai_tutor,result,safe_guidance,archive_commit" {
+		t.Fatalf("tags = %#v", item.Tags)
+	}
+	if len(item.AnalysisIntents) != 2 ||
+		item.AnalysisIntents[0] != domain.AnalysisIntentArchiveOnly ||
+		item.AnalysisIntents[1] != domain.AnalysisIntentTutoring {
+		t.Fatalf("analysis intents = %#v", item.AnalysisIntents)
+	}
+}
+
 func TestGetByIDReturnsTeachingArchiveMaterialDraftStorageCommitPhysicalRow(t *testing.T) {
 	db := &recordingDB{rows: &singleTeachingArchiveMaterialDraftItemRow{}}
 	repository := postgres.NewArchiveRepository(db)
@@ -309,7 +339,9 @@ func (r *singleStudentAppFeedbackArchiveControlledSourceItemRow) Err() error {
 }
 
 type singleStudentAppAiTutorResultArchiveItemRow struct {
-	advanced bool
+	advanced   bool
+	title      string
+	contentRef string
 }
 
 func (r *singleStudentAppAiTutorResultArchiveItemRow) Close() {}
@@ -323,13 +355,21 @@ func (r *singleStudentAppAiTutorResultArchiveItemRow) Next() bool {
 }
 
 func (r *singleStudentAppAiTutorResultArchiveItemRow) Scan(dest ...any) error {
+	title := r.title
+	if title == "" {
+		title = "Student AI Tutor result archive tutor_req_student_app_001"
+	}
+	contentRef := r.contentRef
+	if contentRef == "" {
+		contentRef = "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_001:sha256_271312a59510bdc5c453848296b910c16791663bc96b6243963830676ca083a0"
+	}
 	*(dest[0].(*string)) = "tarch_student_ai_tutor_result_001"
 	*(dest[1].(*string)) = string(domain.OwnerTypeStudent)
 	*(dest[2].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
 	*(dest[3].(*string)) = string(domain.MaterialTypeHomework)
-	*(dest[4].(*string)) = "Student AI Tutor result archive tutor_req_student_app_001"
+	*(dest[4].(*string)) = title
 	*(dest[5].(*string)) = string(domain.SourceSystemImport)
-	*(dest[6].(*string)) = "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_001:sha256_271312a59510bdc5c453848296b910c16791663bc96b6243963830676ca083a0"
+	*(dest[6].(*string)) = contentRef
 	*(dest[7].(*[]byte)) = []byte(`["student_app_ai_tutor","result","safe_guidance","archive_commit"]`)
 	*(dest[8].(*[]byte)) = []byte(`["ARCHIVE_ONLY","TUTORING"]`)
 	*(dest[9].(*string)) = string(domain.OCRStatusNotRequired)

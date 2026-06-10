@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-06-10T07:55:10.261Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_worker_result_archive_input",
+    "useCase": "ReadAITutorWorkerStudyPacketInput.Execute",
+    "endpoint": "POST /v1/teaching/tutoring-analysis-requests/{requestId}/ai-tutor-study-packet-input",
+    "sourceReport": "reports/student-app-ai-tutor-result-student-archive-learning-actions.current.json",
+    "status": "STUDENT_APP_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT_READY"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "STATIC_GO_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT_AUDIT"
+  },
+  "safetyInvariants": {
+    "source0335ReadyRequired": true,
+    "serviceAgentInternalOnly": true,
+    "claimedWorkerLeaseRequired": true,
+    "persistedLearningActionSourceRequired": true,
+    "resultArchiveSnapshotRequired": true,
+    "publishedPreviewReadsBlockedForResultArchiveSource": true,
+    "safeTextBlocksOnly": true,
+    "internalWorkerSourceStatusAllowed": true,
+    "studentFacingRequestSourceDisclosureAllowed": false,
+    "contentRefDisclosureAllowed": false,
+    "rawResultRefDisclosureAllowed": false,
+    "rawModelOutputDisclosureAllowed": false,
+    "promptDisclosureAllowed": false,
+    "answerKeyDisclosureAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "id": "source.0335_result_archive_learning_actions_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_LEARNING_ACTIONS_VERIFIED:0",
+      "expected": "0335 result-archive learning-actions report is READY with zero errors",
+      "remediation": "Regenerate or fix 0335 before allowing result-archive-sourced worker input.",
+      "severity": "info"
+    },
+    {
+      "id": "go.persists_and_normalizes_learning_action_source",
+      "passed": true,
+      "actual": "LearningActionSource=true;TutoringAnalysisRequestLearningActionSource=true;source_type=true;AI_TUTOR_RESULT_ARCHIVE=true",
+      "expected": "queue source is a domain field, defaults legacy rows safely, and persists through Postgres source_type",
+      "remediation": "Persist and scan source_type; otherwise DB round trips can fall back to the published study-packet path.",
+      "severity": "info"
+    },
+    {
+      "id": "go.worker_input_branches_to_result_archive_safe_render",
+      "passed": true,
+      "actual": "readResultArchiveInput=true;GetStudentAppAITutorResultArchiveSnapshot=true;BuildAITutorWorkerResultArchiveInput=true;GetPublishedContentPreviewForStudentApp=true",
+      "expected": "result-archive queue source rebuilds safe card/render/actions before returning worker SAFE_TEXT_BLOCKS",
+      "remediation": "Branch by persisted learning-action source and keep the result-archive path on safe archive snapshots, not published previews.",
+      "severity": "info"
+    },
+    {
+      "id": "http.openapi_internal_source_status_without_student_leak",
+      "passed": true,
+      "actual": "LearningActionSource=true;ResultArchiveStatus=true;SourceBlockRefs=true;ResultRef=false;contentRef=false;studentRequestHasLearningActionSource=false",
+      "expected": "internal worker claim/input expose source/status, while student-facing request response and worker input omit raw refs/prompts/model/answer fields",
+      "remediation": "Expose source only on internal worker surfaces and keep student-facing request responses stable.",
+      "severity": "info"
+    },
+    {
+      "id": "quality_root_structure_trace_board_track_0336",
+      "passed": true,
+      "actual": "audit:student-app-ai-tutor-worker-result-archive-input=true;studentAppAiTutorWorkerResultArchiveInput=true;11.44/10=true;SDD 0336=true",
+      "expected": "package script, strict quality gate, root workflow, structure verifier, root trace, SDD, and board track 0336",
+      "remediation": "Wire 0336 through every project evidence hook before marking READY.",
+      "severity": "info"
+    }
+  ],
+  "nextAction": "Use this as the worker-safe input boundary for result-archive follow-up tutoring; model inference, OCR/RAG, Swarm, and full AI Tutor generation remain later reviewed slices."
+}

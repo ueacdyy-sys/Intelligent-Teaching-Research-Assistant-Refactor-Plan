@@ -15,18 +15,47 @@ type NormalizedReadAITutorWorkerStudyPacketInputInput struct {
 }
 
 type AITutorWorkerStudyPacketInput struct {
-	RequestID              string
-	ArchiveItemID          string
-	AnalysisGoal           string
-	QuestionBankIntent     QuestionBankIntent
-	Status                 TutoringAnalysisStatus
-	WorkerID               string
-	ClaimExpiresAt         time.Time
-	SourceArchiveStudentID string
-	SourceArchiveMaterial  MaterialType
-	PacketStatus           StudentAppArchiveItemStudyPacketStatus
-	RenderFormat           PublishedArchiveMaterialContentPreviewRenderFormat
-	Blocks                 []PublishedArchiveMaterialContentPreviewBlock
+	RequestID                        string
+	ArchiveItemID                    string
+	AnalysisGoal                     string
+	QuestionBankIntent               QuestionBankIntent
+	Status                           TutoringAnalysisStatus
+	LearningActionSource             StudentAppAITutorLearningActionSourceType
+	FollowUpDepth                    int
+	WorkerID                         string
+	ClaimExpiresAt                   time.Time
+	SourceArchiveStudentID           string
+	SourceArchiveMaterial            MaterialType
+	PacketStatus                     StudentAppArchiveItemStudyPacketStatus
+	ResultArchiveStatus              StudentAppAITutorResultArchiveStatus
+	ResultArchiveSourceItemID        string
+	ResultArchiveSourceTutoringReqID string
+	RenderFormat                     AITutorWorkerStudyPacketInputRenderFormat
+	Blocks                           []AITutorWorkerStudyPacketInputBlock
+}
+
+type AITutorWorkerStudyPacketInputRenderFormat string
+
+const (
+	AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks AITutorWorkerStudyPacketInputRenderFormat = "SAFE_TEXT_BLOCKS"
+)
+
+type AITutorWorkerStudyPacketInputBlockType string
+
+const (
+	AITutorWorkerStudyPacketInputBlockTypeSection         AITutorWorkerStudyPacketInputBlockType = "SECTION"
+	AITutorWorkerStudyPacketInputBlockTypeSummary         AITutorWorkerStudyPacketInputBlockType = "SUMMARY"
+	AITutorWorkerStudyPacketInputBlockTypeGuidanceSection AITutorWorkerStudyPacketInputBlockType = "GUIDANCE_SECTION"
+)
+
+type AITutorWorkerStudyPacketInputBlock struct {
+	BlockID         string
+	BlockType       AITutorWorkerStudyPacketInputBlockType
+	SectionID       string
+	Title           string
+	Text            string
+	PageHint        string
+	SourceBlockRefs []string
 }
 
 func NormalizeReadAITutorWorkerStudyPacketInputInput(
@@ -58,6 +87,9 @@ func ValidateAITutorWorkerStudyPacketRequest(
 	if request.ID != input.RequestID {
 		return validationError("requestId does not match tutoring analysis request")
 	}
+	if !validStudentAppAITutorLearningActionSourceType(TutoringAnalysisRequestLearningActionSource(request)) {
+		return validationError("tutoring analysis request learning action source is unsupported")
+	}
 	if !canRecordTutoringAnalysisResult(request, input.WorkerID, now.UTC()) {
 		return ErrConflict
 	}
@@ -82,11 +114,14 @@ func BuildAITutorWorkerStudyPacketInput(
 	if err := ValidateAITutorWorkerStudyPacketRequest(input, request, now); err != nil {
 		return AITutorWorkerStudyPacketInput{}, err
 	}
+	if TutoringAnalysisRequestLearningActionSource(request) != StudentAppAITutorLearningActionSourcePublishedStudyPacket {
+		return AITutorWorkerStudyPacketInput{}, ErrForbidden
+	}
 	if packet.PacketStatus != StudentAppArchiveItemStudyPacketStatusReady {
 		return AITutorWorkerStudyPacketInput{}, ErrForbidden
 	}
 	studentReadInput := NormalizedReadStudentAppArchiveItemInput{
-		Principal:     studentAppPrincipalForAITutorWorkerInput(request.SourceArchiveStudentID, now),
+		Principal:     studentAppPrincipalForAITutorWorkerInput(request.SourceArchiveStudentID),
 		ArchiveItemID: request.ArchiveItemID,
 		StudentID:     request.SourceArchiveStudentID,
 	}
@@ -104,20 +139,67 @@ func BuildAITutorWorkerStudyPacketInput(
 	if !aiTutorWorkerStudyPacketActionAvailable(actions, request.QuestionBankIntent) {
 		return AITutorWorkerStudyPacketInput{}, ErrForbidden
 	}
-	blocks := append([]PublishedArchiveMaterialContentPreviewBlock(nil), packet.ContentPreview.Blocks...)
 	return AITutorWorkerStudyPacketInput{
 		RequestID:              request.ID,
 		ArchiveItemID:          request.ArchiveItemID,
 		AnalysisGoal:           request.AnalysisGoal,
 		QuestionBankIntent:     request.QuestionBankIntent,
 		Status:                 request.Status,
+		LearningActionSource:   StudentAppAITutorLearningActionSourcePublishedStudyPacket,
+		FollowUpDepth:          request.FollowUpDepth,
 		WorkerID:               input.WorkerID,
 		ClaimExpiresAt:         request.ClaimExpiresAt.UTC(),
 		SourceArchiveStudentID: request.SourceArchiveStudentID,
 		SourceArchiveMaterial:  request.SourceArchiveMaterial,
 		PacketStatus:           packet.PacketStatus,
-		RenderFormat:           packet.ContentPreview.RenderFormat,
-		Blocks:                 blocks,
+		RenderFormat:           AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks,
+		Blocks:                 aiTutorWorkerPublishedBlocks(packet.ContentPreview.Blocks),
+	}, nil
+}
+
+func BuildAITutorWorkerResultArchiveInput(
+	input NormalizedReadAITutorWorkerStudyPacketInputInput,
+	request TutoringAnalysisRequest,
+	rendered StudentAppAITutorResultArchiveRenderEnvelope,
+	now time.Time,
+) (AITutorWorkerStudyPacketInput, error) {
+	if err := ValidateAITutorWorkerStudyPacketRequest(input, request, now); err != nil {
+		return AITutorWorkerStudyPacketInput{}, err
+	}
+	if TutoringAnalysisRequestLearningActionSource(request) != StudentAppAITutorLearningActionSourceResultArchive {
+		return AITutorWorkerStudyPacketInput{}, ErrForbidden
+	}
+	if rendered.ArchiveItemID != request.ArchiveItemID ||
+		rendered.Status != StudentAppAITutorResultArchiveStatusReady ||
+		rendered.MaterialType != request.SourceArchiveMaterial ||
+		rendered.RenderFormat != StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks {
+		return AITutorWorkerStudyPacketInput{}, ErrForbidden
+	}
+	studentReadInput := BuildAITutorWorkerStudyPacketStudentReadInput(request)
+	actions, err := BuildStudentAppAITutorResultArchiveLearningActions(studentReadInput, rendered)
+	if err != nil {
+		return AITutorWorkerStudyPacketInput{}, err
+	}
+	if !aiTutorWorkerResultArchiveActionAvailable(actions, request.QuestionBankIntent, request.FollowUpDepth) {
+		return AITutorWorkerStudyPacketInput{}, ErrForbidden
+	}
+	return AITutorWorkerStudyPacketInput{
+		RequestID:                        request.ID,
+		ArchiveItemID:                    request.ArchiveItemID,
+		AnalysisGoal:                     request.AnalysisGoal,
+		QuestionBankIntent:               request.QuestionBankIntent,
+		Status:                           request.Status,
+		LearningActionSource:             StudentAppAITutorLearningActionSourceResultArchive,
+		FollowUpDepth:                    request.FollowUpDepth,
+		WorkerID:                         input.WorkerID,
+		ClaimExpiresAt:                   request.ClaimExpiresAt.UTC(),
+		SourceArchiveStudentID:           request.SourceArchiveStudentID,
+		SourceArchiveMaterial:            request.SourceArchiveMaterial,
+		ResultArchiveStatus:              rendered.Status,
+		ResultArchiveSourceItemID:        rendered.SourceArchiveItemID,
+		ResultArchiveSourceTutoringReqID: rendered.SourceTutoringRequestID,
+		RenderFormat:                     AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks,
+		Blocks:                           aiTutorWorkerResultArchiveBlocks(rendered.Blocks),
 	}, nil
 }
 
@@ -140,7 +222,84 @@ func aiTutorWorkerStudyPacketActionAvailable(
 	return false
 }
 
-func studentAppPrincipalForAITutorWorkerInput(studentID string, now time.Time) PrincipalContext {
+func aiTutorWorkerResultArchiveActionAvailable(
+	actions StudentAppAITutorResultArchiveLearningActions,
+	intent QuestionBankIntent,
+	followUpDepth int,
+) bool {
+	if actions.Status != StudentAppAITutorResultArchiveStatusReady ||
+		actions.RenderFormat != StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks {
+		return false
+	}
+	for _, action := range actions.Actions {
+		if action.TargetEndpoint == "/v1/student-app/ai-tutor-requests" &&
+			action.Method == "POST" &&
+			action.QuestionBankIntent == intent &&
+			action.SourceType == StudentAppAITutorLearningActionSourceResultArchive &&
+			action.FollowUpDepth == followUpDepth &&
+			(action.ActionType == StudentAppArchiveItemLearningActionAITutorRequest ||
+				action.ActionType == StudentAppArchiveItemLearningActionPersonalizedQuestionBank) {
+			return true
+		}
+	}
+	return false
+}
+
+func aiTutorWorkerPublishedBlocks(
+	blocks []PublishedArchiveMaterialContentPreviewBlock,
+) []AITutorWorkerStudyPacketInputBlock {
+	result := make([]AITutorWorkerStudyPacketInputBlock, 0, len(blocks))
+	for _, block := range blocks {
+		result = append(result, AITutorWorkerStudyPacketInputBlock{
+			BlockID:   block.BlockID,
+			BlockType: AITutorWorkerStudyPacketInputBlockTypeSection,
+			SectionID: block.SectionID,
+			Title:     block.Title,
+			Text:      block.Text,
+			PageHint:  block.PageHint,
+		})
+	}
+	return result
+}
+
+func aiTutorWorkerResultArchiveBlocks(
+	blocks []StudentAppAITutorResultArchiveRenderBlock,
+) []AITutorWorkerStudyPacketInputBlock {
+	result := make([]AITutorWorkerStudyPacketInputBlock, 0, len(blocks))
+	for _, block := range blocks {
+		result = append(result, AITutorWorkerStudyPacketInputBlock{
+			BlockID:         block.BlockID,
+			BlockType:       aiTutorWorkerResultArchiveBlockType(block.BlockType),
+			SectionID:       block.SectionID,
+			Title:           block.Title,
+			Text:            block.Text,
+			SourceBlockRefs: append([]string(nil), block.SourceBlockRefs...),
+		})
+	}
+	return result
+}
+
+func aiTutorWorkerResultArchiveBlockType(
+	blockType StudentAppAITutorResultArchiveBlockType,
+) AITutorWorkerStudyPacketInputBlockType {
+	if blockType == StudentAppAITutorResultArchiveBlockTypeSummary {
+		return AITutorWorkerStudyPacketInputBlockTypeSummary
+	}
+	return AITutorWorkerStudyPacketInputBlockTypeGuidanceSection
+}
+
+func BuildAITutorWorkerStudyPacketStudentReadInput(
+	request TutoringAnalysisRequest,
+) NormalizedReadStudentAppArchiveItemInput {
+	return NormalizedReadStudentAppArchiveItemInput{
+		Principal:     studentAppPrincipalForAITutorWorkerInput(request.SourceArchiveStudentID),
+		ArchiveItemID: request.ArchiveItemID,
+		StudentID:     request.SourceArchiveStudentID,
+	}
+}
+
+func studentAppPrincipalForAITutorWorkerInput(studentID string) PrincipalContext {
+	wallClockNow := time.Now().UTC()
 	return PrincipalContext{
 		PrincipalID: studentID,
 		SubjectType: SubjectUser,
@@ -157,7 +316,7 @@ func studentAppPrincipalForAITutorWorkerInput(studentID string, now time.Time) P
 			StudentIDs: []string{studentID},
 		},
 		SessionID: "worker_study_packet_" + studentID,
-		IssuedAt:  now.UTC().Add(-time.Minute),
-		ExpiresAt: now.UTC().Add(time.Hour),
+		IssuedAt:  wallClockNow.Add(-time.Minute),
+		ExpiresAt: wallClockNow.Add(time.Hour),
 	}
 }

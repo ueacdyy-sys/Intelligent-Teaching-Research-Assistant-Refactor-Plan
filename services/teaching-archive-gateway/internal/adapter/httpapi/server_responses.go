@@ -112,6 +112,7 @@ type studentAppArchiveItemLearningActionResponse struct {
 
 type studentAppAITutorResultArchiveCardResponse struct {
 	ArchiveItemID        string                                          `json:"archiveItemId"`
+	SourceArchiveItemID  string                                          `json:"sourceArchiveItemId"`
 	Status               domain.StudentAppAITutorResultArchiveStatus     `json:"status"`
 	MaterialType         domain.MaterialType                             `json:"materialType"`
 	Title                string                                          `json:"title"`
@@ -135,6 +136,7 @@ type studentAppAITutorResultArchiveGuidanceSection struct {
 
 type studentAppAITutorResultArchiveRenderResponse struct {
 	ArchiveItemID        string                                            `json:"archiveItemId"`
+	SourceArchiveItemID  string                                            `json:"sourceArchiveItemId"`
 	Status               domain.StudentAppAITutorResultArchiveStatus       `json:"status"`
 	MaterialType         domain.MaterialType                               `json:"materialType"`
 	Title                string                                            `json:"title"`
@@ -154,9 +156,67 @@ type studentAppAITutorResultArchiveRenderBlock struct {
 	SourceBlockRefs []string                                       `json:"sourceBlockRefs,omitempty"`
 }
 
+type studentAppAITutorResultArchiveLearningActionsResponse struct {
+	ArchiveItemID       string                                                 `json:"archiveItemId"`
+	SourceArchiveItemID string                                                 `json:"sourceArchiveItemId"`
+	Status              domain.StudentAppAITutorResultArchiveStatus            `json:"status"`
+	MaterialType        domain.MaterialType                                    `json:"materialType"`
+	RenderFormat        domain.StudentAppAITutorResultArchiveRenderFormat      `json:"renderFormat"`
+	FollowUpDepth       int                                                    `json:"followUpDepth"`
+	Actions             []studentAppAITutorResultArchiveLearningActionResponse `json:"actions"`
+}
+
+type studentAppAITutorResultArchiveLearningActionResponse struct {
+	ActionType           domain.StudentAppArchiveItemLearningActionType     `json:"actionType"`
+	State                domain.StudentAppArchiveItemLearningActionState    `json:"state"`
+	TargetEndpoint       string                                             `json:"targetEndpoint"`
+	Method               string                                             `json:"method"`
+	QuestionBankIntent   domain.QuestionBankIntent                          `json:"questionBankIntent,omitempty"`
+	RequiresTutorRequest bool                                               `json:"requiresTutorRequest"`
+	LearningActionSource studentAppAITutorResultArchiveLearningActionSource `json:"learningActionSource"`
+}
+
+type studentAppAITutorResultArchiveLearningActionSource struct {
+	SourceType          domain.StudentAppAITutorLearningActionSourceType  `json:"sourceType"`
+	ActionType          domain.StudentAppArchiveItemLearningActionType    `json:"actionType"`
+	ResultArchiveStatus domain.StudentAppAITutorResultArchiveStatus       `json:"resultArchiveStatus"`
+	RenderFormat        domain.StudentAppAITutorResultArchiveRenderFormat `json:"renderFormat"`
+	FollowUpDepth       int                                               `json:"followUpDepth"`
+}
+
 type tutoringAnalysisRequestListResponse struct {
 	Data     []tutoringAnalysisRequestResponse `json:"data"`
 	PageInfo pageInfoResponse                  `json:"pageInfo"`
+}
+
+type studentAppAITutorRequestProgressListResponse struct {
+	Data     []studentAppAITutorRequestProgressResponse `json:"data"`
+	PageInfo pageInfoResponse                           `json:"pageInfo"`
+}
+
+type studentAppAITutorRequestProgressResponse struct {
+	ID                    string                                           `json:"id"`
+	ArchiveItemID         string                                           `json:"archiveItemId"`
+	AnalysisGoal          string                                           `json:"analysisGoal"`
+	QuestionBankIntent    domain.QuestionBankIntent                        `json:"questionBankIntent"`
+	Status                domain.TutoringAnalysisStatus                    `json:"status"`
+	LearningActionSource  domain.StudentAppAITutorLearningActionSourceType `json:"learningActionSource"`
+	FollowUpDepth         int                                              `json:"followUpDepth"`
+	SourceArchiveMaterial domain.MaterialType                              `json:"sourceArchiveMaterial"`
+	ProgressStage         domain.StudentAppAITutorProgressStage            `json:"progressStage"`
+	NextStudentAction     domain.StudentAppAITutorNextAction               `json:"nextStudentAction"`
+	SafeStatusMessage     string                                           `json:"safeStatusMessage"`
+	Timeline              []studentAppAITutorRequestProgressStepResponse   `json:"timeline"`
+	CreatedAt             string                                           `json:"createdAt"`
+	CompletedAt           *string                                          `json:"completedAt,omitempty"`
+	UpdatedAt             string                                           `json:"updatedAt"`
+}
+
+type studentAppAITutorRequestProgressStepResponse struct {
+	StepID      string                                     `json:"stepId"`
+	Title       string                                     `json:"title"`
+	Status      domain.StudentAppAITutorProgressStepStatus `json:"status"`
+	CompletedAt *string                                    `json:"completedAt,omitempty"`
 }
 
 type aiGradingRequestListResponse struct {
@@ -405,42 +465,48 @@ type tutoringAnalysisRequestResponse struct {
 }
 
 type tutoringAnalysisWorkerClaimResponse struct {
-	ID                     string                        `json:"id"`
-	ArchiveItemID          string                        `json:"archiveItemId"`
-	AnalysisGoal           string                        `json:"analysisGoal"`
-	QuestionBankIntent     domain.QuestionBankIntent     `json:"questionBankIntent"`
-	Status                 domain.TutoringAnalysisStatus `json:"status"`
-	SourceArchiveOwnerType domain.OwnerType              `json:"sourceArchiveOwnerType"`
-	SourceArchiveStudentID *string                       `json:"sourceArchiveStudentId,omitempty"`
-	SourceArchiveMaterial  domain.MaterialType           `json:"sourceArchiveMaterial"`
-	ClaimedByWorkerID      string                        `json:"claimedByWorkerId"`
-	ClaimExpiresAt         string                        `json:"claimExpiresAt"`
-	CreatedAt              string                        `json:"createdAt"`
-	UpdatedAt              string                        `json:"updatedAt"`
+	ID                     string                                           `json:"id"`
+	ArchiveItemID          string                                           `json:"archiveItemId"`
+	AnalysisGoal           string                                           `json:"analysisGoal"`
+	QuestionBankIntent     domain.QuestionBankIntent                        `json:"questionBankIntent"`
+	Status                 domain.TutoringAnalysisStatus                    `json:"status"`
+	LearningActionSource   domain.StudentAppAITutorLearningActionSourceType `json:"learningActionSource"`
+	SourceArchiveOwnerType domain.OwnerType                                 `json:"sourceArchiveOwnerType"`
+	SourceArchiveStudentID *string                                          `json:"sourceArchiveStudentId,omitempty"`
+	SourceArchiveMaterial  domain.MaterialType                              `json:"sourceArchiveMaterial"`
+	ClaimedByWorkerID      string                                           `json:"claimedByWorkerId"`
+	ClaimExpiresAt         string                                           `json:"claimExpiresAt"`
+	CreatedAt              string                                           `json:"createdAt"`
+	UpdatedAt              string                                           `json:"updatedAt"`
 }
 
 type aiTutorWorkerStudyPacketInputResponse struct {
-	RequestID              string                                                    `json:"requestId"`
-	ArchiveItemID          string                                                    `json:"archiveItemId"`
-	AnalysisGoal           string                                                    `json:"analysisGoal"`
-	QuestionBankIntent     domain.QuestionBankIntent                                 `json:"questionBankIntent"`
-	Status                 domain.TutoringAnalysisStatus                             `json:"status"`
-	WorkerID               string                                                    `json:"workerId"`
-	ClaimExpiresAt         string                                                    `json:"claimExpiresAt"`
-	SourceArchiveStudentID string                                                    `json:"sourceArchiveStudentId"`
-	SourceArchiveMaterial  domain.MaterialType                                       `json:"sourceArchiveMaterial"`
-	PacketStatus           domain.StudentAppArchiveItemStudyPacketStatus             `json:"packetStatus"`
-	RenderFormat           domain.PublishedArchiveMaterialContentPreviewRenderFormat `json:"renderFormat"`
-	Blocks                 []aiTutorWorkerStudyPacketInputBlock                      `json:"blocks"`
+	RequestID                 string                                           `json:"requestId"`
+	ArchiveItemID             string                                           `json:"archiveItemId"`
+	AnalysisGoal              string                                           `json:"analysisGoal"`
+	QuestionBankIntent        domain.QuestionBankIntent                        `json:"questionBankIntent"`
+	Status                    domain.TutoringAnalysisStatus                    `json:"status"`
+	LearningActionSource      domain.StudentAppAITutorLearningActionSourceType `json:"learningActionSource"`
+	FollowUpDepth             int                                              `json:"followUpDepth,omitempty"`
+	WorkerID                  string                                           `json:"workerId"`
+	ClaimExpiresAt            string                                           `json:"claimExpiresAt"`
+	SourceArchiveStudentID    string                                           `json:"sourceArchiveStudentId"`
+	SourceArchiveMaterial     domain.MaterialType                              `json:"sourceArchiveMaterial"`
+	PacketStatus              domain.StudentAppArchiveItemStudyPacketStatus    `json:"packetStatus,omitempty"`
+	ResultArchiveStatus       domain.StudentAppAITutorResultArchiveStatus      `json:"resultArchiveStatus,omitempty"`
+	ResultArchiveSourceItemID string                                           `json:"resultArchiveSourceItemId,omitempty"`
+	RenderFormat              domain.AITutorWorkerStudyPacketInputRenderFormat `json:"renderFormat"`
+	Blocks                    []aiTutorWorkerStudyPacketInputBlock             `json:"blocks"`
 }
 
 type aiTutorWorkerStudyPacketInputBlock struct {
-	BlockID   string                                                 `json:"blockId"`
-	BlockType domain.PublishedArchiveMaterialContentPreviewBlockType `json:"blockType"`
-	SectionID string                                                 `json:"sectionId"`
-	Title     string                                                 `json:"title"`
-	Text      string                                                 `json:"text"`
-	PageHint  string                                                 `json:"pageHint,omitempty"`
+	BlockID         string                                        `json:"blockId"`
+	BlockType       domain.AITutorWorkerStudyPacketInputBlockType `json:"blockType"`
+	SectionID       string                                        `json:"sectionId,omitempty"`
+	Title           string                                        `json:"title"`
+	Text            string                                        `json:"text"`
+	PageHint        string                                        `json:"pageHint,omitempty"`
+	SourceBlockRefs []string                                      `json:"sourceBlockRefs,omitempty"`
 }
 
 type pageInfoResponse struct {

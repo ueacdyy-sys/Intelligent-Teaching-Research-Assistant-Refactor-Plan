@@ -16,15 +16,18 @@ const (
 )
 
 type StudentAppAITutorResultArchiveRenderEnvelope struct {
-	ArchiveItemID        string
-	Status               StudentAppAITutorResultArchiveStatus
-	MaterialType         MaterialType
-	Title                string
-	RenderFormat         StudentAppAITutorResultArchiveRenderFormat
-	Blocks               []StudentAppAITutorResultArchiveRenderBlock
-	GuidanceSectionsHash string
-	SafetyLabels         []string
-	CreatedAt            time.Time
+	ArchiveItemID           string
+	SourceArchiveItemID     string
+	SourceTutoringRequestID string
+	Status                  StudentAppAITutorResultArchiveStatus
+	MaterialType            MaterialType
+	Title                   string
+	RenderFormat            StudentAppAITutorResultArchiveRenderFormat
+	Blocks                  []StudentAppAITutorResultArchiveRenderBlock
+	GuidanceSectionsHash    string
+	SafetyLabels            []string
+	CreatedAt               time.Time
+	FollowUpDepth           int
 }
 
 type StudentAppAITutorResultArchiveRenderBlock struct {
@@ -40,6 +43,14 @@ func BuildStudentAppAITutorResultArchiveRenderEnvelope(
 	card StudentAppAITutorResultArchiveCard,
 ) (StudentAppAITutorResultArchiveRenderEnvelope, error) {
 	archiveItemID, err := normalizeStudentAppArchiveItemID(card.ArchiveItemID)
+	if err != nil {
+		return StudentAppAITutorResultArchiveRenderEnvelope{}, err
+	}
+	sourceArchiveItemID, err := NormalizeArchiveItemID(card.SourceArchiveItemID)
+	if err != nil {
+		return StudentAppAITutorResultArchiveRenderEnvelope{}, err
+	}
+	sourceTutoringRequestID, err := NormalizeTutoringAnalysisRequestID(card.SourceTutoringRequestID)
 	if err != nil {
 		return StudentAppAITutorResultArchiveRenderEnvelope{}, err
 	}
@@ -70,6 +81,10 @@ func BuildStudentAppAITutorResultArchiveRenderEnvelope(
 	if card.CreatedAt.IsZero() {
 		return StudentAppAITutorResultArchiveRenderEnvelope{}, validationError("createdAt is required")
 	}
+	followUpDepth, err := normalizeAITutorResultArchiveFollowUpDepth(card.FollowUpDepth)
+	if err != nil {
+		return StudentAppAITutorResultArchiveRenderEnvelope{}, err
+	}
 	blocks := []StudentAppAITutorResultArchiveRenderBlock{
 		{
 			BlockID:   "block_summary",
@@ -89,14 +104,17 @@ func BuildStudentAppAITutorResultArchiveRenderEnvelope(
 		})
 	}
 	return StudentAppAITutorResultArchiveRenderEnvelope{
-		ArchiveItemID:        archiveItemID,
-		Status:               StudentAppAITutorResultArchiveStatusReady,
-		MaterialType:         card.MaterialType,
-		Title:                title,
-		RenderFormat:         StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
-		Blocks:               blocks,
-		GuidanceSectionsHash: hash,
-		SafetyLabels:         labels,
-		CreatedAt:            card.CreatedAt.UTC(),
+		ArchiveItemID:           archiveItemID,
+		SourceArchiveItemID:     sourceArchiveItemID,
+		SourceTutoringRequestID: sourceTutoringRequestID,
+		Status:                  StudentAppAITutorResultArchiveStatusReady,
+		MaterialType:            card.MaterialType,
+		Title:                   title,
+		RenderFormat:            StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+		Blocks:                  blocks,
+		GuidanceSectionsHash:    hash,
+		SafetyLabels:            labels,
+		CreatedAt:               card.CreatedAt.UTC(),
+		FollowUpDepth:           followUpDepth,
 	}, nil
 }

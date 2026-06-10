@@ -39,6 +39,8 @@ type TutoringAnalysisRequest struct {
 	AnalysisGoal           string
 	QuestionBankIntent     QuestionBankIntent
 	Status                 TutoringAnalysisStatus
+	LearningActionSource   StudentAppAITutorLearningActionSourceType
+	FollowUpDepth          int
 	SourceArchiveOwnerType OwnerType
 	SourceArchiveStudentID string
 	SourceArchiveMaterial  MaterialType
@@ -54,11 +56,21 @@ type TutoringAnalysisRequest struct {
 	UpdatedAt              time.Time
 }
 
+type StudentAppAITutorResultArchiveFollowUpPendingRequestQuery struct {
+	ArchiveItemID          string
+	RequestedByPrincipalID string
+	QuestionBankIntent     QuestionBankIntent
+	FollowUpDepth          int
+	StudentID              string
+}
+
 type CreateTutoringAnalysisRequestInput struct {
 	Principal              PrincipalContext
 	ArchiveItemID          string
 	AnalysisGoal           string
 	QuestionBankIntent     QuestionBankIntent
+	LearningActionSource   StudentAppAITutorLearningActionSourceType
+	FollowUpDepth          int
 	SourceArchiveOwnerType OwnerType
 	SourceArchiveStudentID string
 	SourceArchiveMaterial  MaterialType
@@ -84,6 +96,8 @@ func NewTutoringAnalysisRequest(
 		AnalysisGoal:           normalized.AnalysisGoal,
 		QuestionBankIntent:     normalized.QuestionBankIntent,
 		Status:                 TutoringAnalysisStatusQueued,
+		LearningActionSource:   normalized.LearningActionSource,
+		FollowUpDepth:          normalized.FollowUpDepth,
 		SourceArchiveOwnerType: normalized.SourceArchiveOwnerType,
 		SourceArchiveStudentID: normalized.SourceArchiveStudentID,
 		SourceArchiveMaterial:  normalized.SourceArchiveMaterial,
@@ -110,6 +124,17 @@ func NormalizeCreateTutoringAnalysisRequestInput(
 	if !validQuestionBankIntent(questionBankIntent) {
 		return CreateTutoringAnalysisRequestInput{}, validationError("questionBankIntent is unsupported")
 	}
+	learningActionSource := input.LearningActionSource
+	if learningActionSource == "" {
+		learningActionSource = StudentAppAITutorLearningActionSourcePublishedStudyPacket
+	}
+	if !validStudentAppAITutorLearningActionSourceType(learningActionSource) {
+		return CreateTutoringAnalysisRequestInput{}, validationError("learningActionSource is unsupported")
+	}
+	followUpDepth, err := normalizeTutoringAnalysisFollowUpDepth(learningActionSource, input.FollowUpDepth)
+	if err != nil {
+		return CreateTutoringAnalysisRequestInput{}, err
+	}
 	if !validOwnerType(input.SourceArchiveOwnerType) {
 		return CreateTutoringAnalysisRequestInput{}, validationError("sourceArchiveOwnerType is unsupported")
 	}
@@ -125,10 +150,25 @@ func NormalizeCreateTutoringAnalysisRequestInput(
 		ArchiveItemID:          archiveItemID,
 		AnalysisGoal:           analysisGoal,
 		QuestionBankIntent:     questionBankIntent,
+		LearningActionSource:   learningActionSource,
+		FollowUpDepth:          followUpDepth,
 		SourceArchiveOwnerType: input.SourceArchiveOwnerType,
 		SourceArchiveStudentID: strings.TrimSpace(input.SourceArchiveStudentID),
 		SourceArchiveMaterial:  input.SourceArchiveMaterial,
 	}, nil
+}
+
+func normalizeTutoringAnalysisFollowUpDepth(
+	source StudentAppAITutorLearningActionSourceType,
+	depth int,
+) (int, error) {
+	if source == StudentAppAITutorLearningActionSourceResultArchive {
+		return normalizeAITutorResultArchiveNextFollowUpDepth(depth)
+	}
+	if depth != 0 {
+		return 0, validationError("followUpDepth is unsupported for published study packet")
+	}
+	return 0, nil
 }
 
 func NormalizeArchiveItemID(value string) (string, error) {
@@ -137,4 +177,51 @@ func NormalizeArchiveItemID(value string) (string, error) {
 
 func validQuestionBankIntent(value QuestionBankIntent) bool {
 	return value == QuestionBankIntentNone || value == QuestionBankIntentGeneratePersonalizedCheck
+}
+
+func BuildStudentAppAITutorResultArchiveFollowUpPendingRequestQuery(
+	request TutoringAnalysisRequest,
+) (StudentAppAITutorResultArchiveFollowUpPendingRequestQuery, error) {
+	if TutoringAnalysisRequestLearningActionSource(request) != StudentAppAITutorLearningActionSourceResultArchive {
+		return StudentAppAITutorResultArchiveFollowUpPendingRequestQuery{}, validationError("learningActionSource must be AI_TUTOR_RESULT_ARCHIVE")
+	}
+	archiveItemID, err := NormalizeArchiveItemID(request.ArchiveItemID)
+	if err != nil {
+		return StudentAppAITutorResultArchiveFollowUpPendingRequestQuery{}, err
+	}
+	principalID, err := normalizeRequiredText(request.RequestedByPrincipalID, maxArchiveContentRefLength, "requestedByPrincipalId")
+	if err != nil {
+		return StudentAppAITutorResultArchiveFollowUpPendingRequestQuery{}, err
+	}
+	if !validQuestionBankIntent(request.QuestionBankIntent) || request.QuestionBankIntent == QuestionBankIntentNone {
+		return StudentAppAITutorResultArchiveFollowUpPendingRequestQuery{}, validationError("questionBankIntent is unsupported")
+	}
+	followUpDepth, err := normalizeAITutorResultArchiveNextFollowUpDepth(request.FollowUpDepth)
+	if err != nil {
+		return StudentAppAITutorResultArchiveFollowUpPendingRequestQuery{}, err
+	}
+	studentID, err := normalizeRequiredText(request.SourceArchiveStudentID, maxArchiveStudentIDLength, "sourceArchiveStudentId")
+	if err != nil {
+		return StudentAppAITutorResultArchiveFollowUpPendingRequestQuery{}, err
+	}
+	return StudentAppAITutorResultArchiveFollowUpPendingRequestQuery{
+		ArchiveItemID:          archiveItemID,
+		RequestedByPrincipalID: principalID,
+		QuestionBankIntent:     request.QuestionBankIntent,
+		FollowUpDepth:          followUpDepth,
+		StudentID:              studentID,
+	}, nil
+}
+
+func IsPendingTutoringAnalysisStatus(status TutoringAnalysisStatus) bool {
+	return status == TutoringAnalysisStatusQueued || status == TutoringAnalysisStatusInProgress
+}
+
+func TutoringAnalysisRequestLearningActionSource(
+	request TutoringAnalysisRequest,
+) StudentAppAITutorLearningActionSourceType {
+	if request.LearningActionSource == "" {
+		return StudentAppAITutorLearningActionSourcePublishedStudyPacket
+	}
+	return request.LearningActionSource
 }

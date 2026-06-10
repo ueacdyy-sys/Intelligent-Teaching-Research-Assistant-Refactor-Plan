@@ -89,15 +89,22 @@ func TestCreateTutoringAnalysisRequestRejectsRemotePrincipal(t *testing.T) {
 }
 
 type fakeTutoringRepository struct {
-	items               map[string]domain.ArchiveItem
-	creates             int
-	genericGetReads     int
-	publishedItem       domain.ArchiveItem
-	publishedOK         bool
-	publishedGetReads   int
-	contentPreview      domain.PublishedArchiveMaterialContentPreview
-	contentPreviewOK    bool
-	contentPreviewReads int
+	items                             map[string]domain.ArchiveItem
+	creates                           int
+	createdRequest                    domain.TutoringAnalysisRequest
+	genericGetReads                   int
+	publishedItem                     domain.ArchiveItem
+	publishedOK                       bool
+	publishedGetReads                 int
+	contentPreview                    domain.PublishedArchiveMaterialContentPreview
+	contentPreviewOK                  bool
+	contentPreviewReads               int
+	resultArchiveSnapshot             domain.StudentAppAITutorResultArchiveSnapshot
+	resultArchiveSnapshotOK           bool
+	resultArchiveSnapshotReads        int
+	pendingResultArchiveFollowUp      domain.TutoringAnalysisRequest
+	pendingResultArchiveFollowUpOK    bool
+	pendingResultArchiveFollowUpReads int
 }
 
 func (f *fakeTutoringRepository) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {
@@ -124,10 +131,38 @@ func (f *fakeTutoringRepository) GetPublishedContentPreviewForStudentApp(
 	return f.contentPreview, f.contentPreviewOK, nil
 }
 
+func (f *fakeTutoringRepository) GetStudentAppAITutorResultArchiveSnapshot(
+	_ context.Context,
+	_ string,
+	_ string,
+) (domain.StudentAppAITutorResultArchiveSnapshot, bool, error) {
+	f.resultArchiveSnapshotReads++
+	return f.resultArchiveSnapshot, f.resultArchiveSnapshotOK, nil
+}
+
 func (f *fakeTutoringRepository) CreateTutoringAnalysisRequest(
 	_ context.Context,
-	_ domain.TutoringAnalysisRequest,
+	request domain.TutoringAnalysisRequest,
 ) error {
 	f.creates++
+	f.createdRequest = request
 	return nil
+}
+
+func (f *fakeTutoringRepository) FindPendingStudentAppAITutorResultArchiveFollowUpRequest(
+	_ context.Context,
+	query domain.StudentAppAITutorResultArchiveFollowUpPendingRequestQuery,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	f.pendingResultArchiveFollowUpReads++
+	if !f.pendingResultArchiveFollowUpOK ||
+		f.pendingResultArchiveFollowUp.ArchiveItemID != query.ArchiveItemID ||
+		f.pendingResultArchiveFollowUp.RequestedByPrincipalID != query.RequestedByPrincipalID ||
+		f.pendingResultArchiveFollowUp.QuestionBankIntent != query.QuestionBankIntent ||
+		f.pendingResultArchiveFollowUp.FollowUpDepth != query.FollowUpDepth ||
+		f.pendingResultArchiveFollowUp.SourceArchiveStudentID != query.StudentID ||
+		domain.TutoringAnalysisRequestLearningActionSource(f.pendingResultArchiveFollowUp) != domain.StudentAppAITutorLearningActionSourceResultArchive ||
+		!domain.IsPendingTutoringAnalysisStatus(f.pendingResultArchiveFollowUp.Status) {
+		return domain.TutoringAnalysisRequest{}, false, nil
+	}
+	return f.pendingResultArchiveFollowUp, true, nil
 }

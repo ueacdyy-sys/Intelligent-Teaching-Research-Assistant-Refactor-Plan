@@ -112,6 +112,46 @@ describe("Student App AI Tutor result student archive row verification runtime",
       /rawModelOutput/u,
     );
   });
+
+  it("verifies a result-archive-sourced committed row through the same row read port", async () => {
+    const port = recordingRowReadPort({ row: resultArchiveCommittedArchiveItem() });
+    const result = await verifyStudentAppAITutorResultStudentArchivePhysicalRow(resultArchiveInput(), {
+      teachingArchiveRowReadPort: port,
+      verificationLogPath: tempVerificationLogPath(),
+      generatedAt: "2026-06-09T14:10:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED");
+    assert.equal(result.sourceStorageCommit.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.sourceStorageCommit.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.safeGuidanceSnapshot.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.safeGuidanceSnapshot.guidanceSectionsHash, "747203bfbeca35e36a136f3998121af114471e4a5c02f51c843a4dfee159292c");
+    assert.equal(result.teachingArchivePhysicalRow.archiveItem.contentRef, resultArchiveCommittedArchiveItem().contentRef);
+    assert.equal(result.boundary.physicalDatabaseRowVerified, true);
+    assert.equal(port.calls.length, 1);
+  });
+
+  it("rejects unsafe result-archive row verification source metadata", async () => {
+    const unsafeSource = resultArchiveInput();
+    unsafeSource.studentArchiveStorageCommitReport.runtimeProbes.studentAppAiTutorResultArchiveStudentArchiveStorageCommit.result.sourcePersistenceCommand.learningActionSource = "PUBLISHED_ARCHIVE_ITEM";
+    await assert.rejects(
+      () => verifyStudentAppAITutorResultStudentArchivePhysicalRow(unsafeSource, {
+        teachingArchiveRowReadPort: recordingRowReadPort({ row: resultArchiveCommittedArchiveItem() }),
+        verificationLogPath: tempVerificationLogPath(),
+      }),
+      /learningActionSource/u,
+    );
+
+    const unsafeReport = resultArchiveInput();
+    unsafeReport.studentArchiveStorageCommitReport.safetyInvariants.resultArchiveStatusRequired = "STALE_RESULT_ARCHIVE";
+    await assert.rejects(
+      () => verifyStudentAppAITutorResultStudentArchivePhysicalRow(unsafeReport, {
+        teachingArchiveRowReadPort: recordingRowReadPort({ row: resultArchiveCommittedArchiveItem() }),
+        verificationLogPath: tempVerificationLogPath(),
+      }),
+      /resultArchiveStatusRequired/u,
+    );
+  });
 });
 
 function tempVerificationLogPath() {
@@ -126,6 +166,17 @@ function baseInput() {
     studentArchiveRowVerificationPolicy: rowVerificationPolicy(),
     evidenceRefs: ["evidence:student-app-ai-tutor-result-student-archive-storage-commit:tutor_req_student_app_001"],
     idempotencyKey: "student-app-ai-tutor-result-archive-row-verification:student_001:tutor_req_student_app_001",
+  };
+}
+
+function resultArchiveInput() {
+  return {
+    schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-archive-row-verification.v1",
+    verificationInvocationId: "ai_tutor_result_archive_row_verification_result_archive_001",
+    studentArchiveStorageCommitReport: JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-archive-storage-commit.current.json", "utf8")),
+    studentArchiveRowVerificationPolicy: rowVerificationPolicy(),
+    evidenceRefs: ["evidence:student-app-ai-tutor-result-archive-student-archive-storage-commit:tutor_req_student_app_result_archive_001"],
+    idempotencyKey: "student-app-ai-tutor-result-archive-row-verification:student_001:tutor_req_student_app_result_archive_001",
   };
 }
 
@@ -173,4 +224,9 @@ function recordingRowReadPort(overrides = {}) {
 function committedArchiveItem() {
   const report = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-student-archive-storage-commit.current.json", "utf8"));
   return report.runtimeProbes.studentAppAiTutorResultStudentArchiveStorageCommit.result.teachingArchiveCommit.archiveItem;
+}
+
+function resultArchiveCommittedArchiveItem() {
+  const report = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-archive-storage-commit.current.json", "utf8"));
+  return report.runtimeProbes.studentAppAiTutorResultArchiveStudentArchiveStorageCommit.result.teachingArchiveCommit.archiveItem;
 }

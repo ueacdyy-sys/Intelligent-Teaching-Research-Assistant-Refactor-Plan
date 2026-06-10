@@ -15,6 +15,11 @@ type CreateStudentAppAITutorRequest struct {
 type StudentAppAITutorRequestRepository interface {
 	TutoringAnalysisRepository
 	StudentAppArchiveItemStudyPacketReader
+	StudentAppAITutorResultArchiveSnapshotReader
+	FindPendingStudentAppAITutorResultArchiveFollowUpRequest(
+		ctx context.Context,
+		query domain.StudentAppAITutorResultArchiveFollowUpPendingRequestQuery,
+	) (domain.TutoringAnalysisRequest, bool, error)
 }
 
 func NewCreateStudentAppAITutorRequest(
@@ -56,6 +61,8 @@ func (uc *CreateStudentAppAITutorRequest) Execute(
 			ArchiveItemID:          normalized.ArchiveItemID,
 			AnalysisGoal:           normalized.AnalysisGoal,
 			QuestionBankIntent:     normalized.QuestionBankIntent,
+			LearningActionSource:   tutoringRequestLearningActionSource(normalized.LearningActionSource),
+			FollowUpDepth:          normalized.LearningActionSource.FollowUpDepth,
 			SourceArchiveOwnerType: archiveItem.OwnerType,
 			SourceArchiveStudentID: archiveItem.StudentID,
 			SourceArchiveMaterial:  archiveItem.MaterialType,
@@ -65,10 +72,41 @@ func (uc *CreateStudentAppAITutorRequest) Execute(
 	if err != nil {
 		return domain.TutoringAnalysisRequest{}, err
 	}
+	if existing, ok, err := uc.findPendingResultArchiveFollowUp(ctx, request); err != nil {
+		return domain.TutoringAnalysisRequest{}, err
+	} else if ok {
+		return existing, nil
+	}
 	if err := uc.repository.CreateTutoringAnalysisRequest(ctx, request); err != nil {
+		if existing, ok, findErr := uc.findPendingResultArchiveFollowUp(ctx, request); findErr == nil && ok {
+			return existing, nil
+		}
 		return domain.TutoringAnalysisRequest{}, err
 	}
 	return request, nil
+}
+
+func (uc *CreateStudentAppAITutorRequest) findPendingResultArchiveFollowUp(
+	ctx context.Context,
+	request domain.TutoringAnalysisRequest,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	if domain.TutoringAnalysisRequestLearningActionSource(request) != domain.StudentAppAITutorLearningActionSourceResultArchive {
+		return domain.TutoringAnalysisRequest{}, false, nil
+	}
+	query, err := domain.BuildStudentAppAITutorResultArchiveFollowUpPendingRequestQuery(request)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	return uc.repository.FindPendingStudentAppAITutorResultArchiveFollowUpRequest(ctx, query)
+}
+
+func tutoringRequestLearningActionSource(
+	source domain.StudentAppAITutorLearningActionSource,
+) domain.StudentAppAITutorLearningActionSourceType {
+	if source.SourceType == "" {
+		return domain.StudentAppAITutorLearningActionSourcePublishedStudyPacket
+	}
+	return source.SourceType
 }
 
 func (uc *CreateStudentAppAITutorRequest) readArchiveItemForStudentAppTutorRequest(
@@ -76,6 +114,9 @@ func (uc *CreateStudentAppAITutorRequest) readArchiveItemForStudentAppTutorReque
 	input domain.NormalizedCreateStudentAppAITutorRequestInput,
 ) (domain.ArchiveItem, error) {
 	if !input.LearningActionSource.IsZero() {
+		if input.LearningActionSource.SourceType == domain.StudentAppAITutorLearningActionSourceResultArchive {
+			return uc.readAITutorResultArchiveActionSource(ctx, input)
+		}
 		return uc.readPublishedStudyPacketActionSource(ctx, input)
 	}
 	archiveItem, ok, err := uc.repository.GetByID(ctx, input.ArchiveItemID)
@@ -86,6 +127,62 @@ func (uc *CreateStudentAppAITutorRequest) readArchiveItemForStudentAppTutorReque
 		return domain.ArchiveItem{}, domain.ErrNotFound
 	}
 	return archiveItem, nil
+}
+
+func (uc *CreateStudentAppAITutorRequest) readAITutorResultArchiveActionSource(
+	ctx context.Context,
+	input domain.NormalizedCreateStudentAppAITutorRequestInput,
+) (domain.ArchiveItem, error) {
+	archiveItem, ok, err := uc.repository.GetByID(ctx, input.ArchiveItemID)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	if !ok {
+		return domain.ArchiveItem{}, domain.ErrNotFound
+	}
+	snapshot, ok, err := uc.repository.GetStudentAppAITutorResultArchiveSnapshot(
+		ctx,
+		input.ArchiveItemID,
+		input.StudentID,
+	)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	if !ok {
+		return domain.ArchiveItem{}, domain.ErrNotFound
+	}
+	readInput := domain.NormalizedReadStudentAppArchiveItemInput{
+		Principal:     input.Principal,
+		ArchiveItemID: input.ArchiveItemID,
+		StudentID:     input.StudentID,
+	}
+	card, err := domain.BuildStudentAppAITutorResultArchiveCard(readInput, archiveItem, snapshot)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	rendered, err := domain.BuildStudentAppAITutorResultArchiveRenderEnvelope(card)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	actions, err := domain.BuildStudentAppAITutorResultArchiveLearningActions(readInput, rendered)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	if actions.Status != input.LearningActionSource.ResultArchiveStatus ||
+		actions.RenderFormat != input.LearningActionSource.RenderFormat {
+		return domain.ArchiveItem{}, domain.ErrForbidden
+	}
+	for _, action := range actions.Actions {
+		if action.ActionType == input.LearningActionSource.ActionType &&
+			action.QuestionBankIntent == input.QuestionBankIntent &&
+			action.TargetEndpoint == "/v1/student-app/ai-tutor-requests" &&
+			action.Method == "POST" &&
+			action.SourceType == domain.StudentAppAITutorLearningActionSourceResultArchive &&
+			action.FollowUpDepth == input.LearningActionSource.FollowUpDepth {
+			return archiveItem, nil
+		}
+	}
+	return domain.ArchiveItem{}, domain.ErrForbidden
 }
 
 func (uc *CreateStudentAppAITutorRequest) readPublishedStudyPacketActionSource(

@@ -31,9 +31,11 @@ func TestListStudentAppAITutorRequestsReturnsOwnTutorRequestResponse(t *testing.
 	for _, fragment := range [][]byte{
 		[]byte(`"id":"tutor_req_completed"`),
 		[]byte(`"archiveItemId":"tarch_http_3"`),
-		[]byte(`"sourceArchiveStudentId":"student_001"`),
 		[]byte(`"status":"SUCCEEDED"`),
-		[]byte(`"resultSummary":"completed"`),
+		[]byte(`"progressStage":"RESULT_READY"`),
+		[]byte(`"nextStudentAction":"VIEW_AI_TUTOR_RESULT_ARCHIVE"`),
+		[]byte(`"safeStatusMessage":"Reviewed AI tutor result is ready."`),
+		[]byte(`"timeline"`),
 	} {
 		if !bytes.Contains(response.Body.Bytes(), fragment) {
 			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
@@ -42,6 +44,11 @@ func TestListStudentAppAITutorRequestsReturnsOwnTutorRequestResponse(t *testing.
 	for _, leaked := range [][]byte{
 		[]byte(`tutor_req_other`),
 		[]byte(`student_002`),
+		[]byte(`requestedByPrincipalId`),
+		[]byte(`sourceArchiveStudentId`),
+		[]byte(`resultSummary`),
+		[]byte(`resultRef`),
+		[]byte(`errorMessage`),
 	} {
 		if bytes.Contains(response.Body.Bytes(), leaked) {
 			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())

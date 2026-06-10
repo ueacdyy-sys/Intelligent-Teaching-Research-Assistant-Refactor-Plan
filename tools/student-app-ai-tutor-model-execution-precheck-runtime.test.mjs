@@ -29,7 +29,28 @@ describe("Student App AI Tutor model execution precheck runtime", () => {
     assert.equal(result.idempotentReplay, false);
     assert.equal(calls.length, 1);
     assert.equal(calls[0].safeInput.safeBlockCount, 2);
+    assert.equal(calls[0].safeInput.learningActionSource, "PUBLISHED_STUDY_PACKET");
     assert.equal(JSON.stringify(calls[0]).includes("Practice equivalent fractions"), false);
+  });
+
+  it("records a result-archive-sourced model precheck without sending guidance text", async () => {
+    const calls = [];
+    const result = await recordStudentAppAITutorModelExecutionPrecheck(resultArchiveInput(), {
+      generatedAt: "2026-06-09T11:00:00.000Z",
+      precheckLogPath: tempLog(),
+      modelExecutionPrecheckPort: port(calls),
+    });
+
+    assert.equal(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.boundary.sourceWorkerResultArchiveInputVerified, true);
+    assert.equal(result.boundary.sourceWorkerStudyPacketInputVerified, false);
+    assert.equal(result.boundary.modelInferenceStarted, false);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].safeInput.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(calls[0].safeInput.safeBlockCount, 2);
+    assert.equal(JSON.stringify(calls[0]).includes("Review your previous mistake pattern"), false);
+    assert.equal(JSON.stringify(calls[0]).includes("source_block_001"), false);
   });
 
   it("uses idempotency for safe replay and rejects conflicting prechecks", async () => {
@@ -104,6 +125,16 @@ describe("Student App AI Tutor model execution precheck runtime", () => {
       }),
       /contentRef is not allowed/,
     );
+
+    const mismatchedSource = resultArchiveInput();
+    mismatchedSource.workerStudyPacketInputReport = workerStudyPacketInputReport();
+    await assert.rejects(
+      () => recordStudentAppAITutorModelExecutionPrecheck(mismatchedSource, {
+        precheckLogPath: tempLog(),
+        modelExecutionPrecheckPort: port(),
+      }),
+      /learningActionSource must be AI_TUTOR_RESULT_ARCHIVE/,
+    );
   });
 
   it("rejects unsafe port results", async () => {
@@ -175,6 +206,7 @@ function baseInput() {
       analysisGoal: "generate guided study help",
       questionBankIntent: "GENERATE_PERSONALIZED_CHECK",
       status: "IN_PROGRESS",
+      learningActionSource: "PUBLISHED_STUDY_PACKET",
       workerId: "worker_student_tutor_01",
       claimExpiresAt: "2026-06-08T08:10:00.000Z",
       sourceArchiveStudentId: "student_001",
@@ -239,6 +271,54 @@ function baseInput() {
   };
 }
 
+function resultArchiveInput() {
+  const input = baseInput();
+  input.workerStudyPacketInputReport = workerResultArchiveInputReport();
+  input.workerInput = {
+    requestId: "tutor_req_student_app_result_archive_001",
+    archiveItemId: "tarch_student_ai_tutor_result_001",
+    analysisGoal: "generate follow-up help from reviewed AI Tutor result",
+    questionBankIntent: "GENERATE_PERSONALIZED_CHECK",
+    status: "IN_PROGRESS",
+    learningActionSource: "AI_TUTOR_RESULT_ARCHIVE",
+    workerId: "worker_student_tutor_02",
+    claimExpiresAt: "2026-06-09T11:10:00.000Z",
+    sourceArchiveStudentId: "student_001",
+    sourceArchiveMaterial: "HOMEWORK",
+    resultArchiveStatus: "READY_FOR_STUDENT_APP_READ",
+    renderFormat: "SAFE_TEXT_BLOCKS",
+    blocks: [
+      {
+        blockId: "block_summary",
+        blockType: "SUMMARY",
+        title: "Reviewed result summary",
+        text: "Review your previous mistake pattern before trying a new practice item.",
+        sourceBlockRefs: ["source_block_001"],
+      },
+      {
+        blockId: "block_guidance_001",
+        blockType: "GUIDANCE_SECTION",
+        sectionId: "guidance_001",
+        title: "Next step",
+        text: "Compare the marked step with the corrected reasoning and explain the difference.",
+        sourceBlockRefs: ["source_block_002"],
+      },
+    ],
+  };
+  input.approval = {
+    ...input.approval,
+    approvalId: "ai_tutor_model_approval_result_archive_001",
+    requestId: "tutor_req_student_app_result_archive_001",
+    workerId: "worker_student_tutor_02",
+  };
+  input.evidenceRefs = [
+    "evidence:worker-result-archive-input:student-app-ai-tutor-worker-result-archive-input",
+    "evidence:model-execution-approval:ai_tutor_model_approval_result_archive_001",
+  ];
+  input.idempotencyKey = "student-app-ai-tutor-model-precheck:tutor_req_student_app_result_archive_001:worker_student_tutor_02";
+  return input;
+}
+
 function workerStudyPacketInputReport() {
   return {
     readiness: "READY",
@@ -262,6 +342,34 @@ function workerStudyPacketInputReport() {
       modelInferenceAllowed: false,
       questionBankDraftCreated: false,
       semanticRetrievalAllowed: false,
+      swarmAllowed: false,
+    },
+  };
+}
+
+function workerResultArchiveInputReport() {
+  return {
+    readiness: "READY",
+    workloadType: "STUDENT_APP_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT",
+    runtime: {
+      runtimeId: "student_app_ai_tutor_worker_result_archive_input",
+      status: "STUDENT_APP_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT_READY",
+    },
+    runtimeSlo: { p99Ms: 4, totalErrors: 0 },
+    safetyInvariants: {
+      serviceAgentInternalOnly: true,
+      claimedWorkerLeaseRequired: true,
+      persistedLearningActionSourceRequired: true,
+      resultArchiveSnapshotRequired: true,
+      publishedPreviewReadsBlockedForResultArchiveSource: true,
+      safeTextBlocksOnly: true,
+      contentRefDisclosureAllowed: false,
+      rawResultRefDisclosureAllowed: false,
+      rawModelOutputDisclosureAllowed: false,
+      promptDisclosureAllowed: false,
+      answerKeyDisclosureAllowed: false,
+      modelInferenceAllowed: false,
+      ocrRagAllowed: false,
       swarmAllowed: false,
     },
   };

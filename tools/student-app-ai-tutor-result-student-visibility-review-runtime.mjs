@@ -10,9 +10,15 @@ export const STUDENT_APP_AI_TUTOR_RESULT_STUDENT_VISIBILITY_REVIEW_PORT =
 const inputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-visibility-review.v1";
 const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-visibility-review-recorded.v1";
 const sourceRuntimeId = "student_app_ai_tutor_reviewed_result_persistence_bridge_runtime";
+const sourceResultArchiveReviewedResultPersistenceRuntimeId =
+  "student_app_ai_tutor_result_archive_reviewed_result_persistence_bridge";
 const sourceCommandPort = "StudentAppAITutorResultPort.recordTutoringAnalysisResult";
 const sourceStatus = "STUDENT_APP_AI_TUTOR_REVIEWED_RESULT_PERSISTED";
+const sourceResultArchiveReviewedResultPersistenceStatus =
+  "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_REVIEWED_RESULT_PERSISTED";
 const sourceWorkloadType = "STUDENT_APP_AI_TUTOR_REVIEWED_RESULT_PERSISTENCE_BRIDGE";
+const sourceResultArchiveReviewedResultPersistenceWorkloadType =
+  "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_REVIEWED_RESULT_PERSISTENCE_BRIDGE";
 const recordedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_VISIBILITY_REVIEW_RECORDED";
 const defaultReviewLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-visibility-review.jsonl";
@@ -95,6 +101,8 @@ function normalizeInput(input) {
     reviewId: review.reviewId,
     reviewerPrincipalId: principal.principalId,
     guidanceSectionsHash: sourceResult.guidanceSectionsHash,
+    learningActionSource: sourceResult.learningActionSource,
+    resultArchiveStatus: sourceResult.resultArchiveStatus,
     policy,
   });
   return { reviewInvocationId, sourceReport, sourceResult, principal, review, policy, evidenceRefs, idempotencyKey, inputHash };
@@ -103,23 +111,42 @@ function normalizeInput(input) {
 function assertReviewedResultPersistenceReport(report) {
   assertPlainObject(report, "input.reviewedResultPersistenceBridgeReport");
   requireConst(report.readiness, "READY", "input.reviewedResultPersistenceBridgeReport.readiness");
-  requireConst(report.workloadType, sourceWorkloadType, "input.reviewedResultPersistenceBridgeReport.workloadType");
-  requireConst(report.runtime?.runtimeId, sourceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.runtimeId");
+  const isResultArchiveSource = report.workloadType === sourceResultArchiveReviewedResultPersistenceWorkloadType;
+  requireOneOf(report.workloadType, "input.reviewedResultPersistenceBridgeReport.workloadType", [sourceWorkloadType, sourceResultArchiveReviewedResultPersistenceWorkloadType]);
+  if (isResultArchiveSource) {
+    requireConst(report.runtime?.runtimeId, sourceResultArchiveReviewedResultPersistenceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.runtimeId");
+    requireConst(report.runtime?.sharedRuntimeId, sourceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.sharedRuntimeId");
+    requireConst(report.runtime?.status, sourceResultArchiveReviewedResultPersistenceStatus, "input.reviewedResultPersistenceBridgeReport.runtime.status");
+  } else {
+    requireConst(report.runtime?.runtimeId, sourceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.runtimeId");
+    requireConst(report.runtime?.status, sourceStatus, "input.reviewedResultPersistenceBridgeReport.runtime.status");
+  }
   requireConst(report.runtime?.commandPort, sourceCommandPort, "input.reviewedResultPersistenceBridgeReport.runtime.commandPort");
-  requireConst(report.runtime?.status, sourceStatus, "input.reviewedResultPersistenceBridgeReport.runtime.status");
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.reviewedResultPersistenceBridgeReport.runtimeSlo.totalErrors");
   const invariants = assertPlainObject(report.safetyInvariants, "input.reviewedResultPersistenceBridgeReport.safetyInvariants");
-  for (const field of ["answerReviewGateRequired", "approvedReviewRequired", "resultPersistenceCommitted", "tutoringResultRecorded"]) {
+  const trueFields = isResultArchiveSource
+    ? ["source0339ResultArchiveAnswerReviewGateRequired", "resultPersistenceAllowed", "tutoringResultRecorded"]
+    : ["answerReviewGateRequired", "approvedReviewRequired", "resultPersistenceCommitted", "tutoringResultRecorded"];
+  for (const field of trueFields) {
     requireConst(invariants[field], true, `input.reviewedResultPersistenceBridgeReport.safetyInvariants.${field}`);
   }
-  for (const field of ["resultRefExposed", "guidanceTextSentToPort", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]) {
+  const falseFields = isResultArchiveSource
+    ? ["guidanceTextSentToPort", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]
+    : ["resultRefExposed", "guidanceTextSentToPort", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"];
+  for (const field of falseFields) {
     requireConst(invariants[field], false, `input.reviewedResultPersistenceBridgeReport.safetyInvariants.${field}`);
+  }
+  if (isResultArchiveSource) {
+    requireConst(invariants.learningActionSourceRequired, "AI_TUTOR_RESULT_ARCHIVE", "input.reviewedResultPersistenceBridgeReport.safetyInvariants.learningActionSourceRequired");
+    requireConst(invariants.resultArchiveStatusRequired, "READY_FOR_STUDENT_APP_READ", "input.reviewedResultPersistenceBridgeReport.safetyInvariants.resultArchiveStatusRequired");
   }
   return report;
 }
 
 function assertReviewedResultPersistenceResult(report) {
-  const result = report.runtimeProbes?.studentAppAiTutorReviewedResultPersistenceBridge?.result;
+  const result = report.runtimeProbes?.studentAppAiTutorReviewedResultPersistenceBridge?.result
+    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveReviewedResultPersistenceBridge?.result;
+  const isResultArchiveSource = report.workloadType === sourceResultArchiveReviewedResultPersistenceWorkloadType;
   assertPlainObject(result, "source.reviewedResultPersistence.result");
   requireConst(result.runtimeId, sourceRuntimeId, "source.reviewedResultPersistence.runtimeId");
   requireConst(result.commandPort, sourceCommandPort, "source.reviewedResultPersistence.commandPort");
@@ -132,6 +159,8 @@ function assertReviewedResultPersistenceResult(report) {
   requireConst(result.boundary?.futureStudentVisibilityRequiresSeparateRuntime, true, "source.reviewedResultPersistence.boundary.futureStudentVisibilityRequiresSeparateRuntime");
   const reviewedResult = assertPlainObject(result.reviewedResult, "source.reviewedResultPersistence.reviewedResult");
   requireConst(reviewedResult.status, "SUCCEEDED", "source.reviewedResultPersistence.reviewedResult.status");
+  const learningActionSource = isResultArchiveSource ? requireConst(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "source.reviewedResultPersistence.learningActionSource") : undefined;
+  const resultArchiveStatus = isResultArchiveSource ? requireConst(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "source.reviewedResultPersistence.resultArchiveStatus") : undefined;
   return {
     recordId: requireBoundedString(result.recordId, "source.reviewedResultPersistence.recordId", 1, 260),
     requestId: requireToken(reviewedResult.requestId, "source.reviewedResultPersistence.reviewedResult.requestId", "tutor_req_"),
@@ -142,6 +171,8 @@ function assertReviewedResultPersistenceResult(report) {
     guidanceSectionsHash: requireHex(reviewedResult.guidanceSectionsHash, "source.reviewedResultPersistence.reviewedResult.guidanceSectionsHash"),
     completedAt: requireIsoString(reviewedResult.completedAt, "source.reviewedResultPersistence.reviewedResult.completedAt"),
     resultRefHash: requireHex(reviewedResult.resultRefHash, "source.reviewedResultPersistence.reviewedResult.resultRefHash"),
+    learningActionSource,
+    resultArchiveStatus,
   };
 }
 
@@ -238,6 +269,10 @@ function buildPortRequest(normalized) {
     decision: normalized.review.decision,
     reviewerPrincipalId: normalized.review.reviewerPrincipalId,
     reviewedAt: normalized.review.reviewedAt,
+    source: {
+      learningActionSource: normalized.sourceResult.learningActionSource,
+      resultArchiveStatus: normalized.sourceResult.resultArchiveStatus,
+    },
     checklist: normalized.review.reviewChecklist,
     evidenceRefs: uniq([...normalized.evidenceRefs, `evidence:reviewed-result-record:${normalized.sourceResult.recordId}`]),
     safety: {
@@ -286,6 +321,8 @@ function buildReviewRecord(normalized, portRequest, reviewResult, recordedAt) {
       artifactId: normalized.sourceResult.artifactId,
       guidanceSectionsHash: normalized.sourceResult.guidanceSectionsHash,
       resultRefHash: normalized.sourceResult.resultRefHash,
+      learningActionSource: normalized.sourceResult.learningActionSource,
+      resultArchiveStatus: normalized.sourceResult.resultArchiveStatus,
     },
     portRequest: {
       operation: portRequest.operation,

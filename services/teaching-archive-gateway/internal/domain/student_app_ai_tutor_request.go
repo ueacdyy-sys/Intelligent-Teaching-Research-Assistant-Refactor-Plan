@@ -18,12 +18,33 @@ type NormalizedCreateStudentAppAITutorRequestInput struct {
 }
 
 type StudentAppAITutorLearningActionSource struct {
-	ActionType   StudentAppArchiveItemLearningActionType
-	PacketStatus StudentAppArchiveItemStudyPacketStatus
+	SourceType          StudentAppAITutorLearningActionSourceType
+	ActionType          StudentAppArchiveItemLearningActionType
+	PacketStatus        StudentAppArchiveItemStudyPacketStatus
+	ResultArchiveStatus StudentAppAITutorResultArchiveStatus
+	RenderFormat        StudentAppAITutorResultArchiveRenderFormat
+	FollowUpDepth       int
 }
 
 func (source StudentAppAITutorLearningActionSource) IsZero() bool {
-	return source.ActionType == "" && source.PacketStatus == ""
+	return source.SourceType == "" &&
+		source.ActionType == "" &&
+		source.PacketStatus == "" &&
+		source.ResultArchiveStatus == "" &&
+		source.RenderFormat == "" &&
+		source.FollowUpDepth == 0
+}
+
+type StudentAppAITutorLearningActionSourceType string
+
+const (
+	StudentAppAITutorLearningActionSourcePublishedStudyPacket StudentAppAITutorLearningActionSourceType = "PUBLISHED_STUDY_PACKET"
+	StudentAppAITutorLearningActionSourceResultArchive        StudentAppAITutorLearningActionSourceType = "AI_TUTOR_RESULT_ARCHIVE"
+)
+
+func validStudentAppAITutorLearningActionSourceType(value StudentAppAITutorLearningActionSourceType) bool {
+	return value == StudentAppAITutorLearningActionSourcePublishedStudyPacket ||
+		value == StudentAppAITutorLearningActionSourceResultArchive
 }
 
 func NormalizeCreateStudentAppAITutorRequestInput(
@@ -87,12 +108,52 @@ func normalizeStudentAppAITutorLearningActionSource(
 	if source.IsZero() {
 		return StudentAppAITutorLearningActionSource{}, nil
 	}
+	sourceType := source.SourceType
+	if sourceType == "" {
+		sourceType = StudentAppAITutorLearningActionSourcePublishedStudyPacket
+	}
 	if source.ActionType != StudentAppArchiveItemLearningActionAITutorRequest &&
 		source.ActionType != StudentAppArchiveItemLearningActionPersonalizedQuestionBank {
 		return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.actionType is unsupported")
 	}
-	if source.PacketStatus != StudentAppArchiveItemStudyPacketStatusReady {
-		return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.packetStatus must be READY")
+	switch sourceType {
+	case StudentAppAITutorLearningActionSourcePublishedStudyPacket:
+		if source.PacketStatus != StudentAppArchiveItemStudyPacketStatusReady {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.packetStatus must be READY")
+		}
+		if source.ResultArchiveStatus != "" || source.RenderFormat != "" {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource result archive fields are unsupported for published study packet")
+		}
+		if source.FollowUpDepth != 0 {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.followUpDepth is unsupported for published study packet")
+		}
+		return StudentAppAITutorLearningActionSource{
+			SourceType:   sourceType,
+			ActionType:   source.ActionType,
+			PacketStatus: source.PacketStatus,
+		}, nil
+	case StudentAppAITutorLearningActionSourceResultArchive:
+		if source.ResultArchiveStatus != StudentAppAITutorResultArchiveStatusReady {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.resultArchiveStatus must be READY_FOR_STUDENT_APP_READ")
+		}
+		if source.RenderFormat != StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.renderFormat must be SAFE_TEXT_BLOCKS")
+		}
+		if source.PacketStatus != "" {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.packetStatus is unsupported for AI Tutor result archive")
+		}
+		followUpDepth, err := normalizeAITutorResultArchiveNextFollowUpDepth(source.FollowUpDepth)
+		if err != nil {
+			return StudentAppAITutorLearningActionSource{}, err
+		}
+		return StudentAppAITutorLearningActionSource{
+			SourceType:          sourceType,
+			ActionType:          source.ActionType,
+			ResultArchiveStatus: source.ResultArchiveStatus,
+			RenderFormat:        source.RenderFormat,
+			FollowUpDepth:       followUpDepth,
+		}, nil
+	default:
+		return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.sourceType is unsupported")
 	}
-	return source, nil
 }

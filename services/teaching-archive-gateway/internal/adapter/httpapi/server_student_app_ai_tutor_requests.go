@@ -33,5 +33,9 @@ func (s *Server) listStudentAppAITutorRequestMetadata(w http.ResponseWriter, r *
 	if handleArchiveError(w, err, "failed to list student app ai tutor requests") {
 		return
 	}
-	writeJSON(w, http.StatusOK, toTutoringAnalysisRequestListResponse(page))
+	response, err := toStudentAppAITutorRequestProgressListResponse(page)
+	if handleArchiveError(w, err, "failed to build student app ai tutor request progress") {
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
 }

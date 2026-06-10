@@ -27,6 +27,27 @@ func TestRenderStudentAppAITutorResultArchiveUsesSafeCardReader(t *testing.T) {
 	}
 }
 
+func TestRenderStudentAppAITutorResultArchiveReturnsResultArchiveSourceSafeTextBlocks(t *testing.T) {
+	reader := &fakeAITutorResultArchiveCardReader{
+		card: aiTutorResultArchiveFollowUpCard("tarch_student_ai_tutor_result_archive_001", "student_001"),
+	}
+	uc := usecase.NewRenderStudentAppAITutorResultArchive(reader)
+
+	rendered, err := uc.Execute(context.Background(), domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_student_ai_tutor_result_archive_001",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if reader.reads != 1 ||
+		rendered.RenderFormat != domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks ||
+		rendered.Blocks[1].SectionID != "ai_tutor_answer_section_result_archive_001" ||
+		rendered.Blocks[1].Text != "Restate the corrected reasoning before attempting a similar practice item." {
+		t.Fatalf("reads=%d rendered=%#v", reader.reads, rendered)
+	}
+}
+
 func TestRenderStudentAppAITutorResultArchivePropagatesReaderBoundaryErrors(t *testing.T) {
 	reader := &fakeAITutorResultArchiveCardReader{err: domain.ErrForbidden}
 	uc := usecase.NewRenderStudentAppAITutorResultArchive(reader)
@@ -59,6 +80,21 @@ func aiTutorResultArchiveCard() domain.StudentAppAITutorResultArchiveCard {
 		normalizedAITutorResultArchiveInput("tarch_student_ai_tutor_result_001", "student_001"),
 		aiTutorResultArchiveItem("tarch_student_ai_tutor_result_001", "student_001"),
 		aiTutorResultArchiveSnapshot("tarch_student_ai_tutor_result_001", "student_001"),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return card
+}
+
+func aiTutorResultArchiveFollowUpCard(
+	archiveItemID string,
+	studentID string,
+) domain.StudentAppAITutorResultArchiveCard {
+	card, err := domain.BuildStudentAppAITutorResultArchiveCard(
+		normalizedAITutorResultArchiveInput(archiveItemID, studentID),
+		aiTutorResultArchiveFollowUpItem(archiveItemID, studentID),
+		aiTutorResultArchiveFollowUpSnapshot(archiveItemID, studentID),
 	)
 	if err != nil {
 		panic(err)

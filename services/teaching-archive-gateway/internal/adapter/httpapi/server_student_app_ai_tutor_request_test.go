@@ -94,6 +94,63 @@ func TestCreateStudentAppAITutorRequestAcceptsPublishedLearningActionSource(t *t
 	}
 }
 
+func TestCreateStudentAppAITutorRequestAcceptsResultArchiveLearningActionSource(t *testing.T) {
+	handler := newTestHandlerWithResultArchiveLearningActionSource()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/ai-tutor-requests",
+		bytes.NewBufferString(`{
+			"studentArchiveItemId":"tarch_student_ai_tutor_result_001",
+			"analysisGoal":"continue guided practice from this archived result",
+			"questionBankIntent":"GENERATE_PERSONALIZED_CHECK",
+			"learningActionSource":{
+				"sourceType":"AI_TUTOR_RESULT_ARCHIVE",
+				"actionType":"AI_TUTOR_REQUEST",
+				"resultArchiveStatus":"READY_FOR_STUDENT_APP_READ",
+				"renderFormat":"SAFE_TEXT_BLOCKS",
+				"followUpDepth":1
+			}
+		}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"id":"tutor_req_student_app"`),
+		[]byte(`"archiveItemId":"tarch_student_ai_tutor_result_001"`),
+		[]byte(`"questionBankIntent":"GENERATE_PERSONALIZED_CHECK"`),
+		[]byte(`"sourceArchiveOwnerType":"STUDENT"`),
+		[]byte(`"sourceArchiveStudentId":"student_001"`),
+		[]byte(`"sourceArchiveMaterial":"HOMEWORK"`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"learningActionSource"`),
+		[]byte(`"contentRef"`),
+		[]byte(`resultRef`),
+		[]byte(`rawModelOutput`),
+		[]byte(`answerKey`),
+		[]byte(`expectedAnswer`),
+		[]byte(`prompt`),
+		[]byte(`workerId`),
+		[]byte(`guidanceSections`),
+		[]byte(`blocks`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
 func TestCreateStudentAppAITutorRequestRejectsUnsupportedMethod(t *testing.T) {
 	handler := newTestHandlerWithStudentAppAITutorRequest()
 	request := httptest.NewRequest(http.MethodPut, "/v1/student-app/ai-tutor-requests", http.NoBody)
@@ -119,6 +176,25 @@ func newTestHandlerWithStudentAppAITutorRequest() http.Handler {
 			store,
 			fixedIDs{id: "tutor_req_student_app"},
 			fixedClock{now: time.Date(2026, 5, 30, 10, 30, 0, 0, time.UTC)},
+		),
+		AgentAPIKey: "ueacd",
+	}).Handler()
+}
+
+func newTestHandlerWithResultArchiveLearningActionSource() http.Handler {
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			aiTutorResultArchiveHTTPItem("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+		aiTutorResultArchiveSnapshots: []domain.StudentAppAITutorResultArchiveSnapshot{
+			aiTutorResultArchiveHTTPSnapshot("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+	}
+	return httpapi.NewServer(httpapi.ServerConfig{
+		CreateStudentAppAITutorRequest: usecase.NewCreateStudentAppAITutorRequest(
+			store,
+			fixedIDs{id: "tutor_req_student_app"},
+			fixedClock{now: time.Date(2026, 6, 8, 13, 0, 0, 0, time.UTC)},
 		),
 		AgentAPIKey: "ueacd",
 	}).Handler()

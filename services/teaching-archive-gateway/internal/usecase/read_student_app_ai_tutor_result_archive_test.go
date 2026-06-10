@@ -28,6 +28,8 @@ func TestReadStudentAppAITutorResultArchiveReturnsSafeGuidanceCard(t *testing.T)
 	}
 	if card.Status != domain.StudentAppAITutorResultArchiveStatusReady ||
 		card.ArchiveItemID != "tarch_student_ai_tutor_result_001" ||
+		card.SourceArchiveItemID != "tarch_source_student_homework_001" ||
+		card.SourceTutoringRequestID != "tutor_req_student_app_001" ||
 		card.Summary == "" ||
 		len(card.GuidanceSections) != 2 {
 		t.Fatalf("card = %#v", card)
@@ -38,6 +40,33 @@ func TestReadStudentAppAITutorResultArchiveReturnsSafeGuidanceCard(t *testing.T)
 	if reader.snapshotArchiveItemID != "tarch_student_ai_tutor_result_001" ||
 		reader.snapshotStudentID != "student_001" {
 		t.Fatalf("snapshot lookup = %q/%q", reader.snapshotArchiveItemID, reader.snapshotStudentID)
+	}
+}
+
+func TestReadStudentAppAITutorResultArchiveReturnsResultArchiveSourceSafeGuidanceCard(t *testing.T) {
+	reader := &fakeAITutorResultArchiveReader{
+		item:     aiTutorResultArchiveFollowUpItem("tarch_student_ai_tutor_result_archive_001", "student_001"),
+		ok:       true,
+		snapshot: aiTutorResultArchiveFollowUpSnapshot("tarch_student_ai_tutor_result_archive_001", "student_001"),
+		snapOK:   true,
+	}
+	uc := usecase.NewReadStudentAppAITutorResultArchive(reader)
+
+	card, err := uc.Execute(context.Background(), domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_student_ai_tutor_result_archive_001",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if card.Status != domain.StudentAppAITutorResultArchiveStatusReady ||
+		card.SourceArchiveItemID != "tarch_student_ai_tutor_result_001" ||
+		card.SourceTutoringRequestID != "tutor_req_student_app_result_archive_001" ||
+		card.Summary != "Follow-up help based on a reviewed AI Tutor result." ||
+		len(card.GuidanceSections) != 1 ||
+		reader.getByIDReads != 1 ||
+		reader.snapshotReads != 1 {
+		t.Fatalf("card = %#v reads get:%d snapshot:%d", card, reader.getByIDReads, reader.snapshotReads)
 	}
 }
 
@@ -92,6 +121,15 @@ func TestReadStudentAppAITutorResultArchiveRejectsMissingOrUnsafeSnapshot(t *tes
 		},
 		"cross student": func(reader *fakeAITutorResultArchiveReader) {
 			reader.snapshot.StudentID = "student_002"
+		},
+		"missing lineage source item": func(reader *fakeAITutorResultArchiveReader) {
+			reader.snapshot.SourceArchiveItemID = ""
+		},
+		"missing lineage source request": func(reader *fakeAITutorResultArchiveReader) {
+			reader.snapshot.SourceTutoringRequestID = ""
+		},
+		"self lineage": func(reader *fakeAITutorResultArchiveReader) {
+			reader.snapshot.SourceArchiveItemID = reader.snapshot.ArchiveItemID
 		},
 		"not safe": func(reader *fakeAITutorResultArchiveReader) {
 			reader.snapshot.SafeGuidanceOnly = false
@@ -171,17 +209,27 @@ func aiTutorResultArchiveItem(id string, studentID string) domain.ArchiveItem {
 	}
 }
 
+func aiTutorResultArchiveFollowUpItem(id string, studentID string) domain.ArchiveItem {
+	item := aiTutorResultArchiveItem(id, studentID)
+	item.Title = "Student AI Tutor result archive tutor_req_student_app_result_archive_001"
+	item.ContentRef = "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_result_archive_001:sha256_fca56f06fe276b7f151662647a31ff0dde640358f3fdad476a813738dbd569b5"
+	item.CreatedAt = time.Date(2026, 6, 9, 13, 40, 0, 0, time.UTC)
+	return item
+}
+
 func aiTutorResultArchiveSnapshot(
 	archiveItemID string,
 	studentID string,
 ) domain.StudentAppAITutorResultArchiveSnapshot {
 	return domain.StudentAppAITutorResultArchiveSnapshot{
-		ArchiveItemID:        archiveItemID,
-		StudentID:            studentID,
-		Summary:              "Guided help for comparing fractions.",
-		GuidanceSectionsHash: "05a82687de1587bfc882ecf8ec4f54421da7ff0ab4e911cd0af88d4ffbecec4b",
-		SafetyLabels:         []string{"NO_DIAGNOSIS", "STUDY_GUIDANCE_ONLY"},
-		SafeGuidanceOnly:     true,
+		ArchiveItemID:           archiveItemID,
+		StudentID:               studentID,
+		SourceArchiveItemID:     "tarch_source_student_homework_001",
+		SourceTutoringRequestID: "tutor_req_student_app_001",
+		Summary:                 "Guided help for comparing fractions.",
+		GuidanceSectionsHash:    "05a82687de1587bfc882ecf8ec4f54421da7ff0ab4e911cd0af88d4ffbecec4b",
+		SafetyLabels:            []string{"NO_DIAGNOSIS", "STUDY_GUIDANCE_ONLY"},
+		SafeGuidanceOnly:        true,
 		GuidanceSections: []domain.StudentAppAITutorResultArchiveGuidanceSection{
 			{
 				SectionID:       "ai_tutor_answer_section_001",
@@ -194,6 +242,35 @@ func aiTutorResultArchiveSnapshot(
 				Title:           "Check your reasoning",
 				Text:            "Explain why the larger numerator is larger only after the denominators match.",
 				SourceBlockRefs: []string{"block_section_002"},
+			},
+		},
+	}
+}
+
+func aiTutorResultArchiveFollowUpSnapshot(
+	archiveItemID string,
+	studentID string,
+) domain.StudentAppAITutorResultArchiveSnapshot {
+	sourceArchiveItemID := "tarch_student_ai_tutor_result_001"
+	if archiveItemID == sourceArchiveItemID {
+		sourceArchiveItemID = "tarch_student_ai_tutor_result_parent_001"
+	}
+	return domain.StudentAppAITutorResultArchiveSnapshot{
+		ArchiveItemID:           archiveItemID,
+		StudentID:               studentID,
+		SourceArchiveItemID:     sourceArchiveItemID,
+		SourceTutoringRequestID: "tutor_req_student_app_result_archive_001",
+		Summary:                 "Follow-up help based on a reviewed AI Tutor result.",
+		GuidanceSectionsHash:    "747203bfbeca35e36a136f3998121af114471e4a5c02f51c843a4dfee159292c",
+		SafetyLabels:            []string{"STUDY_GUIDANCE_ONLY", "FOLLOW_UP_REVIEW"},
+		SafeGuidanceOnly:        true,
+		FollowUpDepth:           1,
+		GuidanceSections: []domain.StudentAppAITutorResultArchiveGuidanceSection{
+			{
+				SectionID:       "ai_tutor_answer_section_result_archive_001",
+				Title:           "Review the previous correction",
+				Text:            "Restate the corrected reasoning before attempting a similar practice item.",
+				SourceBlockRefs: []string{"source_block_001"},
 			},
 		},
 	}

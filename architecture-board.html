@@ -139,6 +139,8 @@
       padding: 10px 0;
       background: rgba(245, 243, 236, 0.94);
       backdrop-filter: blur(10px);
+      overflow-x: auto;
+      scrollbar-width: thin;
     }
 
     .tab {
@@ -173,6 +175,7 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 18px;
+      overflow-x: auto;
     }
 
     .panel.active {
@@ -399,6 +402,7 @@
     .matrix,
     .function-table {
       width: 100%;
+      min-width: 860px;
       border-collapse: collapse;
       overflow: hidden;
       border: 1px solid var(--line);
@@ -418,6 +422,8 @@
       text-align: left;
       font-size: 12px;
       line-height: 1.55;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .matrix th,
@@ -457,6 +463,8 @@
       color: #29302d;
       font-size: 12px;
       line-height: 1.35;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .step.warn {
@@ -581,6 +589,8 @@
       color: #244b5e;
       font-size: 13px;
       line-height: 1.65;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .legend {
@@ -661,12 +671,15 @@
 
       nav {
         gap: 6px;
+        flex-wrap: nowrap;
+        margin-right: -9px;
+        padding-right: 9px;
       }
 
       .tab {
-        flex: 1 1 calc(50% - 6px);
-        min-width: 0;
-        padding: 0 8px;
+        flex: 0 0 auto;
+        min-width: 82px;
+        padding: 0 10px;
         font-size: 13px;
       }
 
@@ -687,7 +700,7 @@
 
     @media (max-width: 420px) {
       .tab {
-        flex-basis: 100%;
+        min-width: max-content;
       }
     }
   </style>
@@ -698,15 +711,15 @@
       <div>
         <h1>智能教研助手重构架构板</h1>
         <p class="subtitle">
-          目标架构：平台化模块单体优先，Agent Harness 统一管控 Lead/Worker Agent、Skills、审批、证据链和回滚边界。当前 11.38/10 聚焦 Student App AI Tutor 结果归档的安全展示：0334 已把安全结果卡推进到 SAFE_TEXT_BLOCKS 渲染封套；production10k 证据仍为 22,435.1 read/write RPS、P99 44.44ms、0 errors。本轮未重复大压测，完整多模型融合、OCR/RAG、AI 批改联动和完整语义检索仍后置。
+          目标架构：平台化模块单体优先，Agent Harness 统一管控 Agent、Skills、审批、证据链和回滚边界。当前 11.98/10 已补齐 0354 学生端 AI Tutor 请求进度卡：移动端列表只展示 progressStage、nextStudentAction、安全状态文案和四步 timeline，不再暴露 resultRef、workerId、内部错误或学生内部字段。性能证据沿用 production10k：22,435.1 RPS、P99 44.44ms、0 errors；OCR/RAG、多模型融合和 AI 批改联动继续后置。
         </p>
       </div>
       <div class="top-meta" aria-label="Architecture summary">
         <div class="metric"><strong>目标形态</strong><span>工作台 + 子系统 + 平台能力</span></div>
         <div class="metric"><strong>语言策略</strong><span>TS/Python 保留，Go/Rust 按边界引入</span></div>
-        <div class="metric"><strong>重构进度</strong><span>约 11.38/10；结果归档展示链路已补齐。</span></div>
+        <div class="metric"><strong>重构进度</strong><span>约 11.98/10；学生端进度卡已补齐。</span></div>
         <div class="metric"><strong>当前证据</strong><span>10k/50ms 支持；10ms 仍是优秀目标</span></div>
-        <div class="metric"><strong>本轮切片</strong><span>0334 安全渲染封套；P99 5ms，0 errors。</span></div>
+        <div class="metric"><strong>本轮切片</strong><span>0354 请求进度 timeline；P99 5ms，0 errors。</span></div>
       </div>
     </header>
 
@@ -1323,6 +1336,11 @@
           <p>长任务、融合回答、训练、工作流执行通过事件流展示进度，UI 不轮询拼状态。</p>
         </div>
       </div>
+      <div class="callout">
+        11.92/10 补充：SDD 0352 student app ai tutor result archive follow-up queue idempotency guard 已新增。它消费 READY 0351 depth budget 证据，让同一学生、同一 archived AI Tutor result、同一 questionBankIntent、同一 followUpDepth 的 pending 追问复用已有 tutoring request，避免移动端重试、连点或弱网重复提交造成 queued write amplification；终态 SUCCEEDED/FAILED 不再阻塞后续学生动作。Go 侧 CreateStudentAppAITutorRequest.Execute 会在写入前通过 FindPendingStudentAppAITutorResultArchiveFollowUpRequest 查重，写入失败后再查询一次以覆盖并发竞争；PostgreSQL 增加 pending result-archive follow-up partial unique index 作为最后防线。该切片不新增端点、不扩大模型/RAG/OCR/Swarm 范围，性能证据为 5ms contract probe + 既有 production10k 基线。
+        11.95/10 补充：SDD 0353 student app ai tutor result archive follow-up lineage guard 已新增。它消费 READY 0352 queue idempotency 证据，让 teaching_ai_tutor_result_archive_snapshots 必须保存 source_archive_item_id 与内部 source_tutoring_analysis_request_id；ReadStudentAppAITutorResultArchive、RenderStudentAppAITutorResultArchive、ReadStudentAppAITutorResultArchiveLearningActions 和 worker-only AI Tutor input 全链路保留谱系，缺失谱系或 self lineage 直接拒绝。学生端只暴露安全 sourceArchiveItemId，不暴露 sourceTutoringRequestId；worker-only 输入暴露 resultArchiveSourceItemId，支撑后续模型预检和归档回写继续沿父子链路推进。runtimeId=student_app_ai_tutor_result_archive_follow_up_lineage_guard，status=STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_LINEAGE_GUARD_VERIFIED，性能证据为 5ms contract probe + 既有 production10k 基线。
+        11.98/10 补充：SDD 0354 student app ai tutor request progress timeline 已新增。它消费 READY 0353 lineage guard 证据，将 GET /v1/student-app/ai-tutor-requests 从通用 tutoring request response 改为 StudentAppAITutorRequestProgressListResponse；domain 统一映射 QUEUED/IN_PROGRESS/SUCCEEDED/FAILED 到安全 progressStage、nextStudentAction、safeStatusMessage 和四步 timeline，学生端不再暴露 requestedByPrincipalId、sourceArchiveStudentId、resultRef、claimedByWorkerId、errorMessage。runtimeId=student_app_ai_tutor_request_progress_timeline，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TIMELINE_VERIFIED，性能证据为 5ms contract probe + 既有 production10k 基线。
+      </div>
 
       <div style="height: 12px"></div>
 
@@ -1913,7 +1931,7 @@
       <div style="height: 12px"></div>
 
       <div class="callout">
-        本轮已落地 Agent 契约门禁和 Student App AI Tutor 10.31/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck，到 controlled scoring artifact 的非持久化评分工件均有审计入口。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
+        本轮已落地 Agent 契约门禁和 Student App AI Tutor 11.98/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck、controlled scoring artifact，到结果归档追问 queue/worker 连续性、0351 followUpDepth 深度预算守卫、0352 pending follow-up 队列幂等守卫、0353 follow-up lineage guard 和 0354 request progress timeline 均有审计入口。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
       </div>
       <div class="callout">
         8.4/10 到 9.1/10 历史里程碑保留：8.4/10 是 ResearchAgent.deep_research approved retrieval planning，只记录目录索引优先、引用和 sourceHash 必填的检索计划，不执行检索；8.5/10 是 approved retrieval execution，通过注入 DeepResearchRetrievalReadPort.retrieveApprovedSources 返回 cited source evidence，不做 RAG 综合；8.6/10 是 approved reasoning/synthesis draft，通过注入 DeepResearchReasoningPort.composeEvidenceGroundedDraft 生成证据约束草稿，不发布最终答案；8.7/10 是 final-answer review gate，只记录人审结论；8.8/10 是 finalization runtime，封存 FINALIZED_NOT_PUBLISHED artifact envelope；8.9/10 是 render preview runtime，生成教师可审阅 SAFE_TEXT_BLOCKS 预览；9.0/10 是 publication precheck runtime，只记录发布前审查；9.1/10 是 teacher delivery runtime，生成教师科研工作区证据交付包。这些里程碑仍然不代表真正多模型融合、公开发布、学生档案主库写入或完整 AI Tutor worker 已完成。
@@ -2153,7 +2171,7 @@
         11.26/10 补充：SDD 0330 student app ai tutor result student archive persistence command 已新增。它消费 11.23/0329 student delivery envelope READY 证据和 11.11/0325 controlled answer artifact READY 证据，为 StudentTutorAgent 增加 recordStudentAppAITutorResultStudentArchivePersistenceCommand runtime 和 StudentAppAITutorResultStudentArchivePersistenceCommandPort.recordResultStudentArchivePersistenceCommand；运行时要求 SERVICE、STUDENT_ARCHIVE_PERSISTENCE_RUNTIME、TEACHING_READ + STUDENT_ARCHIVE_WRITE + STUDENT_APP_DELIVERY、student: scopeRef、同 deliveryEnvelopeRecordId/deliveryEnvelopeId/studentVisibilityReviewRecordId/artifactId/requestId/archiveItemId/guidanceSectionsHash 的归档命令、safe guidance hash 重算匹配、证据 refs 和 idempotencyKey，状态为 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED。该切片只记录 append-only 学生档案归档持久化命令，commitState=NOT_COMMITTED_TO_STUDENT_ARCHIVE，durableStudentArchiveCommitStarted=false、studentArchivePersisted=false、mainDatabaseWriteStarted=false、studentArchiveWriteStarted=false；仍不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、不暴露 raw model output、prompt、answer key、contentRef、raw resultRef、内部错误或 Swarm，也不是最终 AI Tutor、AI 批改联动、题库生成、完整语义检索或真正学生档案落库。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
       </div>
       <div class="callout">
-        11.29/10 补充：SDD 0331 student app ai tutor result student archive storage commit 已新增。它消费 11.26/0330 archive persistence command READY 证据，通过注入 TeachingArchiveCreateItemPort.createArchiveItem / CreateArchiveItem.ExecuteWithPersistence 提交安全 guidance 到 Teaching Archive，状态为 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMITTED。11.32/10 补充：SDD 0332 student app ai tutor result student archive row verification 已新增。它消费 READY 0331 storage commit，只允许通过 StudentAppAITutorResultStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow 注入 TeachingArchiveRowReadPort.getArchiveItemById，并要求 Go 侧 ArchiveRepository.GetByID 从 teaching_archive_items 按 id 读回 tarch_student_ai_tutor_result_001 物理行，记录 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED。11.35/10 补充：SDD 0333 student app ai tutor result student archive read 已新增。它消费 READY 0332 row verification，增加 GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result、ReadStudentAppAITutorResultArchive.Execute、ArchiveRepository.GetStudentAppAITutorResultArchiveSnapshot 和 teaching_ai_tutor_result_archive_snapshots 安全快照表，记录 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ_VERIFIED；响应只返回学生端安全结果卡，不暴露 contentRef、raw resultRef、raw model output、prompt、answer key、worker/internal fields。11.38/10 补充：SDD 0334 student app ai tutor result student archive render 已新增。它消费 READY 0333 safe result-card read，增加 GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered 和 RenderStudentAppAITutorResultArchive.Execute，将安全结果卡渲染为 SAFE_TEXT_BLOCKS，包含 SUMMARY 与 GUIDANCE_SECTION blocks，记录 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_RENDER_VERIFIED；响应不暴露 contentRef、raw resultRef、raw model output、prompt、answer key、renderedHtml、renderedMarkdown、worker/internal fields；JS runtime 仍不直连数据库、不执行 SQL/HTTP、不调用模型、不启动 OCR/RAG 或 Swarm。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
+11.29/10 补充：SDD 0331 student app ai tutor result student archive storage commit 已新增。它消费 11.26/0330 archive persistence command READY 证据，通过注入 TeachingArchiveCreateItemPort.createArchiveItem / CreateArchiveItem.ExecuteWithPersistence 提交安全 guidance 到 Teaching Archive，状态为 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMITTED。11.32/10 补充：SDD 0332 student app ai tutor result student archive row verification 已新增。它消费 READY 0331 storage commit，只允许通过 StudentAppAITutorResultStudentArchiveRowVerificationPort.verifyTeachingArchivePhysicalRow 注入 TeachingArchiveRowReadPort.getArchiveItemById，并要求 Go 侧 ArchiveRepository.GetByID 从 teaching_archive_items 按 id 读回 tarch_student_ai_tutor_result_001 物理行，记录 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED。11.35/10 补充：SDD 0333 student app ai tutor result student archive read 已新增。它消费 READY 0332 row verification，增加 GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result、ReadStudentAppAITutorResultArchive.Execute、ArchiveRepository.GetStudentAppAITutorResultArchiveSnapshot 和 teaching_ai_tutor_result_archive_snapshots 安全快照表，记录 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ_VERIFIED；响应只返回学生端安全结果卡，不暴露 contentRef、raw resultRef、raw model output、prompt、answer key、worker/internal fields。11.38/10 补充：SDD 0334 student app ai tutor result student archive render 已新增。它消费 READY 0333 safe result-card read，增加 GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered 和 RenderStudentAppAITutorResultArchive.Execute，将安全结果卡渲染为 SAFE_TEXT_BLOCKS，包含 SUMMARY 与 GUIDANCE_SECTION blocks，记录 STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_RENDER_VERIFIED；响应不暴露 contentRef、raw resultRef、raw model output、prompt、answer key、renderedHtml、renderedMarkdown、worker/internal fields；JS runtime 仍不直连数据库、不执行 SQL/HTTP、不调用模型、不启动 OCR/RAG 或 Swarm。11.41/10 补充：SDD 0335 student app ai tutor result student archive learning actions 已新增。它消费 READY 0334 safe render envelope，增加 GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/learning-actions 和 ReadStudentAppAITutorResultArchiveLearningActions.Execute，只返回指向 POST /v1/student-app/ai-tutor-requests 的 action affordances 与 AI_TUTOR_RESULT_ARCHIVE learningActionSource；queue admission 会重建安全结果卡、SAFE_TEXT_BLOCKS 渲染封套和学习动作后再创建请求，仍不暴露 raw render blocks、contentRef、raw resultRef、raw model output、prompt、answer key、worker/internal fields，也不直连数据库、不执行 SQL/HTTP、不调用模型、不启动 OCR/RAG 或 Swarm。11.44/10 补充：SDD 0336 student app ai tutor worker result archive input 已新增。它消费 READY 0335 learning actions 证据，让 worker-only study-packet input endpoint 按持久化 source_type 分支；AI_TUTOR_RESULT_ARCHIVE 请求只通过 GetByID、GetStudentAppAITutorResultArchiveSnapshot、BuildStudentAppAITutorResultArchiveRenderEnvelope 和 BuildAITutorWorkerResultArchiveInput 重建安全结果归档输入，返回 SAFE_TEXT_BLOCKS SUMMARY/GUIDANCE_SECTION blocks 和 sourceBlockRefs，不走 published preview 读取，也不向学生端 request response 暴露 learningActionSource。11.47/10 补充：SDD 0337 student app ai tutor result archive model execution precheck 已新增。它消费 READY 0336 worker result-archive input，让 AI_TUTOR_RESULT_ARCHIVE 来源进入共享 queue-only 模型执行预检，记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_MODEL_EXECUTION_PRECHECKED；safe text 和 sourceBlockRefs 只参与 hash，不发送给 port，不构造 prompt、不运行模型、不写 tutoring result、不发布学生可见结果。11.50/10 补充：SDD 0338 student app ai tutor result archive controlled answer artifact 已新增。它消费 READY 0337 result-archive model precheck，通过共享 recordStudentAppAITutorControlledAnswerArtifact runtime 记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT_RECORDED；输出保留 AI_TUTOR_RESULT_ARCHIVE 与 READY_FOR_STUDENT_APP_READ 来源状态，进入 PENDING_HUMAN_REVIEW，不持久化 tutoring result、不发布学生可见结果、不泄露 raw model output、prompt、answer key、raw result refs，也不直连数据库、不执行 HTTP、不启动 OCR/RAG、tools 或 Swarm。11.53/10 补充：SDD 0339 student app ai tutor result archive answer review gate 已新增。它消费 READY 0338 result-archive controlled answer artifact，通过共享 recordStudentAppAITutorAnswerReviewGate runtime 记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_ANSWER_REVIEW_GATE_RECORDED；只把教师/管理员复核元数据、section hash、AI_TUTOR_RESULT_ARCHIVE 和 READY_FOR_STUDENT_APP_READ 来源状态送入注入端口，不发送 guidance 正文，不持久化 tutoring result，不发布学生可见结果，也不直连数据库、不执行 HTTP、不启动 OCR/RAG、tools 或 Swarm。11.56/10 补充：SDD 0340 student app ai tutor result archive reviewed result persistence bridge 已新增，它消费 READY 0339 证据，经共享 reviewed result persistence bridge 和既有 RecordTutoringAnalysisResult.Execute 记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_REVIEWED_RESULT_PERSISTED，仍不发布学生可见内容。11.59/10 补充：SDD 0341 student app ai tutor result archive student visibility review 已新增，它消费 READY 0340 证据，经共享 student_app_ai_tutor_result_student_visibility_review_runtime 记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_VISIBILITY_REVIEW_RECORDED，只批准未来 delivery runtime，仍不生成 delivery envelope、不发布学生可见内容、不发送 guidance 正文、不直连数据库、不执行 HTTP、不启动 OCR/RAG、tools 或 Swarm。11.62/10 补充：SDD 0342 student app ai tutor result archive student delivery envelope 已新增，它消费 READY 0341 visibility review 和 READY 0338 controlled answer artifact，经共享 student_app_ai_tutor_result_student_delivery_envelope_runtime 记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED，生成学生端可渲染但未归档的安全信封，保留 AI_TUTOR_RESULT_ARCHIVE 与 READY_FOR_STUDENT_APP_READ 来源状态，仍不持久化学生档案、不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.65/10 补充：SDD 0343 student app ai tutor result archive student archive persistence command 已新增，它消费 READY 0342 delivery envelope 和 READY 0338 controlled answer artifact，经共享 student_app_ai_tutor_result_student_archive_persistence_command_runtime 记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED，只写 append-only 命令，保留 AI_TUTOR_RESULT_ARCHIVE 与 READY_FOR_STUDENT_APP_READ 来源状态，仍不提交 durable storage、不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.68/10 补充：SDD 0344 student app ai tutor result archive student archive storage commit 已新增，它消费 READY 0343 persistence command，经共享 student_app_ai_tutor_result_student_archive_storage_commit_runtime 通过注入 TeachingArchiveCreateItemPort.createArchiveItem / CreateArchiveItem.ExecuteWithPersistence 提交安全 guidance 到 Teaching Archive，记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_STORAGE_COMMITTED，保留 AI_TUTOR_RESULT_ARCHIVE 与 READY_FOR_STUDENT_APP_READ 来源状态，仍不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm；物理行验证留给下一切片。11.71/10 补充：SDD 0345 student app ai tutor result archive student archive row verification 已新增，它消费 READY 0344 storage commit，经共享 student_app_ai_tutor_result_student_archive_row_verification_runtime 通过注入 TeachingArchiveRowReadPort.getArchiveItemById / ArchiveRepository.GetByID 读回 tarch_student_ai_tutor_result_001 物理行，记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED，保留 AI_TUTOR_RESULT_ARCHIVE 与 READY_FOR_STUDENT_APP_READ 来源状态，仍不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.74/10 补充：SDD 0346 student app ai tutor result archive student archive read 已新增，它消费 READY 0345 row verification，经共享 student_app_ai_tutor_result_student_archive_read_runtime 通过注入 StudentAppAITutorResultArchiveReadPort.readStudentVisibleArchivedResult / ReadStudentAppAITutorResultArchive.Execute 读取学生端安全结果卡，记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_READ_VERIFIED，保留 AI_TUTOR_RESULT_ARCHIVE 与 READY_FOR_STUDENT_APP_READ 来源状态，仍不暴露 contentRef、raw resultRef、raw model output、prompt、answer key，不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.77/10 补充：SDD 0347 student app ai tutor result archive student archive render 已新增，它消费 READY 0346 safe read，经共享 student_app_ai_tutor_result_student_archive_render_runtime 通过注入 StudentAppAITutorResultArchiveRenderPort.renderStudentVisibleArchivedResult / RenderStudentAppAITutorResultArchive.Execute 将结果归档安全卡渲染为 SAFE_TEXT_BLOCKS，记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_RENDER_VERIFIED，保留 AI_TUTOR_RESULT_ARCHIVE 与 READY_FOR_STUDENT_APP_READ 来源状态，仍不暴露 contentRef、raw resultRef、raw model output、prompt、answer key、renderedHtml、renderedMarkdown，不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.80/10 补充：SDD 0348 student app ai tutor result archive student archive learning actions 已新增，它消费 READY 0347 safe render，经共享 student_app_ai_tutor_result_student_archive_learning_actions_runtime 通过注入 StudentAppAITutorResultStudentArchiveLearningActionsPort.readStudentVisibleArchivedResultLearningActions / ReadStudentAppAITutorResultArchiveLearningActions.Execute 返回只指向 POST /v1/student-app/ai-tutor-requests 的安全 action affordances，记录 STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_LEARNING_ACTIONS_VERIFIED，保留 AI_TUTOR_RESULT_ARCHIVE、READY_FOR_STUDENT_APP_READ 与 SAFE_TEXT_BLOCKS 来源状态，仍不暴露 raw render blocks、contentRef、raw resultRef、raw model output、prompt、answer key、renderedHtml、renderedMarkdown，不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.83/10 补充：SDD 0349 student app ai tutor result archive follow-up queue admission 已新增。它消费 READY 0348 learning actions，通过既有 POST /v1/student-app/ai-tutor-requests 入队，Go 侧 CreateStudentAppAITutorRequest.Execute 会重建 archive item、安全结果卡、SAFE_TEXT_BLOCKS render envelope 和 learning actions 后才 CreateTutoringAnalysisRequest，保留 AI_TUTOR_RESULT_ARCHIVE 来源，不新增端点，不向学生响应暴露 learningActionSource、raw render blocks、contentRef、raw resultRef、raw model output、prompt、answer key、renderedHtml、renderedMarkdown，也不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.86/10 补充：SDD 0350 student app ai tutor result archive follow-up worker continuity 已新增。它消费 READY 0349 queue admission，证明二次追问仍复用既有 worker claim、worker-only study-packet-input 和 result-archive model precheck；Go 用例新增 follow-up archive item id 回归，要求通过 GetByID 与 GetStudentAppAITutorResultArchiveSnapshot 读取安全结果归档输入，不走 published preview，不新增端点，不暴露 raw refs/prompt/model output/answer key，不直连数据库、不执行 HTTP、不调用模型、不启动 OCR/RAG、tools 或 Swarm。11.89/10 补充：SDD 0351 student app ai tutor result archive follow-up depth budget guard 已新增。它消费 READY 0350 worker continuity，把结果归档追问限制为最多 2 层：snapshot/card/render/actions 均携带 followUpDepth，当前深度 0/1 只生成下一层 1/2 的 action，当前深度 2 返回零 action；CreateStudentAppAITutorRequest 和 worker input 都会重建 learning actions 并比对 followUpDepth，PostgreSQL 持久化 follow_up_depth 与 source_follow_up_depth，OpenAPI 要求 AI_TUTOR_RESULT_ARCHIVE source 带 followUpDepth 且禁止 published source 携带该字段。整系统性能证据仍沿用 22,435.1 read/write RPS、P99 44.44ms、0 errors，本轮没有重复 production10k 大压测。
       </div>
 
       <div style="height: 12px"></div>

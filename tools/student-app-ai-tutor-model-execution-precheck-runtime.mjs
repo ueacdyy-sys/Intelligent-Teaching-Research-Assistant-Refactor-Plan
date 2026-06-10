@@ -70,12 +70,17 @@ function normalizeInput(input) {
   const precheckInvocationId = requireToken(input.precheckInvocationId, "input.precheckInvocationId", "ai_tutor_model_precheck_invocation_");
   const workerStudyPacketInputReport = assertWorkerStudyPacketInputReport(input.workerStudyPacketInputReport);
   const workerInput = assertWorkerInput(input.workerInput);
+  requireConst(
+    workerStudyPacketInputReport.learningActionSource,
+    workerInput.learningActionSource,
+    "input.workerStudyPacketInputReport.learningActionSource",
+  );
   const principal = assertPrincipal(input.principal);
   const approval = assertApproval(input.approval, workerInput);
   const modelExecutionPolicy = assertModelExecutionPolicy(input.modelExecutionPolicy, approval);
   const evidenceRefs = uniqueStringArray(input.evidenceRefs, "input.evidenceRefs", 2, 20, 8, 320);
-  if (!evidenceRefs.some((ref) => ref.includes("worker-study-packet-input"))) {
-    throw precheckError("STUDENT_APP_AI_TUTOR_MODEL_PRECHECK_MISSING_WORKER_INPUT_EVIDENCE", "worker study-packet input evidence ref is required");
+  if (!hasWorkerInputEvidence(evidenceRefs, workerInput.learningActionSource)) {
+    throw precheckError("STUDENT_APP_AI_TUTOR_MODEL_PRECHECK_MISSING_WORKER_INPUT_EVIDENCE", "matching worker input evidence ref is required");
   }
   if (!evidenceRefs.some((ref) => ref.includes("model-execution-approval"))) {
     throw precheckError("STUDENT_APP_AI_TUTOR_MODEL_PRECHECK_MISSING_APPROVAL_EVIDENCE", "model execution approval evidence ref is required");
@@ -83,15 +88,19 @@ function normalizeInput(input) {
   const idempotencyKey = requireBoundedString(input.idempotencyKey, "input.idempotencyKey", 8, 340);
   const blockDigests = workerInput.blocks.map((block) => hashInput({
     blockId: block.blockId,
+    blockType: block.blockType,
     sectionId: block.sectionId,
     title: block.title,
     text: block.text,
+    sourceBlockRefs: block.sourceBlockRefs,
   }));
   const inputHash = hashInput({
     precheckInvocationId,
     requestId: workerInput.requestId,
     archiveItemId: workerInput.archiveItemId,
     workerId: workerInput.workerId,
+    learningActionSource: workerInput.learningActionSource,
+    resultArchiveStatus: workerInput.resultArchiveStatus,
     approvalId: approval.approvalId,
     modelExecutionPolicy,
     blockDigests,
@@ -113,10 +122,17 @@ function normalizeInput(input) {
 function assertWorkerStudyPacketInputReport(report) {
   assertPlainObject(report, "input.workerStudyPacketInputReport");
   requireConst(report.readiness, "READY", "input.workerStudyPacketInputReport.readiness");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.workerStudyPacketInputReport.runtimeSlo.totalErrors");
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT") {
+    return assertWorkerResultArchiveInputReport(report);
+  }
+  return assertPublishedWorkerStudyPacketInputReport(report);
+}
+
+function assertPublishedWorkerStudyPacketInputReport(report) {
   requireConst(report.workloadType, "STUDENT_APP_AI_TUTOR_WORKER_STUDY_PACKET_INPUT", "input.workerStudyPacketInputReport.workloadType");
   requireConst(report.runtime?.runtimeId, "student_app_ai_tutor_worker_study_packet_input", "input.workerStudyPacketInputReport.runtime.runtimeId");
   requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_WORKER_STUDY_PACKET_INPUT_READY", "input.workerStudyPacketInputReport.runtime.status");
-  requireConst(report.runtimeSlo?.totalErrors, 0, "input.workerStudyPacketInputReport.runtimeSlo.totalErrors");
   const invariants = assertPlainObject(report.safetyInvariants, "input.workerStudyPacketInputReport.safetyInvariants");
   for (const field of [
     "serviceAgentInternalOnly",
@@ -134,13 +150,53 @@ function assertWorkerStudyPacketInputReport(report) {
   for (const field of ["answerKeyOrModelOutputAllowed", "modelInferenceAllowed", "questionBankDraftCreated", "semanticRetrievalAllowed", "swarmAllowed"]) {
     requireConst(invariants[field], false, `input.workerStudyPacketInputReport.safetyInvariants.${field}`);
   }
-  return report;
+  return { ...report, learningActionSource: "PUBLISHED_STUDY_PACKET" };
+}
+
+function assertWorkerResultArchiveInputReport(report) {
+  requireConst(report.runtime?.runtimeId, "student_app_ai_tutor_worker_result_archive_input", "input.workerStudyPacketInputReport.runtime.runtimeId");
+  requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT_READY", "input.workerStudyPacketInputReport.runtime.status");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.workerStudyPacketInputReport.safetyInvariants");
+  for (const field of [
+    "serviceAgentInternalOnly",
+    "claimedWorkerLeaseRequired",
+    "persistedLearningActionSourceRequired",
+    "resultArchiveSnapshotRequired",
+    "publishedPreviewReadsBlockedForResultArchiveSource",
+    "safeTextBlocksOnly",
+  ]) {
+    requireConst(invariants[field], true, `input.workerStudyPacketInputReport.safetyInvariants.${field}`);
+  }
+  for (const field of [
+    "contentRefDisclosureAllowed",
+    "rawResultRefDisclosureAllowed",
+    "rawModelOutputDisclosureAllowed",
+    "promptDisclosureAllowed",
+    "answerKeyDisclosureAllowed",
+    "modelInferenceAllowed",
+    "ocrRagAllowed",
+    "swarmAllowed",
+  ]) {
+    requireConst(invariants[field], false, `input.workerStudyPacketInputReport.safetyInvariants.${field}`);
+  }
+  return { ...report, learningActionSource: "AI_TUTOR_RESULT_ARCHIVE" };
 }
 
 function assertWorkerInput(workerInput) {
   rejectLeakedFields(workerInput, "input.workerInput");
   assertPlainObject(workerInput, "input.workerInput");
-  const blocks = assertBlocks(workerInput.blocks);
+  const learningActionSource = requireOneOf(
+    workerInput.learningActionSource ?? "PUBLISHED_STUDY_PACKET",
+    "input.workerInput.learningActionSource",
+    ["PUBLISHED_STUDY_PACKET", "AI_TUTOR_RESULT_ARCHIVE"],
+  );
+  const blocks = assertBlocks(workerInput.blocks, learningActionSource);
+  const packetStatus = learningActionSource === "PUBLISHED_STUDY_PACKET"
+    ? requireConst(workerInput.packetStatus, "READY", "input.workerInput.packetStatus")
+    : requireAbsent(workerInput.packetStatus, "input.workerInput.packetStatus");
+  const resultArchiveStatus = learningActionSource === "AI_TUTOR_RESULT_ARCHIVE"
+    ? requireConst(workerInput.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "input.workerInput.resultArchiveStatus")
+    : requireAbsent(workerInput.resultArchiveStatus, "input.workerInput.resultArchiveStatus");
   return {
     requestId: requireToken(workerInput.requestId, "input.workerInput.requestId", "tutor_req_"),
     archiveItemId: requireToken(workerInput.archiveItemId, "input.workerInput.archiveItemId", "tarch_"),
@@ -150,14 +206,16 @@ function assertWorkerInput(workerInput) {
     workerId: requireBoundedString(workerInput.workerId, "input.workerInput.workerId", 1, 128),
     claimExpiresAt: requireIsoString(workerInput.claimExpiresAt, "input.workerInput.claimExpiresAt"),
     sourceArchiveStudentId: requireBoundedString(workerInput.sourceArchiveStudentId, "input.workerInput.sourceArchiveStudentId", 1, 128),
-    sourceArchiveMaterial: requireOneOf(workerInput.sourceArchiveMaterial, "input.workerInput.sourceArchiveMaterial", ["HANDOUT", "QUIZ", "NOTE", "QUESTION_BANK"]),
-    packetStatus: requireConst(workerInput.packetStatus, "READY", "input.workerInput.packetStatus"),
+    sourceArchiveMaterial: requireOneOf(workerInput.sourceArchiveMaterial, "input.workerInput.sourceArchiveMaterial", ["HANDOUT", "QUIZ", "PAPER", "HOMEWORK"]),
+    learningActionSource,
+    packetStatus,
+    resultArchiveStatus,
     renderFormat: requireConst(workerInput.renderFormat, "SAFE_TEXT_BLOCKS", "input.workerInput.renderFormat"),
     blocks,
   };
 }
 
-function assertBlocks(blocks) {
+function assertBlocks(blocks, learningActionSource) {
   if (!Array.isArray(blocks) || blocks.length < 1 || blocks.length > 20) {
     throw precheckError("STUDENT_APP_AI_TUTOR_MODEL_PRECHECK_INVALID_BLOCKS", "input.workerInput.blocks must contain 1-20 safe text blocks");
   }
@@ -168,13 +226,21 @@ function assertBlocks(blocks) {
     const blockId = requireBoundedString(block.blockId, `input.workerInput.blocks[${index}].blockId`, 1, 128);
     if (seen.has(blockId)) throw precheckError("STUDENT_APP_AI_TUTOR_MODEL_PRECHECK_DUPLICATE_BLOCK", `${blockId} is duplicated`);
     seen.add(blockId);
+    const blockType = requireOneOf(
+      block.blockType,
+      `input.workerInput.blocks[${index}].blockType`,
+      learningActionSource === "PUBLISHED_STUDY_PACKET" ? ["SECTION"] : ["SUMMARY", "GUIDANCE_SECTION"],
+    );
     return {
       blockId,
-      blockType: requireConst(block.blockType, "SECTION", `input.workerInput.blocks[${index}].blockType`),
-      sectionId: requireBoundedString(block.sectionId, `input.workerInput.blocks[${index}].sectionId`, 1, 128),
+      blockType,
+      sectionId: block.sectionId === undefined ? "" : requireBoundedString(block.sectionId, `input.workerInput.blocks[${index}].sectionId`, 0, 128),
       title: requireBoundedString(block.title, `input.workerInput.blocks[${index}].title`, 1, 1200),
       text: requireBoundedString(block.text, `input.workerInput.blocks[${index}].text`, 1, 1200),
       pageHint: block.pageHint === undefined ? "" : requireBoundedString(block.pageHint, `input.workerInput.blocks[${index}].pageHint`, 0, 80),
+      sourceBlockRefs: block.sourceBlockRefs === undefined
+        ? []
+        : uniqueStringArray(block.sourceBlockRefs, `input.workerInput.blocks[${index}].sourceBlockRefs`, 0, 16, 1, 128),
     };
   });
 }
@@ -237,6 +303,7 @@ function buildPortRequest(normalized) {
     approvalId: normalized.approval.approvalId,
     policy: normalized.modelExecutionPolicy,
     safeInput: {
+      learningActionSource: normalized.workerInput.learningActionSource,
       renderFormat: "SAFE_TEXT_BLOCKS",
       safeBlockCount: normalized.workerInput.blocks.length,
       blockDigests: normalized.blockDigests,
@@ -279,10 +346,14 @@ function buildPrecheckRecord(normalized, recordedPrecheck, precheckedAt) {
     archiveItemId: normalized.workerInput.archiveItemId,
     workerId: normalized.workerInput.workerId,
     approvalId: normalized.approval.approvalId,
+    learningActionSource: normalized.workerInput.learningActionSource,
+    resultArchiveStatus: normalized.workerInput.resultArchiveStatus,
     modelExecutionPrecheck: recordedPrecheck,
     evidenceRefs: normalized.evidenceRefs,
     boundary: {
-      sourceWorkerStudyPacketInputVerified: true,
+      sourceWorkerInputVerified: true,
+      sourceWorkerStudyPacketInputVerified: normalized.workerInput.learningActionSource === "PUBLISHED_STUDY_PACKET",
+      sourceWorkerResultArchiveInputVerified: normalized.workerInput.learningActionSource === "AI_TUTOR_RESULT_ARCHIVE",
       serviceAgentInternalOnly: true,
       approvalVerified: true,
       modelExecutionQueueAdmissionOnly: true,
@@ -304,6 +375,13 @@ function buildPrecheckRecord(normalized, recordedPrecheck, precheckedAt) {
       requiresFutureResultPersistence: true,
     },
   };
+}
+
+function hasWorkerInputEvidence(evidenceRefs, learningActionSource) {
+  const requiredFragment = learningActionSource === "AI_TUTOR_RESULT_ARCHIVE"
+    ? "worker-result-archive-input"
+    : "worker-study-packet-input";
+  return evidenceRefs.some((ref) => ref.includes(requiredFragment));
 }
 
 function buildResult(record, { idempotentReplay }) {
@@ -374,6 +452,13 @@ function requireConst(value, expected, label) {
     throw precheckError("STUDENT_APP_AI_TUTOR_MODEL_PRECHECK_CONST_MISMATCH", `${label} must be ${expected}`);
   }
   return expected;
+}
+
+function requireAbsent(value, label) {
+  if (value !== undefined) {
+    throw precheckError("STUDENT_APP_AI_TUTOR_MODEL_PRECHECK_FIELD_NOT_ALLOWED", `${label} is not allowed for this source`);
+  }
+  return undefined;
 }
 
 function requireOneOf(value, label, allowed) {

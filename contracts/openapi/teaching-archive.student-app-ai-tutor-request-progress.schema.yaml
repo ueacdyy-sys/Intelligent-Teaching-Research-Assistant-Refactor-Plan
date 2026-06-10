@@ -1,0 +1,100 @@
+StudentAppAITutorRequestProgressListResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - data
+    - pageInfo
+  properties:
+    data:
+      type: array
+      items:
+        $ref: '#/StudentAppAITutorRequestProgressResponse'
+    pageInfo:
+      $ref: './teaching-archive.yaml#/components/schemas/ArchivePageInfo'
+
+StudentAppAITutorRequestProgressResponse:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - archiveItemId
+    - analysisGoal
+    - questionBankIntent
+    - status
+    - learningActionSource
+    - followUpDepth
+    - sourceArchiveMaterial
+    - progressStage
+    - nextStudentAction
+    - safeStatusMessage
+    - timeline
+    - createdAt
+    - updatedAt
+  properties:
+    id:
+      type: string
+      pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+    archiveItemId:
+      type: string
+      pattern: '^tarch_[A-Za-z0-9_-]+$'
+    analysisGoal:
+      type: string
+      maxLength: 500
+    questionBankIntent:
+      $ref: './teaching-archive.yaml#/components/schemas/QuestionBankIntent'
+    status:
+      $ref: './teaching-archive.yaml#/components/schemas/TutoringAnalysisStatus'
+    learningActionSource:
+      type: string
+      enum: [PUBLISHED_STUDY_PACKET, AI_TUTOR_RESULT_ARCHIVE]
+    followUpDepth:
+      type: integer
+      minimum: 0
+      maximum: 2
+    sourceArchiveMaterial:
+      $ref: './teaching-archive.yaml#/components/schemas/ArchiveMaterialType'
+    progressStage:
+      type: string
+      enum: [QUEUED, IN_PROGRESS, RESULT_READY, QUESTION_BANK_READY, NEEDS_TEACHER_REVIEW]
+    nextStudentAction:
+      type: string
+      enum: [WAIT_FOR_AI_TUTOR, WAIT_FOR_REVIEWED_RESULT, VIEW_AI_TUTOR_RESULT_ARCHIVE, OPEN_QUESTION_BANK_DRAFT, ASK_TEACHER]
+    safeStatusMessage:
+      type: string
+      minLength: 1
+    timeline:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        $ref: '#/StudentAppAITutorRequestProgressTimelineStep'
+    createdAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+StudentAppAITutorRequestProgressTimelineStep:
+  type: object
+  additionalProperties: false
+  required:
+    - stepId
+    - title
+    - status
+  properties:
+    stepId:
+      type: string
+      enum: [REQUEST_QUEUED, AI_TUTOR_WORKING, REVIEWED_RESULT, STUDENT_DELIVERY]
+    title:
+      type: string
+      minLength: 1
+    status:
+      type: string
+      enum: [COMPLETED, ACTIVE, PENDING, BLOCKED]
+    completedAt:
+      type: string
+      format: date-time

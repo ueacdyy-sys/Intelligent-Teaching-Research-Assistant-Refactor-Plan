@@ -105,6 +105,40 @@ describe("Student App AI Tutor result student archive persistence command runtim
       /safe student text/u,
     );
   });
+
+  it("records a result-archive-sourced student archive persistence command without committing it", () => {
+    const result = recordStudentAppAITutorResultStudentArchivePersistenceCommand(resultArchiveInput(), {
+      commandLogPath: tempLog(),
+      generatedAt: "2026-06-09T13:10:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED");
+    assert.equal(result.sourceStudentDeliveryEnvelope.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.sourceStudentDeliveryEnvelope.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.sourceControlledAnswerArtifact.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.studentArchivePersistenceCommand.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.studentArchivePersistenceCommand.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.studentArchivePersistenceCommand.commitState, "NOT_COMMITTED_TO_STUDENT_ARCHIVE");
+    assert.equal(result.boundary.studentArchivePersistenceCommandRecorded, true);
+    assert.equal(result.boundary.durableStudentArchiveCommitStarted, false);
+    assert.equal(result.boundary.studentArchivePersisted, false);
+  });
+
+  it("rejects unsafe result-archive delivery and artifact source metadata", () => {
+    const unsafeDelivery = resultArchiveInput();
+    unsafeDelivery.studentResultDeliveryEnvelopeReport.runtimeProbes.studentAppAiTutorResultArchiveStudentDeliveryEnvelope.result.sourceStudentVisibilityReview.learningActionSource = "PUBLISHED_ARCHIVE_ITEM";
+    assert.throws(
+      () => recordStudentAppAITutorResultStudentArchivePersistenceCommand(unsafeDelivery, { commandLogPath: tempLog() }),
+      /learningActionSource/u,
+    );
+
+    const unsafeArtifact = resultArchiveInput();
+    unsafeArtifact.controlledAnswerArtifactReport.runtimeProbes.studentAppAiTutorResultArchiveControlledAnswerArtifact.result.resultArchiveStatus = "STALE_RESULT_ARCHIVE";
+    assert.throws(
+      () => recordStudentAppAITutorResultStudentArchivePersistenceCommand(unsafeArtifact, { commandLogPath: tempLog() }),
+      /resultArchiveStatus/u,
+    );
+  });
 });
 
 function tempLog() {
@@ -173,5 +207,70 @@ function baseInput() {
       "evidence:controlled-answer-artifact:student-app-ai-tutor-controlled-answer-artifact",
     ],
     idempotencyKey: "student-app-ai-tutor-result-archive-persistence:ai_tutor_result_delivery_env_001",
+  };
+}
+
+function resultArchiveInput() {
+  const delivery = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-delivery-envelope.current.json", "utf8"));
+  const artifact = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-controlled-answer-artifact.current.json", "utf8"));
+  const result = delivery.runtimeProbes.studentAppAiTutorResultArchiveStudentDeliveryEnvelope.result;
+  const envelope = result.studentResultDeliveryEnvelope;
+  return {
+    schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-archive-persistence-command.v1",
+    persistenceInvocationId: "ai_tutor_result_archive_persist_result_archive_001",
+    studentResultDeliveryEnvelopeReport: delivery,
+    controlledAnswerArtifactReport: artifact,
+    principal: {
+      principalId: "student_archive_persistence_runtime_result_archive_001",
+      subjectType: "SERVICE",
+      role: "SERVICE",
+      entryPoint: "STUDENT_ARCHIVE_PERSISTENCE_RUNTIME",
+      sessionId: "session_student_archive_persistence_result_archive_001",
+      scopes: ["TEACHING_READ", "STUDENT_ARCHIVE_WRITE", "STUDENT_APP_DELIVERY"],
+    },
+    studentArchivePersistenceRequest: {
+      commandId: "ai_tutor_result_archive_cmd_result_archive_001",
+      persistenceMode: "APPEND_ONLY_STUDENT_ARCHIVE_COMMAND",
+      targetArchiveKind: "STUDENT_AI_TUTOR_RESULT_ARCHIVE",
+      desiredArchiveState: "PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED",
+      scopeRef: envelope.scopeRef,
+      deliveryEnvelopeRecordId: result.recordId,
+      deliveryEnvelopeId: envelope.envelopeId,
+      studentVisibilityReviewRecordId: envelope.studentVisibilityReviewRecordId,
+      studentVisibilityReviewId: envelope.studentVisibilityReviewId,
+      artifactId: envelope.artifactId,
+      requestId: envelope.requestId,
+      archiveItemId: envelope.archiveItemId,
+      guidanceSectionsHash: envelope.guidanceSectionsHash,
+    },
+    studentArchivePersistencePolicy: {
+      resultStudentDeliveryEnvelopeRequired: true,
+      controlledAnswerArtifactRequired: true,
+      guidanceHashMatchRequired: true,
+      appendOnlyCommandLogRequired: true,
+      safeGuidanceOnlyRequired: true,
+      studentOwnScopeRequired: true,
+      futureDurableArchiveCommitReviewRequired: true,
+      directDatabaseAccessAllowed: false,
+      mainDatabaseWriteAllowed: false,
+      studentArchiveWriteAllowed: false,
+      durableArchiveCommitAllowed: false,
+      executeHttpRequestAllowed: false,
+      modelInferenceAllowed: false,
+      retrievalAllowed: false,
+      answerKeyDisclosureAllowed: false,
+      rawModelOutputDisclosureAllowed: false,
+      resultRefDisclosureAllowed: false,
+      promptDisclosureAllowed: false,
+      contentRefDisclosureAllowed: false,
+      remoteDeviceControlAllowed: false,
+      localToolMutationAllowed: false,
+      swarmAllowed: false,
+    },
+    evidenceRefs: [
+      "evidence:result-archive-student-delivery-envelope:student-app-ai-tutor-result-archive-student-delivery-envelope",
+      "evidence:result-archive-controlled-answer-artifact:student-app-ai-tutor-result-archive-controlled-answer-artifact",
+    ],
+    idempotencyKey: "student-app-ai-tutor-result-archive-persistence:ai_tutor_result_delivery_env_result_archive_001",
   };
 }

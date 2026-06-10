@@ -17,6 +17,11 @@ const storageCommitCommandPort =
   "StudentAppAITutorResultStudentArchiveStorageCommitPort.commitTeachingArchiveCreateCommand";
 const storageCommitWorkload = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMIT";
 const storageCommitStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMITTED";
+const resultArchiveStorageCommitWorkload = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_STORAGE_COMMIT";
+const resultArchiveStorageCommitRuntimeId = "student_app_ai_tutor_result_archive_student_archive_storage_commit";
+const resultArchiveStorageCommitStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_STORAGE_COMMITTED";
+const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
+const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const verifiedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED";
 const defaultVerificationLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-archive-row-verification.jsonl";
@@ -78,7 +83,7 @@ function normalizeInput(input) {
   const storageCommitResult = assertStorageCommitResult(storageCommitReport);
   const verificationPolicy = assertVerificationPolicy(input.studentArchiveRowVerificationPolicy);
   const evidenceRefs = uniqueStringArray(input.evidenceRefs, "input.evidenceRefs", 1, 280);
-  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-student-archive-storage-commit"))) {
+  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-student-archive-storage-commit") || ref.includes("student-app-ai-tutor-result-archive-student-archive-storage-commit"))) {
     throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_ROW_VERIFICATION_MISSING_COMMIT_EVIDENCE", "archive storage commit evidence ref is required");
   }
   const idempotencyKey = requireBoundedString(input.idempotencyKey, "input.idempotencyKey", 8, 280);
@@ -95,12 +100,27 @@ function assertStorageCommitReport(report) {
   rejectLeakedFields(report, "input.studentArchiveStorageCommitReport");
   assertPlainObject(report, "input.studentArchiveStorageCommitReport");
   requireConst(report.readiness, "READY", "input.studentArchiveStorageCommitReport.readiness");
+  if (report.workloadType === resultArchiveStorageCommitWorkload) return assertResultArchiveStorageCommitReport(report);
   requireConst(report.workloadType, storageCommitWorkload, "input.studentArchiveStorageCommitReport.workloadType");
   requireConst(report.runtime?.runtimeId, storageCommitRuntimeId, "input.studentArchiveStorageCommitReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, storageCommitCommandPort, "input.studentArchiveStorageCommitReport.runtime.commandPort");
   requireConst(report.runtime?.status, storageCommitStatus, "input.studentArchiveStorageCommitReport.runtime.status");
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentArchiveStorageCommitReport.runtimeSlo.totalErrors");
   assertStorageCommitInvariants(report.safetyInvariants ?? {});
+  return report;
+}
+
+function assertResultArchiveStorageCommitReport(report) {
+  requireConst(report.runtime?.runtimeId, resultArchiveStorageCommitRuntimeId, "input.studentArchiveStorageCommitReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, storageCommitRuntimeId, "input.studentArchiveStorageCommitReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, storageCommitCommandPort, "input.studentArchiveStorageCommitReport.runtime.commandPort");
+  requireConst(report.runtime?.status, resultArchiveStorageCommitStatus, "input.studentArchiveStorageCommitReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentArchiveStorageCommitReport.runtimeSlo.totalErrors");
+  const invariants = report.safetyInvariants ?? {};
+  for (const field of ["source0343ResultArchiveStudentArchivePersistenceCommandRequired", "injectedTeachingArchivePortRequired", "teachingArchiveUseCasePortInvoked", "persistedOutcomeRequired", "studentArchivePersisted", "mainDatabaseWriteCommitted"]) requireConst(invariants[field], true, `input.studentArchiveStorageCommitReport.safetyInvariants.${field}`);
+  requireConst(invariants.learningActionSourceRequired, resultArchiveSource, "input.studentArchiveStorageCommitReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.resultArchiveStatusRequired, resultArchiveReadyStatus, "input.studentArchiveStorageCommitReport.safetyInvariants.resultArchiveStatusRequired");
+  for (const field of ["directDatabaseAccessAllowed", "executeHttpRequestAllowed", "answerKeyDisclosureAllowed", "rawModelOutputDisclosureAllowed", "resultRefDisclosureAllowed", "promptDisclosureAllowed", "contentRefDisclosureAllowed", "modelInferenceAllowed", "retrievalAllowed", "swarmAllowed"]) requireConst(invariants[field], false, `input.studentArchiveStorageCommitReport.safetyInvariants.${field}`);
   return report;
 }
 
@@ -134,7 +154,8 @@ function assertStorageCommitInvariants(boundary) {
 }
 
 function assertStorageCommitResult(report) {
-  const result = report.runtimeProbes?.studentAppAiTutorResultStudentArchiveStorageCommit?.result;
+  const isResultArchive = report.workloadType === resultArchiveStorageCommitWorkload;
+  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentArchiveStorageCommit : report.runtimeProbes?.studentAppAiTutorResultStudentArchiveStorageCommit)?.result;
   rejectLeakedFields(result, "input.studentArchiveStorageCommitReport.runtimeProbes.result");
   assertPlainObject(result, "input.studentArchiveStorageCommitReport.runtimeProbes.result");
   requireConst(result.schemaVersion, storageCommitSchemaVersion, "source.schemaVersion");
@@ -149,13 +170,20 @@ function assertStorageCommitResult(report) {
   requireConst(result.boundary?.executeHttpRequestAllowed, false, "source.boundary.executeHttpRequestAllowed");
   requireConst(result.boundary?.modelInferenceStarted, false, "source.boundary.modelInferenceStarted");
   requireConst(result.boundary?.swarmAllowed, false, "source.boundary.swarmAllowed");
+  const sourcePersistenceCommand = assertPlainObjectWithValue(result.sourcePersistenceCommand, "source.sourcePersistenceCommand");
+  if (isResultArchive) {
+    requireConst(sourcePersistenceCommand.learningActionSource, resultArchiveSource, "source.sourcePersistenceCommand.learningActionSource");
+    requireConst(sourcePersistenceCommand.resultArchiveStatus, resultArchiveReadyStatus, "source.sourcePersistenceCommand.resultArchiveStatus");
+    requireConst(result.safeGuidanceSnapshot?.learningActionSource, resultArchiveSource, "source.safeGuidanceSnapshot.learningActionSource");
+    requireConst(result.safeGuidanceSnapshot?.resultArchiveStatus, resultArchiveReadyStatus, "source.safeGuidanceSnapshot.resultArchiveStatus");
+  }
   const commit = assertTeachingArchiveCommit(result.teachingArchiveCommit);
-  const safeGuidance = assertSafeGuidanceSnapshot(result.safeGuidanceSnapshot);
+  const safeGuidance = assertSafeGuidanceSnapshot(result.safeGuidanceSnapshot, sourcePersistenceCommand);
   return {
     ...result,
     recordId: requireBoundedString(result.recordId, "source.recordId", 1, 280),
     idempotencyKey: requireBoundedString(result.idempotencyKey, "source.idempotencyKey", 1, 280),
-    sourcePersistenceCommand: assertPlainObjectWithValue(result.sourcePersistenceCommand, "source.sourcePersistenceCommand"),
+    sourcePersistenceCommand,
     teachingArchiveCommit: commit,
     safeGuidanceSnapshot: safeGuidance,
     evidenceRefs: uniqueStringArray(result.evidenceRefs, "source.evidenceRefs", 1, 1400),
@@ -183,10 +211,10 @@ function assertPersistence(persistence) {
   };
 }
 
-function assertSafeGuidanceSnapshot(snapshot) {
+function assertSafeGuidanceSnapshot(snapshot, sourceCommand) {
   assertPlainObject(snapshot, "source.safeGuidanceSnapshot");
   requireConst(snapshot.safeGuidanceOnly, true, "source.safeGuidanceSnapshot.safeGuidanceOnly");
-  requireConst(snapshot.guidanceSectionsHash, "05a82687de1587bfc882ecf8ec4f54421da7ff0ab4e911cd0af88d4ffbecec4b", "source.safeGuidanceSnapshot.guidanceSectionsHash");
+  requireConst(snapshot.guidanceSectionsHash, sourceCommand.guidanceSectionsHash, "source.safeGuidanceSnapshot.guidanceSectionsHash");
   return snapshot;
 }
 
@@ -302,6 +330,8 @@ function buildVerificationRecord(normalized, verified, verifiedAt) {
       sourcePersistenceCommandRecordId: normalized.storageCommitResult.sourcePersistenceCommand.recordId,
       targetUseCase: normalized.storageCommitResult.teachingArchiveCommit.targetUseCase,
       targetRepository: normalized.storageCommitResult.teachingArchiveCommit.targetRepository,
+      learningActionSource: normalized.storageCommitResult.sourcePersistenceCommand.learningActionSource,
+      resultArchiveStatus: normalized.storageCommitResult.sourcePersistenceCommand.resultArchiveStatus,
     },
     teachingArchivePhysicalRow: {
       operationId: "getTeachingArchiveItemById",

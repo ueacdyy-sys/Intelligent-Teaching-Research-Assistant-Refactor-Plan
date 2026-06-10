@@ -15,6 +15,11 @@ const sourceRuntimeId = "student_app_ai_tutor_result_student_archive_persistence
 const sourceCommandPort = "StudentAppAITutorResultStudentArchivePersistenceCommandPort.recordResultStudentArchivePersistenceCommand";
 const sourceStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED";
 const sourceWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PERSISTENCE_COMMAND";
+const resultArchiveSourceWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_PERSISTENCE_COMMAND";
+const resultArchiveSourceRuntimeId = "student_app_ai_tutor_result_archive_student_archive_persistence_command";
+const resultArchiveSourceStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED";
+const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
+const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const committedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMITTED";
 const defaultCommitLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-archive-storage-commit.jsonl";
@@ -85,7 +90,7 @@ function normalizeInput(input) {
   const persistenceCommandRecord = assertPersistenceCommandRecord(persistenceCommandReport);
   const commitPolicy = assertCommitPolicy(input.studentArchiveStorageCommitPolicy);
   const evidenceRefs = uniqueStringArray(input.evidenceRefs, "input.evidenceRefs", 1, 32, 8, 420);
-  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-student-archive-persistence-command"))) {
+  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-student-archive-persistence-command") || ref.includes("student-app-ai-tutor-result-archive-student-archive-persistence-command"))) {
     throw commitError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STORAGE_COMMIT_MISSING_COMMAND_EVIDENCE", "archive persistence command evidence ref is required");
   }
   const idempotencyKey = requireBoundedString(input.idempotencyKey, "input.idempotencyKey", 8, 420);
@@ -116,6 +121,7 @@ function assertPersistenceCommandReport(report) {
   rejectLeakedFields(report, "input.studentArchivePersistenceCommandReport");
   assertPlainObject(report, "input.studentArchivePersistenceCommandReport");
   requireConst(report.readiness, "READY", "input.studentArchivePersistenceCommandReport.readiness");
+  if (report.workloadType === resultArchiveSourceWorkloadType) return assertResultArchivePersistenceCommandReport(report);
   requireConst(report.workloadType, sourceWorkloadType, "input.studentArchivePersistenceCommandReport.workloadType");
   requireConst(report.runtime?.runtimeId, sourceRuntimeId, "input.studentArchivePersistenceCommandReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, sourceCommandPort, "input.studentArchivePersistenceCommandReport.runtime.commandPort");
@@ -155,8 +161,23 @@ function assertPersistenceCommandReport(report) {
   return report;
 }
 
+function assertResultArchivePersistenceCommandReport(report) {
+  requireConst(report.runtime?.runtimeId, resultArchiveSourceRuntimeId, "input.studentArchivePersistenceCommandReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, sourceRuntimeId, "input.studentArchivePersistenceCommandReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, sourceCommandPort, "input.studentArchivePersistenceCommandReport.runtime.commandPort");
+  requireConst(report.runtime?.status, resultArchiveSourceStatus, "input.studentArchivePersistenceCommandReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentArchivePersistenceCommandReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.studentArchivePersistenceCommandReport.safetyInvariants");
+  for (const field of ["source0342ResultArchiveStudentDeliveryEnvelopeRequired", "source0338ResultArchiveControlledAnswerArtifactRequired", "guidanceHashMatchRequired", "appendOnlyCommandLogRequired", "studentArchivePersistenceCommandRecorded"]) requireConst(invariants[field], true, `input.studentArchivePersistenceCommandReport.safetyInvariants.${field}`);
+  requireConst(invariants.learningActionSourceRequired, resultArchiveSource, "input.studentArchivePersistenceCommandReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.resultArchiveStatusRequired, resultArchiveReadyStatus, "input.studentArchivePersistenceCommandReport.safetyInvariants.resultArchiveStatusRequired");
+  for (const field of ["durableStudentArchivePersistenceStarted", "durableStudentArchiveCommitStarted", "studentArchivePersisted", "mainDatabaseWriteStarted", "studentArchiveWriteStarted", "resultRefDisclosed", "answerKeyDisclosed", "rawModelOutputDisclosed", "promptDisclosed", "contentRefDisclosed", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "modelInferenceAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]) requireConst(invariants[field], false, `input.studentArchivePersistenceCommandReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertPersistenceCommandRecord(report) {
-  const result = report.runtimeProbes?.studentAppAiTutorResultStudentArchivePersistenceCommand?.result;
+  const isResultArchive = report.workloadType === resultArchiveSourceWorkloadType;
+  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentArchivePersistenceCommand : report.runtimeProbes?.studentAppAiTutorResultStudentArchivePersistenceCommand)?.result;
   rejectLeakedFields(result, "input.studentArchivePersistenceCommandReport.runtimeProbes.result");
   assertPlainObject(result, "input.studentArchivePersistenceCommandReport.runtimeProbes.result");
   requireConst(result.schemaVersion, "2026-06-08.student-app.ai-tutor-result-student-archive-persistence-command-recorded.v1", "source.schemaVersion");
@@ -171,6 +192,12 @@ function assertPersistenceCommandRecord(report) {
   requireConst(result.boundary?.studentArchivePersisted, false, "source.boundary.studentArchivePersisted");
   requireConst(result.boundary?.mainDatabaseWriteStarted, false, "source.boundary.mainDatabaseWriteStarted");
   const command = assertPersistenceCommand(result.studentArchivePersistenceCommand);
+  if (isResultArchive) {
+    requireConst(command.learningActionSource, resultArchiveSource, "source.studentArchivePersistenceCommand.learningActionSource");
+    requireConst(command.resultArchiveStatus, resultArchiveReadyStatus, "source.studentArchivePersistenceCommand.resultArchiveStatus");
+    requireConst(result.sourceStudentDeliveryEnvelope?.learningActionSource, resultArchiveSource, "source.sourceStudentDeliveryEnvelope.learningActionSource");
+    requireConst(result.sourceControlledAnswerArtifact?.resultArchiveStatus, resultArchiveReadyStatus, "source.sourceControlledAnswerArtifact.resultArchiveStatus");
+  }
   return {
     ...result,
     recordId: requireBoundedString(result.recordId, "source.recordId", 1, 260),
@@ -218,6 +245,8 @@ function assertPersistenceCommand(command) {
     requestId: requireToken(command.requestId, "source.requestId", "tutor_req_"),
     archiveItemId: requireToken(command.archiveItemId, "source.archiveItemId", "tarch_"),
     guidanceSectionsHash: requireHex(command.guidanceSectionsHash, "source.guidanceSectionsHash"),
+    learningActionSource: command.learningActionSource,
+    resultArchiveStatus: command.resultArchiveStatus,
     safeGuidance: assertSafeGuidance(command.safeGuidance),
   };
 }
@@ -468,6 +497,8 @@ function buildCommitRecord(normalized, committed, committedAt) {
       scopeRef: sourceCommand.scopeRef,
       guidanceSectionsHash: sourceCommand.guidanceSectionsHash,
       commitState: "COMMITTED_TO_STUDENT_ARCHIVE",
+      learningActionSource: sourceCommand.learningActionSource,
+      resultArchiveStatus: sourceCommand.resultArchiveStatus,
     },
     teachingArchiveCommit: {
       operationId: "createTeachingArchiveItem",
@@ -482,6 +513,8 @@ function buildCommitRecord(normalized, committed, committedAt) {
       guidanceSections: sourceCommand.safeGuidance.guidanceSections,
       guidanceSectionsHash: sourceCommand.safeGuidance.guidanceSectionsHash,
       safetyLabels: sourceCommand.safeGuidance.safetyLabels,
+      learningActionSource: sourceCommand.learningActionSource,
+      resultArchiveStatus: sourceCommand.resultArchiveStatus,
       safeGuidanceOnly: true,
     },
     evidence: {

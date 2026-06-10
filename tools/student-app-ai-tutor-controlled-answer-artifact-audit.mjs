@@ -307,6 +307,7 @@ async function runRuntimeProbe(sourceModelPrecheckReport, options = {}) {
 }
 
 function probeInput(sourceModelPrecheckReport) {
+  const sourcePrecheckResult = sourceModelPrecheckReport.runtimeProbes?.studentAppAiTutorModelExecutionPrecheck?.result ?? {};
   return {
     schemaVersion: "2026-06-08.student-app.ai-tutor-controlled-answer-artifact.v1",
     artifactInvocationId: "ai_tutor_answer_artifact_invocation_001",
@@ -324,7 +325,7 @@ function probeInput(sourceModelPrecheckReport) {
       requestId: "tutor_req_student_app_001",
       workerId: "worker_student_tutor_01",
       modelRoute: "student_tutor_guided_help_v1",
-      inputHash: "6baa5a0d27ab0dcd80c4f9a44ef507bbffa6f0e5b2fd9aa6326f65aac0c300c1",
+      inputHash: sourcePrecheckResult.inputHash,
       attemptNumber: 1,
       startedAt: "2026-06-08T08:20:00.000Z",
       completedAt: "2026-06-08T08:20:01.000Z",

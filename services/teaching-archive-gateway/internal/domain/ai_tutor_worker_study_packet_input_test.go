@@ -28,9 +28,76 @@ func TestBuildAITutorWorkerStudyPacketInputRequiresClaimedReadyStudyPacket(t *te
 	}
 	if input.RequestID != "tutor_req_worker_input" ||
 		input.PacketStatus != domain.StudentAppArchiveItemStudyPacketStatusReady ||
-		input.RenderFormat != domain.PublishedArchiveMaterialContentPreviewRenderFormatSafeTextBlocks ||
+		input.RenderFormat != domain.AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks ||
 		len(input.Blocks) != 1 {
 		t.Fatalf("input = %#v", input)
+	}
+}
+
+func TestBuildAITutorWorkerResultArchiveInputUsesSafeRenderEnvelope(t *testing.T) {
+	now := time.Date(2026, 6, 8, 14, 0, 0, 0, time.UTC)
+	request := aiTutorWorkerStudyPacketRequest(now)
+	request.ArchiveItemID = "tarch_student_ai_tutor_result_001"
+	request.SourceArchiveMaterial = domain.MaterialTypeHomework
+	request.LearningActionSource = domain.StudentAppAITutorLearningActionSourceResultArchive
+	request.FollowUpDepth = 1
+	rendered, err := domain.BuildStudentAppAITutorResultArchiveRenderEnvelope(aiTutorResultArchiveCardFixture())
+	if err != nil {
+		t.Fatalf("BuildStudentAppAITutorResultArchiveRenderEnvelope returned error: %v", err)
+	}
+
+	input, err := domain.BuildAITutorWorkerResultArchiveInput(
+		domain.NormalizedReadAITutorWorkerStudyPacketInputInput{
+			Principal: servicePrincipal(),
+			RequestID: "tutor_req_worker_input",
+			WorkerID:  "worker_student_tutor_01",
+		},
+		request,
+		rendered,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("BuildAITutorWorkerResultArchiveInput returned error: %v", err)
+	}
+	if input.LearningActionSource != domain.StudentAppAITutorLearningActionSourceResultArchive ||
+		input.FollowUpDepth != 1 ||
+		input.ResultArchiveStatus != domain.StudentAppAITutorResultArchiveStatusReady ||
+		input.PacketStatus != "" ||
+		input.RenderFormat != domain.AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks ||
+		len(input.Blocks) != 3 {
+		t.Fatalf("input = %#v", input)
+	}
+	if input.Blocks[0].BlockType != domain.AITutorWorkerStudyPacketInputBlockTypeSummary ||
+		input.Blocks[1].BlockType != domain.AITutorWorkerStudyPacketInputBlockTypeGuidanceSection ||
+		len(input.Blocks[1].SourceBlockRefs) == 0 {
+		t.Fatalf("blocks = %#v", input.Blocks)
+	}
+}
+
+func TestBuildAITutorWorkerResultArchiveInputRejectsTamperedFollowUpDepth(t *testing.T) {
+	now := time.Date(2026, 6, 8, 14, 0, 0, 0, time.UTC)
+	request := aiTutorWorkerStudyPacketRequest(now)
+	request.ArchiveItemID = "tarch_student_ai_tutor_result_001"
+	request.SourceArchiveMaterial = domain.MaterialTypeHomework
+	request.LearningActionSource = domain.StudentAppAITutorLearningActionSourceResultArchive
+	request.FollowUpDepth = 2
+	rendered, err := domain.BuildStudentAppAITutorResultArchiveRenderEnvelope(aiTutorResultArchiveCardFixture())
+	if err != nil {
+		t.Fatalf("BuildStudentAppAITutorResultArchiveRenderEnvelope returned error: %v", err)
+	}
+
+	_, err = domain.BuildAITutorWorkerResultArchiveInput(
+		domain.NormalizedReadAITutorWorkerStudyPacketInputInput{
+			Principal: servicePrincipal(),
+			RequestID: "tutor_req_worker_input",
+			WorkerID:  "worker_student_tutor_01",
+		},
+		request,
+		rendered,
+		now,
+	)
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
 	}
 }
 

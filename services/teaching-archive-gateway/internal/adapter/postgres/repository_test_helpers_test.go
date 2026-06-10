@@ -200,6 +200,8 @@ func (r *singleStringRow) Err() error {
 type singleTutoringAnalysisRequestRow struct {
 	advanced            bool
 	status              domain.TutoringAnalysisStatus
+	sourceType          domain.StudentAppAITutorLearningActionSourceType
+	followUpDepth       int
 	claimedByWorkerID   string
 	claimExpiresAt      time.Time
 	claimExpiresAtValid bool
@@ -226,19 +228,25 @@ func (r *singleTutoringAnalysisRequestRow) Scan(dest ...any) error {
 		status = domain.TutoringAnalysisStatusQueued
 	}
 	*(dest[5].(*string)) = string(status)
-	*(dest[6].(*string)) = string(domain.OwnerTypeStudent)
-	*(dest[7].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
-	*(dest[8].(*string)) = string(domain.MaterialTypeQuiz)
-	*(dest[9].(*sql.NullString)) = sql.NullString{}
-	*(dest[10].(*sql.NullString)) = sql.NullString{}
+	sourceType := r.sourceType
+	if sourceType == "" {
+		sourceType = domain.StudentAppAITutorLearningActionSourcePublishedStudyPacket
+	}
+	*(dest[6].(*string)) = string(sourceType)
+	*(dest[7].(*int)) = r.followUpDepth
+	*(dest[8].(*string)) = string(domain.OwnerTypeStudent)
+	*(dest[9].(*sql.NullString)) = sql.NullString{String: "student_001", Valid: true}
+	*(dest[10].(*string)) = string(domain.MaterialTypeQuiz)
 	*(dest[11].(*sql.NullString)) = sql.NullString{}
 	*(dest[12].(*sql.NullString)) = sql.NullString{}
 	*(dest[13].(*sql.NullString)) = sql.NullString{}
-	*(dest[14].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
-	*(dest[15].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
-	*(dest[16].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
-	*(dest[17].(*sql.NullTime)) = sql.NullTime{}
-	*(dest[18].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[14].(*sql.NullString)) = sql.NullString{}
+	*(dest[15].(*sql.NullString)) = sql.NullString{}
+	*(dest[16].(*sql.NullString)) = sql.NullString{String: r.claimedByWorkerID, Valid: r.claimedByWorkerID != ""}
+	*(dest[17].(*sql.NullTime)) = sql.NullTime{Time: r.claimExpiresAt, Valid: r.claimExpiresAtValid}
+	*(dest[18].(*time.Time)) = time.Date(2026, 5, 29, 10, 1, 0, 0, time.UTC)
+	*(dest[19].(*sql.NullTime)) = sql.NullTime{}
+	*(dest[20].(*sql.NullTime)) = sql.NullTime{}
 	return nil
 }
 

@@ -13,8 +13,16 @@ const deliveryRuntimeId = "student_app_ai_tutor_result_student_delivery_envelope
 const deliveryPort = "StudentAppAITutorResultStudentDeliveryEnvelopePort.recordResultStudentDeliveryEnvelope";
 const deliveryStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED";
 const deliveryWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_DELIVERY_ENVELOPE";
+const resultArchiveDeliveryWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_DELIVERY_ENVELOPE";
+const resultArchiveDeliveryRuntimeId = "student_app_ai_tutor_result_archive_student_delivery_envelope";
+const resultArchiveDeliveryStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED";
 const controlledArtifactRuntimeId = "student_app_ai_tutor_controlled_answer_artifact_runtime";
 const controlledArtifactPort = "StudentAppAITutorControlledAnswerArtifactPort.recordControlledAnswerArtifact";
+const resultArchiveControlledArtifactRuntimeId = "student_app_ai_tutor_result_archive_controlled_answer_artifact";
+const resultArchiveControlledArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT";
+const resultArchiveControlledArtifactStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT_RECORDED";
+const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
+const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const commandStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED";
 const defaultCommandLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-archive-persistence-command.jsonl";
@@ -121,8 +129,8 @@ function assertDeliveryEnvelopeReport(report) {
   rejectLeakedFields(report, "input.studentResultDeliveryEnvelopeReport");
   assertPlainObject(report, "input.studentResultDeliveryEnvelopeReport");
   requireConst(report.readiness, "READY", "input.studentResultDeliveryEnvelopeReport.readiness");
-  requireConst(report.workloadType, deliveryWorkloadType, "input.studentResultDeliveryEnvelopeReport.workloadType");
-  requireConst(report.runtime?.runtimeId, deliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtime.runtimeId");
+  if (report.workloadType === resultArchiveDeliveryWorkloadType) return assertResultArchiveDeliveryEnvelopeReport(report);
+  requireConst(report.workloadType, deliveryWorkloadType, "input.studentResultDeliveryEnvelopeReport.workloadType"); requireConst(report.runtime?.runtimeId, deliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, deliveryPort, "input.studentResultDeliveryEnvelopeReport.runtime.commandPort");
   requireConst(report.runtime?.status, deliveryStatus, "input.studentResultDeliveryEnvelopeReport.runtime.status");
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentResultDeliveryEnvelopeReport.runtimeSlo.totalErrors");
@@ -136,8 +144,23 @@ function assertDeliveryEnvelopeReport(report) {
   return report;
 }
 
+function assertResultArchiveDeliveryEnvelopeReport(report) {
+  requireConst(report.runtime?.runtimeId, resultArchiveDeliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, deliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, deliveryPort, "input.studentResultDeliveryEnvelopeReport.runtime.commandPort");
+  requireConst(report.runtime?.status, resultArchiveDeliveryStatus, "input.studentResultDeliveryEnvelopeReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentResultDeliveryEnvelopeReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.studentResultDeliveryEnvelopeReport.safetyInvariants");
+  for (const field of ["source0341ResultArchiveStudentVisibilityReviewRequired", "source0338ResultArchiveControlledAnswerArtifactRequired", "guidanceHashMatchRequired", "studentDeliveryEnvelopeCreated", "studentVisibleEnvelopeAllowed"]) requireConst(invariants[field], true, `input.studentResultDeliveryEnvelopeReport.safetyInvariants.${field}`);
+  requireConst(invariants.learningActionSourceRequired, resultArchiveSource, "input.studentResultDeliveryEnvelopeReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.resultArchiveStatusRequired, resultArchiveReadyStatus, "input.studentResultDeliveryEnvelopeReport.safetyInvariants.resultArchiveStatusRequired");
+  for (const field of ["durableStudentArchivePersistenceStarted", "mainDatabaseWriteStarted", "studentArchiveWriteStarted", "resultRefDisclosed", "answerKeyDisclosed", "rawModelOutputDisclosed", "promptDisclosed", "contentRefDisclosed", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "modelInferenceAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]) requireConst(invariants[field], false, `input.studentResultDeliveryEnvelopeReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertDeliveryEnvelopeRecord(report) {
-  const result = report.runtimeProbes?.studentAppAiTutorResultStudentDeliveryEnvelope?.result;
+  const isResultArchive = report.workloadType === resultArchiveDeliveryWorkloadType;
+  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentDeliveryEnvelope : report.runtimeProbes?.studentAppAiTutorResultStudentDeliveryEnvelope)?.result;
   rejectLeakedFields(result, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result");
   assertPlainObject(result, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result");
   requireConst(result.runtimeId, deliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.runtimeId");
@@ -154,6 +177,12 @@ function assertDeliveryEnvelopeRecord(report) {
   const sourceArtifact = assertPlainObject(result.sourceControlledAnswerArtifact, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact");
   requireConst(sourceArtifact.artifactId, envelope.artifactId, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.artifactId");
   requireConst(sourceArtifact.guidanceSectionsHash, envelope.guidanceSectionsHash, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.guidanceSectionsHash");
+  if (isResultArchive) {
+    requireConst(result.sourceStudentVisibilityReview?.learningActionSource, resultArchiveSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceStudentVisibilityReview.learningActionSource");
+    requireConst(result.sourceStudentVisibilityReview?.resultArchiveStatus, resultArchiveReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceStudentVisibilityReview.resultArchiveStatus");
+    requireConst(sourceArtifact.learningActionSource, resultArchiveSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.learningActionSource");
+    requireConst(sourceArtifact.resultArchiveStatus, resultArchiveReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.resultArchiveStatus");
+  }
   return {
     recordId: requireBoundedString(result.recordId, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.recordId", 1, 260),
     deliveryInvocationId: requireToken(result.deliveryInvocationId, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.deliveryInvocationId", "ai_tutor_result_student_delivery_"),
@@ -164,8 +193,12 @@ function assertDeliveryEnvelopeRecord(report) {
       safetyLabels: uniqueStringArray(sourceArtifact.safetyLabels, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.safetyLabels", 1, 8, 3, 80),
       guidanceSectionsHash: sourceArtifact.guidanceSectionsHash,
       guidanceSectionCount: requireIntegerBetween(sourceArtifact.guidanceSectionCount, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.guidanceSectionCount", 1, 5),
+      learningActionSource: sourceArtifact.learningActionSource,
+      resultArchiveStatus: sourceArtifact.resultArchiveStatus,
     },
     studentResultDeliveryEnvelope: envelope,
+    learningActionSource: result.sourceStudentVisibilityReview?.learningActionSource,
+    resultArchiveStatus: result.sourceStudentVisibilityReview?.resultArchiveStatus,
     evidenceRefs: uniqueStringArray(result.evidenceRefs, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.evidenceRefs", 1, 24, 8, 360),
   };
 }
@@ -199,6 +232,7 @@ function assertControlledAnswerArtifactReport(report) {
   rejectLeakedFields(report, "input.controlledAnswerArtifactReport");
   assertPlainObject(report, "input.controlledAnswerArtifactReport");
   requireConst(report.readiness, "READY", "input.controlledAnswerArtifactReport.readiness");
+  if (report.workloadType === resultArchiveControlledArtifactWorkloadType) return assertResultArchiveControlledAnswerArtifactReport(report);
   requireConst(report.workloadType, "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT", "input.controlledAnswerArtifactReport.workloadType");
   requireConst(report.runtime?.runtimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, controlledArtifactPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
@@ -207,12 +241,32 @@ function assertControlledAnswerArtifactReport(report) {
   return report;
 }
 
+function assertResultArchiveControlledAnswerArtifactReport(report) {
+  requireConst(report.runtime?.runtimeId, resultArchiveControlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, controlledArtifactPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
+  requireConst(report.runtime?.status, resultArchiveControlledArtifactStatus, "input.controlledAnswerArtifactReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.controlledAnswerArtifactReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.controlledAnswerArtifactReport.safetyInvariants");
+  requireConst(invariants.learningActionSourceRequired, resultArchiveSource, "input.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired");
+  for (const field of ["internalServiceOnly", "controlledAnswerArtifactRecorded", "humanReviewRequiredBeforeResult", "rawModelOutputExcluded", "promptExcluded", "answerKeyExcluded"]) requireConst(invariants[field], true, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  for (const field of ["tutoringResultRecorded", "resultPersistenceAllowed", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "swarmAllowed"]) requireConst(invariants[field], false, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertControlledAnswerArtifact(report, deliveryRecord) {
-  const result = report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact?.result;
+  const isResultArchive = report.workloadType === resultArchiveControlledArtifactWorkloadType;
+  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact : report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact)?.result;
   assertPlainObject(result, "input.controlledAnswerArtifactReport.runtimeProbes.result");
   requireConst(result.runtimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtimeProbes.result.runtimeId");
   requireConst(result.requestId, deliveryRecord.studentResultDeliveryEnvelope.requestId, "input.controlledAnswerArtifactReport.runtimeProbes.result.requestId");
   requireConst(result.archiveItemId, deliveryRecord.studentResultDeliveryEnvelope.archiveItemId, "input.controlledAnswerArtifactReport.runtimeProbes.result.archiveItemId");
+  if (isResultArchive) {
+    requireConst(result.learningActionSource, resultArchiveSource, "input.controlledAnswerArtifactReport.runtimeProbes.result.learningActionSource");
+    requireConst(result.resultArchiveStatus, resultArchiveReadyStatus, "input.controlledAnswerArtifactReport.runtimeProbes.result.resultArchiveStatus");
+    requireConst(deliveryRecord.learningActionSource, resultArchiveSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.learningActionSource");
+    requireConst(deliveryRecord.resultArchiveStatus, resultArchiveReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.resultArchiveStatus");
+  }
   const artifact = assertPlainObject(result.controlledAnswerArtifact, "input.controlledAnswerArtifactReport.runtimeProbes.result.controlledAnswerArtifact");
   requireConst(artifact.artifactId, deliveryRecord.studentResultDeliveryEnvelope.artifactId, "input.controlledAnswerArtifactReport.controlledAnswerArtifact.artifactId");
   const guidanceSections = assertGuidanceSections(artifact.guidanceSections);
@@ -224,6 +278,8 @@ function assertControlledAnswerArtifact(report, deliveryRecord) {
     guidanceSections,
     guidanceSectionsHash,
     safetyLabels: uniqueStringArray(artifact.safetyLabels, "input.controlledAnswerArtifactReport.controlledAnswerArtifact.safetyLabels", 1, 8, 3, 80),
+    learningActionSource: result.learningActionSource,
+    resultArchiveStatus: result.resultArchiveStatus,
   };
 }
 
@@ -308,6 +364,8 @@ function buildRecord(normalized, recordedAt) {
       requestId: normalized.deliveryRecord.studentResultDeliveryEnvelope.requestId,
       archiveItemId: normalized.deliveryRecord.studentResultDeliveryEnvelope.archiveItemId,
       guidanceSectionsHash: normalized.deliveryRecord.studentResultDeliveryEnvelope.guidanceSectionsHash,
+      learningActionSource: normalized.deliveryRecord.learningActionSource,
+      resultArchiveStatus: normalized.deliveryRecord.resultArchiveStatus,
     },
     sourceControlledAnswerArtifact: {
       artifactId: normalized.controlledArtifact.artifactId,
@@ -315,6 +373,8 @@ function buildRecord(normalized, recordedAt) {
       safetyLabels: normalized.controlledArtifact.safetyLabels,
       guidanceSectionsHash: normalized.controlledArtifact.guidanceSectionsHash,
       guidanceSectionCount: normalized.controlledArtifact.guidanceSections.length,
+      learningActionSource: normalized.controlledArtifact.learningActionSource,
+      resultArchiveStatus: normalized.controlledArtifact.resultArchiveStatus,
     },
     studentArchivePersistenceCommand: buildCommand(normalized),
     boundary: {
@@ -372,6 +432,8 @@ function buildCommand(normalized) {
     requestId: request.requestId,
     archiveItemId: request.archiveItemId,
     guidanceSectionsHash: request.guidanceSectionsHash,
+    learningActionSource: normalized.deliveryRecord.learningActionSource,
+    resultArchiveStatus: normalized.deliveryRecord.resultArchiveStatus,
     safeGuidance: {
       summary: normalized.controlledArtifact.summary,
       guidanceSections: normalized.controlledArtifact.guidanceSections,

@@ -123,6 +123,48 @@ describe("Student App AI Tutor result student archive storage commit runtime", (
       /rawmodeloutput|rawModelOutput/iu,
     );
   });
+
+  it("commits a result-archive-sourced student archive command through the same storage port", async () => {
+    const port = recordingPort();
+    const result = await commitStudentAppAITutorResultStudentArchiveStorage(resultArchiveInput(), {
+      teachingArchiveCreateItemPort: port,
+      commitLogPath: tempCommitLogPath(),
+      generatedAt: "2026-06-09T13:40:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMITTED");
+    assert.equal(result.sourcePersistenceCommand.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.sourcePersistenceCommand.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.safeGuidanceSnapshot.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.safeGuidanceSnapshot.guidanceSections.length, 1);
+    assert.equal(result.boundary.teachingArchiveUseCasePortInvoked, true);
+    assert.equal(result.boundary.mainDatabaseWriteCommitted, true);
+    assert.equal(result.boundary.directDatabaseAccessAllowed, false);
+    assert.equal(port.calls.length, 1);
+    assert.equal(port.calls[0].command.requestBody.studentId, "student_001");
+  });
+
+  it("rejects unsafe result-archive storage commit source metadata", async () => {
+    const unsafeCommand = resultArchiveInput();
+    unsafeCommand.studentArchivePersistenceCommandReport.runtimeProbes.studentAppAiTutorResultArchiveStudentArchivePersistenceCommand.result.studentArchivePersistenceCommand.learningActionSource = "PUBLISHED_ARCHIVE_ITEM";
+    await assert.rejects(
+      () => commitStudentAppAITutorResultStudentArchiveStorage(unsafeCommand, {
+        teachingArchiveCreateItemPort: recordingPort(),
+        commitLogPath: tempCommitLogPath(),
+      }),
+      /learningActionSource/u,
+    );
+
+    const unsafeReport = resultArchiveInput();
+    unsafeReport.studentArchivePersistenceCommandReport.safetyInvariants.resultArchiveStatusRequired = "STALE_RESULT_ARCHIVE";
+    await assert.rejects(
+      () => commitStudentAppAITutorResultStudentArchiveStorage(unsafeReport, {
+        teachingArchiveCreateItemPort: recordingPort(),
+        commitLogPath: tempCommitLogPath(),
+      }),
+      /resultArchiveStatusRequired/u,
+    );
+  });
 });
 
 function tempCommitLogPath() {
@@ -137,6 +179,17 @@ function baseInput() {
     studentArchiveStorageCommitPolicy: commitPolicy(),
     evidenceRefs: ["evidence:student-app-ai-tutor-result-student-archive-persistence-command:ai_tutor_result_archive_cmd_001"],
     idempotencyKey: "student-app-ai-tutor-result-archive-storage-commit:student_001:tutor_req_student_app_001",
+  };
+}
+
+function resultArchiveInput() {
+  return {
+    schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-archive-storage-commit.v1",
+    commitInvocationId: "ai_tutor_result_archive_storage_commit_result_archive_001",
+    studentArchivePersistenceCommandReport: JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-archive-persistence-command.current.json", "utf8")),
+    studentArchiveStorageCommitPolicy: commitPolicy(),
+    evidenceRefs: ["evidence:student-app-ai-tutor-result-archive-student-archive-persistence-command:ai_tutor_result_archive_cmd_result_archive_001"],
+    idempotencyKey: "student-app-ai-tutor-result-archive-storage-commit:student_001:tutor_req_student_app_result_archive_001",
   };
 }
 

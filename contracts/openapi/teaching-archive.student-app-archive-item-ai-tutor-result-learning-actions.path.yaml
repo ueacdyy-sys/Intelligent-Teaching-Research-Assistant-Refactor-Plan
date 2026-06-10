@@ -1,0 +1,118 @@
+get:
+  operationId: readStudentAppAITutorResultArchiveLearningActions
+  summary: Read safe learning action affordances for one archived AI Tutor result.
+  tags: [student-app, teaching-archive, ai-tutor]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: archiveItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^tarch_[A-Za-z0-9_-]+$'
+        maxLength: 1000
+  responses:
+    '200':
+      description: Safe learning actions for the authenticated student's own rendered AI Tutor result archive.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - archiveItemId
+              - sourceArchiveItemId
+              - status
+              - materialType
+              - renderFormat
+              - followUpDepth
+              - actions
+            properties:
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              sourceArchiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              status:
+                type: string
+                const: READY_FOR_STUDENT_APP_READ
+              materialType:
+                type: string
+                const: HOMEWORK
+              renderFormat:
+                type: string
+                const: SAFE_TEXT_BLOCKS
+              followUpDepth:
+                type: integer
+                minimum: 0
+                maximum: 2
+              actions:
+                type: array
+                minItems: 0
+                maxItems: 8
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - actionType
+                    - state
+                    - targetEndpoint
+                    - method
+                    - requiresTutorRequest
+                    - learningActionSource
+                  properties:
+                    actionType:
+                      type: string
+                      enum: [AI_TUTOR_REQUEST, PERSONALIZED_QUESTION_BANK]
+                    state:
+                      type: string
+                      enum: [AVAILABLE, DEFERRED_THROUGH_AI_TUTOR]
+                    targetEndpoint:
+                      type: string
+                      const: /v1/student-app/ai-tutor-requests
+                    method:
+                      type: string
+                      const: POST
+                    questionBankIntent:
+                      type: string
+                      const: GENERATE_PERSONALIZED_CHECK
+                    requiresTutorRequest:
+                      type: boolean
+                      const: true
+                    learningActionSource:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - sourceType
+                        - actionType
+                        - resultArchiveStatus
+                        - renderFormat
+                        - followUpDepth
+                      properties:
+                        sourceType:
+                          type: string
+                          const: AI_TUTOR_RESULT_ARCHIVE
+                        actionType:
+                          type: string
+                          enum: [AI_TUTOR_REQUEST, PERSONALIZED_QUESTION_BANK]
+                        resultArchiveStatus:
+                          type: string
+                          const: READY_FOR_STUDENT_APP_READ
+                        renderFormat:
+                          type: string
+                          const: SAFE_TEXT_BLOCKS
+                        followUpDepth:
+                          type: integer
+                          minimum: 1
+                          maximum: 2
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

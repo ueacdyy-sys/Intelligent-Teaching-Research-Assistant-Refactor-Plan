@@ -47,6 +47,13 @@ func TestEnsureSchemaDropsRedundantArchiveItemWriteIndexes(t *testing.T) {
 			t.Fatalf("schema missing covered page index %s", indexName)
 		}
 	}
+	if !strings.Contains(statements, "CREATE UNIQUE INDEX IF NOT EXISTS idx_teaching_tutoring_analysis_requests_pending_result_archive_follow_up_unique") {
+		t.Fatalf("schema missing pending result-archive follow-up unique index")
+	}
+	if !strings.Contains(statements, "WHERE source_type = 'AI_TUTOR_RESULT_ARCHIVE'") ||
+		!strings.Contains(statements, "AND status IN ('QUEUED', 'IN_PROGRESS')") {
+		t.Fatalf("schema missing pending result-archive follow-up partial unique predicate")
+	}
 	if !strings.Contains(statements, "CREATE TABLE IF NOT EXISTS teaching_archive_publications") {
 		t.Fatalf("schema missing teaching archive publication projection table")
 	}

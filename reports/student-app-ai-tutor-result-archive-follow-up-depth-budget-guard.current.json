@@ -1,0 +1,121 @@
+{
+  "generatedAt": "2026-06-10T07:55:26.635Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_DEPTH_BUDGET_GUARD",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_result_archive_follow_up_depth_budget_guard",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_result_archive_follow_up_worker_continuity"
+    ],
+    "queueEndpoint": "POST /v1/student-app/ai-tutor-requests",
+    "workerInputEndpoint": "POST /v1/teaching/tutoring-analysis-requests/{requestId}/ai-tutor-study-packet-input",
+    "maxFollowUpDepth": 2,
+    "status": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_DEPTH_BUDGET_GUARD_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 6,
+    "totalErrors": 0,
+    "operations": 3,
+    "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_DEPTH_BUDGET_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorResultArchiveFollowUpDepthBudgetGuard": {
+      "status": "PASS",
+      "maxFollowUpDepth": 2,
+      "transitions": [
+        "0->1",
+        "1->2",
+        "2->STOP"
+      ],
+      "currentDepthsAccepted": [
+        0,
+        1,
+        2
+      ],
+      "actionDepthsAccepted": [
+        1,
+        2
+      ],
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 6,
+        "totalErrors": 0,
+        "operations": 3,
+        "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_DEPTH_BUDGET_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0350WorkerContinuityRequired": true,
+    "maxFollowUpDepth": 2,
+    "clientSuppliedDepthMustMatchRegeneratedAction": true,
+    "publishedStudyPacketFollowUpDepthForbidden": true,
+    "resultArchiveFollowUpDepthRequired": true,
+    "maxDepthEmitsNoFollowUpActions": true,
+    "requestSourceFollowUpDepthPersisted": true,
+    "workerInputRevalidatesFollowUpDepth": true,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0350_follow_up_worker_continuity_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_WORKER_CONTINUITY_VERIFIED:0",
+      "expected": "READY 0350 result-archive follow-up worker continuity with zero errors",
+      "remediation": "Run or fix 0350 before claiming bounded result-archive follow-up depth."
+    },
+    {
+      "severity": "info",
+      "id": "domain.depth_is_server_normalized_and_actions_stop_at_max",
+      "passed": true,
+      "actual": "maxAITutorResultArchiveFollowUpDepth=true;nextFollowUpDepth > maxAITutorResultArchiveFollowUpDepth=true;StopsAtMaxFollowUpDepth=true",
+      "expected": "domain normalizes depth 0..2, emits next depth 1..2, and returns zero actions at max depth",
+      "remediation": "Keep follow-up depth server-computed and stop action emission at max depth."
+    },
+    {
+      "severity": "info",
+      "id": "request.queue_admission_rejects_tampered_or_max_depth_sources",
+      "passed": true,
+      "actual": "source.FollowUpDepth != 0=true;action.FollowUpDepth == input.LearningActionSource.FollowUpDepth=true;RejectsTamperedResultArchiveFollowUpDepth=true;RejectsMaxDepthResultArchiveFollowUp=true",
+      "expected": "client source depth is required for result archives, forbidden for published packets, and must match regenerated server actions",
+      "remediation": "Do not accept client-supplied result-archive source depth unless it matches a regenerated server action."
+    },
+    {
+      "severity": "info",
+      "id": "persistence_and_worker_input_carry_and_revalidate_depth",
+      "passed": true,
+      "actual": "follow_up_depth=true;source_follow_up_depth=true;action.FollowUpDepth == followUpDepth=true;RejectsTamperedFollowUpDepth=true",
+      "expected": "snapshot and request depth are persisted, scanned, exposed to worker input, and revalidated against regenerated actions",
+      "remediation": "Persist and revalidate follow-up depth on both queue admission and worker input boundaries."
+    },
+    {
+      "severity": "info",
+      "id": "http_openapi_contracts_expose_only_bounded_depth",
+      "passed": true,
+      "actual": "minimum: 1=true;maximum: 2=true;minItems: 0=true;required: [followUpDepth]=true",
+      "expected": "HTTP and OpenAPI document current depth 0..2, next depth 1..2, max-depth zero actions, and published-source depth rejection",
+      "remediation": "Keep followUpDepth visible only where bounded source contracts need it."
+    },
+    {
+      "severity": "info",
+      "id": "depth_budget_probe_blocks_loop_amplification",
+      "passed": true,
+      "actual": "transitions=0->1,1->2,2->STOP;p99=6;errors=0",
+      "expected": "contract probe models two allowed follow-up transitions and a hard stop at max depth",
+      "remediation": "Keep max-depth result archives from emitting another queueable action."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0351",
+      "passed": true,
+      "actual": "follow-up-depth-budget-guard=true;studentAppAiTutorResultArchiveFollowUpDepthBudgetGuard=true;11.89/10=true;SDD 0351=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0351",
+      "remediation": "Wire 0351 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use this as the bounded result-archive follow-up loop guard; continue the whole-system refactor on the next root module without reopening broad production10k tests."
+}

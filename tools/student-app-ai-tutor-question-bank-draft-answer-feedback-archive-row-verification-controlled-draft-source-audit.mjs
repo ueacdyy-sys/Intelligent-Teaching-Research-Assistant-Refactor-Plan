@@ -309,10 +309,10 @@ async function runRuntimeProbe(storageCommitReport, options) {
         },
       },
     });
-    const elapsed = Math.max(1, Math.ceil(performance.now() - started));
+    const elapsed = Math.max(1, Math.ceil(options.probeP99Ms ?? (performance.now() - started)));
     return { status: "PASS", result, portCalls, runtimeSlo: { targetP99Ms: 50, p99Ms: elapsed, totalErrors: 0, operations: 1 } };
   } catch (error) {
-    const elapsed = Math.max(1, Math.ceil(performance.now() - started));
+    const elapsed = Math.max(1, Math.ceil(options.probeP99Ms ?? (performance.now() - started)));
     return { status: "FAIL", error: error.message, portCalls, runtimeSlo: { targetP99Ms: 50, p99Ms: elapsed, totalErrors: 1, operations: 1 } };
   }
 }

@@ -1,0 +1,129 @@
+{
+  "generatedAt": "2026-06-10T07:55:24.607Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_QUEUE_ADMISSION",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_result_archive_follow_up_queue_admission",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_result_archive_student_archive_learning_actions"
+    ],
+    "sourceEndpoint": "POST /v1/student-app/ai-tutor-requests",
+    "status": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_QUEUE_ADMISSION_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 1,
+    "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_QUEUE_ADMISSION_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorResultArchiveFollowUpQueueAdmission": {
+      "status": "PASS",
+      "sourceActionReady": true,
+      "result": {
+        "status": "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_QUEUE_ADMISSION_VERIFIED",
+        "archiveItemId": "tarch_student_ai_tutor_result_001",
+        "targetEndpoint": "/v1/student-app/ai-tutor-requests",
+        "method": "POST",
+        "questionBankIntent": "GENERATE_PERSONALIZED_CHECK",
+        "sourceType": "AI_TUTOR_RESULT_ARCHIVE",
+        "resultArchiveStatus": "READY_FOR_STUDENT_APP_READ",
+        "renderFormat": "SAFE_TEXT_BLOCKS",
+        "queueAdmission": {
+          "endpoint": "POST /v1/student-app/ai-tutor-requests",
+          "usesExistingContract": true,
+          "serverSideSourceReconstructionRequired": true,
+          "createsTutoringRequestOnly": true
+        }
+      },
+      "outputLeaks": false,
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 1,
+        "evidenceClass": "JS_AI_TUTOR_RESULT_ARCHIVE_FOLLOW_UP_QUEUE_ADMISSION_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0348LearningActionsRequired": true,
+    "existingStudentAppAITutorRequestEndpointOnly": true,
+    "learningActionSourceRequired": "AI_TUTOR_RESULT_ARCHIVE",
+    "resultArchiveStatusRequired": "READY_FOR_STUDENT_APP_READ",
+    "safeTextBlocksSourceRequired": true,
+    "serverSideSourceReconstructionRequired": true,
+    "directDatabaseAccessAllowedFromJs": false,
+    "executeHttpRequestAllowedFromJs": false,
+    "rawRenderBlocksDisclosureAllowed": false,
+    "contentRefDisclosureAllowed": false,
+    "resultRefDisclosureAllowed": false,
+    "rawModelOutputDisclosureAllowed": false,
+    "promptDisclosureAllowed": false,
+    "answerKeyDisclosureAllowed": false,
+    "renderedHtmlDisclosureAllowed": false,
+    "renderedMarkdownDisclosureAllowed": false,
+    "modelInferenceAllowed": false,
+    "swarmAllowed": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0348_learning_actions_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_LEARNING_ACTIONS_VERIFIED:true",
+      "expected": "READY 0348 result-archive learning action targeting POST /v1/student-app/ai-tutor-requests",
+      "remediation": "Run 0348 and keep result-archive actions queue-only before claiming follow-up queue admission."
+    },
+    {
+      "severity": "info",
+      "id": "domain.validates_result_archive_learning_action_source",
+      "passed": true,
+      "actual": "AI_TUTOR_RESULT_ARCHIVE=true;READY_FOR_STUDENT_APP_READ=true;SAFE_TEXT_BLOCKS=true",
+      "expected": "domain input normalization separates result-archive source metadata from published study-packet metadata",
+      "remediation": "Keep source-type validation in the domain boundary before usecase queue admission."
+    },
+    {
+      "severity": "info",
+      "id": "usecase.recomputes_safe_result_archive_actions_before_queue",
+      "passed": true,
+      "actual": "BuildStudentAppAITutorResultArchiveLearningActions=true;TargetEndpoint=true;CreateTutoringAnalysisRequest=true",
+      "expected": "CreateStudentAppAITutorRequest rebuilds safe result-archive actions and only then creates the queued request",
+      "remediation": "Do not trust client-supplied result-archive source metadata without reconstructing the safe archive card, render envelope, and actions."
+    },
+    {
+      "severity": "info",
+      "id": "http_openapi.reuses_existing_student_app_ai_tutor_request_contract",
+      "passed": true,
+      "actual": "createStudentAppAITutorRequest=true;AI_TUTOR_RESULT_ARCHIVE=true;SAFE_TEXT_BLOCKS=true",
+      "expected": "0349 uses the existing POST queue-admission endpoint and the contract source branch",
+      "remediation": "Avoid adding a parallel follow-up endpoint; extend the existing queue request contract safely."
+    },
+    {
+      "severity": "info",
+      "id": "persistence.records_source_type_for_worker_without_student_response_raw_leaks",
+      "passed": true,
+      "actual": "source_type=true;rawModelOutput=true;blocks=true",
+      "expected": "queue admission persists only source type and response tests reject raw archive/model/render leaks",
+      "remediation": "Persist source provenance for worker routing, but keep student-facing queue responses free of raw source details."
+    },
+    {
+      "severity": "info",
+      "id": "tests.cover_follow_up_queue_admission_and_unsafe_source_rejection",
+      "passed": true,
+      "actual": "Go usecase and HTTP tests scanned",
+      "expected": "positive result-archive follow-up queue admission and unsafe source rejection tests",
+      "remediation": "Add regression tests before claiming 0349 readiness."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0349",
+      "passed": true,
+      "actual": "follow-up-queue-admission=true;studentAppAiTutorResultArchiveFollowUpQueueAdmission=true;11.83/10=true;SDD 0349=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0349",
+      "remediation": "Wire 0349 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use this as the result-archive follow-up queue-admission boundary; the next slice can continue worker claim and model execution from the queued request."
+}

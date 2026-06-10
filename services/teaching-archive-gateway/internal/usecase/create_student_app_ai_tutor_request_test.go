@@ -98,6 +98,266 @@ func TestCreateStudentAppAITutorRequestUsesPublishedStudyPacketSource(t *testing
 	}
 }
 
+func TestCreateStudentAppAITutorRequestUsesResultArchiveActionSource(t *testing.T) {
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_ai_tutor_result_001": aiTutorResultArchiveItem("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+		resultArchiveSnapshot:   aiTutorResultArchiveSnapshot("tarch_student_ai_tutor_result_001", "student_001"),
+		resultArchiveSnapshotOK: true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(
+		repo,
+		fixedIDs{id: "tutor_req_student_app"},
+		fixedClock{now: time.Date(2026, 6, 8, 13, 0, 0, 0, time.UTC)},
+	)
+
+	got, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_ai_tutor_result_001",
+		AnalysisGoal:         "continue guided practice from the archived result",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if got.ID != "tutor_req_student_app" ||
+		got.ArchiveItemID != "tarch_student_ai_tutor_result_001" ||
+		got.SourceArchiveMaterial != domain.MaterialTypeHomework ||
+		got.FollowUpDepth != 1 {
+		t.Fatalf("request = %#v", got)
+	}
+	if repo.createdRequest.FollowUpDepth != 1 ||
+		repo.createdRequest.LearningActionSource != domain.StudentAppAITutorLearningActionSourceResultArchive {
+		t.Fatalf("created request = %#v", repo.createdRequest)
+	}
+	if repo.genericGetReads != 1 || repo.resultArchiveSnapshotReads != 1 {
+		t.Fatalf("result archive reads get:%d snapshot:%d", repo.genericGetReads, repo.resultArchiveSnapshotReads)
+	}
+	if repo.publishedGetReads != 0 || repo.contentPreviewReads != 0 {
+		t.Fatalf("published reads detail:%d preview:%d", repo.publishedGetReads, repo.contentPreviewReads)
+	}
+	if repo.creates != 1 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
+func TestCreateStudentAppAITutorRequestReusesPendingResultArchiveFollowUp(t *testing.T) {
+	existing := domain.TutoringAnalysisRequest{
+		ID:                     "tutor_req_existing_follow_up",
+		ArchiveItemID:          "tarch_student_ai_tutor_result_001",
+		RequestedByPrincipalID: "student_001",
+		AnalysisGoal:           "continue guided practice from the archived result",
+		QuestionBankIntent:     domain.QuestionBankIntentGeneratePersonalizedCheck,
+		Status:                 domain.TutoringAnalysisStatusQueued,
+		LearningActionSource:   domain.StudentAppAITutorLearningActionSourceResultArchive,
+		FollowUpDepth:          1,
+		SourceArchiveOwnerType: domain.OwnerTypeStudent,
+		SourceArchiveStudentID: "student_001",
+		SourceArchiveMaterial:  domain.MaterialTypeHomework,
+		CreatedAt:              time.Date(2026, 6, 8, 12, 55, 0, 0, time.UTC),
+		UpdatedAt:              time.Date(2026, 6, 8, 12, 55, 0, 0, time.UTC),
+	}
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_ai_tutor_result_001": aiTutorResultArchiveItem("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+		resultArchiveSnapshot:          aiTutorResultArchiveSnapshot("tarch_student_ai_tutor_result_001", "student_001"),
+		resultArchiveSnapshotOK:        true,
+		pendingResultArchiveFollowUp:   existing,
+		pendingResultArchiveFollowUpOK: true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(
+		repo,
+		fixedIDs{id: "tutor_req_duplicate_follow_up"},
+		fixedClock{now: time.Date(2026, 6, 8, 13, 0, 0, 0, time.UTC)},
+	)
+
+	got, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_ai_tutor_result_001",
+		AnalysisGoal:         "continue guided practice from the archived result",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if got.ID != "tutor_req_existing_follow_up" {
+		t.Fatalf("ID = %q, want existing pending request", got.ID)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d, want 0", repo.creates)
+	}
+	if repo.pendingResultArchiveFollowUpReads != 1 {
+		t.Fatalf("pending result archive follow-up reads = %d", repo.pendingResultArchiveFollowUpReads)
+	}
+}
+
+func TestCreateStudentAppAITutorRequestCreatesAfterCompletedResultArchiveFollowUp(t *testing.T) {
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_ai_tutor_result_001": aiTutorResultArchiveItem("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+		resultArchiveSnapshot:   aiTutorResultArchiveSnapshot("tarch_student_ai_tutor_result_001", "student_001"),
+		resultArchiveSnapshotOK: true,
+		pendingResultArchiveFollowUp: domain.TutoringAnalysisRequest{
+			ID:                     "tutor_req_completed_follow_up",
+			ArchiveItemID:          "tarch_student_ai_tutor_result_001",
+			RequestedByPrincipalID: "student_001",
+			QuestionBankIntent:     domain.QuestionBankIntentGeneratePersonalizedCheck,
+			Status:                 domain.TutoringAnalysisStatusSucceeded,
+			LearningActionSource:   domain.StudentAppAITutorLearningActionSourceResultArchive,
+			FollowUpDepth:          1,
+			SourceArchiveStudentID: "student_001",
+		},
+		pendingResultArchiveFollowUpOK: true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(
+		repo,
+		fixedIDs{id: "tutor_req_new_after_completed"},
+		fixedClock{now: time.Date(2026, 6, 8, 13, 5, 0, 0, time.UTC)},
+	)
+
+	got, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_ai_tutor_result_001",
+		AnalysisGoal:         "continue guided practice again",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if got.ID != "tutor_req_new_after_completed" {
+		t.Fatalf("ID = %q", got.ID)
+	}
+	if repo.creates != 1 {
+		t.Fatalf("creates = %d, want 1", repo.creates)
+	}
+	if repo.pendingResultArchiveFollowUpReads != 1 {
+		t.Fatalf("pending result archive follow-up reads = %d", repo.pendingResultArchiveFollowUpReads)
+	}
+}
+
+func TestCreateStudentAppAITutorRequestRejectsUnsafeResultArchiveActionSource(t *testing.T) {
+	snapshot := aiTutorResultArchiveSnapshot("tarch_student_ai_tutor_result_001", "student_001")
+	snapshot.SafeGuidanceOnly = false
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_ai_tutor_result_001": aiTutorResultArchiveItem("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+		resultArchiveSnapshot:   snapshot,
+		resultArchiveSnapshotOK: true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(repo, fixedIDs{id: "tutor_req_student_app"}, fixedClock{})
+
+	_, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_ai_tutor_result_001",
+		AnalysisGoal:         "continue guided practice",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       1,
+		},
+	})
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
+func TestCreateStudentAppAITutorRequestRejectsTamperedResultArchiveFollowUpDepth(t *testing.T) {
+	snapshot := aiTutorResultArchiveSnapshot("tarch_student_ai_tutor_result_001", "student_001")
+	snapshot.FollowUpDepth = 1
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_ai_tutor_result_001": aiTutorResultArchiveItem("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+		resultArchiveSnapshot:   snapshot,
+		resultArchiveSnapshotOK: true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(repo, fixedIDs{id: "tutor_req_student_app"}, fixedClock{})
+
+	_, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_ai_tutor_result_001",
+		AnalysisGoal:         "continue guided practice",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       1,
+		},
+	})
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
+func TestCreateStudentAppAITutorRequestRejectsMaxDepthResultArchiveFollowUp(t *testing.T) {
+	snapshot := aiTutorResultArchiveSnapshot("tarch_student_ai_tutor_result_001", "student_001")
+	snapshot.FollowUpDepth = 2
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_ai_tutor_result_001": aiTutorResultArchiveItem("tarch_student_ai_tutor_result_001", "student_001"),
+		},
+		resultArchiveSnapshot:   snapshot,
+		resultArchiveSnapshotOK: true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(repo, fixedIDs{id: "tutor_req_student_app"}, fixedClock{})
+
+	_, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_ai_tutor_result_001",
+		AnalysisGoal:         "continue guided practice",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:          domain.StudentAppAITutorLearningActionSourceResultArchive,
+			ActionType:          domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			ResultArchiveStatus: domain.StudentAppAITutorResultArchiveStatusReady,
+			RenderFormat:        domain.StudentAppAITutorResultArchiveRenderFormatSafeTextBlocks,
+			FollowUpDepth:       2,
+		},
+	})
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
 func TestCreateStudentAppAITutorRequestRejectsTeachingOwnedArchive(t *testing.T) {
 	repo := &fakeTutoringRepository{
 		items: map[string]domain.ArchiveItem{

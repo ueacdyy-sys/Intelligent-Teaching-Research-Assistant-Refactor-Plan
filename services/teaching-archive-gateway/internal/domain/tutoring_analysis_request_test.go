@@ -35,8 +35,83 @@ func TestNewTutoringAnalysisRequestNormalizesMetadata(t *testing.T) {
 	if request.Status != domain.TutoringAnalysisStatusQueued {
 		t.Fatalf("Status = %q", request.Status)
 	}
+	if domain.TutoringAnalysisRequestLearningActionSource(request) != domain.StudentAppAITutorLearningActionSourcePublishedStudyPacket {
+		t.Fatalf("LearningActionSource = %q", request.LearningActionSource)
+	}
 	if request.SourceArchiveStudentID != "student_001" {
 		t.Fatalf("SourceArchiveStudentID = %q", request.SourceArchiveStudentID)
+	}
+}
+
+func TestNewTutoringAnalysisRequestAcceptsResultArchiveLearningSource(t *testing.T) {
+	request, err := domain.NewTutoringAnalysisRequest(
+		"tutor_req_fixed",
+		domain.CreateTutoringAnalysisRequestInput{
+			Principal:              studentPrincipal("student_001"),
+			ArchiveItemID:          "tarch_student_ai_tutor_result_001",
+			AnalysisGoal:           "continue from archived AI Tutor result",
+			QuestionBankIntent:     domain.QuestionBankIntentGeneratePersonalizedCheck,
+			LearningActionSource:   domain.StudentAppAITutorLearningActionSourceResultArchive,
+			FollowUpDepth:          1,
+			SourceArchiveOwnerType: domain.OwnerTypeStudent,
+			SourceArchiveStudentID: "student_001",
+			SourceArchiveMaterial:  domain.MaterialTypeHomework,
+		},
+		time.Date(2026, 6, 9, 10, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("NewTutoringAnalysisRequest returned error: %v", err)
+	}
+	if domain.TutoringAnalysisRequestLearningActionSource(request) != domain.StudentAppAITutorLearningActionSourceResultArchive {
+		t.Fatalf("LearningActionSource = %q", request.LearningActionSource)
+	}
+	if request.FollowUpDepth != 1 {
+		t.Fatalf("FollowUpDepth = %d", request.FollowUpDepth)
+	}
+}
+
+func TestBuildStudentAppAITutorResultArchiveFollowUpPendingRequestQuery(t *testing.T) {
+	query, err := domain.BuildStudentAppAITutorResultArchiveFollowUpPendingRequestQuery(domain.TutoringAnalysisRequest{
+		ArchiveItemID:          " tarch_student_ai_tutor_result_001 ",
+		RequestedByPrincipalID: " student_001 ",
+		QuestionBankIntent:     domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource:   domain.StudentAppAITutorLearningActionSourceResultArchive,
+		FollowUpDepth:          1,
+		SourceArchiveStudentID: " student_001 ",
+	})
+	if err != nil {
+		t.Fatalf("BuildStudentAppAITutorResultArchiveFollowUpPendingRequestQuery returned error: %v", err)
+	}
+	if query.ArchiveItemID != "tarch_student_ai_tutor_result_001" ||
+		query.RequestedByPrincipalID != "student_001" ||
+		query.QuestionBankIntent != domain.QuestionBankIntentGeneratePersonalizedCheck ||
+		query.FollowUpDepth != 1 ||
+		query.StudentID != "student_001" {
+		t.Fatalf("query = %#v", query)
+	}
+}
+
+func TestBuildStudentAppAITutorResultArchiveFollowUpPendingRequestQueryRejectsPublishedSource(t *testing.T) {
+	_, err := domain.BuildStudentAppAITutorResultArchiveFollowUpPendingRequestQuery(domain.TutoringAnalysisRequest{
+		ArchiveItemID:          "tarch_archive_material_001",
+		RequestedByPrincipalID: "student_001",
+		QuestionBankIntent:     domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource:   domain.StudentAppAITutorLearningActionSourcePublishedStudyPacket,
+		SourceArchiveStudentID: "student_001",
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
+func TestIsPendingTutoringAnalysisStatus(t *testing.T) {
+	if !domain.IsPendingTutoringAnalysisStatus(domain.TutoringAnalysisStatusQueued) ||
+		!domain.IsPendingTutoringAnalysisStatus(domain.TutoringAnalysisStatusInProgress) {
+		t.Fatal("queued and in-progress should be pending")
+	}
+	if domain.IsPendingTutoringAnalysisStatus(domain.TutoringAnalysisStatusSucceeded) ||
+		domain.IsPendingTutoringAnalysisStatus(domain.TutoringAnalysisStatusFailed) {
+		t.Fatal("terminal statuses should not be pending")
 	}
 }
 

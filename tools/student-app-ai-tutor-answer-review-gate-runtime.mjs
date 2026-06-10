@@ -11,8 +11,10 @@ const inputSchemaVersion = "2026-06-08.student-app.ai-tutor-answer-review-gate.v
 const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-answer-review-gate-recorded.v1";
 const sourceArtifactSchemaVersion = "2026-06-08.student-app.ai-tutor-controlled-answer-artifact-recorded.v1";
 const sourceArtifactRuntimeId = "student_app_ai_tutor_controlled_answer_artifact_runtime";
+const sourceResultArchiveArtifactRuntimeId = "student_app_ai_tutor_result_archive_controlled_answer_artifact";
 const sourceArtifactCommandPort = "StudentAppAITutorControlledAnswerArtifactPort.recordControlledAnswerArtifact";
 const sourceArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT";
+const sourceResultArchiveArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT";
 const recordedStatus = "STUDENT_APP_AI_TUTOR_ANSWER_REVIEW_GATE_RECORDED";
 const defaultReviewLogPath = "reports/student-command-log/student-app-ai-tutor-answer-review-gate.jsonl";
 const allowedDecisions = ["APPROVE_FOR_RESULT_PERSISTENCE", "REJECT_FOR_REVISION"];
@@ -109,23 +111,35 @@ function normalizeInput(input) {
 function assertControlledAnswerArtifactReport(report) {
   assertPlainObject(report, "input.controlledAnswerArtifactReport");
   requireConst(report.readiness, "READY", "input.controlledAnswerArtifactReport.readiness");
-  requireConst(report.workloadType, sourceArtifactWorkloadType, "input.controlledAnswerArtifactReport.workloadType");
-  requireConst(report.runtime?.runtimeId, sourceArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+  const isResultArchiveSource = report.workloadType === sourceResultArchiveArtifactWorkloadType;
+  requireOneOf(report.workloadType, "input.controlledAnswerArtifactReport.workloadType", [sourceArtifactWorkloadType, sourceResultArchiveArtifactWorkloadType]);
+  if (isResultArchiveSource) {
+    requireConst(report.runtime?.runtimeId, sourceResultArchiveArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+    requireConst(report.runtime?.sharedRuntimeId, sourceArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.sharedRuntimeId");
+    requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
+  } else {
+    requireConst(report.runtime?.runtimeId, sourceArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+    requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
+  }
   requireConst(report.runtime?.commandPort, sourceArtifactCommandPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
-  requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.controlledAnswerArtifactReport.runtimeSlo.totalErrors");
   const invariants = assertPlainObject(report.safetyInvariants, "input.controlledAnswerArtifactReport.safetyInvariants");
-  for (const field of ["sourceModelExecutionPrecheckRequired", "internalServiceOnly", "controlledAnswerArtifactRecorded", "humanReviewRequiredBeforeResult", "rawModelOutputExcluded", "promptExcluded", "answerKeyExcluded"]) {
+  const sourcePrecheckFlag = isResultArchiveSource ? "source0337ResultArchiveModelPrecheckRequired" : "sourceModelExecutionPrecheckRequired";
+  for (const field of [sourcePrecheckFlag, "internalServiceOnly", "controlledAnswerArtifactRecorded", "humanReviewRequiredBeforeResult", "rawModelOutputExcluded", "promptExcluded", "answerKeyExcluded"]) {
     requireConst(invariants[field], true, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
   }
   for (const field of ["tutoringResultRecorded", "resultPersistenceAllowed", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "swarmAllowed"]) {
     requireConst(invariants[field], false, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
   }
+  if (isResultArchiveSource) {
+    requireConst(invariants.learningActionSourceRequired, "AI_TUTOR_RESULT_ARCHIVE", "input.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired");
+  }
   return report;
 }
 
 function assertControlledAnswerArtifactResult(report) {
-  const result = report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact?.result;
+  const result = report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact?.result
+    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact?.result;
   rejectLeakedFields(result, "source.controlledAnswerArtifactResult");
   assertPlainObject(result, "source.controlledAnswerArtifactResult");
   requireConst(result.schemaVersion, sourceArtifactSchemaVersion, "source.artifact.schemaVersion");
@@ -138,12 +152,17 @@ function assertControlledAnswerArtifactResult(report) {
     requireConst(result.boundary?.[field], false, `source.artifact.boundary.${field}`);
   }
   const artifact = assertControlledAnswerArtifact(result.controlledAnswerArtifact, result);
+  const isResultArchiveSource = report.workloadType === sourceResultArchiveArtifactWorkloadType;
+  const learningActionSource = isResultArchiveSource ? requireConst(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "source.artifact.learningActionSource") : undefined;
+  const resultArchiveStatus = learningActionSource ? requireConst(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "source.artifact.resultArchiveStatus") : undefined;
   return {
     requestId: requireToken(result.requestId, "source.artifact.requestId", "tutor_req_"),
     archiveItemId: requireToken(result.archiveItemId, "source.artifact.archiveItemId", "tarch_"),
     workerId: requireBoundedString(result.workerId, "source.artifact.workerId", 1, 128),
     precheckId: requireToken(result.precheckId, "source.artifact.precheckId", "ai_tutor_model_precheck_"),
     queueRef: requireToken(result.queueRef, "source.artifact.queueRef", "ai_tutor_model_queue_"),
+    learningActionSource,
+    resultArchiveStatus,
     controlledAnswerArtifact: artifact,
     guidanceSectionsHash: hashGuidanceSections(artifact.guidanceSections),
   };
@@ -254,6 +273,8 @@ function buildPortRequest(normalized) {
     workerId: source.workerId,
     precheckId: source.precheckId,
     queueRef: source.queueRef,
+    learningActionSource: source.learningActionSource,
+    resultArchiveStatus: source.resultArchiveStatus,
     reviewerPrincipalId: normalized.principal.principalId,
     reviewerRole: normalized.principal.role,
     decision: normalized.reviewDecision.decision,
@@ -304,6 +325,8 @@ function buildReviewRecord(normalized, answerReviewGate, recordedAt) {
     workerId: source.workerId,
     precheckId: source.precheckId,
     queueRef: source.queueRef,
+    learningActionSource: source.learningActionSource,
+    resultArchiveStatus: source.resultArchiveStatus,
     sourceControlledAnswerArtifact: {
       artifactId: source.controlledAnswerArtifact.artifactId,
       guidanceSectionsHash: source.guidanceSectionsHash,

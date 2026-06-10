@@ -21,6 +21,8 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 			analysis_goal,
 			question_bank_intent,
 			status,
+			source_type,
+			source_follow_up_depth,
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_material,
@@ -34,7 +36,7 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 			created_at,
 			completed_at,
 			updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), NULLIF($15, ''), $16, $17, NULL, $18)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), $11, NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), NULLIF($15, ''), NULLIF($16, ''), NULLIF($17, ''), $18, $19, NULL, $20)
 	`,
 		request.ID,
 		request.ArchiveItemID,
@@ -42,6 +44,8 @@ func (r *ArchiveRepository) CreateTutoringAnalysisRequest(
 		request.AnalysisGoal,
 		request.QuestionBankIntent,
 		request.Status,
+		domain.TutoringAnalysisRequestLearningActionSource(request),
+		request.FollowUpDepth,
 		request.SourceArchiveOwnerType,
 		request.SourceArchiveStudentID,
 		request.SourceArchiveMaterial,
@@ -70,6 +74,8 @@ func (r *ArchiveRepository) GetTutoringAnalysisRequestByID(
 			analysis_goal,
 			question_bank_intent,
 			status,
+			source_type,
+			source_follow_up_depth,
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_material,
@@ -87,6 +93,74 @@ func (r *ArchiveRepository) GetTutoringAnalysisRequestByID(
 		WHERE id = $1
 		LIMIT 1
 	`, id)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.TutoringAnalysisRequest{}, false, err
+		}
+		return domain.TutoringAnalysisRequest{}, false, nil
+	}
+	request, err := scanTutoringAnalysisRequest(rows)
+	if err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.TutoringAnalysisRequest{}, false, err
+	}
+	return request, true, nil
+}
+
+func (r *ArchiveRepository) FindPendingStudentAppAITutorResultArchiveFollowUpRequest(
+	ctx context.Context,
+	query domain.StudentAppAITutorResultArchiveFollowUpPendingRequestQuery,
+) (domain.TutoringAnalysisRequest, bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			id,
+			archive_item_id,
+			requested_by_principal_id,
+			analysis_goal,
+			question_bank_intent,
+			status,
+			source_type,
+			source_follow_up_depth,
+			source_archive_owner_type,
+			source_archive_student_id,
+			source_archive_material,
+			result_summary,
+			result_ref,
+			question_bank_draft_ref,
+			error_code,
+			error_message,
+			claimed_by_worker_id,
+			claim_expires_at,
+			created_at,
+			completed_at,
+			updated_at
+		FROM teaching_tutoring_analysis_requests
+		WHERE archive_item_id = $1
+			AND requested_by_principal_id = $2
+			AND question_bank_intent = $3
+			AND source_type = $4
+			AND source_follow_up_depth = $5
+			AND source_archive_student_id = $6
+			AND status IN ($7, $8)
+		ORDER BY created_at ASC, id ASC
+		LIMIT 1
+	`,
+		query.ArchiveItemID,
+		query.RequestedByPrincipalID,
+		query.QuestionBankIntent,
+		domain.StudentAppAITutorLearningActionSourceResultArchive,
+		query.FollowUpDepth,
+		query.StudentID,
+		domain.TutoringAnalysisStatusQueued,
+		domain.TutoringAnalysisStatusInProgress,
+	)
 	if err != nil {
 		return domain.TutoringAnalysisRequest{}, false, err
 	}
@@ -142,6 +216,8 @@ func (r *ArchiveRepository) ClaimNextTutoringAnalysisRequest(
 			analysis_goal,
 			question_bank_intent,
 			status,
+			source_type,
+			source_follow_up_depth,
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_material,
@@ -269,6 +345,8 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 			analysis_goal,
 			question_bank_intent,
 			status,
+			source_type,
+			source_follow_up_depth,
 			source_archive_owner_type,
 			source_archive_student_id,
 			source_archive_material,

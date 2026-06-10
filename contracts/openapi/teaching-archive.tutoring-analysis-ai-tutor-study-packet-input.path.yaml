@@ -39,11 +39,11 @@ post:
               - analysisGoal
               - questionBankIntent
               - status
+              - learningActionSource
               - workerId
               - claimExpiresAt
               - sourceArchiveStudentId
               - sourceArchiveMaterial
-              - packetStatus
               - renderFormat
               - blocks
             properties:
@@ -62,6 +62,13 @@ post:
               status:
                 type: string
                 const: IN_PROGRESS
+              learningActionSource:
+                type: string
+                enum: [PUBLISHED_STUDY_PACKET, AI_TUTOR_RESULT_ARCHIVE]
+              followUpDepth:
+                type: integer
+                minimum: 1
+                maximum: 2
               workerId:
                 type: string
                 minLength: 1
@@ -77,6 +84,12 @@ post:
               packetStatus:
                 type: string
                 const: READY
+              resultArchiveStatus:
+                type: string
+                const: READY_FOR_STUDENT_APP_READ
+              resultArchiveSourceItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
               renderFormat:
                 type: string
                 const: SAFE_TEXT_BLOCKS
@@ -87,16 +100,44 @@ post:
                 items:
                   type: object
                   additionalProperties: false
-                  required: [blockId, blockType, sectionId, title, text]
+                  required: [blockId, blockType, title, text]
                   properties:
                     blockId: { type: string, minLength: 1, maxLength: 128 }
                     blockType:
                       type: string
-                      const: SECTION
+                      enum: [SECTION, SUMMARY, GUIDANCE_SECTION]
                     sectionId: { type: string, minLength: 1, maxLength: 128 }
                     title: { type: string, minLength: 1, maxLength: 1200 }
                     text: { type: string, minLength: 1, maxLength: 1200 }
                     pageHint: { type: string, maxLength: 80 }
+                    sourceBlockRefs:
+                      type: array
+                      maxItems: 16
+                      items:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+            oneOf:
+              - required:
+                  - packetStatus
+                properties:
+                  learningActionSource:
+                    type: string
+                    const: PUBLISHED_STUDY_PACKET
+                not:
+                  anyOf:
+                    - required: [resultArchiveStatus]
+                    - required: [followUpDepth]
+              - required:
+                  - resultArchiveStatus
+                  - followUpDepth
+                  - resultArchiveSourceItemId
+                properties:
+                  learningActionSource:
+                    type: string
+                    const: AI_TUTOR_RESULT_ARCHIVE
+                not:
+                  required: [packetStatus]
     '401':
       $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
     '403':

@@ -1,11 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  allowInProgressQualityGateFromEnv,
-  isQualityGateReportPassing,
-  summarizeQualityGateReportState,
-} from "./quality-gate-report-state.mjs";
+import { allowInProgressQualityGateFromEnv, isQualityGateReportPassing, summarizeQualityGateReportState } from "./quality-gate-report-state.mjs";
 const defaultOutPath = "reports/root-workflow-coverage.current.json";
 const defaultRootRequirementsPath = "../智能教研助手/项目根本需求（禁止改动）";
 export const sourceReports = {
@@ -63,6 +59,10 @@ export const sourceReports = {
   studentAppAiTutorResultStudentArchiveRowVerification: "reports/student-app-ai-tutor-result-student-archive-row-verification.current.json",
   studentAppAiTutorResultStudentArchiveRead: "reports/student-app-ai-tutor-result-student-archive-read.current.json",
   studentAppAiTutorResultStudentArchiveRender: "reports/student-app-ai-tutor-result-student-archive-render.current.json",
+  studentAppAiTutorResultStudentArchiveLearningActions: "reports/student-app-ai-tutor-result-student-archive-learning-actions.current.json",
+  studentAppAiTutorWorkerResultArchiveInput: "reports/student-app-ai-tutor-worker-result-archive-input.current.json",
+  studentAppAiTutorResultArchiveModelExecutionPrecheck: "reports/student-app-ai-tutor-result-archive-model-execution-precheck.current.json",
+  studentAppAiTutorResultArchiveControlledAnswerArtifact: "reports/student-app-ai-tutor-result-archive-controlled-answer-artifact.current.json", studentAppAiTutorResultArchiveAnswerReviewGate: "reports/student-app-ai-tutor-result-archive-answer-review-gate.current.json", studentAppAiTutorResultArchiveReviewedResultPersistenceBridge: "reports/student-app-ai-tutor-result-archive-reviewed-result-persistence-bridge.current.json", studentAppAiTutorResultArchiveStudentVisibilityReview: "reports/student-app-ai-tutor-result-archive-student-visibility-review.current.json", studentAppAiTutorResultArchiveStudentDeliveryEnvelope: "reports/student-app-ai-tutor-result-archive-student-delivery-envelope.current.json", studentAppAiTutorResultArchiveStudentArchivePersistenceCommand: "reports/student-app-ai-tutor-result-archive-student-archive-persistence-command.current.json", studentAppAiTutorResultArchiveStudentArchiveStorageCommit: "reports/student-app-ai-tutor-result-archive-student-archive-storage-commit.current.json", studentAppAiTutorResultArchiveStudentArchiveRowVerification: "reports/student-app-ai-tutor-result-archive-student-archive-row-verification.current.json", studentAppAiTutorResultArchiveStudentArchiveRead: "reports/student-app-ai-tutor-result-archive-student-archive-read.current.json", studentAppAiTutorResultArchiveStudentArchiveRender: "reports/student-app-ai-tutor-result-archive-student-archive-render.current.json", studentAppAiTutorResultArchiveStudentArchiveLearningActions: "reports/student-app-ai-tutor-result-archive-student-archive-learning-actions.current.json", studentAppAiTutorResultArchiveFollowUpQueueAdmission: "reports/student-app-ai-tutor-result-archive-follow-up-queue-admission.current.json", studentAppAiTutorResultArchiveFollowUpWorkerContinuity: "reports/student-app-ai-tutor-result-archive-follow-up-worker-continuity.current.json", studentAppAiTutorResultArchiveFollowUpDepthBudgetGuard: "reports/student-app-ai-tutor-result-archive-follow-up-depth-budget-guard.current.json", studentAppAiTutorResultArchiveFollowUpQueueIdempotencyGuard: "reports/student-app-ai-tutor-result-archive-follow-up-queue-idempotency-guard.current.json", studentAppAiTutorResultArchiveFollowUpLineageGuard: "reports/student-app-ai-tutor-result-archive-follow-up-lineage-guard.current.json", studentAppAiTutorRequestProgressTimeline: "reports/student-app-ai-tutor-request-progress-timeline.current.json",
   studentAppAiTutorWorkerClaim: "reports/student-app-ai-tutor-worker-claim.current.json",
   studentAppAiTutorResult: "reports/student-app-ai-tutor-result.current.json",
   studentAppAiTutorQuestionBankDraftGenerationPlan: "reports/student-app-ai-tutor-question-bank-draft-generation-plan.current.json",
@@ -246,6 +246,10 @@ export const rootWorkflows = [
       ["studentAppAiTutorResultStudentArchiveRowVerification", "READY"],
       ["studentAppAiTutorResultStudentArchiveRead", "READY"],
       ["studentAppAiTutorResultStudentArchiveRender", "READY"],
+      ["studentAppAiTutorResultStudentArchiveLearningActions", "READY"],
+      ["studentAppAiTutorWorkerResultArchiveInput", "READY"],
+      ["studentAppAiTutorResultArchiveModelExecutionPrecheck", "READY"],
+      ["studentAppAiTutorResultArchiveControlledAnswerArtifact", "READY"], ["studentAppAiTutorResultArchiveAnswerReviewGate", "READY"], ["studentAppAiTutorResultArchiveReviewedResultPersistenceBridge", "READY"], ["studentAppAiTutorResultArchiveStudentVisibilityReview", "READY"], ["studentAppAiTutorResultArchiveStudentDeliveryEnvelope", "READY"], ["studentAppAiTutorResultArchiveStudentArchivePersistenceCommand", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveStorageCommit", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveRowVerification", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveRead", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveRender", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveLearningActions", "READY"], ["studentAppAiTutorResultArchiveFollowUpQueueAdmission", "READY"], ["studentAppAiTutorResultArchiveFollowUpWorkerContinuity", "READY"], ["studentAppAiTutorResultArchiveFollowUpDepthBudgetGuard", "READY"], ["studentAppAiTutorResultArchiveFollowUpQueueIdempotencyGuard", "READY"], ["studentAppAiTutorResultArchiveFollowUpLineageGuard", "READY"], ["studentAppAiTutorRequestProgressTimeline", "READY"],
       ["teachingAgentReadonlyRuntimeAdapter", "READY"],
     ],
     mixedWorkloads: ["teaching_archive"],
@@ -285,6 +289,10 @@ export const rootWorkflows = [
       { name: "student_app_ai_tutor_result_student_archive_row_verification_runtime", reportKey: "studentAppAiTutorResultStudentArchiveRowVerification", targetP99Ms: 50 },
       { name: "student_app_ai_tutor_result_student_archive_read_runtime", reportKey: "studentAppAiTutorResultStudentArchiveRead", targetP99Ms: 50 },
       { name: "student_app_ai_tutor_result_student_archive_render_runtime", reportKey: "studentAppAiTutorResultStudentArchiveRender", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_result_student_archive_learning_actions_runtime", reportKey: "studentAppAiTutorResultStudentArchiveLearningActions", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_worker_result_archive_input", reportKey: "studentAppAiTutorWorkerResultArchiveInput", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_result_archive_model_execution_precheck", reportKey: "studentAppAiTutorResultArchiveModelExecutionPrecheck", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_result_archive_controlled_answer_artifact", reportKey: "studentAppAiTutorResultArchiveControlledAnswerArtifact", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_answer_review_gate", reportKey: "studentAppAiTutorResultArchiveAnswerReviewGate", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_reviewed_result_persistence_bridge", reportKey: "studentAppAiTutorResultArchiveReviewedResultPersistenceBridge", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_visibility_review", reportKey: "studentAppAiTutorResultArchiveStudentVisibilityReview", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_delivery_envelope", reportKey: "studentAppAiTutorResultArchiveStudentDeliveryEnvelope", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_persistence_command", reportKey: "studentAppAiTutorResultArchiveStudentArchivePersistenceCommand", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_storage_commit", reportKey: "studentAppAiTutorResultArchiveStudentArchiveStorageCommit", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_row_verification", reportKey: "studentAppAiTutorResultArchiveStudentArchiveRowVerification", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_read", reportKey: "studentAppAiTutorResultArchiveStudentArchiveRead", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_render", reportKey: "studentAppAiTutorResultArchiveStudentArchiveRender", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_learning_actions", reportKey: "studentAppAiTutorResultArchiveStudentArchiveLearningActions", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_queue_admission", reportKey: "studentAppAiTutorResultArchiveFollowUpQueueAdmission", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_worker_continuity", reportKey: "studentAppAiTutorResultArchiveFollowUpWorkerContinuity", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_depth_budget_guard", reportKey: "studentAppAiTutorResultArchiveFollowUpDepthBudgetGuard", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_queue_idempotency_guard", reportKey: "studentAppAiTutorResultArchiveFollowUpQueueIdempotencyGuard", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_lineage_guard", reportKey: "studentAppAiTutorResultArchiveFollowUpLineageGuard", targetP99Ms: 50 }, { name: "student_app_ai_tutor_request_progress_timeline", reportKey: "studentAppAiTutorRequestProgressTimeline", targetP99Ms: 50 },
     ],
     coverageClass: "CONTRACT_AND_MIXED_SMOKE",
   },
@@ -311,6 +319,10 @@ export const rootWorkflows = [
       ["studentAppAiTutorResultStudentArchiveRowVerification", "READY"],
       ["studentAppAiTutorResultStudentArchiveRead", "READY"],
       ["studentAppAiTutorResultStudentArchiveRender", "READY"],
+      ["studentAppAiTutorResultStudentArchiveLearningActions", "READY"],
+      ["studentAppAiTutorWorkerResultArchiveInput", "READY"],
+      ["studentAppAiTutorResultArchiveModelExecutionPrecheck", "READY"],
+      ["studentAppAiTutorResultArchiveControlledAnswerArtifact", "READY"], ["studentAppAiTutorResultArchiveAnswerReviewGate", "READY"], ["studentAppAiTutorResultArchiveReviewedResultPersistenceBridge", "READY"], ["studentAppAiTutorResultArchiveStudentVisibilityReview", "READY"], ["studentAppAiTutorResultArchiveStudentDeliveryEnvelope", "READY"], ["studentAppAiTutorResultArchiveStudentArchivePersistenceCommand", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveStorageCommit", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveRowVerification", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveRead", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveRender", "READY"], ["studentAppAiTutorResultArchiveStudentArchiveLearningActions", "READY"], ["studentAppAiTutorResultArchiveFollowUpQueueAdmission", "READY"], ["studentAppAiTutorResultArchiveFollowUpWorkerContinuity", "READY"], ["studentAppAiTutorResultArchiveFollowUpDepthBudgetGuard", "READY"], ["studentAppAiTutorResultArchiveFollowUpQueueIdempotencyGuard", "READY"], ["studentAppAiTutorResultArchiveFollowUpLineageGuard", "READY"], ["studentAppAiTutorRequestProgressTimeline", "READY"],
       ["studentAppAiTutorWorkerClaim", "READY"],
       ["studentAppAiTutorResult", "READY"],
       ["studentAppAiTutorQuestionBankDraftGenerationPlan", "READY"],
@@ -386,6 +398,10 @@ export const rootWorkflows = [
       { name: "student_app_ai_tutor_result_student_archive_row_verification_runtime", reportKey: "studentAppAiTutorResultStudentArchiveRowVerification", targetP99Ms: 50 },
       { name: "student_app_ai_tutor_result_student_archive_read_runtime", reportKey: "studentAppAiTutorResultStudentArchiveRead", targetP99Ms: 50 },
       { name: "student_app_ai_tutor_result_student_archive_render_runtime", reportKey: "studentAppAiTutorResultStudentArchiveRender", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_result_student_archive_learning_actions_runtime", reportKey: "studentAppAiTutorResultStudentArchiveLearningActions", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_worker_result_archive_input", reportKey: "studentAppAiTutorWorkerResultArchiveInput", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_result_archive_model_execution_precheck", reportKey: "studentAppAiTutorResultArchiveModelExecutionPrecheck", targetP99Ms: 50 },
+      { name: "student_app_ai_tutor_result_archive_controlled_answer_artifact", reportKey: "studentAppAiTutorResultArchiveControlledAnswerArtifact", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_answer_review_gate", reportKey: "studentAppAiTutorResultArchiveAnswerReviewGate", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_reviewed_result_persistence_bridge", reportKey: "studentAppAiTutorResultArchiveReviewedResultPersistenceBridge", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_visibility_review", reportKey: "studentAppAiTutorResultArchiveStudentVisibilityReview", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_delivery_envelope", reportKey: "studentAppAiTutorResultArchiveStudentDeliveryEnvelope", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_persistence_command", reportKey: "studentAppAiTutorResultArchiveStudentArchivePersistenceCommand", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_storage_commit", reportKey: "studentAppAiTutorResultArchiveStudentArchiveStorageCommit", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_row_verification", reportKey: "studentAppAiTutorResultArchiveStudentArchiveRowVerification", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_read", reportKey: "studentAppAiTutorResultArchiveStudentArchiveRead", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_render", reportKey: "studentAppAiTutorResultArchiveStudentArchiveRender", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_student_archive_learning_actions", reportKey: "studentAppAiTutorResultArchiveStudentArchiveLearningActions", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_queue_admission", reportKey: "studentAppAiTutorResultArchiveFollowUpQueueAdmission", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_worker_continuity", reportKey: "studentAppAiTutorResultArchiveFollowUpWorkerContinuity", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_depth_budget_guard", reportKey: "studentAppAiTutorResultArchiveFollowUpDepthBudgetGuard", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_queue_idempotency_guard", reportKey: "studentAppAiTutorResultArchiveFollowUpQueueIdempotencyGuard", targetP99Ms: 50 }, { name: "student_app_ai_tutor_result_archive_follow_up_lineage_guard", reportKey: "studentAppAiTutorResultArchiveFollowUpLineageGuard", targetP99Ms: 50 }, { name: "student_app_ai_tutor_request_progress_timeline", reportKey: "studentAppAiTutorRequestProgressTimeline", targetP99Ms: 50 },
       { name: "student_app_ai_tutor_worker_claim_runtime", reportKey: "studentAppAiTutorWorkerClaim", targetP99Ms: 50 },
       { name: "student_app_ai_tutor_result_runtime", reportKey: "studentAppAiTutorResult", targetP99Ms: 50 },
       { name: "student_app_ai_tutor_question_bank_draft_generation_plan_runtime", reportKey: "studentAppAiTutorQuestionBankDraftGenerationPlan", targetP99Ms: 50 },
@@ -766,12 +782,10 @@ function parseArgs(argv) {
   const rootRequirementsIndex = argv.indexOf("--root-requirements");
   return {
     out: outIndex === -1 ? defaultOutPath : argv[outIndex + 1],
-    rootRequirementsPath: rootRequirementsIndex === -1
-      ? defaultRootRequirementsPath
-      : argv[rootRequirementsIndex + 1],
+    rootRequirementsPath: rootRequirementsIndex === -1 ? defaultRootRequirementsPath : argv[rootRequirementsIndex + 1],
   };
 }
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const root = process.cwd();
     const args = parseArgs(process.argv.slice(2));

@@ -22,6 +22,20 @@ describe("Student App AI Tutor result student archive render runtime", () => {
     assert.equal(result.boundary.renderedHtmlAllowed, false);
   });
 
+  it("renders a result-archive-sourced safe student-visible result envelope through the same product render port", async () => {
+    const result = await verifyStudentAppAITutorResultStudentArchiveRender(
+      resultArchiveInput(),
+      options({ envelope: resultArchiveRenderEnvelope() }),
+    );
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_RENDER_VERIFIED");
+    assert.equal(result.sourceRead.reportRuntimeId, "student_app_ai_tutor_result_archive_student_archive_read");
+    assert.equal(result.sourceRead.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE");
+    assert.equal(result.sourceRead.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.renderEnvelope.blocks[1].sectionId, "ai_tutor_answer_section_result_archive_001");
+    assert.equal(result.boundary.safeTextBlocksOnly, true);
+  });
+
   it("uses idempotency for replay and rejects conflicting render records", async () => {
     const verificationLogPath = tempLog();
     const first = await verifyStudentAppAITutorResultStudentArchiveRender(baseInput(), options({ verificationLogPath }));
@@ -59,6 +73,22 @@ describe("Student App AI Tutor result student archive render runtime", () => {
     await assert.rejects(
       verifyStudentAppAITutorResultStudentArchiveRender(baseInput(), options({ envelope: { ...renderEnvelope(), archiveItemId: "tarch_other" } })),
       /renderEnvelope.archiveItemId/u,
+    );
+  });
+
+  it("rejects unsafe result-archive render source metadata", async () => {
+    const unsafeSource = resultArchiveInput();
+    unsafeSource.studentArchiveReadReport.safetyInvariants.learningActionSourceRequired = "PUBLISHED_MATERIAL";
+    await assert.rejects(
+      verifyStudentAppAITutorResultStudentArchiveRender(unsafeSource, options({ envelope: resultArchiveRenderEnvelope() })),
+      /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/u,
+    );
+
+    const unsafeResult = resultArchiveInput();
+    unsafeResult.studentArchiveReadReport.runtimeProbes.studentAppAiTutorResultArchiveStudentArchiveRead.result.sourceRowVerification.resultArchiveStatus = "NOT_READY";
+    await assert.rejects(
+      verifyStudentAppAITutorResultStudentArchiveRender(unsafeResult, options({ envelope: resultArchiveRenderEnvelope() })),
+      /resultArchiveStatus must be READY_FOR_STUDENT_APP_READ/u,
     );
   });
 
@@ -147,12 +177,49 @@ function baseInput() {
   };
 }
 
+function resultArchiveInput() {
+  const input = baseInput();
+  input.studentArchiveReadReport = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-archive-read.current.json", "utf8"));
+  input.evidenceRefs = ["evidence:student-app-ai-tutor-result-archive-student-archive-read:http"];
+  input.idempotencyKey = "student-app-ai-tutor-result-archive-student-archive-render:student_001:tutor_req_student_app_result_archive_001";
+  return input;
+}
+
 function renderSource() {
   return {
     endpoint: "GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered",
     useCase: "RenderStudentAppAITutorResultArchive.Execute",
     sourceReadUseCase: "ReadStudentAppAITutorResultArchive.Execute",
     ownStudentOnly: true,
+  };
+}
+
+function resultArchiveRenderEnvelope() {
+  return {
+    archiveItemId: "tarch_student_ai_tutor_result_001",
+    status: "READY_FOR_STUDENT_APP_READ",
+    materialType: "HOMEWORK",
+    title: "Student AI Tutor result archive tutor_req_student_app_result_archive_001",
+    renderFormat: "SAFE_TEXT_BLOCKS",
+    guidanceSectionsHash: "747203bfbeca35e36a136f3998121af114471e4a5c02f51c843a4dfee159292c",
+    safetyLabels: ["STUDY_GUIDANCE_ONLY", "FOLLOW_UP_REVIEW"],
+    createdAt: "2026-06-09T13:40:00Z",
+    blocks: [
+      {
+        blockId: "block_summary",
+        blockType: "SUMMARY",
+        title: "Summary",
+        text: "Follow-up help based on a reviewed AI Tutor result.",
+      },
+      {
+        blockId: "block_ai_tutor_answer_section_result_archive_001",
+        blockType: "GUIDANCE_SECTION",
+        sectionId: "ai_tutor_answer_section_result_archive_001",
+        title: "Review the previous correction",
+        text: "Restate the corrected reasoning before attempting a similar practice item.",
+        sourceBlockRefs: ["source_block_001"],
+      },
+    ],
   };
 }
 

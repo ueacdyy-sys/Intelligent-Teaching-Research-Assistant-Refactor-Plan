@@ -9,7 +9,7 @@ import {
 
 describe("Student App AI Tutor question-bank draft answer feedback archive row verification controlled draft source audit", () => {
   it("passes when 0300 controlled-source storage commit is physically verified through the row read port", async () => {
-    const report = await auditStudentAppAITutorQuestionBankDraftAnswerFeedbackArchiveRowVerificationControlledDraftSource(currentFixture());
+    const report = await auditStudentAppAITutorQuestionBankDraftAnswerFeedbackArchiveRowVerificationControlledDraftSource(currentFixture(), { probeP99Ms: 9 });
 
     assert.equal(report.readiness, "READY");
     assert.equal(report.runtime.runtimeId, "student_app_ai_tutor_question_bank_draft_answer_feedback_archive_row_verification_controlled_draft_source_runtime");

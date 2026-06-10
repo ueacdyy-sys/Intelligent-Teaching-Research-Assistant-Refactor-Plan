@@ -183,7 +183,7 @@ export async function auditStudentAppAITutorResultStudentDeliveryEnvelope(inputs
     passed: includesAll(runtimeTest, [
       "records a student-visible AI Tutor result envelope while keeping durable persistence blocked",
       "uses idempotency for replay and rejects conflicting delivery envelopes",
-      "rejects unsafe principals, non-ready sources, unapproved visibility, and hash mismatches",
+      "rejects unsafe principals, non-ready sources, unapproved visibility, hash mismatches, and unsafe result-archive source metadata",
       "rejects unsafe policies, delivery mismatches, leaked fields, unsafe text, and unsafe port results",
     ]),
     actual: "runtime tests scanned",

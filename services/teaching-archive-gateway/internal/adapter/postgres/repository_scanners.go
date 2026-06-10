@@ -54,6 +54,8 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 		request       domain.TutoringAnalysisRequest
 		questionBank  string
 		status        string
+		sourceType    string
+		followUpDepth int
 		ownerType     string
 		studentID     sql.NullString
 		material      string
@@ -74,6 +76,8 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 		&request.AnalysisGoal,
 		&questionBank,
 		&status,
+		&sourceType,
+		&followUpDepth,
 		&ownerType,
 		&studentID,
 		&material,
@@ -92,6 +96,12 @@ func scanTutoringAnalysisRequest(rows Rows) (domain.TutoringAnalysisRequest, err
 	}
 	request.QuestionBankIntent = domain.QuestionBankIntent(questionBank)
 	request.Status = domain.TutoringAnalysisStatus(status)
+	if sourceType == "" {
+		request.LearningActionSource = domain.StudentAppAITutorLearningActionSourcePublishedStudyPacket
+	} else {
+		request.LearningActionSource = domain.StudentAppAITutorLearningActionSourceType(sourceType)
+	}
+	request.FollowUpDepth = followUpDepth
 	request.SourceArchiveOwnerType = domain.OwnerType(ownerType)
 	if studentID.Valid {
 		request.SourceArchiveStudentID = studentID.String

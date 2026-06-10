@@ -11,6 +11,8 @@ const inputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-archi
 const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-archive-render-verified.v1";
 const sourceReadRuntimeId = "student_app_ai_tutor_result_student_archive_read_runtime";
 const sourceReadStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ_VERIFIED";
+const sourceResultArchiveReadRuntimeId = "student_app_ai_tutor_result_archive_student_archive_read";
+const sourceResultArchiveReadStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_READ_VERIFIED";
 const verifiedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_RENDER_VERIFIED";
 const targetEndpoint = "GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered";
 const targetUseCase = "RenderStudentAppAITutorResultArchive.Execute";
@@ -69,28 +71,52 @@ function normalizeInput(input) {
   const renderInvocationId = requireToken(input.renderInvocationId, "input.renderInvocationId", "ai_tutor_result_archive_render_");
   const principal = assertStudentPrincipal(input.principal);
   const sourceReadReport = assertSourceReadReport(input.studentArchiveReadReport);
-  const sourceReadResult = sourceReadReport.runtimeProbes.studentAppAiTutorResultStudentArchiveRead.result;
+  const sourceReadResult = assertSourceReadResult(sourceReadReport);
   const archiveItemId = requireToken(sourceReadResult.resultArchiveCard.archiveItemId, "sourceRead.resultArchiveCard.archiveItemId", "tarch_");
   requireConst(principal.studentAccess.ownStudentId, sourceReadResult.principal.studentAccess.ownStudentId, "input.principal.studentAccess.ownStudentId");
   assertRenderPolicy(input.studentArchiveRenderPolicy);
   const evidenceRefs = assertEvidenceRefs(input.evidenceRefs);
-  const idempotencyKey = requireToken(input.idempotencyKey, "input.idempotencyKey", "student-app-ai-tutor-result-archive-render:");
+  const idempotencyKey = requireOnePrefix(input.idempotencyKey, "input.idempotencyKey", ["student-app-ai-tutor-result-archive-render:", "student-app-ai-tutor-result-archive-student-archive-render:"]);
   return { renderInvocationId, principal, sourceReadReport, sourceReadResult, archiveItemId, evidenceRefs, idempotencyKey };
 }
 
 function assertSourceReadReport(report) {
   assertPlainObject(report, "input.studentArchiveReadReport");
   requireConst(report.readiness, "READY", "input.studentArchiveReadReport.readiness");
-  requireConst(report.workloadType, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ", "input.studentArchiveReadReport.workloadType");
-  requireConst(report.runtime?.runtimeId, sourceReadRuntimeId, "input.studentArchiveReadReport.runtime.runtimeId");
-  requireConst(report.runtime?.status, sourceReadStatus, "input.studentArchiveReadReport.runtime.status");
+  const standardReadWorkload = report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ";
+  const resultArchiveReadWorkload = report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_READ";
+  if (!standardReadWorkload && !resultArchiveReadWorkload) {
+    throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_RENDER_SOURCE_WORKLOAD_INVALID", "input.studentArchiveReadReport.workloadType must be a supported Student App AI Tutor result read workload");
+  }
+  if (standardReadWorkload) {
+    requireConst(report.runtime?.runtimeId, sourceReadRuntimeId, "input.studentArchiveReadReport.runtime.runtimeId");
+    requireConst(report.runtime?.status, sourceReadStatus, "input.studentArchiveReadReport.runtime.status");
+  }
+  if (resultArchiveReadWorkload) {
+    requireConst(report.runtime?.runtimeId, sourceResultArchiveReadRuntimeId, "input.studentArchiveReadReport.runtime.runtimeId");
+    requireConst(report.runtime?.sharedRuntimeId, sourceReadRuntimeId, "input.studentArchiveReadReport.runtime.sharedRuntimeId");
+    requireConst(report.runtime?.status, sourceResultArchiveReadStatus, "input.studentArchiveReadReport.runtime.status");
+    requireConst(report.safetyInvariants?.learningActionSourceRequired, "AI_TUTOR_RESULT_ARCHIVE", "input.studentArchiveReadReport.safetyInvariants.learningActionSourceRequired");
+    requireConst(report.safetyInvariants?.resultArchiveStatusRequired, "READY_FOR_STUDENT_APP_READ", "input.studentArchiveReadReport.safetyInvariants.resultArchiveStatusRequired");
+  }
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentArchiveReadReport.runtimeSlo.totalErrors");
   requireConst(report.safetyInvariants?.studentVisibleResultCardReadVerified, true, "input.studentArchiveReadReport.safetyInvariants.studentVisibleResultCardReadVerified");
   requireConst(report.safetyInvariants?.contentRefDisclosureAllowed, false, "input.studentArchiveReadReport.safetyInvariants.contentRefDisclosureAllowed");
-  const result = report.runtimeProbes?.studentAppAiTutorResultStudentArchiveRead?.result;
-  assertPlainObject(result, "input.studentArchiveReadReport.runtimeProbes.studentAppAiTutorResultStudentArchiveRead.result");
-  assertNoLeakedFields(result, "input.studentArchiveReadReport result");
   return report;
+}
+
+function assertSourceReadResult(report) {
+  const probeKey = report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_READ"
+    ? "studentAppAiTutorResultArchiveStudentArchiveRead"
+    : "studentAppAiTutorResultStudentArchiveRead";
+  const result = report.runtimeProbes?.[probeKey]?.result;
+  assertPlainObject(result, `input.studentArchiveReadReport.runtimeProbes.${probeKey}.result`);
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_READ") {
+    requireConst(result.sourceRowVerification?.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "input.studentArchiveReadReport.result.sourceRowVerification.learningActionSource");
+    requireConst(result.sourceRowVerification?.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "input.studentArchiveReadReport.result.sourceRowVerification.resultArchiveStatus");
+  }
+  assertNoLeakedFields(result, "input.studentArchiveReadReport result");
+  return result;
 }
 
 function assertRenderPolicy(policy) {
@@ -160,9 +186,13 @@ function buildVerificationRecord(normalized, verified, verifiedAt) {
     status: verifiedStatus,
     renderInvocationId: normalized.renderInvocationId,
     sourceRead: {
-      runtimeId: sourceReadRuntimeId,
+      runtimeId: normalized.sourceReadResult.runtimeId,
+      reportRuntimeId: normalized.sourceReadReport.runtime.runtimeId,
+      reportStatus: normalized.sourceReadReport.runtime.status,
       recordId: normalized.sourceReadResult.recordId,
       archiveItemId: normalized.archiveItemId,
+      learningActionSource: normalized.sourceReadResult.sourceRowVerification?.learningActionSource,
+      resultArchiveStatus: normalized.sourceReadResult.sourceRowVerification?.resultArchiveStatus,
     },
     principal: normalized.principal,
     studentResultRenderSource: verified.source,
@@ -235,7 +265,7 @@ function assertStudentPrincipal(principal) {
 
 function assertEvidenceRefs(refs) {
   const values = assertArray(refs, "input.evidenceRefs");
-  if (!values.includes("evidence:student-archive-read:student-app-ai-tutor-result-student-archive-read")) {
+  if (!values.includes("evidence:student-archive-read:student-app-ai-tutor-result-student-archive-read") && !values.includes("evidence:student-app-ai-tutor-result-archive-student-archive-read:http")) {
     throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_RENDER_EVIDENCE_MISSING", "source read evidence ref is required");
   }
   return values;
@@ -281,6 +311,14 @@ function requireToken(value, label, prefix) {
   const text = requireText(value, label);
   if (!text.startsWith(prefix)) {
     throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_RENDER_TOKEN_INVALID", `${label} must start with ${prefix}`);
+  }
+  return text;
+}
+
+function requireOnePrefix(value, label, prefixes) {
+  const text = requireText(value, label);
+  if (!prefixes.some((prefix) => text.startsWith(prefix))) {
+    throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_RENDER_TOKEN_INVALID", `${label} must start with ${prefixes.join(" or ")}`);
   }
   return text;
 }

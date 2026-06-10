@@ -40,6 +40,8 @@ paths:
     $ref: './teaching-archive.student-app-archive-item-ai-tutor-result.path.yaml'
   /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/rendered:
     $ref: './teaching-archive.student-app-archive-item-ai-tutor-result-rendered.path.yaml'
+  /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result/learning-actions:
+    $ref: './teaching-archive.student-app-archive-item-ai-tutor-result-learning-actions.path.yaml'
   /v1/student-app/quiz-submissions:
     $ref: './teaching-archive.student-app-quiz-submissions.path.yaml'
   /v1/student-app/quiz-scan-submissions:
@@ -209,18 +211,7 @@ components:
         learningActionSource:
           $ref: '#/components/schemas/StudentAppAITutorLearningActionSource'
     StudentAppAITutorLearningActionSource:
-      type: object
-      additionalProperties: false
-      required:
-        - actionType
-        - packetStatus
-      properties:
-        actionType:
-          type: string
-          enum: [AI_TUTOR_REQUEST, PERSONALIZED_QUESTION_BANK]
-        packetStatus:
-          type: string
-          const: READY
+      $ref: './teaching-archive.student-app-ai-tutor-learning-action-source.schema.yaml'
     CreateAIGradingRequest:
       type: object
       additionalProperties: false
@@ -544,6 +535,7 @@ components:
         - analysisGoal
         - questionBankIntent
         - status
+        - learningActionSource
         - sourceArchiveOwnerType
         - sourceArchiveMaterial
         - claimedByWorkerId
@@ -564,6 +556,9 @@ components:
         status:
           type: string
           const: IN_PROGRESS
+        learningActionSource:
+          type: string
+          enum: [PUBLISHED_STUDY_PACKET, AI_TUTOR_RESULT_ARCHIVE]
         sourceArchiveOwnerType:
           $ref: '#/components/schemas/ArchiveOwnerType'
         sourceArchiveStudentId:
