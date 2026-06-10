@@ -42,6 +42,15 @@ const (
 	StudentAppAITutorProgressActionNeedsTeacherReview StudentAppAITutorProgressActionState = "NEEDS_TEACHER_REVIEW"
 )
 
+type StudentAppAITutorProgressRefreshReason string
+
+const (
+	StudentAppAITutorProgressRefreshWaitingForWorker  StudentAppAITutorProgressRefreshReason = "WAITING_FOR_WORKER"
+	StudentAppAITutorProgressRefreshWaitingForReview  StudentAppAITutorProgressRefreshReason = "WAITING_FOR_REVIEW"
+	StudentAppAITutorProgressRefreshActionReady       StudentAppAITutorProgressRefreshReason = "ACTION_READY"
+	StudentAppAITutorProgressRefreshTeacherReviewNeed StudentAppAITutorProgressRefreshReason = "TEACHER_REVIEW_REQUIRED"
+)
+
 type StudentAppAITutorRequestProgressCard struct {
 	ID                    string
 	ArchiveItemID         string
@@ -54,6 +63,7 @@ type StudentAppAITutorRequestProgressCard struct {
 	ProgressStage         StudentAppAITutorProgressStage
 	NextStudentAction     StudentAppAITutorNextAction
 	PrimaryAction         StudentAppAITutorRequestProgressAction
+	RefreshPolicy         StudentAppAITutorRequestProgressRefreshPolicy
 	SafeStatusMessage     string
 	Timeline              []StudentAppAITutorRequestProgressTimelineStep
 	CreatedAt             time.Time
@@ -76,6 +86,12 @@ type StudentAppAITutorRequestProgressAction struct {
 	Method               string
 	ArchiveItemID        string
 	QuestionBankDraftRef string
+}
+
+type StudentAppAITutorRequestProgressRefreshPolicy struct {
+	AutoRefresh    bool
+	RefreshAfterMs int
+	Reason         StudentAppAITutorProgressRefreshReason
 }
 
 func BuildStudentAppAITutorRequestProgressCard(
@@ -138,6 +154,7 @@ func BuildStudentAppAITutorRequestProgressCard(
 		ProgressStage:         stage,
 		NextStudentAction:     nextAction,
 		PrimaryAction:         primaryAction,
+		RefreshPolicy:         buildStudentAppAITutorRequestProgressRefreshPolicy(stage),
 		SafeStatusMessage:     message,
 		Timeline:              buildStudentAppAITutorProgressTimeline(request),
 		CreatedAt:             request.CreatedAt.UTC(),
@@ -184,6 +201,33 @@ func buildStudentAppAITutorRequestProgressPrimaryAction(
 			ActionType: nextAction,
 			State:      StudentAppAITutorProgressActionWaiting,
 		}, nil
+	}
+}
+
+func buildStudentAppAITutorRequestProgressRefreshPolicy(
+	stage StudentAppAITutorProgressStage,
+) StudentAppAITutorRequestProgressRefreshPolicy {
+	switch stage {
+	case StudentAppAITutorProgressStageQueued:
+		return StudentAppAITutorRequestProgressRefreshPolicy{
+			AutoRefresh:    true,
+			RefreshAfterMs: 8000,
+			Reason:         StudentAppAITutorProgressRefreshWaitingForWorker,
+		}
+	case StudentAppAITutorProgressStageInProgress:
+		return StudentAppAITutorRequestProgressRefreshPolicy{
+			AutoRefresh:    true,
+			RefreshAfterMs: 5000,
+			Reason:         StudentAppAITutorProgressRefreshWaitingForReview,
+		}
+	case StudentAppAITutorProgressStageNeedsTeacherReview:
+		return StudentAppAITutorRequestProgressRefreshPolicy{
+			Reason: StudentAppAITutorProgressRefreshTeacherReviewNeed,
+		}
+	default:
+		return StudentAppAITutorRequestProgressRefreshPolicy{
+			Reason: StudentAppAITutorProgressRefreshActionReady,
+		}
 	}
 }
 

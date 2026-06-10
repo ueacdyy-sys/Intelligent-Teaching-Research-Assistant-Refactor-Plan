@@ -51,6 +51,7 @@ func TestListStudentAppAITutorRequestsReturnsSafeProgressTimeline(t *testing.T) 
 		[]byte(`"progressStage":"RESULT_READY"`),
 		[]byte(`"nextStudentAction":"VIEW_AI_TUTOR_RESULT_ARCHIVE"`),
 		[]byte(`"primaryAction":{"actionType":"VIEW_AI_TUTOR_RESULT_ARCHIVE","state":"AVAILABLE","targetEndpoint":"/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered","targetUrl":"/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered","method":"GET","archiveItemId":"tarch_student_ai_tutor_result_001"}`),
+		[]byte(`"refreshPolicy":{"autoRefresh":false,"refreshAfterMs":0,"reason":"ACTION_READY"}`),
 		[]byte(`"learningActionSource":"AI_TUTOR_RESULT_ARCHIVE"`),
 		[]byte(`"followUpDepth":2`),
 		[]byte(`"timeline"`),
@@ -119,6 +120,7 @@ func TestReadStudentAppAITutorRequestProgressReturnsSafeDetail(t *testing.T) {
 		[]byte(`"progressStage":"RESULT_READY"`),
 		[]byte(`"nextStudentAction":"VIEW_AI_TUTOR_RESULT_ARCHIVE"`),
 		[]byte(`"primaryAction":{"actionType":"VIEW_AI_TUTOR_RESULT_ARCHIVE","state":"AVAILABLE","targetEndpoint":"/v1/student-app/archive-items/tarch_student_ai_tutor_result_detail/ai-tutor-result/rendered","targetUrl":"/v1/student-app/archive-items/tarch_student_ai_tutor_result_detail/ai-tutor-result/rendered","method":"GET","archiveItemId":"tarch_student_ai_tutor_result_detail"}`),
+		[]byte(`"refreshPolicy":{"autoRefresh":false,"refreshAfterMs":0,"reason":"ACTION_READY"}`),
 		[]byte(`"safeStatusMessage":"Reviewed AI tutor result is ready."`),
 		[]byte(`"timeline"`),
 	} {

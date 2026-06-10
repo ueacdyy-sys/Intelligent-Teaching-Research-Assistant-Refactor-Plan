@@ -626,6 +626,11 @@ func toStudentAppAITutorRequestProgressResponse(
 			ArchiveItemID:        card.PrimaryAction.ArchiveItemID,
 			QuestionBankDraftRef: card.PrimaryAction.QuestionBankDraftRef,
 		},
+		RefreshPolicy: studentAppAITutorRequestProgressRefreshPolicy{
+			AutoRefresh:    card.RefreshPolicy.AutoRefresh,
+			RefreshAfterMs: card.RefreshPolicy.RefreshAfterMs,
+			Reason:         card.RefreshPolicy.Reason,
+		},
 		SafeStatusMessage: card.SafeStatusMessage,
 		Timeline:          timeline,
 		CreatedAt:         formatTime(card.CreatedAt),

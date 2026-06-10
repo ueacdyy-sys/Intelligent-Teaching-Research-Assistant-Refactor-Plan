@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-06-10T09:44:52.611Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_REFRESH_POLICY",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_refresh_policy",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_target_url"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_REFRESH_POLICY_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 5,
+    "totalErrors": 0,
+    "operations": 4,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_REFRESH_POLICY_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressRefreshPolicy": {
+      "status": "PASS",
+      "queuedRefreshAfterMs": 8000,
+      "inProgressRefreshAfterMs": 5000,
+      "terminalAutoRefresh": false,
+      "forbiddenLeaks": [],
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 5,
+        "totalErrors": 0,
+        "operations": 4,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_REFRESH_POLICY_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0357TargetURLRequired": true,
+    "serverOwnedRefreshPolicyRequired": true,
+    "studentAppInternalFieldExposureAllowed": false,
+    "directDatabaseAccessFromJavaScriptAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false
+  },
+  "loadSheddingPolicy": {
+    "queuedRefreshAfterMs": 8000,
+    "inProgressRefreshAfterMs": 5000,
+    "terminalAutoRefresh": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0357_target_url_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_TARGET_URL_VERIFIED:0",
+      "expected": "READY 0357 target URL evidence with zero errors",
+      "remediation": "Run or fix 0357 before claiming Student App progress refresh policy."
+    },
+    {
+      "severity": "info",
+      "id": "domain_builds_bounded_refresh_policy",
+      "passed": true,
+      "actual": "RefreshPolicy=true;RefreshAfterMs: 8000=true;RefreshAfterMs: 5000=true;TEACHER_REVIEW_REQUIRED=true",
+      "expected": "domain progress cards include bounded server-owned refresh policy",
+      "remediation": "Build refresh policy from safe progressStage, not worker internals."
+    },
+    {
+      "severity": "info",
+      "id": "http_and_openapi_expose_safe_refresh_policy",
+      "passed": true,
+      "actual": "refreshPolicy=true;refreshAfterMs=true;WAITING_FOR_WORKER=true;claimedByWorkerId=false;errorMessage=false",
+      "expected": "HTTP response, presenter, and OpenAPI expose only safe refresh policy",
+      "remediation": "Expose refresh policy as bounded UX/load-shedding metadata only."
+    },
+    {
+      "severity": "info",
+      "id": "tests_cover_waiting_and_terminal_refresh_policy",
+      "passed": true,
+      "actual": "RefreshAfterMs != 8000=true;RefreshAfterMs != 5000=true;refreshPolicy=true",
+      "expected": "Go tests prove waiting states poll and terminal states stop polling",
+      "remediation": "Add refresh-policy regression coverage to domain and HTTP tests."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0358",
+      "passed": true,
+      "actual": "request-progress-refresh-policy=true;studentAppAiTutorRequestProgressRefreshPolicy=true;12.10/10=true;SDD 0358=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0358",
+      "remediation": "Wire 0358 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use server-owned refreshPolicy to reduce mobile polling amplification and continue the whole-system refactor on the next root-requirement slice."
+}

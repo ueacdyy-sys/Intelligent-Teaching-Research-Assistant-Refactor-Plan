@@ -38,6 +38,11 @@ func TestBuildStudentAppAITutorRequestProgressCardPreservesSafeFollowUpProgress(
 		card.PrimaryAction.TargetURL != "/v1/student-app/archive-items/tarch_student_ai_tutor_result_001/ai-tutor-result/rendered" {
 		t.Fatalf("PrimaryAction = %#v", card.PrimaryAction)
 	}
+	if card.RefreshPolicy.AutoRefresh ||
+		card.RefreshPolicy.RefreshAfterMs != 0 ||
+		card.RefreshPolicy.Reason != domain.StudentAppAITutorProgressRefreshActionReady {
+		t.Fatalf("RefreshPolicy = %#v", card.RefreshPolicy)
+	}
 	if card.LearningActionSource != domain.StudentAppAITutorLearningActionSourceResultArchive {
 		t.Fatalf("LearningActionSource = %q", card.LearningActionSource)
 	}
@@ -86,6 +91,11 @@ func TestBuildStudentAppAITutorRequestProgressCardUsesSafeFailureMessage(t *test
 		card.PrimaryAction.Method != "" {
 		t.Fatalf("PrimaryAction = %#v", card.PrimaryAction)
 	}
+	if card.RefreshPolicy.AutoRefresh ||
+		card.RefreshPolicy.RefreshAfterMs != 0 ||
+		card.RefreshPolicy.Reason != domain.StudentAppAITutorProgressRefreshTeacherReviewNeed {
+		t.Fatalf("RefreshPolicy = %#v", card.RefreshPolicy)
+	}
 }
 
 func TestBuildStudentAppAITutorRequestProgressCardBuildsQuestionBankAction(t *testing.T) {
@@ -109,6 +119,35 @@ func TestBuildStudentAppAITutorRequestProgressCardBuildsQuestionBankAction(t *te
 		card.PrimaryAction.TargetURL != "/v1/student-app/question-bank-draft-content?questionBankDraftRef=local%3A%2F%2Fquestion-bank-drafts%2Ftutor_req_progress_001.json" ||
 		card.PrimaryAction.QuestionBankDraftRef != "local://question-bank-drafts/tutor_req_progress_001.json" {
 		t.Fatalf("PrimaryAction = %#v", card.PrimaryAction)
+	}
+	if card.RefreshPolicy.AutoRefresh ||
+		card.RefreshPolicy.RefreshAfterMs != 0 ||
+		card.RefreshPolicy.Reason != domain.StudentAppAITutorProgressRefreshActionReady {
+		t.Fatalf("RefreshPolicy = %#v", card.RefreshPolicy)
+	}
+}
+
+func TestBuildStudentAppAITutorRequestProgressCardBuildsRefreshPolicyForWaitingStates(t *testing.T) {
+	queued := studentAppAITutorProgressRequest(domain.TutoringAnalysisStatusQueued)
+	queuedCard, err := domain.BuildStudentAppAITutorRequestProgressCard(queued)
+	if err != nil {
+		t.Fatalf("BuildStudentAppAITutorRequestProgressCard queued returned error: %v", err)
+	}
+	if !queuedCard.RefreshPolicy.AutoRefresh ||
+		queuedCard.RefreshPolicy.RefreshAfterMs != 8000 ||
+		queuedCard.RefreshPolicy.Reason != domain.StudentAppAITutorProgressRefreshWaitingForWorker {
+		t.Fatalf("queued RefreshPolicy = %#v", queuedCard.RefreshPolicy)
+	}
+
+	inProgress := studentAppAITutorProgressRequest(domain.TutoringAnalysisStatusInProgress)
+	inProgressCard, err := domain.BuildStudentAppAITutorRequestProgressCard(inProgress)
+	if err != nil {
+		t.Fatalf("BuildStudentAppAITutorRequestProgressCard in-progress returned error: %v", err)
+	}
+	if !inProgressCard.RefreshPolicy.AutoRefresh ||
+		inProgressCard.RefreshPolicy.RefreshAfterMs != 5000 ||
+		inProgressCard.RefreshPolicy.Reason != domain.StudentAppAITutorProgressRefreshWaitingForReview {
+		t.Fatalf("in-progress RefreshPolicy = %#v", inProgressCard.RefreshPolicy)
 	}
 }
 

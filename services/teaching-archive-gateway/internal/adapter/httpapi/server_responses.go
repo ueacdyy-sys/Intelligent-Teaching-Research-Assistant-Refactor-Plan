@@ -206,6 +206,7 @@ type studentAppAITutorRequestProgressResponse struct {
 	ProgressStage         domain.StudentAppAITutorProgressStage            `json:"progressStage"`
 	NextStudentAction     domain.StudentAppAITutorNextAction               `json:"nextStudentAction"`
 	PrimaryAction         studentAppAITutorRequestProgressActionResponse   `json:"primaryAction"`
+	RefreshPolicy         studentAppAITutorRequestProgressRefreshPolicy    `json:"refreshPolicy"`
 	SafeStatusMessage     string                                           `json:"safeStatusMessage"`
 	Timeline              []studentAppAITutorRequestProgressStepResponse   `json:"timeline"`
 	CreatedAt             string                                           `json:"createdAt"`
@@ -221,6 +222,12 @@ type studentAppAITutorRequestProgressActionResponse struct {
 	Method               string                                      `json:"method,omitempty"`
 	ArchiveItemID        string                                      `json:"archiveItemId,omitempty"`
 	QuestionBankDraftRef string                                      `json:"questionBankDraftRef,omitempty"`
+}
+
+type studentAppAITutorRequestProgressRefreshPolicy struct {
+	AutoRefresh    bool                                          `json:"autoRefresh"`
+	RefreshAfterMs int                                           `json:"refreshAfterMs"`
+	Reason         domain.StudentAppAITutorProgressRefreshReason `json:"reason"`
 }
 
 type studentAppAITutorRequestProgressStepResponse struct {

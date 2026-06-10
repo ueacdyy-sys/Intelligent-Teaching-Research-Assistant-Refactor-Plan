@@ -27,6 +27,7 @@ StudentAppAITutorRequestProgressResponse:
     - progressStage
     - nextStudentAction
     - primaryAction
+    - refreshPolicy
     - safeStatusMessage
     - timeline
     - createdAt
@@ -62,6 +63,8 @@ StudentAppAITutorRequestProgressResponse:
       enum: [WAIT_FOR_AI_TUTOR, WAIT_FOR_REVIEWED_RESULT, VIEW_AI_TUTOR_RESULT_ARCHIVE, OPEN_QUESTION_BANK_DRAFT, ASK_TEACHER]
     primaryAction:
       $ref: '#/StudentAppAITutorRequestProgressAction'
+    refreshPolicy:
+      $ref: '#/StudentAppAITutorRequestProgressRefreshPolicy'
     safeStatusMessage:
       type: string
       minLength: 1
@@ -109,6 +112,24 @@ StudentAppAITutorRequestProgressAction:
     questionBankDraftRef:
       type: string
       pattern: '^local://question-bank-drafts/tutor_req_[A-Za-z0-9_-]+\\.json$'
+
+StudentAppAITutorRequestProgressRefreshPolicy:
+  type: object
+  additionalProperties: false
+  required:
+    - autoRefresh
+    - refreshAfterMs
+    - reason
+  properties:
+    autoRefresh:
+      type: boolean
+    refreshAfterMs:
+      type: integer
+      minimum: 0
+      maximum: 8000
+    reason:
+      type: string
+      enum: [WAITING_FOR_WORKER, WAITING_FOR_REVIEW, ACTION_READY, TEACHER_REVIEW_REQUIRED]
 
 StudentAppAITutorRequestProgressTimelineStep:
   type: object
