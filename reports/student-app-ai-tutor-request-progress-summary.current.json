@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-06-10T11:47:58.862Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_summary",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_preencode_validator"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 3,
+    "totalErrors": 0,
+    "operations": 5,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressSummary": {
+      "status": "PASS",
+      "computedCounts": {
+        "totalCount": 5,
+        "autoRefreshCount": 2,
+        "actionReadyCount": 2,
+        "teacherReviewRequiredCount": 1,
+        "failedCount": 1
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 3,
+        "totalErrors": 0,
+        "operations": 5,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0360PreencodeValidatorRequired": true,
+    "summaryDerivedFromSafeProgressCardsOnly": true,
+    "rawRequestInternalsAllowed": false,
+    "workerIdsAllowed": false,
+    "internalErrorsAllowed": false,
+    "rawResultRefsAllowed": false,
+    "modelOutputAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false,
+    "sharedCacheChanged": false
+  },
+  "summaryPolicy": {
+    "responseScope": "Student App AI Tutor progress list only",
+    "requiredCounts": [
+      "totalCount",
+      "autoRefreshCount",
+      "actionReadyCount",
+      "teacherReviewRequiredCount",
+      "failedCount"
+    ],
+    "sourceFields": [
+      "RefreshPolicy.AutoRefresh",
+      "PrimaryAction.State",
+      "Status"
+    ]
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0360_preencode_validator_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PREENCODE_VALIDATOR_VERIFIED:0",
+      "expected": "READY 0360 pre-encode validator evidence with zero errors",
+      "remediation": "Run or fix 0360 before claiming summary-ready progress lists."
+    },
+    {
+      "severity": "info",
+      "id": "contract_exposes_summary_counts_without_shape_break",
+      "passed": true,
+      "actual": "summary=true;StudentAppAITutorRequestProgressSummary=true;totalCount=true;teacherReviewRequiredCount=true;failedCount=true",
+      "expected": "list response adds required summary counts while keeping data and pageInfo",
+      "remediation": "Add the summary DTO and OpenAPI schema without removing existing list fields."
+    },
+    {
+      "severity": "info",
+      "id": "presenter_derives_summary_from_safe_cards_only",
+      "passed": true,
+      "actual": "StudentAppAITutorRequestProgressCard=true;AutoRefresh=true;PrimaryAction.State=true;TutoringAnalysisStatusFailed=true;ResultRef=false",
+      "expected": "summary comes from already sanitized progress cards, not raw request internals",
+      "remediation": "Keep summary derivation in the presenter over safe cards only."
+    },
+    {
+      "severity": "info",
+      "id": "http_tests_cover_multi_state_summary_and_leak_guards",
+      "passed": true,
+      "actual": "SafeProgressSummary=true;totalCount=true;autoRefreshCount=true;teacherReviewRequiredCount=true;worker_internal_summary=true",
+      "expected": "HTTP tests prove mixed-state counts and no internal field leaks",
+      "remediation": "Add a multi-state Student App progress summary test with leak guards."
+    },
+    {
+      "severity": "info",
+      "id": "etag_representation_version_bumped_for_summary_shape",
+      "passed": true,
+      "actual": "progress-list/v2=true;progress-list/v1=false;progress-detail/v1=true",
+      "expected": "list representation validator seed uses v2 after adding summary",
+      "remediation": "Bump the list ETag seed and corresponding 0360 audit expectation."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0361",
+      "passed": true,
+      "actual": "request-progress-summary=true;studentAppAiTutorRequestProgressSummary=true;12.19/10=true;SDD 0361=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0361",
+      "remediation": "Wire 0361 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use safe progress summary badges in the Student App shell, then continue the whole-system refactor on the next root-requirement slice."
+}

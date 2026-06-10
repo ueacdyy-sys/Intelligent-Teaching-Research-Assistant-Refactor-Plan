@@ -190,8 +190,17 @@ type tutoringAnalysisRequestListResponse struct {
 }
 
 type studentAppAITutorRequestProgressListResponse struct {
-	Data     []studentAppAITutorRequestProgressResponse `json:"data"`
-	PageInfo pageInfoResponse                           `json:"pageInfo"`
+	Data     []studentAppAITutorRequestProgressResponse      `json:"data"`
+	PageInfo pageInfoResponse                                `json:"pageInfo"`
+	Summary  studentAppAITutorRequestProgressSummaryResponse `json:"summary"`
+}
+
+type studentAppAITutorRequestProgressSummaryResponse struct {
+	TotalCount                 int `json:"totalCount"`
+	AutoRefreshCount           int `json:"autoRefreshCount"`
+	ActionReadyCount           int `json:"actionReadyCount"`
+	TeacherReviewRequiredCount int `json:"teacherReviewRequiredCount"`
+	FailedCount                int `json:"failedCount"`
 }
 
 type studentAppAITutorRequestProgressResponse struct {

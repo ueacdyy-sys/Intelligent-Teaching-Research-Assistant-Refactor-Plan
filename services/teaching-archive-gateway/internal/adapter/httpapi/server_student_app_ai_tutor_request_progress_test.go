@@ -56,6 +56,7 @@ func TestListStudentAppAITutorRequestsReturnsSafeProgressTimeline(t *testing.T) 
 		[]byte(`"learningActionSource":"AI_TUTOR_RESULT_ARCHIVE"`),
 		[]byte(`"followUpDepth":2`),
 		[]byte(`"timeline"`),
+		[]byte(`"summary":{"totalCount":1,"autoRefreshCount":0,"actionReadyCount":1,"teacherReviewRequiredCount":0,"failedCount":0}`),
 	} {
 		if !bytes.Contains(response.Body.Bytes(), fragment) {
 			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
@@ -93,6 +94,69 @@ func TestListStudentAppAITutorRequestsReturnsSafeProgressTimeline(t *testing.T) 
 	}
 	if conditionalResponse.Header().Get("ETag") != response.Header().Get("ETag") {
 		t.Fatalf("conditional ETag = %q, want %q", conditionalResponse.Header().Get("ETag"), response.Header().Get("ETag"))
+	}
+}
+
+func TestListStudentAppAITutorRequestsReturnsSafeProgressSummary(t *testing.T) {
+	baseTime := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
+	requests := []domain.TutoringAnalysisRequest{
+		progressRequestWithStatus(
+			"tutor_req_progress_summary_queued",
+			"tarch_progress_summary_queued",
+			domain.TutoringAnalysisStatusQueued,
+			baseTime,
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_summary_working",
+			"tarch_progress_summary_working",
+			domain.TutoringAnalysisStatusInProgress,
+			baseTime.Add(time.Minute),
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_summary_result",
+			"tarch_progress_summary_result",
+			domain.TutoringAnalysisStatusSucceeded,
+			baseTime.Add(2*time.Minute),
+		),
+		progressRequestWithQuestionBankDraft(
+			"tutor_req_progress_summary_qbank",
+			"tarch_progress_summary_qbank",
+			baseTime.Add(3*time.Minute),
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_summary_failed",
+			"tarch_progress_summary_failed",
+			domain.TutoringAnalysisStatusFailed,
+			baseTime.Add(4*time.Minute),
+		),
+	}
+	handler := newTestHandlerWithStudentAppAITutorProgressRequests(requests)
+	request := httptest.NewRequest(http.MethodGet, "/v1/student-app/ai-tutor-requests?pageSize=10", http.NoBody)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	summaryFragment := []byte(
+		`"summary":{"totalCount":5,"autoRefreshCount":2,"actionReadyCount":2,"teacherReviewRequiredCount":1,"failedCount":1}`,
+	)
+	if !bytes.Contains(response.Body.Bytes(), summaryFragment) {
+		t.Fatalf("body missing summary %s in %s", summaryFragment, response.Body.String())
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`resultRef`),
+		[]byte(`errorMessage`),
+		[]byte(`claimedByWorkerId`),
+		[]byte(`worker_internal_summary`),
+		[]byte(`local://internal`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
 	}
 }
 
@@ -214,6 +278,40 @@ func TestReadStudentAppAITutorRequestProgressHidesCrossStudentRequest(t *testing
 		bytes.Contains(response.Body.Bytes(), []byte("tarch_student_ai_tutor_result_other")) {
 		t.Fatalf("body leaked cross-student details: %s", response.Body.String())
 	}
+}
+
+func progressRequestWithStatus(
+	id string,
+	archiveItemID string,
+	status domain.TutoringAnalysisStatus,
+	createdAt time.Time,
+) domain.TutoringAnalysisRequest {
+	request := tutoringAnalysisRequest(id, archiveItemID, "student_001", createdAt)
+	request.Status = status
+	request.LearningActionSource = domain.StudentAppAITutorLearningActionSourceResultArchive
+	request.FollowUpDepth = 1
+	request.UpdatedAt = createdAt
+	request.ClaimedByWorkerID = "worker_internal_summary"
+	request.ErrorMessage = "local://internal/worker-trace"
+	if status == domain.TutoringAnalysisStatusSucceeded || status == domain.TutoringAnalysisStatusFailed {
+		request.CompletedAt = createdAt.Add(4 * time.Minute)
+		request.UpdatedAt = request.CompletedAt
+	}
+	if status == domain.TutoringAnalysisStatusSucceeded {
+		request.ResultSummary = "Reviewed guidance is ready"
+		request.ResultRef = "local://internal/" + id + "/result.json"
+	}
+	return request
+}
+
+func progressRequestWithQuestionBankDraft(
+	id string,
+	archiveItemID string,
+	createdAt time.Time,
+) domain.TutoringAnalysisRequest {
+	request := progressRequestWithStatus(id, archiveItemID, domain.TutoringAnalysisStatusSucceeded, createdAt)
+	request.QuestionBankDraftRef = "local://question-bank-drafts/" + id + ".json"
+	return request
 }
 
 func newTestHandlerWithStudentAppAITutorProgressRequests(

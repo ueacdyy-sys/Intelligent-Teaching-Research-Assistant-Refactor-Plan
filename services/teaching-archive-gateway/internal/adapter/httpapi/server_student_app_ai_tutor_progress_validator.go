@@ -15,7 +15,7 @@ func studentAppAITutorRequestProgressListETag(
 	pageInfo domain.ArchivePageInfo,
 ) string {
 	h := sha256.New()
-	writeETagField(h, "student-app-ai-tutor-request-progress-list/v1")
+	writeETagField(h, "student-app-ai-tutor-request-progress-list/v2")
 	writeETagInt(h, len(cards))
 	for _, card := range cards {
 		writeStudentAppAITutorRequestProgressCardETagFields(h, card)

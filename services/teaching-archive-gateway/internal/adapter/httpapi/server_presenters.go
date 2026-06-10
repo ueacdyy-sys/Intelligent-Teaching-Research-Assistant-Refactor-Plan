@@ -612,7 +612,31 @@ func toStudentAppAITutorRequestProgressListResponseFromCards(
 			HasMore:    pageInfo.HasMore,
 			NextCursor: optionalString(pageInfo.NextCursor),
 		},
+		Summary: toStudentAppAITutorRequestProgressSummaryResponse(cards),
 	}
+}
+
+func toStudentAppAITutorRequestProgressSummaryResponse(
+	cards []domain.StudentAppAITutorRequestProgressCard,
+) studentAppAITutorRequestProgressSummaryResponse {
+	summary := studentAppAITutorRequestProgressSummaryResponse{
+		TotalCount: len(cards),
+	}
+	for _, card := range cards {
+		if card.RefreshPolicy.AutoRefresh {
+			summary.AutoRefreshCount++
+		}
+		switch card.PrimaryAction.State {
+		case domain.StudentAppAITutorProgressActionAvailable:
+			summary.ActionReadyCount++
+		case domain.StudentAppAITutorProgressActionNeedsTeacherReview:
+			summary.TeacherReviewRequiredCount++
+		}
+		if card.Status == domain.TutoringAnalysisStatusFailed {
+			summary.FailedCount++
+		}
+	}
+	return summary
 }
 
 func toStudentAppAITutorRequestProgressResponse(

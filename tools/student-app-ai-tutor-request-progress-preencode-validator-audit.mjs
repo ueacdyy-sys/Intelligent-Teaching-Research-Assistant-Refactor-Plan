@@ -88,7 +88,7 @@ export function auditStudentAppAITutorRequestProgressPreencodeValidator(
   addFinding(findings, {
     id: "validator_covers_visible_progress_representation",
     passed: includesAll(inputs.progressValidator ?? "", [
-      "student-app-ai-tutor-request-progress-list/v1",
+      "student-app-ai-tutor-request-progress-list/v2",
       "student-app-ai-tutor-request-progress-detail/v1",
       "card.ID",
       "card.ArchiveItemID",

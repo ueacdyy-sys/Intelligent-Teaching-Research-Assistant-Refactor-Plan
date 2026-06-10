@@ -715,15 +715,15 @@
       <div>
         <h1>智能教研助手重构架构板</h1>
         <p class="subtitle">
-          目标架构：平台化模块单体优先，Agent Harness 统一管控 Agent、Skills、审批、证据链和回滚边界。当前 12.16/10 已补齐 0360 学生端 AI Tutor 请求进度预编码验证器：在 0359 私有条件读取基础上，列表和单请求详情先由安全进度字段计算 ETag，匹配 If-None-Match 时返回 304 空响应体，并跳过响应 DTO 映射与 JSON 编码；本切片不跳过 use-case 或数据库读取，也不引入 Redis/shared cache。性能证据沿用 production10k：22,435.1 RPS、P99 44.44ms、0 errors；OCR/RAG、多模型融合和 AI 批改联动继续后置。
+          目标架构：平台化模块单体优先，Agent Harness 统一管控 Agent、Skills、审批、证据链和回滚边界。当前 12.19/10 已补齐 0361 学生端 AI Tutor 请求进度列表摘要：在 0360 预编码验证器基础上，列表响应新增安全 summary，直接给出 total、auto-refresh、action-ready、teacher-review 和 failed 计数；summary 只从安全 progress card 派生，不暴露 worker id、内部错误、raw ref、模型输出、OCR/RAG 或 Swarm 状态。性能证据沿用 production10k：22,435.1 RPS、P99 44.44ms、0 errors；OCR/RAG、多模型融合和 AI 批改联动继续后置。
         </p>
       </div>
       <div class="top-meta" aria-label="Architecture summary">
         <div class="metric"><strong>目标形态</strong><span>工作台 + 子系统 + 平台能力</span></div>
         <div class="metric"><strong>语言策略</strong><span>TS/Python 保留，Go/Rust 按边界引入</span></div>
-        <div class="metric"><strong>重构进度</strong><span>约 12.16/10；学生端进度预编码验证器已补齐。</span></div>
+        <div class="metric"><strong>重构进度</strong><span>约 12.19/10；学生端进度列表摘要已补齐。</span></div>
         <div class="metric"><strong>当前证据</strong><span>10k/50ms 支持；10ms 仍是优秀目标</span></div>
-        <div class="metric"><strong>本轮切片</strong><span>0360 预编码验证器；P99 3ms，0 errors。</span></div>
+        <div class="metric"><strong>本轮切片</strong><span>0361 进度摘要；P99 3ms，0 errors。</span></div>
       </div>
     </header>
 
@@ -1353,6 +1353,8 @@
         12.13/10 补充：SDD 0359 student app ai tutor request progress conditional cache 已新增。它消费 READY 0358 refresh policy 证据，为 Student App AI Tutor progress list/detail 响应增加私有条件读取合同：200 返回 ETag、Cache-Control: private, no-cache 和 Vary: X-Principal-Context, X-Agent-Api-Key；匹配 If-None-Match 时返回 304 Not Modified 且无响应体。runtimeId=student_app_ai_tutor_request_progress_conditional_cache，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_CONDITIONAL_CACHE_VERIFIED，性能证据为 4ms contract probe + 既有 production10k 基线；它不是 Redis/shared cache，也不新增写路径、模型推理、OCR/RAG 或 Swarm。
         <br><br>
         12.16/10 补充：SDD 0360 student app ai tutor request progress pre-encode validator 已新增。它消费 READY 0359 conditional cache 证据，为 Student App AI Tutor progress list/detail 增加预编码验证器：安全进度 card 和 pageInfo 先生成稳定 ETag；匹配 If-None-Match 时直接返回 304，并跳过 response mapping and JSON encoding。runtimeId=student_app_ai_tutor_request_progress_preencode_validator，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_PREENCODE_VALIDATOR_VERIFIED，性能证据为 3ms contract probe + 既有 production10k 基线；它 does not skip the use-case or database read，也 does not add Redis, shared cache, writes, model inference, OCR/RAG, or Swarm。
+        <br><br>
+        12.19/10 补充：SDD 0361 student app ai tutor request progress summary 已新增。它消费 READY 0360 pre-encode validator 证据，为 Student App AI Tutor progress list 增加必填 summary：totalCount、autoRefreshCount、actionReadyCount、teacherReviewRequiredCount 和 failedCount 均只从安全 progress card 派生，帮助学生端首页直接显示进度徽标和下一步状态；列表 ETag seed 升级到 v2，detail ETag 保持 v1。runtimeId=student_app_ai_tutor_request_progress_summary，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_VERIFIED，性能证据为 3ms contract probe + 既有 production10k 基线；它不新增写路径、shared cache、模型推理、OCR/RAG 或 Swarm，也不暴露 worker id、内部错误、raw ref 或数据库细节。
       </div>
 
       <div style="height: 12px"></div>
@@ -1944,7 +1946,7 @@
       <div style="height: 12px"></div>
 
       <div class="callout">
-        本轮已落地 Agent 契约门禁和 Student App AI Tutor 12.16/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck、controlled scoring artifact，到结果归档追问 queue/worker 连续性、0351 followUpDepth 深度预算守卫、0352 pending follow-up 队列幂等守卫、0353 follow-up lineage guard、0354 request progress timeline、0355 request progress detail、0356 request progress primary action、0357 request progress target url、0358 request progress refresh policy、0359 request progress conditional cache 和 0360 request progress pre-encode validator 均有审计入口。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
+        本轮已落地 Agent 契约门禁和 Student App AI Tutor 12.19/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck、controlled scoring artifact，到结果归档追问 queue/worker 连续性、0351 followUpDepth 深度预算守卫、0352 pending follow-up 队列幂等守卫、0353 follow-up lineage guard、0354 request progress timeline、0355 request progress detail、0356 request progress primary action、0357 request progress target url、0358 request progress refresh policy、0359 request progress conditional cache、0360 request progress pre-encode validator 和 0361 request progress summary 均有审计入口。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
       </div>
       <div class="callout">
         8.4/10 到 9.1/10 历史里程碑保留：8.4/10 是 ResearchAgent.deep_research approved retrieval planning，只记录目录索引优先、引用和 sourceHash 必填的检索计划，不执行检索；8.5/10 是 approved retrieval execution，通过注入 DeepResearchRetrievalReadPort.retrieveApprovedSources 返回 cited source evidence，不做 RAG 综合；8.6/10 是 approved reasoning/synthesis draft，通过注入 DeepResearchReasoningPort.composeEvidenceGroundedDraft 生成证据约束草稿，不发布最终答案；8.7/10 是 final-answer review gate，只记录人审结论；8.8/10 是 finalization runtime，封存 FINALIZED_NOT_PUBLISHED artifact envelope；8.9/10 是 render preview runtime，生成教师可审阅 SAFE_TEXT_BLOCKS 预览；9.0/10 是 publication precheck runtime，只记录发布前审查；9.1/10 是 teacher delivery runtime，生成教师科研工作区证据交付包。这些里程碑仍然不代表真正多模型融合、公开发布、学生档案主库写入或完整 AI Tutor worker 已完成。
