@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +75,25 @@ func TestListStudentAppAITutorRequestsReturnsSafeProgressTimeline(t *testing.T) 
 			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
 		}
 	}
+	assertPrivateConditionalProgressHeaders(t, response)
+
+	conditionalRequest := httptest.NewRequest(http.MethodGet, "/v1/student-app/ai-tutor-requests", http.NoBody)
+	conditionalRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	conditionalRequest.Header.Set("If-None-Match", response.Header().Get("ETag"))
+	setPrincipalHeader(t, conditionalRequest, studentPrincipal("student_001"))
+
+	conditionalResponse := httptest.NewRecorder()
+	handler.ServeHTTP(conditionalResponse, conditionalRequest)
+
+	if conditionalResponse.Code != http.StatusNotModified {
+		t.Fatalf("conditional status = %d, body = %s", conditionalResponse.Code, conditionalResponse.Body.String())
+	}
+	if conditionalResponse.Body.Len() != 0 {
+		t.Fatalf("conditional body = %s, want empty", conditionalResponse.Body.String())
+	}
+	if conditionalResponse.Header().Get("ETag") != response.Header().Get("ETag") {
+		t.Fatalf("conditional ETag = %q, want %q", conditionalResponse.Header().Get("ETag"), response.Header().Get("ETag"))
+	}
 }
 
 func TestReadStudentAppAITutorRequestProgressReturnsSafeDetail(t *testing.T) {
@@ -142,6 +162,29 @@ func TestReadStudentAppAITutorRequestProgressReturnsSafeDetail(t *testing.T) {
 			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
 		}
 	}
+	assertPrivateConditionalProgressHeaders(t, response)
+
+	conditionalRequest := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/ai-tutor-requests/tutor_req_progress_detail",
+		http.NoBody,
+	)
+	conditionalRequest.Header.Set("X-Agent-Api-Key", "ueacd")
+	conditionalRequest.Header.Set("If-None-Match", response.Header().Get("ETag"))
+	setPrincipalHeader(t, conditionalRequest, studentPrincipal("student_001"))
+
+	conditionalResponse := httptest.NewRecorder()
+	handler.ServeHTTP(conditionalResponse, conditionalRequest)
+
+	if conditionalResponse.Code != http.StatusNotModified {
+		t.Fatalf("conditional status = %d, body = %s", conditionalResponse.Code, conditionalResponse.Body.String())
+	}
+	if conditionalResponse.Body.Len() != 0 {
+		t.Fatalf("conditional body = %s, want empty", conditionalResponse.Body.String())
+	}
+	if conditionalResponse.Header().Get("ETag") != response.Header().Get("ETag") {
+		t.Fatalf("conditional ETag = %q, want %q", conditionalResponse.Header().Get("ETag"), response.Header().Get("ETag"))
+	}
 }
 
 func TestReadStudentAppAITutorRequestProgressHidesCrossStudentRequest(t *testing.T) {
@@ -184,4 +227,19 @@ func newTestHandlerWithStudentAppAITutorProgressRequests(
 		ReadStudentAppAITutorRequestProgress: usecase.NewReadStudentAppAITutorRequestProgress(store),
 		AgentAPIKey:                          "ueacd",
 	}).Handler()
+}
+
+func assertPrivateConditionalProgressHeaders(t *testing.T, response *httptest.ResponseRecorder) {
+	t.Helper()
+	etag := response.Header().Get("ETag")
+	if etag == "" || !strings.HasPrefix(etag, `"sha256-`) || !strings.HasSuffix(etag, `"`) {
+		t.Fatalf("ETag = %q, want quoted sha256 tag", etag)
+	}
+	if response.Header().Get("Cache-Control") != "private, no-cache" {
+		t.Fatalf("Cache-Control = %q", response.Header().Get("Cache-Control"))
+	}
+	vary := response.Header().Get("Vary")
+	if !strings.Contains(vary, "X-Principal-Context") || !strings.Contains(vary, "X-Agent-Api-Key") {
+		t.Fatalf("Vary = %q, want principal and api key", vary)
+	}
 }

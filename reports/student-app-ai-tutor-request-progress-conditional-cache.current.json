@@ -1,0 +1,102 @@
+{
+  "generatedAt": "2026-06-10T10:34:45.612Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_CONDITIONAL_CACHE",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_conditional_cache",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_refresh_policy"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_CONDITIONAL_CACHE_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 4,
+    "totalErrors": 0,
+    "operations": 4,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_CONDITIONAL_CACHE_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressConditionalCache": {
+      "status": "PASS",
+      "responseValidators": [
+        "ETag"
+      ],
+      "cacheControl": "private, no-cache",
+      "conditionalStatus": 304,
+      "emptyBodyOn304": true,
+      "forbiddenLeaks": [],
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 4,
+        "totalErrors": 0,
+        "operations": 4,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_CONDITIONAL_CACHE_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0358RefreshPolicyRequired": true,
+    "privateCacheControlRequired": true,
+    "sharedPublicCacheAllowed": false,
+    "responseBodyOn304Allowed": false,
+    "directDatabaseAccessFromJavaScriptAllowed": false,
+    "modelInferenceAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false
+  },
+  "conditionalCachePolicy": {
+    "cacheControl": "private, no-cache",
+    "validatorHeader": "ETag",
+    "requestHeader": "If-None-Match",
+    "notModifiedStatus": 304,
+    "varyHeaders": [
+      "X-Principal-Context",
+      "X-Agent-Api-Key"
+    ]
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0358_refresh_policy_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_REFRESH_POLICY_VERIFIED:0",
+      "expected": "READY 0358 refresh policy evidence with zero errors",
+      "remediation": "Run or fix 0358 before claiming Student App progress conditional-cache behavior."
+    },
+    {
+      "severity": "info",
+      "id": "http_progress_uses_private_conditional_response",
+      "passed": true,
+      "actual": "writePrivateConditionalJSON=true;If-None-Match=true;http.StatusNotModified=true;X-Principal-Context=true;X-Agent-Api-Key=true",
+      "expected": "list and detail progress handlers use private ETag conditional JSON responses",
+      "remediation": "Keep conditional caching in the HTTP boundary and bind validators to the private Student App context."
+    },
+    {
+      "severity": "info",
+      "id": "tests_cover_200_headers_and_304_empty_body",
+      "passed": true,
+      "actual": "ETag=true;Cache-Control=true;If-None-Match=true;StatusNotModified=true;Body.Len=true",
+      "expected": "Go HTTP tests prove 200 cache headers and 304 empty-body behavior",
+      "remediation": "Add list/detail conditional GET regression tests before marking READY."
+    },
+    {
+      "severity": "info",
+      "id": "openapi_documents_private_conditional_cache",
+      "passed": true,
+      "actual": "'304':=true;ETag:=true;private, no-cache=true;Vary:=true;If-None-Match=true",
+      "expected": "OpenAPI documents 200 validators and 304 for list/detail progress endpoints",
+      "remediation": "Document conditional polling headers on both Student App AI Tutor progress endpoints."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0359",
+      "passed": true,
+      "actual": "request-progress-conditional-cache=true;studentAppAiTutorRequestProgressConditionalCache=true;12.13/10=true;SDD 0359=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0359",
+      "remediation": "Wire 0359 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use private conditional progress reads to reduce Student App polling response bytes and continue the whole-system refactor on the next root-requirement slice."
+}

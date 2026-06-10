@@ -12,13 +12,51 @@ get:
       schema:
         type: string
         pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+    - name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Private ETag validator returned by the Student App AI Tutor progress detail.
   responses:
     '200':
       description: Safe AI tutor request progress visible to the Student App.
+      headers:
+        ETag:
+          description: Private response validator for Student App conditional polling.
+          schema:
+            type: string
+            pattern: '^"sha256-[A-Za-z0-9_-]+"$'
+        Cache-Control:
+          description: Student-owned progress responses must be revalidated before reuse.
+          schema:
+            type: string
+            enum: ['private, no-cache']
+        Vary:
+          description: Response varies by authenticated principal context and agent API key.
+          schema:
+            type: string
       content:
         application/json:
           schema:
             $ref: './teaching-archive.student-app-ai-tutor-request-progress.schema.yaml#/StudentAppAITutorRequestProgressResponse'
+    '304':
+      description: AI tutor request progress unchanged for the supplied If-None-Match validator.
+      headers:
+        ETag:
+          description: Current private response validator.
+          schema:
+            type: string
+            pattern: '^"sha256-[A-Za-z0-9_-]+"$'
+        Cache-Control:
+          description: Student-owned progress responses must be revalidated before reuse.
+          schema:
+            type: string
+            enum: ['private, no-cache']
+        Vary:
+          description: Response varies by authenticated principal context and agent API key.
+          schema:
+            type: string
     '401':
       $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
     '403':

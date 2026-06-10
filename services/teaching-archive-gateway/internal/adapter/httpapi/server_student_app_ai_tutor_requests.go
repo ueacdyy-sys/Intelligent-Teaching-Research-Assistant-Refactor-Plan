@@ -37,7 +37,7 @@ func (s *Server) listStudentAppAITutorRequestMetadata(w http.ResponseWriter, r *
 	if handleArchiveError(w, err, "failed to build student app ai tutor request progress") {
 		return
 	}
-	writeJSON(w, http.StatusOK, response)
+	writePrivateConditionalJSON(w, r, http.StatusOK, response)
 }
 
 func (s *Server) readStudentAppAITutorRequestProgressMetadata(
@@ -68,5 +68,5 @@ func (s *Server) readStudentAppAITutorRequestProgressMetadata(
 	if handleArchiveError(w, err, "failed to read student app ai tutor request progress") {
 		return
 	}
-	writeJSON(w, http.StatusOK, toStudentAppAITutorRequestProgressResponse(card))
+	writePrivateConditionalJSON(w, r, http.StatusOK, toStudentAppAITutorRequestProgressResponse(card))
 }

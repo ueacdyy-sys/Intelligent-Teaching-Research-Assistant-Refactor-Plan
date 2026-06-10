@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -117,6 +118,57 @@ func writeJSONBytes(w http.ResponseWriter, status int, body []byte) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
+}
+
+func writePrivateConditionalJSON(w http.ResponseWriter, r *http.Request, status int, payload any) {
+	body, err := encodeJSONPayload(payload)
+	if err != nil {
+		writeResponseEncodingError(w)
+		return
+	}
+	etag := responseETag(body)
+	setPrivateConditionalHeaders(w, etag)
+	if status == http.StatusOK && requestMatchesETag(r.Header.Get("If-None-Match"), etag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	writeJSONBytes(w, status, body)
+}
+
+func setPrivateConditionalHeaders(w http.ResponseWriter, etag string) {
+	w.Header().Set("Cache-Control", "private, no-cache")
+	w.Header().Set("ETag", etag)
+	appendVaryHeader(w.Header(), "X-Principal-Context")
+	appendVaryHeader(w.Header(), "X-Agent-Api-Key")
+}
+
+func responseETag(body []byte) string {
+	sum := sha256.Sum256(body)
+	return `"sha256-` + base64.RawURLEncoding.EncodeToString(sum[:]) + `"`
+}
+
+func requestMatchesETag(headerValue string, etag string) bool {
+	for _, candidate := range strings.Split(headerValue, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "*" || candidate == etag || strings.TrimPrefix(candidate, "W/") == etag {
+			return true
+		}
+	}
+	return false
+}
+
+func appendVaryHeader(header http.Header, value string) {
+	current := header.Get("Vary")
+	if current == "" {
+		header.Set("Vary", value)
+		return
+	}
+	for _, part := range strings.Split(current, ",") {
+		if strings.EqualFold(strings.TrimSpace(part), value) {
+			return
+		}
+	}
+	header.Set("Vary", current+", "+value)
 }
 
 func writeResponseEncodingError(w http.ResponseWriter) {
