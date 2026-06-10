@@ -107,6 +107,7 @@ import (
       "Student App AI Tutor request progress conditional cache audit",
       "Student App AI Tutor request progress pre-encode validator audit",
       "Student App AI Tutor request progress summary audit",
+      "Student App AI Tutor request progress view filter audit",
       "Student App AI Tutor controlled answer artifact runtime audit",
       "Student App AI Tutor answer review gate runtime audit",
       "Student App AI Tutor reviewed result persistence bridge runtime audit",

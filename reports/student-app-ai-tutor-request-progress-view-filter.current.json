@@ -1,0 +1,129 @@
+{
+  "generatedAt": "2026-06-10T12:46:15.892Z",
+  "readiness": "READY",
+  "workloadType": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_VIEW_FILTER",
+  "runtime": {
+    "runtimeId": "student_app_ai_tutor_request_progress_view_filter",
+    "sourceRuntimes": [
+      "student_app_ai_tutor_request_progress_summary"
+    ],
+    "status": "STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_VIEW_FILTER_VERIFIED"
+  },
+  "runtimeSlo": {
+    "targetP99Ms": 50,
+    "p99Ms": 3,
+    "totalErrors": 0,
+    "operations": 5,
+    "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_VIEW_FILTER_CONTRACT_PROBE"
+  },
+  "runtimeProbes": {
+    "studentAppAiTutorRequestProgressViewFilter": {
+      "status": "PASS",
+      "filteredCounts": {
+        "totalCount": 2,
+        "autoRefreshCount": 2,
+        "actionReadyCount": 0,
+        "teacherReviewRequiredCount": 0,
+        "failedCount": 0
+      },
+      "runtimeSlo": {
+        "targetP99Ms": 50,
+        "p99Ms": 3,
+        "totalErrors": 0,
+        "operations": 5,
+        "evidenceClass": "JS_STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_VIEW_FILTER_CONTRACT_PROBE"
+      }
+    }
+  },
+  "safetyInvariants": {
+    "source0361SummaryRequired": true,
+    "domainOwnedProgressViewMapping": true,
+    "repositoryStatusPredicateRequired": true,
+    "rawRequestInternalsAllowed": false,
+    "workerIdsAllowed": false,
+    "internalErrorsAllowed": false,
+    "rawResultRefsAllowed": false,
+    "modelOutputAllowed": false,
+    "ocrRagAllowed": false,
+    "swarmAllowed": false,
+    "writePathChanged": false,
+    "sharedCacheChanged": false
+  },
+  "progressViewPolicy": {
+    "endpoint": "GET /v1/student-app/ai-tutor-requests",
+    "optionalQueryParameter": "progressView",
+    "allowedValues": [
+      "ALL",
+      "AUTO_REFRESH",
+      "ACTION_READY",
+      "TEACHER_REVIEW_REQUIRED",
+      "FAILED"
+    ],
+    "statusMapping": {
+      "AUTO_REFRESH": [
+        "QUEUED",
+        "IN_PROGRESS"
+      ],
+      "ACTION_READY": [
+        "SUCCEEDED"
+      ],
+      "TEACHER_REVIEW_REQUIRED": [
+        "FAILED"
+      ],
+      "FAILED": [
+        "FAILED"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "id": "source.0361_summary_ready",
+      "passed": true,
+      "actual": "READY:STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_VERIFIED:0",
+      "expected": "READY 0361 progress summary evidence with zero errors",
+      "remediation": "Run or fix 0361 before claiming progress-view filtering."
+    },
+    {
+      "severity": "info",
+      "id": "domain_maps_progress_view_to_safe_statuses",
+      "passed": true,
+      "actual": "StudentAppAITutorRequestProgressView=true;progressView=true;Statuses=true;[]TutoringAnalysisStatus=true;TutoringAnalysisStatusInProgress=true",
+      "expected": "domain owns the safe progress-view enum and status mapping",
+      "remediation": "Keep progress-view semantics in the domain boundary, not in HTTP presentation code."
+    },
+    {
+      "severity": "info",
+      "id": "repository_pushes_view_filter_to_sql",
+      "passed": true,
+      "actual": "query.Statuses=true;status = ANY(=true;ListTutoringAnalysisRequests(ctx, query)=true",
+      "expected": "progress-view filtering reaches repository SQL as a multi-status predicate",
+      "remediation": "Do not implement this filter only after response construction."
+    },
+    {
+      "severity": "info",
+      "id": "http_openapi_expose_additive_progress_view_filter",
+      "passed": true,
+      "actual": "progressView=true;AUTO_REFRESH=true;TEACHER_REVIEW_REQUIRED=true;Do not combine with status=true",
+      "expected": "HTTP and OpenAPI expose an optional additive progressView query parameter",
+      "remediation": "Document and wire progressView at the HTTP boundary."
+    },
+    {
+      "severity": "info",
+      "id": "tests_cover_view_filter_and_leak_guards",
+      "passed": true,
+      "actual": "MapsProgressViewToSafeStatuses=true;BuildsMultiStatusPredicate=true;FiltersSafeProgressView=true;worker_internal_summary=true",
+      "expected": "domain, use-case, PostgreSQL, and HTTP tests prove filtering and leak guards",
+      "remediation": "Add regression coverage across every boundary touched by progressView."
+    },
+    {
+      "severity": "info",
+      "id": "quality_root_structure_trace_board_track_0362",
+      "passed": true,
+      "actual": "request-progress-view-filter=true;studentAppAiTutorRequestProgressViewFilter=true;12.22/10=true;SDD 0362=true",
+      "expected": "package, strict quality, root workflow, structure verifier, root trace, SDD, and board track 0362",
+      "remediation": "Wire 0362 through every evidence hook before marking READY."
+    }
+  ],
+  "nextAction": "Use progressView for Student App home badges and polling lists, then continue the whole-system refactor on the next root-requirement slice."
+}

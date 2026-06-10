@@ -160,6 +160,89 @@ func TestListStudentAppAITutorRequestsReturnsSafeProgressSummary(t *testing.T) {
 	}
 }
 
+func TestListStudentAppAITutorRequestsFiltersSafeProgressView(t *testing.T) {
+	baseTime := time.Date(2026, 6, 10, 12, 30, 0, 0, time.UTC)
+	requests := []domain.TutoringAnalysisRequest{
+		progressRequestWithStatus(
+			"tutor_req_progress_filter_queued",
+			"tarch_progress_filter_queued",
+			domain.TutoringAnalysisStatusQueued,
+			baseTime,
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_filter_working",
+			"tarch_progress_filter_working",
+			domain.TutoringAnalysisStatusInProgress,
+			baseTime.Add(time.Minute),
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_filter_ready",
+			"tarch_progress_filter_ready",
+			domain.TutoringAnalysisStatusSucceeded,
+			baseTime.Add(2*time.Minute),
+		),
+		progressRequestWithStatus(
+			"tutor_req_progress_filter_failed",
+			"tarch_progress_filter_failed",
+			domain.TutoringAnalysisStatusFailed,
+			baseTime.Add(3*time.Minute),
+		),
+	}
+	handler := newTestHandlerWithStudentAppAITutorProgressRequests(requests)
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/ai-tutor-requests?progressView=AUTO_REFRESH&pageSize=10",
+		http.NoBody,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"id":"tutor_req_progress_filter_queued"`),
+		[]byte(`"id":"tutor_req_progress_filter_working"`),
+		[]byte(`"summary":{"totalCount":2,"autoRefreshCount":2,"actionReadyCount":0,"teacherReviewRequiredCount":0,"failedCount":0}`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, excluded := range [][]byte{
+		[]byte(`tutor_req_progress_filter_ready`),
+		[]byte(`tutor_req_progress_filter_failed`),
+		[]byte(`local://internal`),
+		[]byte(`worker_internal_summary`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), excluded) {
+			t.Fatalf("body included excluded fragment %s in %s", excluded, response.Body.String())
+		}
+	}
+	assertPrivateConditionalProgressHeaders(t, response)
+}
+
+func TestListStudentAppAITutorRequestsRejectsAmbiguousProgressFilters(t *testing.T) {
+	handler := newTestHandlerWithStudentAppAITutorProgressRequests(nil)
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/ai-tutor-requests?status=QUEUED&progressView=AUTO_REFRESH",
+		http.NoBody,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
 func TestReadStudentAppAITutorRequestProgressReturnsSafeDetail(t *testing.T) {
 	requests := []domain.TutoringAnalysisRequest{
 		{

@@ -30,6 +30,46 @@ func TestNormalizeListStudentAppAITutorRequestsScopesOwnStudentRequests(t *testi
 	}
 }
 
+func TestNormalizeListStudentAppAITutorRequestsMapsProgressViewToSafeStatuses(t *testing.T) {
+	query, err := domain.NormalizeListStudentAppAITutorRequestsInput(domain.ListStudentAppAITutorRequestsInput{
+		Principal:    studentPrincipal("student_001"),
+		ProgressView: " auto_refresh ",
+		PageSize:     20,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeListStudentAppAITutorRequestsInput returned error: %v", err)
+	}
+	if query.Status != "" {
+		t.Fatalf("Status = %q, want empty when progressView is used", query.Status)
+	}
+	if len(query.Statuses) != 2 ||
+		query.Statuses[0] != domain.TutoringAnalysisStatusQueued ||
+		query.Statuses[1] != domain.TutoringAnalysisStatusInProgress {
+		t.Fatalf("Statuses = %#v", query.Statuses)
+	}
+}
+
+func TestNormalizeListStudentAppAITutorRequestsRejectsAmbiguousStatusAndProgressView(t *testing.T) {
+	_, err := domain.NormalizeListStudentAppAITutorRequestsInput(domain.ListStudentAppAITutorRequestsInput{
+		Principal:    studentPrincipal("student_001"),
+		Status:       domain.TutoringAnalysisStatusQueued,
+		ProgressView: domain.StudentAppAITutorRequestProgressViewAutoRefresh,
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
+func TestNormalizeListStudentAppAITutorRequestsRejectsUnsupportedProgressView(t *testing.T) {
+	_, err := domain.NormalizeListStudentAppAITutorRequestsInput(domain.ListStudentAppAITutorRequestsInput{
+		Principal:    studentPrincipal("student_001"),
+		ProgressView: "RAW_WORKER_TRACE",
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
 func TestNormalizeListStudentAppAITutorRequestsRejectsNonStudentAppPrincipals(t *testing.T) {
 	studentWithoutOwnRead := studentPrincipal("student_001")
 	studentWithoutOwnRead.Scopes = []domain.Scope{domain.ScopeTeachingRead}

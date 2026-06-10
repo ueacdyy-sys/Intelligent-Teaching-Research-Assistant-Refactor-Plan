@@ -315,6 +315,13 @@ func (r *ArchiveRepository) ListTutoringAnalysisRequests(
 	if query.Status != "" {
 		clauses = append(clauses, "status = "+nextArg(&args, string(query.Status)))
 	}
+	if len(query.Statuses) > 0 {
+		statuses := make([]string, 0, len(query.Statuses))
+		for _, status := range query.Statuses {
+			statuses = append(statuses, string(status))
+		}
+		clauses = append(clauses, "status = ANY("+nextArg(&args, statuses)+")")
+	}
 	if query.ArchiveItemID != "" {
 		clauses = append(clauses, "archive_item_id = "+nextArg(&args, query.ArchiveItemID))
 	}

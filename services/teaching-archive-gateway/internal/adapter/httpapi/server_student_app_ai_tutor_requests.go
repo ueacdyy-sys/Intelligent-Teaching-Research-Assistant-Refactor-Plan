@@ -25,10 +25,11 @@ func (s *Server) listStudentAppAITutorRequestMetadata(w http.ResponseWriter, r *
 		return
 	}
 	page, err := s.listStudentAppAITutorRequests.Execute(r.Context(), domain.ListStudentAppAITutorRequestsInput{
-		Principal: principal,
-		Status:    domain.TutoringAnalysisStatus(r.URL.Query().Get("status")),
-		PageSize:  pageSize,
-		Cursor:    r.URL.Query().Get("cursor"),
+		Principal:    principal,
+		Status:       domain.TutoringAnalysisStatus(r.URL.Query().Get("status")),
+		ProgressView: domain.StudentAppAITutorRequestProgressView(r.URL.Query().Get("progressView")),
+		PageSize:     pageSize,
+		Cursor:       r.URL.Query().Get("cursor"),
 	})
 	if handleArchiveError(w, err, "failed to list student app ai tutor requests") {
 		return

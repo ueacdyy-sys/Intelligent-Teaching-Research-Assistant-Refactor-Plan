@@ -26,6 +26,7 @@ type TutoringAnalysisRequestCursor struct {
 type TutoringAnalysisRequestQuery struct {
 	ID                          string
 	Status                      TutoringAnalysisStatus
+	Statuses                    []TutoringAnalysisStatus
 	ArchiveItemID               string
 	SourceArchiveOwnerType      OwnerType
 	StudentID                   string

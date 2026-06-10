@@ -40,6 +40,29 @@ func TestListStudentAppAITutorRequestsScopesOwnStudentBeforeRepository(t *testin
 	}
 }
 
+func TestListStudentAppAITutorRequestsPassesProgressViewStatusesToRepository(t *testing.T) {
+	reader := &fakeTutoringAnalysisRequestReader{
+		requests: []domain.TutoringAnalysisRequest{
+			tutoringRequest("tutor_req_waiting", "tarch_waiting", "student_001", time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+		},
+	}
+	uc := usecase.NewListStudentAppAITutorRequests(reader)
+
+	_, err := uc.Execute(context.Background(), domain.ListStudentAppAITutorRequestsInput{
+		Principal:    studentPrincipal("student_001"),
+		ProgressView: domain.StudentAppAITutorRequestProgressViewAutoRefresh,
+		PageSize:     10,
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if len(reader.query.Statuses) != 2 ||
+		reader.query.Statuses[0] != domain.TutoringAnalysisStatusQueued ||
+		reader.query.Statuses[1] != domain.TutoringAnalysisStatusInProgress {
+		t.Fatalf("Statuses = %#v", reader.query.Statuses)
+	}
+}
+
 func TestListStudentAppAITutorRequestsRejectsForbiddenWithoutRepositoryRead(t *testing.T) {
 	reader := &fakeTutoringAnalysisRequestReader{}
 	uc := usecase.NewListStudentAppAITutorRequests(reader)

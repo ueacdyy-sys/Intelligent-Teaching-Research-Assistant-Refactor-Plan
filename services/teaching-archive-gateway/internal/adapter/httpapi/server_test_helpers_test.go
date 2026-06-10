@@ -459,6 +459,9 @@ func (f *fakeRepository) ListTutoringAnalysisRequests(
 		if query.Status != "" && request.Status != query.Status {
 			continue
 		}
+		if len(query.Statuses) > 0 && !containsTutoringAnalysisStatus(query.Statuses, request.Status) {
+			continue
+		}
 		if query.ArchiveItemID != "" && request.ArchiveItemID != query.ArchiveItemID {
 			continue
 		}
@@ -480,6 +483,18 @@ func (f *fakeRepository) ListTutoringAnalysisRequests(
 		}
 	}
 	return requests, nil
+}
+
+func containsTutoringAnalysisStatus(
+	statuses []domain.TutoringAnalysisStatus,
+	status domain.TutoringAnalysisStatus,
+) bool {
+	for _, candidate := range statuses {
+		if candidate == status {
+			return true
+		}
+	}
+	return false
 }
 
 func (f *fakeRepository) FindPendingStudentAppAITutorResultArchiveFollowUpRequest(
