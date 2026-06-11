@@ -11,11 +11,14 @@ const inputSchemaVersion = "2026-06-08.student-app.ai-tutor-reviewed-result-pers
 const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-reviewed-result-persistence-bridge-recorded.v1";
 const sourceRuntimeId = "student_app_ai_tutor_answer_review_gate_runtime";
 const sourceResultArchiveRuntimeId = "student_app_ai_tutor_result_archive_answer_review_gate";
+const sourceQuestionBankFeedbackRuntimeId = "student_app_ai_tutor_question_bank_feedback_answer_review_gate";
 const sourceCommandPort = "StudentAppAITutorAnswerReviewGatePort.recordAnswerReviewGate";
 const sourceStatus = "STUDENT_APP_AI_TUTOR_ANSWER_REVIEW_GATE_RECORDED";
 const sourceResultArchiveStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_ANSWER_REVIEW_GATE_RECORDED";
+const sourceQuestionBankFeedbackStatus = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_ANSWER_REVIEW_GATE_RECORDED";
 const sourceWorkloadType = "STUDENT_APP_AI_TUTOR_ANSWER_REVIEW_GATE";
 const sourceResultArchiveWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_ANSWER_REVIEW_GATE";
+const sourceQuestionBankFeedbackWorkloadType = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_ANSWER_REVIEW_GATE";
 const persistedStatus = "STUDENT_APP_AI_TUTOR_REVIEWED_RESULT_PERSISTED";
 const defaultPersistenceLogPath =
   "reports/student-command-log/student-app-ai-tutor-reviewed-result-persistence-bridge.jsonl";
@@ -104,11 +107,16 @@ function assertAnswerReviewGateReport(report) {
   assertPlainObject(report, "input.answerReviewGateReport");
   requireConst(report.readiness, "READY", "input.answerReviewGateReport.readiness");
   const isResultArchiveSource = report.workloadType === sourceResultArchiveWorkloadType;
-  requireOneOf(report.workloadType, "input.answerReviewGateReport.workloadType", [sourceWorkloadType, sourceResultArchiveWorkloadType]);
+  const isQuestionBankFeedbackSource = report.workloadType === sourceQuestionBankFeedbackWorkloadType;
+  requireOneOf(report.workloadType, "input.answerReviewGateReport.workloadType", [sourceWorkloadType, sourceResultArchiveWorkloadType, sourceQuestionBankFeedbackWorkloadType]);
   if (isResultArchiveSource) {
     requireConst(report.runtime?.runtimeId, sourceResultArchiveRuntimeId, "input.answerReviewGateReport.runtime.runtimeId");
     requireConst(report.runtime?.sharedRuntimeId, sourceRuntimeId, "input.answerReviewGateReport.runtime.sharedRuntimeId");
     requireConst(report.runtime?.status, sourceResultArchiveStatus, "input.answerReviewGateReport.runtime.status");
+  } else if (isQuestionBankFeedbackSource) {
+    requireConst(report.runtime?.runtimeId, sourceQuestionBankFeedbackRuntimeId, "input.answerReviewGateReport.runtime.runtimeId");
+    requireConst(report.runtime?.sharedRuntimeId, sourceRuntimeId, "input.answerReviewGateReport.runtime.sharedRuntimeId");
+    requireConst(report.runtime?.status, sourceQuestionBankFeedbackStatus, "input.answerReviewGateReport.runtime.status");
   } else {
     requireConst(report.runtime?.runtimeId, sourceRuntimeId, "input.answerReviewGateReport.runtime.runtimeId");
     requireConst(report.runtime?.status, sourceStatus, "input.answerReviewGateReport.runtime.status");
@@ -116,7 +124,11 @@ function assertAnswerReviewGateReport(report) {
   requireConst(report.runtime?.commandPort, sourceCommandPort, "input.answerReviewGateReport.runtime.commandPort");
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.answerReviewGateReport.runtimeSlo.totalErrors");
   const invariants = assertPlainObject(report.safetyInvariants, "input.answerReviewGateReport.safetyInvariants");
-  const sourceRequiredFlag = isResultArchiveSource ? "source0338ResultArchiveControlledAnswerArtifactRequired" : "controlledAnswerArtifactRequired";
+  const sourceRequiredFlag = isResultArchiveSource
+    ? "source0338ResultArchiveControlledAnswerArtifactRequired"
+    : isQuestionBankFeedbackSource
+      ? "source0372QuestionBankFeedbackControlledAnswerArtifactRequired"
+      : "controlledAnswerArtifactRequired";
   for (const field of [sourceRequiredFlag, "humanReviewCompleted", "answerReviewGateRecorded"]) {
     requireConst(invariants[field], true, `input.answerReviewGateReport.safetyInvariants.${field}`);
   }
@@ -124,12 +136,14 @@ function assertAnswerReviewGateReport(report) {
     requireConst(invariants[field], false, `input.answerReviewGateReport.safetyInvariants.${field}`);
   }
   if (isResultArchiveSource) requireConst(invariants.learningActionSourceRequired, "AI_TUTOR_RESULT_ARCHIVE", "input.answerReviewGateReport.safetyInvariants.learningActionSourceRequired");
+  if (isQuestionBankFeedbackSource) requireConst(invariants.learningActionSourceRequired, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK", "input.answerReviewGateReport.safetyInvariants.learningActionSourceRequired");
   return report;
 }
 
 function assertAnswerReviewGateResult(report) {
   const result = report.runtimeProbes?.studentAppAiTutorAnswerReviewGate?.result
-    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveAnswerReviewGate?.result;
+    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveAnswerReviewGate?.result
+    ?? report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackAnswerReviewGate?.result;
   rejectLeakedFields(result?.answerReviewGate, "source.answerReviewGate");
   assertPlainObject(result, "source.answerReviewGate.result");
   requireConst(result.runtimeId, sourceRuntimeId, "source.result.runtimeId");
@@ -148,8 +162,14 @@ function assertAnswerReviewGateResult(report) {
   requireConst(gate.tutoringResultRecorded, false, "source.answerReviewGate.tutoringResultRecorded");
   requireConst(gate.studentVisiblePublished, false, "source.answerReviewGate.studentVisiblePublished");
   const isResultArchiveSource = report.workloadType === sourceResultArchiveWorkloadType;
-  const learningActionSource = isResultArchiveSource ? requireConst(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "source.result.learningActionSource") : undefined;
+  const isQuestionBankFeedbackSource = report.workloadType === sourceQuestionBankFeedbackWorkloadType;
+  const learningActionSource = isResultArchiveSource
+    ? requireConst(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "source.result.learningActionSource")
+    : isQuestionBankFeedbackSource
+      ? requireConst(result.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK", "source.result.learningActionSource")
+      : undefined;
   const resultArchiveStatus = isResultArchiveSource ? requireConst(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "source.result.resultArchiveStatus") : undefined;
+  const feedbackStatus = isQuestionBankFeedbackSource ? requireConst(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ", "source.result.feedbackStatus") : undefined;
   return {
     reviewId: requireToken(gate.reviewId, "source.answerReviewGate.reviewId", "ai_tutor_answer_review_gate_"),
     artifactId: requireToken(gate.artifactId, "source.answerReviewGate.artifactId", "ai_tutor_answer_artifact_"),
@@ -160,6 +180,7 @@ function assertAnswerReviewGateResult(report) {
     queueRef: requireToken(gate.queueRef, "source.answerReviewGate.queueRef", "ai_tutor_model_queue_"),
     learningActionSource,
     resultArchiveStatus,
+    feedbackStatus,
     reviewerPrincipalId: requireBoundedString(gate.reviewerPrincipalId, "source.answerReviewGate.reviewerPrincipalId", 1, 128),
     guidanceSectionsHash: requireHex(gate.guidanceSectionsHash, "source.answerReviewGate.guidanceSectionsHash"),
     guidanceSectionCount: requireIntegerBetween(result.sourceControlledAnswerArtifact?.guidanceSectionCount, "source.result.sourceControlledAnswerArtifact.guidanceSectionCount", 1, 5),
@@ -218,6 +239,7 @@ function buildPortRequest(normalized) {
     workerId: normalized.answerReviewGate.workerId,
     learningActionSource: normalized.answerReviewGate.learningActionSource,
     resultArchiveStatus: normalized.answerReviewGate.resultArchiveStatus,
+    feedbackStatus: normalized.answerReviewGate.feedbackStatus,
     status: "SUCCEEDED",
     resultSummary: `Human-reviewed AI Tutor guidance approved for internal persistence; sections=${normalized.answerReviewGate.guidanceSectionCount}.`,
     resultRef,
@@ -277,6 +299,7 @@ function buildRecord(normalized, portRequest, persistedResult, recordedAt) {
     sourceReviewGate: normalized.answerReviewGate,
     learningActionSource: normalized.answerReviewGate.learningActionSource,
     resultArchiveStatus: normalized.answerReviewGate.resultArchiveStatus,
+    feedbackStatus: normalized.answerReviewGate.feedbackStatus,
     recordTutoringAnalysisResultCommand: {
       targetUseCase: portRequest.targetUseCase,
       writeRepositoryOperation: portRequest.writeRepositoryOperation,

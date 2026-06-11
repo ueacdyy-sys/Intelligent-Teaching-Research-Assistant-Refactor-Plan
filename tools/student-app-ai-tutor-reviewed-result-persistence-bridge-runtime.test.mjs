@@ -56,6 +56,27 @@ describe("Student App AI Tutor reviewed result persistence bridge runtime", () =
     assert.equal(JSON.stringify(port.calls[0]).includes("Review the previous correction"), false);
   });
 
+  it("persists a question-bank-feedback-sourced approved answer review through the same result port", async () => {
+    const port = resultPort();
+    const result = await recordStudentAppAITutorReviewedResultPersistenceBridge(questionBankFeedbackInput(), {
+      studentAppAITutorResultPort: port,
+      persistenceLogPath: tempLog(),
+      generatedAt: "2026-06-11T13:50:00.000Z",
+    });
+
+    assert.equal(result.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.recordTutoringAnalysisResultCommand.targetUseCase, "RecordTutoringAnalysisResult.Execute");
+    assert.equal(result.boundary.tutoringResultRecorded, true);
+    assert.equal(result.boundary.studentVisiblePublished, false);
+    assert.equal(result.boundary.guidanceTextSentToPort, false);
+    assert.equal(port.calls[0].learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(port.calls[0].feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(JSON.stringify(port.calls[0]).includes("Restate the feedback in your own words"), false);
+    assert.equal(JSON.stringify(port.calls[0]).includes("qbank_ans_sub_feedback_001"), false);
+    assert.equal(JSON.stringify(port.calls[0]).includes("tarch_homework_feedback_source_001"), false);
+  });
+
   it("uses idempotency for safe replay and rejects conflicting persistence commands", async () => {
     const persistenceLogPath = tempLog();
     const port = resultPort();
@@ -179,6 +200,16 @@ describe("Student App AI Tutor reviewed result persistence bridge runtime", () =
       }),
       /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/u,
     );
+
+    const unsafeQuestionBankFeedbackSource = questionBankFeedbackInput();
+    unsafeQuestionBankFeedbackSource.answerReviewGateReport.safetyInvariants.learningActionSourceRequired = "AI_TUTOR_RESULT_ARCHIVE";
+    await assert.rejects(
+      () => recordStudentAppAITutorReviewedResultPersistenceBridge(unsafeQuestionBankFeedbackSource, {
+        studentAppAITutorResultPort: resultPort(),
+        persistenceLogPath: tempLog(),
+      }),
+      /learningActionSourceRequired must be QUESTION_BANK_DRAFT_ANSWER_FEEDBACK/u,
+    );
   });
 });
 
@@ -241,6 +272,19 @@ function resultArchiveInput() {
       "evidence:reviewed-result-persistence:record-tutoring-analysis-result",
     ],
     idempotencyKey: "student-app-ai-tutor-result-archive-reviewed-result-persistence:ai_tutor_answer_review_gate_result_archive_001",
+  };
+}
+
+function questionBankFeedbackInput() {
+  return {
+    ...baseInput(),
+    persistenceInvocationId: "ai_tutor_reviewed_result_persist_question_bank_feedback_001",
+    answerReviewGateReport: JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-answer-review-gate.current.json", "utf8")),
+    evidenceRefs: [
+      "evidence:answer-review-gate:student-app-ai-tutor-question-bank-feedback-answer-review-gate",
+      "evidence:reviewed-result-persistence:record-tutoring-analysis-result",
+    ],
+    idempotencyKey: "student-app-ai-tutor-question-bank-feedback-reviewed-result-persistence:ai_tutor_answer_review_gate_feedback_001",
   };
 }
 
