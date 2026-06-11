@@ -723,15 +723,15 @@
       <div>
         <h1>智能教研助手重构架构板</h1>
         <p class="subtitle">
-          目标架构：平台化模块单体优先，Agent Harness 统一管控 Agent、Skills、审批、证据链和回滚边界。当前 12.28/10 已补齐 0364 学生端归档材料检索计数摘要：在 0315 published search 基础上，新增 GET /v1/student-app/archive-items/summary，只返回 material type summary 计数；后端先复用本人学生端授权范围，再由 PostgreSQL 执行 SELECT material_type, COUNT(*) GROUP BY material_type，不再加载列表行或构造 metadata card，首页徽标可走 count-only 快路径；仍不暴露 data/pageInfo、contentRef、publication id、worker id、内部错误、raw ref、模型输出、OCR/RAG 或 Swarm 状态。性能证据沿用 production10k：22,435.1 RPS、P99 44.44ms、0 errors；本切片由 Go/SQL/HTTP 测试覆盖。
+          目标架构：平台化模块单体优先，Agent Harness 统一管控 Agent、Skills、审批、证据链和回滚边界。当前 12.31/10 已补齐 0365 结构门禁 required-file registry 拆分：将 `tools/verify-structure.mjs` 的核心必备文件清单移入独立 registry，让主验证器从 800 行降到 441 行，registry 365 行，后续继续追加 SDD/TDD 切片时不再挤爆质量门禁；业务接口、数据库、运行时性能声明和根需求均不改变。性能证据仍沿用 production10k：22,435.1 RPS、P99 44.44ms、0 errors；本切片由 structure/tool tests 覆盖。
         </p>
       </div>
       <div class="top-meta" aria-label="Architecture summary">
         <div class="metric"><strong>目标形态</strong><span>工作台 + 子系统 + 平台能力</span></div>
         <div class="metric"><strong>语言策略</strong><span>TS/Python 保留，Go/Rust 按边界引入</span></div>
-        <div class="metric"><strong>重构进度</strong><span>约 12.28/10；学生端归档材料计数摘要已补齐。</span></div>
+        <div class="metric"><strong>重构进度</strong><span>约 12.31/10；结构门禁 registry 已拆分。</span></div>
         <div class="metric"><strong>当前证据</strong><span>10k/50ms 支持；10ms 仍是优秀目标</span></div>
-        <div class="metric"><strong>本轮切片</strong><span>0364 归档材料计数摘要；Go 测试通过。</span></div>
+        <div class="metric"><strong>本轮切片</strong><span>0365 结构门禁拆分；工具测试覆盖。</span></div>
       </div>
     </header>
 
@@ -1369,6 +1369,8 @@
         12.25/10 补充：SDD 0363 student app ai tutor request progress summary count 已新增。它消费 READY 0362 progress view filter 证据，为 GET /v1/student-app/ai-tutor-requests/summary 增加 count-only 摘要端点；usecase 先复用 Student App 本人授权和 own-student scope，再调用 CountTutoringAnalysisRequestsByStatus，PostgreSQL 只查询 status 与 COUNT(*) 并 GROUP BY status，不加载 tutoring request 列表行、不构造 progress card、不返回 data/pageInfo。runtimeId=student_app_ai_tutor_request_progress_summary_count，status=STUDENT_APP_AI_TUTOR_REQUEST_PROGRESS_SUMMARY_COUNT_VERIFIED，性能证据为 2ms contract probe + 既有 production10k 基线；它不新增写路径、shared cache、Redis、数据库 schema、模型推理、OCR/RAG 或 Swarm，也不暴露 worker id、内部错误、raw ref 或数据库细节。
         <br><br>
         12.28/10 补充：SDD 0364 student app archive item search summary 已新增。它消费 0315 published material search 基础能力，为 GET /v1/student-app/archive-items/summary 增加 count-only 摘要端点；usecase 先复用 Student App 本人授权和 own-student scope，再调用 CountPublishedArchiveMaterialsByType，PostgreSQL 只查询 material_type 与 COUNT(*) 并 GROUP BY material_type，不加载 archive item 列表行、不构造 metadata card、不返回 data/pageInfo。该切片已补 OpenAPI path、Go domain/usecase/http/postgres 测试和结构门禁；性能证据沿用既有 production10k 基线，本轮不重复大压测。它不新增写路径、shared cache、Redis、数据库 schema、模型推理、OCR/RAG 或 Swarm，也不暴露 contentRef、publication id、worker id、内部错误、raw ref 或数据库细节。
+        <br><br>
+        12.31/10 补充：SDD 0365 structure verifier required-file registry 已新增。它把 `tools/verify-structure.mjs` 中 300+ 项核心 required-file 清单拆到 `tools/verify-structure-required-files.mjs`，主验证器保留 SDD discovery、缺失文件检查、质量脚本和 server config 检查；新增 registry 测试保证路径唯一、仓库相对、无反斜杠，并把 0365 自身纳入门禁。该切片不改变产品接口、不新增运行时依赖、不修改数据库、不更新性能结论；作用是给后续 SDD/TDD 模块继续增长留出质量门禁余量。
       </div>
 
       <div style="height: 12px"></div>
@@ -1960,7 +1962,7 @@
       <div style="height: 12px"></div>
 
       <div class="callout">
-        本轮已落地 Agent 契约门禁和 Student App AI Tutor 12.28/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck、controlled scoring artifact，到结果归档追问 queue/worker 连续性、0351 followUpDepth 深度预算守卫、0352 pending follow-up 队列幂等守卫、0353 follow-up lineage guard、0354 request progress timeline、0355 request progress detail、0356 request progress primary action、0357 request progress target url、0358 refresh policy、0359 conditional cache、0360 pre-encode validator、0361 summary、0362 view filter、0363 progress summary count，以及 0364 archive-items count-only search summary。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
+        本轮已落地 Agent 契约门禁和 Student App AI Tutor 12.31/10 证据：Teaching/StudentTutor/Research 三条真实只读 Adapter、统一只读 dispatcher、只读 Agent API Runtime、受控写入意图网关、Workflow 管理/审批链路、ResearchAgent.deep_research 到 student archive physical row verification、以及 Student App AI Tutor 从 request/worker claim/result、题库生成、学生本人内容读取、答案提交、评分请求验证、worker-only 评分输入、answer scoring model execution precheck、controlled scoring artifact，到结果归档追问 queue/worker 连续性、0351 followUpDepth 深度预算守卫、0352 pending follow-up 队列幂等守卫、0353 follow-up lineage guard、0354 request progress timeline、0355 request progress detail、0356 request progress primary action、0357 request progress target url、0358 refresh policy、0359 conditional cache、0360 pre-encode validator、0361 summary、0362 view filter、0363 progress summary count、0364 archive-items count-only search summary，以及 0365 structure verifier required-file registry 拆分。当前仍不是“Agent 产品已完成”：生产模型接入、真正多模型融合、完整 AI Tutor、结果持久化、反馈发布和公开发布仍是后续 reviewed async/integration 路线，不写入 50ms 快路径承诺。最新性能证据仍沿用 production10k：22,435.1 read/write RPS、最大 P99 44.44ms、0 errors；本轮不重复大压测。
       </div>
       <div class="callout">
         8.4/10 到 9.1/10 历史里程碑保留：8.4/10 是 ResearchAgent.deep_research approved retrieval planning，只记录目录索引优先、引用和 sourceHash 必填的检索计划，不执行检索；8.5/10 是 approved retrieval execution，通过注入 DeepResearchRetrievalReadPort.retrieveApprovedSources 返回 cited source evidence，不做 RAG 综合；8.6/10 是 approved reasoning/synthesis draft，通过注入 DeepResearchReasoningPort.composeEvidenceGroundedDraft 生成证据约束草稿，不发布最终答案；8.7/10 是 final-answer review gate，只记录人审结论；8.8/10 是 finalization runtime，封存 FINALIZED_NOT_PUBLISHED artifact envelope；8.9/10 是 render preview runtime，生成教师可审阅 SAFE_TEXT_BLOCKS 预览；9.0/10 是 publication precheck runtime，只记录发布前审查；9.1/10 是 teacher delivery runtime，生成教师科研工作区证据交付包。这些里程碑仍然不代表真正多模型融合、公开发布、学生档案主库写入或完整 AI Tutor worker 已完成。
