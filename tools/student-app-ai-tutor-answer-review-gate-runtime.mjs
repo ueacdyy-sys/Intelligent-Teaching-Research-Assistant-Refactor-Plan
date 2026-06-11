@@ -12,9 +12,11 @@ const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-answer-review-gate-
 const sourceArtifactSchemaVersion = "2026-06-08.student-app.ai-tutor-controlled-answer-artifact-recorded.v1";
 const sourceArtifactRuntimeId = "student_app_ai_tutor_controlled_answer_artifact_runtime";
 const sourceResultArchiveArtifactRuntimeId = "student_app_ai_tutor_result_archive_controlled_answer_artifact";
+const sourceQuestionBankFeedbackArtifactRuntimeId = "student_app_ai_tutor_question_bank_feedback_controlled_answer_artifact";
 const sourceArtifactCommandPort = "StudentAppAITutorControlledAnswerArtifactPort.recordControlledAnswerArtifact";
 const sourceArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT";
 const sourceResultArchiveArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT";
+const sourceQuestionBankFeedbackArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_CONTROLLED_ANSWER_ARTIFACT";
 const recordedStatus = "STUDENT_APP_AI_TUTOR_ANSWER_REVIEW_GATE_RECORDED";
 const defaultReviewLogPath = "reports/student-command-log/student-app-ai-tutor-answer-review-gate.jsonl";
 const allowedDecisions = ["APPROVE_FOR_RESULT_PERSISTENCE", "REJECT_FOR_REVISION"];
@@ -112,11 +114,16 @@ function assertControlledAnswerArtifactReport(report) {
   assertPlainObject(report, "input.controlledAnswerArtifactReport");
   requireConst(report.readiness, "READY", "input.controlledAnswerArtifactReport.readiness");
   const isResultArchiveSource = report.workloadType === sourceResultArchiveArtifactWorkloadType;
-  requireOneOf(report.workloadType, "input.controlledAnswerArtifactReport.workloadType", [sourceArtifactWorkloadType, sourceResultArchiveArtifactWorkloadType]);
+  const isQuestionBankFeedbackSource = report.workloadType === sourceQuestionBankFeedbackArtifactWorkloadType;
+  requireOneOf(report.workloadType, "input.controlledAnswerArtifactReport.workloadType", [sourceArtifactWorkloadType, sourceResultArchiveArtifactWorkloadType, sourceQuestionBankFeedbackArtifactWorkloadType]);
   if (isResultArchiveSource) {
     requireConst(report.runtime?.runtimeId, sourceResultArchiveArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
     requireConst(report.runtime?.sharedRuntimeId, sourceArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.sharedRuntimeId");
     requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
+  } else if (isQuestionBankFeedbackSource) {
+    requireConst(report.runtime?.runtimeId, sourceQuestionBankFeedbackArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+    requireConst(report.runtime?.sharedRuntimeId, sourceArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.sharedRuntimeId");
+    requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
   } else {
     requireConst(report.runtime?.runtimeId, sourceArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
     requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
@@ -124,7 +131,11 @@ function assertControlledAnswerArtifactReport(report) {
   requireConst(report.runtime?.commandPort, sourceArtifactCommandPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.controlledAnswerArtifactReport.runtimeSlo.totalErrors");
   const invariants = assertPlainObject(report.safetyInvariants, "input.controlledAnswerArtifactReport.safetyInvariants");
-  const sourcePrecheckFlag = isResultArchiveSource ? "source0337ResultArchiveModelPrecheckRequired" : "sourceModelExecutionPrecheckRequired";
+  const sourcePrecheckFlag = isResultArchiveSource
+    ? "source0337ResultArchiveModelPrecheckRequired"
+    : isQuestionBankFeedbackSource
+      ? "source0371QuestionBankFeedbackModelPrecheckRequired"
+      : "sourceModelExecutionPrecheckRequired";
   for (const field of [sourcePrecheckFlag, "internalServiceOnly", "controlledAnswerArtifactRecorded", "humanReviewRequiredBeforeResult", "rawModelOutputExcluded", "promptExcluded", "answerKeyExcluded"]) {
     requireConst(invariants[field], true, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
   }
@@ -134,12 +145,16 @@ function assertControlledAnswerArtifactReport(report) {
   if (isResultArchiveSource) {
     requireConst(invariants.learningActionSourceRequired, "AI_TUTOR_RESULT_ARCHIVE", "input.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired");
   }
+  if (isQuestionBankFeedbackSource) {
+    requireConst(invariants.learningActionSourceRequired, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK", "input.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired");
+  }
   return report;
 }
 
 function assertControlledAnswerArtifactResult(report) {
   const result = report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact?.result
-    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact?.result;
+    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact?.result
+    ?? report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackControlledAnswerArtifact?.result;
   rejectLeakedFields(result, "source.controlledAnswerArtifactResult");
   assertPlainObject(result, "source.controlledAnswerArtifactResult");
   requireConst(result.schemaVersion, sourceArtifactSchemaVersion, "source.artifact.schemaVersion");
@@ -153,8 +168,14 @@ function assertControlledAnswerArtifactResult(report) {
   }
   const artifact = assertControlledAnswerArtifact(result.controlledAnswerArtifact, result);
   const isResultArchiveSource = report.workloadType === sourceResultArchiveArtifactWorkloadType;
-  const learningActionSource = isResultArchiveSource ? requireConst(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "source.artifact.learningActionSource") : undefined;
-  const resultArchiveStatus = learningActionSource ? requireConst(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "source.artifact.resultArchiveStatus") : undefined;
+  const isQuestionBankFeedbackSource = report.workloadType === sourceQuestionBankFeedbackArtifactWorkloadType;
+  const learningActionSource = isResultArchiveSource
+    ? requireConst(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "source.artifact.learningActionSource")
+    : isQuestionBankFeedbackSource
+      ? requireConst(result.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK", "source.artifact.learningActionSource")
+      : undefined;
+  const resultArchiveStatus = isResultArchiveSource ? requireConst(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "source.artifact.resultArchiveStatus") : undefined;
+  const feedbackStatus = isQuestionBankFeedbackSource ? requireConst(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ", "source.artifact.feedbackStatus") : undefined;
   return {
     requestId: requireToken(result.requestId, "source.artifact.requestId", "tutor_req_"),
     archiveItemId: requireToken(result.archiveItemId, "source.artifact.archiveItemId", "tarch_"),
@@ -163,6 +184,7 @@ function assertControlledAnswerArtifactResult(report) {
     queueRef: requireToken(result.queueRef, "source.artifact.queueRef", "ai_tutor_model_queue_"),
     learningActionSource,
     resultArchiveStatus,
+    feedbackStatus,
     controlledAnswerArtifact: artifact,
     guidanceSectionsHash: hashGuidanceSections(artifact.guidanceSections),
   };
@@ -275,6 +297,7 @@ function buildPortRequest(normalized) {
     queueRef: source.queueRef,
     learningActionSource: source.learningActionSource,
     resultArchiveStatus: source.resultArchiveStatus,
+    feedbackStatus: source.feedbackStatus,
     reviewerPrincipalId: normalized.principal.principalId,
     reviewerRole: normalized.principal.role,
     decision: normalized.reviewDecision.decision,
@@ -327,6 +350,7 @@ function buildReviewRecord(normalized, answerReviewGate, recordedAt) {
     queueRef: source.queueRef,
     learningActionSource: source.learningActionSource,
     resultArchiveStatus: source.resultArchiveStatus,
+    feedbackStatus: source.feedbackStatus,
     sourceControlledAnswerArtifact: {
       artifactId: source.controlledAnswerArtifact.artifactId,
       guidanceSectionsHash: source.guidanceSectionsHash,

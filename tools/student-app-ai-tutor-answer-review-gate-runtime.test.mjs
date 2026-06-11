@@ -51,6 +51,28 @@ describe("Student App AI Tutor answer review gate runtime", () => {
     assert.equal(JSON.stringify(calls[0]).includes("Review the previous correction"), false);
   });
 
+  it("records a question-bank-feedback-sourced answer review gate without leaking guidance text or feedback ids", async () => {
+    const calls = [];
+    const input = baseInput("reports/student-app-ai-tutor-question-bank-feedback-controlled-answer-artifact.current.json");
+    input.reviewInvocationId = "ai_tutor_answer_review_feedback_001";
+    input.evidenceRefs[0] = "evidence:question-bank-feedback-controlled-answer-artifact:student-app-ai-tutor-question-bank-feedback-controlled-answer-artifact";
+    input.idempotencyKey = `${input.idempotencyKey}:question-bank-feedback`;
+    const result = await recordStudentAppAITutorAnswerReviewGate(input, {
+      generatedAt: "2026-06-11T10:05:00.000Z",
+      reviewLogPath: tempLog(),
+      answerReviewGatePort: port(calls),
+    });
+
+    assert.equal(result.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.answerReviewGate.status, "AI_TUTOR_ANSWER_REVIEW_APPROVED_NOT_PERSISTED");
+    assert.equal(result.boundary.resultPersistenceStarted, false);
+    assert.equal(result.boundary.studentVisiblePublished, false);
+    assert.equal(JSON.stringify(calls[0]).includes("Restate the feedback in your own words"), false);
+    assert.equal(JSON.stringify(calls[0]).includes("qbank_ans_sub_feedback_001"), false);
+    assert.equal(JSON.stringify(calls[0]).includes("tarch_homework_feedback_source_001"), false);
+  });
+
   it("uses idempotency for safe replay and rejects conflicting review gates", async () => {
     const reviewLogPath = tempLog();
     const first = await recordStudentAppAITutorAnswerReviewGate(baseInput(), {
@@ -109,6 +131,16 @@ describe("Student App AI Tutor answer review gate runtime", () => {
         answerReviewGatePort: port(),
       }),
       /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/,
+    );
+
+    const unsafeQuestionBankFeedbackSource = baseInput("reports/student-app-ai-tutor-question-bank-feedback-controlled-answer-artifact.current.json");
+    unsafeQuestionBankFeedbackSource.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired = "PUBLISHED_STUDY_PACKET";
+    await assert.rejects(
+      () => recordStudentAppAITutorAnswerReviewGate(unsafeQuestionBankFeedbackSource, {
+        reviewLogPath: tempLog(),
+        answerReviewGatePort: port(),
+      }),
+      /learningActionSourceRequired must be QUESTION_BANK_DRAFT_ANSWER_FEEDBACK/,
     );
   });
 
@@ -239,7 +271,8 @@ function baseInput(reportPath = "reports/student-app-ai-tutor-controlled-answer-
 
 function artifactResult(report) {
   return report.runtimeProbes.studentAppAiTutorControlledAnswerArtifact?.result
-    ?? report.runtimeProbes.studentAppAiTutorResultArchiveControlledAnswerArtifact.result;
+    ?? report.runtimeProbes.studentAppAiTutorResultArchiveControlledAnswerArtifact?.result
+    ?? report.runtimeProbes.studentAppAiTutorQuestionBankFeedbackControlledAnswerArtifact.result;
 }
 
 function hashGuidanceSections(sections) {

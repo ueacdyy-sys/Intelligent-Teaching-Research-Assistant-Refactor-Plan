@@ -124,6 +124,7 @@ export function buildQualityCommandPlan() {
     { name: "Student App AI Tutor result-archive model execution precheck audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-archive-model-execution-precheck"] },
     { name: "Student App AI Tutor question-bank feedback model execution precheck audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-feedback-model-execution-precheck"] },
     { name: "Student App AI Tutor question-bank-feedback controlled answer artifact audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-feedback-controlled-answer-artifact"] },
+    { name: "Student App AI Tutor question-bank-feedback answer review gate audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-feedback-answer-review-gate"] },
     { name: "Student App AI Tutor result-archive controlled answer artifact audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-archive-controlled-answer-artifact"] },
     { name: "Student App AI Tutor result-archive answer review gate audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-archive-answer-review-gate"] },
     { name: "Student App AI Tutor result-archive reviewed result persistence bridge audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-archive-reviewed-result-persistence-bridge"] },
