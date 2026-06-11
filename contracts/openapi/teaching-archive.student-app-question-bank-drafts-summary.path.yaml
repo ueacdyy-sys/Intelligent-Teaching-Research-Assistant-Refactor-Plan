@@ -1,0 +1,59 @@
+get:
+  operationId: readStudentAppQuestionBankDraftsSummary
+  summary: Read count-only personalized question-bank draft summary for the authenticated student.
+  tags: [student-app, teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Private ETag validator returned by the Student App question-bank draft summary.
+  responses:
+    '200':
+      description: Count-only personalized question-bank draft summary visible to the Student App.
+      headers:
+        ETag:
+          description: Private response validator for Student App question-bank draft summary.
+          schema:
+            type: string
+            pattern: '^"sha256-[A-Za-z0-9_-]+"$'
+        Cache-Control:
+          description: Student-owned draft summaries must be revalidated before reuse.
+          schema:
+            type: string
+            enum: ['private, no-cache']
+        Vary:
+          description: Response varies by authenticated principal context and agent API key.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: './teaching-archive.student-app-question-bank-drafts-summary.schema.yaml#/StudentAppQuestionBankDraftSummaryOnlyResponse'
+    '304':
+      description: Question-bank draft summary unchanged for the supplied If-None-Match validator.
+      headers:
+        ETag:
+          description: Current private response validator.
+          schema:
+            type: string
+            pattern: '^"sha256-[A-Za-z0-9_-]+"$'
+        Cache-Control:
+          description: Student-owned draft summaries must be revalidated before reuse.
+          schema:
+            type: string
+            enum: ['private, no-cache']
+        Vary:
+          description: Response varies by authenticated principal context and agent API key.
+          schema:
+            type: string
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

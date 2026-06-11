@@ -371,6 +371,18 @@ type studentAppQuestionBankDraftListResponse struct {
 	PageInfo pageInfoResponse                      `json:"pageInfo"`
 }
 
+type studentAppQuestionBankDraftSummaryOnlyResponse struct {
+	Summary studentAppQuestionBankDraftSummaryResponse `json:"summary"`
+}
+
+type studentAppQuestionBankDraftSummaryResponse struct {
+	TotalCount    int `json:"totalCount"`
+	QuizCount     int `json:"quizCount"`
+	PaperCount    int `json:"paperCount"`
+	HandoutCount  int `json:"handoutCount"`
+	HomeworkCount int `json:"homeworkCount"`
+}
+
 type studentAppQuestionBankDraftContentResponse struct {
 	QuestionBankDraftRef      string                          `json:"questionBankDraftRef"`
 	TutoringAnalysisRequestID string                          `json:"tutoringAnalysisRequestId"`

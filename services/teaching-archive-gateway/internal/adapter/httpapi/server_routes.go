@@ -15,6 +15,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/student-app/quiz-submissions", s.studentAppQuizSubmissions)
 	mux.HandleFunc("/v1/student-app/quiz-scan-submissions", s.studentAppQuizScanSubmissions)
 	mux.HandleFunc("/v1/student-app/question-bank-drafts", s.studentAppQuestionBankDrafts)
+	mux.HandleFunc("/v1/student-app/question-bank-drafts/", s.studentAppQuestionBankDraftSubresources)
 	mux.HandleFunc("/v1/student-app/question-bank-draft-content", s.studentAppQuestionBankDraftContent)
 	mux.HandleFunc("/v1/student-app/question-bank-draft-answer-submissions", s.studentAppQuestionBankDraftAnswerSubmissions)
 	mux.HandleFunc("/v1/student-app/question-bank-draft-answer-submissions/", s.studentAppQuestionBankDraftAnswerSubmissionSubresources)
@@ -109,6 +110,18 @@ func (s *Server) studentAppArchiveItemSubresources(w http.ResponseWriter, r *htt
 		return
 	}
 	s.readStudentAppArchiveItemMetadata(w, r, archiveItemID)
+}
+
+func (s *Server) studentAppQuestionBankDraftSubresources(w http.ResponseWriter, r *http.Request) {
+	if parseStudentAppQuestionBankDraftSummaryPath(r.URL.Path) {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.readStudentAppQuestionBankDraftSummaryMetadata(w, r)
+		return
+	}
+	writeError(w, http.StatusNotFound, "NOT_FOUND", "student app question bank draft subresource not found")
 }
 
 func (s *Server) quizDraftIntents(w http.ResponseWriter, r *http.Request) {

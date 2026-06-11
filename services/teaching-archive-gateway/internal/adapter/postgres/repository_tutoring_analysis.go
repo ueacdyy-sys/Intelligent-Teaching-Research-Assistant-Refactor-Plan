@@ -399,6 +399,42 @@ func (r *ArchiveRepository) CountTutoringAnalysisRequestsByStatus(
 	return counts, nil
 }
 
+func (r *ArchiveRepository) CountQuestionBankDraftsBySourceMaterial(
+	ctx context.Context,
+	query domain.TutoringAnalysisRequestQuery,
+) (map[domain.MaterialType]int, error) {
+	args := make([]any, 0, 8)
+	clauses := buildTutoringAnalysisRequestWhereClauses(&args, query)
+
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			source_archive_material,
+			COUNT(*)
+		FROM teaching_tutoring_analysis_requests
+		WHERE `+strings.Join(clauses, " AND ")+`
+		GROUP BY source_archive_material`,
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[domain.MaterialType]int{}
+	for rows.Next() {
+		var rawMaterialType string
+		var count int64
+		if err := rows.Scan(&rawMaterialType, &count); err != nil {
+			return nil, err
+		}
+		counts[domain.MaterialType(rawMaterialType)] = int(count)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return counts, nil
+}
+
 func buildTutoringAnalysisRequestWhereClauses(
 	args *[]any,
 	query domain.TutoringAnalysisRequestQuery,

@@ -25,6 +25,7 @@ type ServerConfig struct {
 	ReadStudentAppAITutorRequestProgressSummary           *usecase.ReadStudentAppAITutorRequestProgressSummary
 	ListStudentAppQuizSubmissions                         *usecase.ListStudentAppQuizSubmissions
 	ListStudentAppQuestionBankDrafts                      *usecase.ListStudentAppQuestionBankDrafts
+	ReadStudentAppQuestionBankDraftSummary                *usecase.ReadStudentAppQuestionBankDraftSummary
 	ReadStudentAppQuestionBankDraftContent                *usecase.ReadStudentAppQuestionBankDraftContent
 	SubmitStudentAppQuestionBankDraftAnswer               *usecase.SubmitStudentAppQuestionBankDraftAnswer
 	CreateStudentAppQuestionBankDraftAnswerScoringRequest *usecase.CreateStudentAppQuestionBankDraftAnswerScoringRequest

@@ -8,6 +8,10 @@ type ListStudentAppQuestionBankDraftsInput struct {
 	Cursor    string
 }
 
+type ReadStudentAppQuestionBankDraftSummaryInput struct {
+	Principal PrincipalContext
+}
+
 type StudentAppQuestionBankDraft struct {
 	TutoringAnalysisRequestID string
 	ArchiveItemID             string
@@ -22,6 +26,14 @@ type StudentAppQuestionBankDraft struct {
 type StudentAppQuestionBankDraftPage struct {
 	Items    []StudentAppQuestionBankDraft
 	PageInfo ArchivePageInfo
+}
+
+type StudentAppQuestionBankDraftSummary struct {
+	TotalCount    int
+	QuizCount     int
+	PaperCount    int
+	HandoutCount  int
+	HomeworkCount int
 }
 
 func NormalizeListStudentAppQuestionBankDraftsInput(
@@ -43,6 +55,20 @@ func NormalizeListStudentAppQuestionBankDraftsInput(
 	}
 	query.RequireQuestionBankDraftRef = true
 	return query, nil
+}
+
+func NormalizeReadStudentAppQuestionBankDraftSummaryInput(
+	input ReadStudentAppQuestionBankDraftSummaryInput,
+) (TutoringAnalysisRequestQuery, error) {
+	if err := AuthorizeListStudentAppQuestionBankDrafts(input.Principal); err != nil {
+		return TutoringAnalysisRequestQuery{}, err
+	}
+	return TutoringAnalysisRequestQuery{
+		Status:                      TutoringAnalysisStatusSucceeded,
+		SourceArchiveOwnerType:      OwnerTypeStudent,
+		StudentID:                   primaryOwnStudentID(input.Principal),
+		RequireQuestionBankDraftRef: true,
+	}, nil
 }
 
 func AuthorizeListStudentAppQuestionBankDrafts(principal PrincipalContext) error {
@@ -102,6 +128,33 @@ func BuildStudentAppQuestionBankDraftPage(
 			NextCursor: nextCursor,
 		},
 	}, nil
+}
+
+func BuildStudentAppQuestionBankDraftSummary(
+	materialTypeCounts map[MaterialType]int,
+) (StudentAppQuestionBankDraftSummary, error) {
+	summary := StudentAppQuestionBankDraftSummary{}
+	for materialType, count := range materialTypeCounts {
+		if count < 0 {
+			return StudentAppQuestionBankDraftSummary{}, validationError("count must not be negative")
+		}
+		switch materialType {
+		case MaterialTypeQuiz:
+			summary.QuizCount += count
+		case MaterialTypePaper:
+			summary.PaperCount += count
+		case MaterialTypeHandout:
+			summary.HandoutCount += count
+		case MaterialTypeHomework:
+			summary.HomeworkCount += count
+		case MaterialTypeTeachingMaterial:
+			return StudentAppQuestionBankDraftSummary{}, ErrForbidden
+		default:
+			return StudentAppQuestionBankDraftSummary{}, validationError("sourceArchiveMaterial is unsupported")
+		}
+		summary.TotalCount += count
+	}
+	return summary, nil
 }
 
 func NewStudentAppQuestionBankDraft(

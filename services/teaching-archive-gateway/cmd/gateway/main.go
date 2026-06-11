@@ -70,6 +70,7 @@ func main() {
 	readStudentAppAITutorResultArchiveLearningActions := usecase.NewReadStudentAppAITutorResultArchiveLearningActions(renderStudentAppAITutorResultArchive)
 	listStudentAppQuizSubmissions := usecase.NewListStudentAppQuizSubmissions(archiveRepository)
 	listStudentAppQuestionBankDrafts := usecase.NewListStudentAppQuestionBankDrafts(archiveRepository)
+	readStudentAppQuestionBankDraftSummary := usecase.NewReadStudentAppQuestionBankDraftSummary(archiveRepository)
 	readStudentAppQuestionBankDraftContent := usecase.NewReadStudentAppQuestionBankDraftContent(archiveRepository)
 	submitStudentAppQuestionBankDraftAnswer := usecase.NewSubmitStudentAppQuestionBankDraftAnswer(
 		archiveRepository,
@@ -199,6 +200,7 @@ func main() {
 			ReadStudentAppAITutorResultArchiveLearningActions:     readStudentAppAITutorResultArchiveLearningActions,
 			ListStudentAppQuizSubmissions:                         listStudentAppQuizSubmissions,
 			ListStudentAppQuestionBankDrafts:                      listStudentAppQuestionBankDrafts,
+			ReadStudentAppQuestionBankDraftSummary:                readStudentAppQuestionBankDraftSummary,
 			ReadStudentAppQuestionBankDraftContent:                readStudentAppQuestionBankDraftContent,
 			SubmitStudentAppQuestionBankDraftAnswer:               submitStudentAppQuestionBankDraftAnswer,
 			CreateStudentAppQuestionBankDraftAnswerScoringRequest: createStudentAppQuestionBankDraftAnswerScoringRequest,
