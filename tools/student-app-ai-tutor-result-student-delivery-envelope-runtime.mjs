@@ -11,14 +11,22 @@ const inputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-deliv
 const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-delivery-envelope-recorded.v1";
 const visibilityReviewRuntimeId = "student_app_ai_tutor_result_student_visibility_review_runtime";
 const resultArchiveVisibilityReviewRuntimeId = "student_app_ai_tutor_result_archive_student_visibility_review";
+const questionBankFeedbackVisibilityReviewRuntimeId =
+  "student_app_ai_tutor_question_bank_feedback_student_visibility_review";
 const visibilityReviewPort = "StudentAppAITutorResultStudentVisibilityReviewPort.recordResultStudentVisibilityReview";
 const visibilityReviewStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_VISIBILITY_REVIEW_RECORDED";
 const resultArchiveVisibilityReviewStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_VISIBILITY_REVIEW_RECORDED";
+const questionBankFeedbackVisibilityReviewStatus =
+  "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_VISIBILITY_REVIEW_RECORDED";
 const controlledArtifactRuntimeId = "student_app_ai_tutor_controlled_answer_artifact_runtime";
 const resultArchiveControlledArtifactRuntimeId = "student_app_ai_tutor_result_archive_controlled_answer_artifact";
+const questionBankFeedbackControlledArtifactRuntimeId =
+  "student_app_ai_tutor_question_bank_feedback_controlled_answer_artifact";
 const controlledArtifactPort = "StudentAppAITutorControlledAnswerArtifactPort.recordControlledAnswerArtifact";
 const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
 const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
+const questionBankFeedbackSource = "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK";
+const questionBankFeedbackReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const readyStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED";
 const defaultCommandLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-delivery-envelope.jsonl";
@@ -130,6 +138,9 @@ function assertVisibilityReviewReport(report) {
   if (report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_VISIBILITY_REVIEW") {
     return assertResultArchiveVisibilityReviewReport(report);
   }
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_VISIBILITY_REVIEW") {
+    return assertQuestionBankFeedbackVisibilityReviewReport(report);
+  }
   return assertPublishedVisibilityReviewReport(report);
 }
 
@@ -167,10 +178,30 @@ function assertResultArchiveVisibilityReviewReport(report) {
   return report;
 }
 
+function assertQuestionBankFeedbackVisibilityReviewReport(report) {
+  requireConst(report.runtime?.runtimeId, questionBankFeedbackVisibilityReviewRuntimeId, "input.studentVisibilityReviewReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, visibilityReviewRuntimeId, "input.studentVisibilityReviewReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, visibilityReviewPort, "input.studentVisibilityReviewReport.runtime.commandPort");
+  requireConst(report.runtime?.status, questionBankFeedbackVisibilityReviewStatus, "input.studentVisibilityReviewReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentVisibilityReviewReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.studentVisibilityReviewReport.safetyInvariants");
+  for (const field of ["source0374QuestionBankFeedbackReviewedResultPersistenceRequired", "humanStudentVisibilityReviewRequired", "approvedForFutureStudentDelivery"]) {
+    requireConst(invariants[field], true, `input.studentVisibilityReviewReport.safetyInvariants.${field}`);
+  }
+  requireConst(invariants.learningActionSourceRequired, questionBankFeedbackSource, "input.studentVisibilityReviewReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.feedbackStatusRequired, questionBankFeedbackReadyStatus, "input.studentVisibilityReviewReport.safetyInvariants.feedbackStatusRequired");
+  for (const field of ["studentVisiblePublished", "studentDeliveryEnvelopeCreated", "guidanceTextSentToPort", "rawResultRefSentToPort", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]) {
+    requireConst(invariants[field], false, `input.studentVisibilityReviewReport.safetyInvariants.${field}`);
+  }
+  return report;
+}
+
 function assertVisibilityReviewRecord(report) {
   const isResultArchive = report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_VISIBILITY_REVIEW";
+  const isQuestionBankFeedback = report.workloadType === "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_VISIBILITY_REVIEW";
   const result = report.runtimeProbes?.studentAppAiTutorResultStudentVisibilityReview?.result ??
-    report.runtimeProbes?.studentAppAiTutorResultArchiveStudentVisibilityReview?.result;
+    report.runtimeProbes?.studentAppAiTutorResultArchiveStudentVisibilityReview?.result ??
+    report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackStudentVisibilityReview?.result;
   assertPlainObject(result, "source.studentVisibilityReview.result");
   requireConst(result.runtimeId, visibilityReviewRuntimeId, "source.studentVisibilityReview.runtimeId");
   requireConst(result.commandPort, visibilityReviewPort, "source.studentVisibilityReview.commandPort");
@@ -187,6 +218,10 @@ function assertVisibilityReviewRecord(report) {
     requireConst(source.learningActionSource, resultArchiveSource, "source.studentVisibilityReview.source.learningActionSource");
     requireConst(source.resultArchiveStatus, resultArchiveReadyStatus, "source.studentVisibilityReview.source.resultArchiveStatus");
   }
+  if (isQuestionBankFeedback) {
+    requireConst(source.learningActionSource, questionBankFeedbackSource, "source.studentVisibilityReview.source.learningActionSource");
+    requireConst(source.feedbackStatus, questionBankFeedbackReadyStatus, "source.studentVisibilityReview.source.feedbackStatus");
+  }
   return {
     recordId: requireBoundedString(result.recordId, "source.studentVisibilityReview.recordId", 1, 260),
     reviewId: requireToken(review.reviewId, "source.studentVisibilityReview.review.reviewId", "ai_tutor_result_visibility_review_"),
@@ -199,6 +234,7 @@ function assertVisibilityReviewRecord(report) {
     resultRefHash: requireHex(source.resultRefHash, "source.studentVisibilityReview.source.resultRefHash"),
     learningActionSource: source.learningActionSource,
     resultArchiveStatus: source.resultArchiveStatus,
+    feedbackStatus: source.feedbackStatus,
   };
 }
 
@@ -207,6 +243,9 @@ function assertControlledAnswerArtifactReport(report, visibilityRecord) {
   requireConst(report.readiness, "READY", "input.controlledAnswerArtifactReport.readiness");
   if (report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT") {
     return assertResultArchiveControlledAnswerArtifactReport(report);
+  }
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_CONTROLLED_ANSWER_ARTIFACT") {
+    return assertQuestionBankFeedbackControlledAnswerArtifactReport(report);
   }
   return assertPublishedControlledAnswerArtifactReport(report);
 }
@@ -244,9 +283,27 @@ function assertResultArchiveControlledAnswerArtifactReport(report) {
   return report;
 }
 
+function assertQuestionBankFeedbackControlledAnswerArtifactReport(report) {
+  requireConst(report.runtime?.runtimeId, questionBankFeedbackControlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, controlledArtifactPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
+  requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_CONTROLLED_ANSWER_ARTIFACT_RECORDED", "input.controlledAnswerArtifactReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.controlledAnswerArtifactReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.controlledAnswerArtifactReport.safetyInvariants");
+  for (const field of ["source0371QuestionBankFeedbackModelPrecheckRequired", "controlledAnswerArtifactRecorded", "rawModelOutputExcluded", "promptExcluded", "answerKeyExcluded"]) {
+    requireConst(invariants[field], true, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  }
+  requireConst(invariants.learningActionSourceRequired, questionBankFeedbackSource, "input.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired");
+  for (const field of ["studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "swarmAllowed"]) {
+    requireConst(invariants[field], false, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  }
+  return report;
+}
+
 function assertControlledAnswerArtifact(report, visibilityRecord) {
   const result = report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact?.result ??
-    report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact?.result;
+    report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact?.result ??
+    report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackControlledAnswerArtifact?.result;
   assertPlainObject(result, "source.controlledAnswerArtifact.result");
   requireConst(result.runtimeId, controlledArtifactRuntimeId, "source.controlledAnswerArtifact.runtimeId");
   requireConst(result.requestId, visibilityRecord.requestId, "source.controlledAnswerArtifact.requestId");
@@ -254,6 +311,10 @@ function assertControlledAnswerArtifact(report, visibilityRecord) {
   if (visibilityRecord.learningActionSource === resultArchiveSource) {
     requireConst(result.learningActionSource, resultArchiveSource, "source.controlledAnswerArtifact.learningActionSource");
     requireConst(result.resultArchiveStatus, resultArchiveReadyStatus, "source.controlledAnswerArtifact.resultArchiveStatus");
+  }
+  if (visibilityRecord.learningActionSource === questionBankFeedbackSource) {
+    requireConst(result.learningActionSource, questionBankFeedbackSource, "source.controlledAnswerArtifact.learningActionSource");
+    requireConst(result.feedbackStatus, questionBankFeedbackReadyStatus, "source.controlledAnswerArtifact.feedbackStatus");
   }
   const artifact = assertPlainObject(result.controlledAnswerArtifact, "source.controlledAnswerArtifact.artifact");
   requireConst(artifact.artifactId, visibilityRecord.artifactId, "source.controlledAnswerArtifact.artifactId");
@@ -273,6 +334,7 @@ function assertControlledAnswerArtifact(report, visibilityRecord) {
     safetyLabels: uniqueStringArray(artifact.safetyLabels, "source.controlledAnswerArtifact.safetyLabels", 1, 8, 3, 80),
     learningActionSource: result.learningActionSource,
     resultArchiveStatus: result.resultArchiveStatus,
+    feedbackStatus: result.feedbackStatus,
   };
 }
 
@@ -420,6 +482,7 @@ function buildRecord(normalized, portRequest, deliveryEnvelope, deliveredAt) {
       guidanceSectionCount: normalized.controlledArtifact.guidanceSections.length,
       learningActionSource: normalized.controlledArtifact.learningActionSource,
       resultArchiveStatus: normalized.controlledArtifact.resultArchiveStatus,
+      feedbackStatus: normalized.controlledArtifact.feedbackStatus,
     },
     portRequest: {
       operation: portRequest.operation,
@@ -479,6 +542,7 @@ function deliverySafeVisibilityRecord(record) {
     guidanceSectionsHash: record.guidanceSectionsHash,
     learningActionSource: record.learningActionSource,
     resultArchiveStatus: record.resultArchiveStatus,
+    feedbackStatus: record.feedbackStatus,
   };
 }
 
