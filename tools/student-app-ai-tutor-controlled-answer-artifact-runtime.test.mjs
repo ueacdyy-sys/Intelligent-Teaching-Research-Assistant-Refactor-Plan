@@ -65,6 +65,43 @@ describe("Student App AI Tutor controlled answer artifact runtime", () => {
     assert.equal(JSON.stringify(calls[0]).includes("Review your previous mistake pattern"), false);
   });
 
+  it("records a question-bank-feedback-sourced controlled answer artifact for human review only", async () => {
+    const calls = [];
+    const input = baseInput();
+    input.artifactInvocationId = "ai_tutor_answer_artifact_invocation_feedback_001";
+    input.modelExecutionPrecheckReport = questionBankFeedbackPrecheckReport();
+    input.generationAttempt = {
+      ...input.generationAttempt,
+      attemptId: "ai_tutor_answer_attempt_feedback_001",
+      precheckId: "ai_tutor_model_precheck_feedback_001",
+      queueRef: "ai_tutor_model_queue_feedback_001",
+      requestId: "tutor_req_student_app_feedback_001",
+      workerId: "worker_student_tutor_03",
+      inputHash: "a5b2ef0ed017998b85551ded2dee3b0edc4f328bbec77b9c8de538ff758a8bbe",
+    };
+    input.evidenceRefs = [
+      "evidence:question-bank-feedback-model-execution-precheck:student-app-ai-tutor-question-bank-feedback-model-execution-precheck",
+      "evidence:controlled-answer-policy:review-before-result",
+    ];
+    input.idempotencyKey = "student-app-ai-tutor-controlled-answer:tutor_req_student_app_feedback_001:ai_tutor_model_precheck_feedback_001";
+
+    const result = await recordStudentAppAITutorControlledAnswerArtifact(input, {
+      generatedAt: "2026-06-11T09:30:00.000Z",
+      artifactLogPath: tempLog(),
+      controlledAnswerArtifactPort: questionBankFeedbackPort(calls),
+    });
+
+    assert.equal(result.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.feedbackSubmissionId, undefined);
+    assert.equal(result.feedbackSourceArchiveItemId, undefined);
+    assert.equal(result.controlledAnswerArtifact.reviewState, "PENDING_HUMAN_REVIEW");
+    assert.equal(result.boundary.studentVisiblePublished, false);
+    assert.equal(calls.length, 1);
+    assert.equal(JSON.stringify(calls[0]).includes("qbank_ans_sub_feedback_001"), false);
+    assert.equal(JSON.stringify(calls[0]).includes("Score improved after correcting denominator comparison"), false);
+  });
+
   it("uses idempotency for safe replay and rejects conflicting artifacts", async () => {
     const artifactLogPath = tempLog();
     const first = await recordStudentAppAITutorControlledAnswerArtifact(baseInput(), {
@@ -166,6 +203,19 @@ describe("Student App AI Tutor controlled answer artifact runtime", () => {
       /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/,
     );
   });
+
+  it("rejects unsafe question-bank-feedback precheck source reports", async () => {
+    const input = baseInput();
+    input.modelExecutionPrecheckReport = questionBankFeedbackPrecheckReport();
+    input.modelExecutionPrecheckReport.safetyInvariants.learningActionSourceRequired = "PUBLISHED_STUDY_PACKET";
+    await assert.rejects(
+      () => recordStudentAppAITutorControlledAnswerArtifact(input, {
+        artifactLogPath: tempLog(),
+        controlledAnswerArtifactPort: port(),
+      }),
+      /learningActionSourceRequired must be QUESTION_BANK_DRAFT_ANSWER_FEEDBACK/,
+    );
+  });
 });
 
 function tempLog() {
@@ -233,6 +283,38 @@ function resultArchivePort(calls = []) {
             },
           ],
           safetyLabels: ["STUDY_GUIDANCE_ONLY", "FOLLOW_UP_REVIEW"],
+          resultPersistenceAllowed: false,
+          tutoringResultRecorded: false,
+          studentVisiblePublished: false,
+        },
+      };
+    },
+  };
+}
+
+function questionBankFeedbackPort(calls = []) {
+  return {
+    async recordControlledAnswerArtifact(request) {
+      calls.push(request);
+      return {
+        controlledAnswerArtifact: {
+          artifactId: "ai_tutor_answer_artifact_feedback_001",
+          requestId: request.requestId,
+          workerId: request.workerId,
+          precheckId: request.precheckId,
+          queueRef: request.queueRef,
+          status: "AI_TUTOR_CONTROLLED_ANSWER_RECORDED_NOT_REVIEWED",
+          reviewState: "PENDING_HUMAN_REVIEW",
+          summary: "Follow-up help based on reviewed answer feedback.",
+          guidanceSections: [
+            {
+              sectionId: "ai_tutor_answer_section_feedback_001",
+              title: "Practice from feedback",
+              text: "Restate the feedback in your own words, then solve one similar item.",
+              sourceBlockRefs: ["block_score_summary", "block_next_step"],
+            },
+          ],
+          safetyLabels: ["STUDY_GUIDANCE_ONLY", "FEEDBACK_FOLLOW_UP"],
           resultPersistenceAllowed: false,
           tutoringResultRecorded: false,
           studentVisiblePublished: false,
@@ -404,6 +486,83 @@ function resultArchivePrecheckReport() {
     safetyInvariants: {
       source0336WorkerResultArchiveInputRequired: true,
       learningActionSourceRequired: "AI_TUTOR_RESULT_ARCHIVE",
+      internalServiceOnly: true,
+      approvalRequired: true,
+      modelExecutionQueueAdmissionOnly: true,
+      safeTextBlocksOnly: true,
+      inputHashRecorded: true,
+      promptConstructed: false,
+      modelInferenceAllowed: false,
+      tutorAnswerGenerated: false,
+      tutoringResultRecorded: false,
+      studentVisiblePublished: false,
+      directDatabaseAccessAllowed: false,
+      executeHttpRequestAllowed: false,
+      externalToolUseAllowed: false,
+      retrievalAllowed: false,
+      swarmAllowed: false,
+    },
+  };
+}
+
+function questionBankFeedbackPrecheckReport() {
+  return {
+    readiness: "READY",
+    workloadType: "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_MODEL_EXECUTION_PRECHECK",
+    runtime: {
+      runtimeId: "student_app_ai_tutor_question_bank_feedback_model_execution_precheck",
+      sharedRuntimeId: "student_app_ai_tutor_model_execution_precheck_runtime",
+      commandPort: "StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck",
+      status: "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_MODEL_EXECUTION_PRECHECKED",
+    },
+    runtimeSlo: { p99Ms: 5, totalErrors: 0 },
+    runtimeProbes: {
+      studentAppAiTutorQuestionBankFeedbackModelExecutionPrecheck: {
+        result: {
+          schemaVersion: "2026-06-08.student-app.ai-tutor-model-execution-prechecked.v1",
+          runtimeId: "student_app_ai_tutor_model_execution_precheck_runtime",
+          commandPort: "StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck",
+          status: "STUDENT_APP_AI_TUTOR_MODEL_EXECUTION_PRECHECKED",
+          requestId: "tutor_req_student_app_feedback_001",
+          archiveItemId: "tarch_student_feedback_001",
+          workerId: "worker_student_tutor_03",
+          approvalId: "ai_tutor_model_approval_feedback_001",
+          learningActionSource: "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK",
+          feedbackStatus: "READY_FOR_STUDENT_APP_READ",
+          feedbackSubmissionId: "qbank_ans_sub_feedback_001",
+          feedbackSourceArchiveItemId: "tarch_homework_feedback_source_001",
+          inputHash: "a5b2ef0ed017998b85551ded2dee3b0edc4f328bbec77b9c8de538ff758a8bbe",
+          modelExecutionPrecheck: {
+            precheckId: "ai_tutor_model_precheck_feedback_001",
+            queueRef: "ai_tutor_model_queue_feedback_001",
+            modelRoute: "student_tutor_guided_help_v1",
+            requestId: "tutor_req_student_app_feedback_001",
+            workerId: "worker_student_tutor_03",
+            inputHash: "a5b2ef0ed017998b85551ded2dee3b0edc4f328bbec77b9c8de538ff758a8bbe",
+            safeBlockCount: 2,
+            status: "AI_TUTOR_MODEL_EXECUTION_PRECHECKED_NOT_STARTED",
+            queueAdmissionOnly: true,
+            modelInferenceStarted: false,
+            tutorResultRecorded: false,
+            studentVisiblePublished: false,
+          },
+          boundary: {
+            sourceWorkerQuestionBankFeedbackInputVerified: true,
+            sourceWorkerStudyPacketInputVerified: false,
+            sourceWorkerResultArchiveInputVerified: false,
+            modelExecutionQueueAdmissionOnly: true,
+            safeTextBlockTextSentToPort: false,
+            modelInferenceStarted: false,
+            tutorAnswerGenerated: false,
+            tutoringResultRecorded: false,
+            studentVisiblePublished: false,
+          },
+        },
+      },
+    },
+    safetyInvariants: {
+      source0370FeedbackWorkerInputRequired: true,
+      learningActionSourceRequired: "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK",
       internalServiceOnly: true,
       approvalRequired: true,
       modelExecutionQueueAdmissionOnly: true,

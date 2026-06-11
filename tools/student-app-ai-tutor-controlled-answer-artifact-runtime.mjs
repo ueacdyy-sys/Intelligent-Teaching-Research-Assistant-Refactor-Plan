@@ -12,6 +12,7 @@ const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-controlled-answer-a
 const sourcePrecheckSchemaVersion = "2026-06-08.student-app.ai-tutor-model-execution-prechecked.v1";
 const sourcePrecheckRuntimeId = "student_app_ai_tutor_model_execution_precheck_runtime";
 const sourceResultArchivePrecheckRuntimeId = "student_app_ai_tutor_result_archive_model_execution_precheck";
+const sourceQuestionBankFeedbackPrecheckRuntimeId = "student_app_ai_tutor_question_bank_feedback_model_execution_precheck";
 const sourcePrecheckPort = "StudentAppAITutorModelExecutionPrecheckPort.recordModelExecutionPrecheck";
 const recordedStatus = "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT_RECORDED";
 const modelRoute = "student_tutor_guided_help_v1";
@@ -112,6 +113,9 @@ function assertModelExecutionPrecheckReport(report) {
   if (report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_MODEL_EXECUTION_PRECHECK") {
     return assertResultArchiveModelExecutionPrecheckReport(report);
   }
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_MODEL_EXECUTION_PRECHECK") {
+    return assertQuestionBankFeedbackModelExecutionPrecheckReport(report);
+  }
   return assertPublishedModelExecutionPrecheckReport(report);
 }
 
@@ -146,12 +150,31 @@ function assertResultArchiveModelExecutionPrecheckReport(report) {
   return report;
 }
 
+function assertQuestionBankFeedbackModelExecutionPrecheckReport(report) {
+  requireConst(report.runtime?.runtimeId, sourceQuestionBankFeedbackPrecheckRuntimeId, "input.modelExecutionPrecheckReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, sourcePrecheckRuntimeId, "input.modelExecutionPrecheckReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, sourcePrecheckPort, "input.modelExecutionPrecheckReport.runtime.commandPort");
+  requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_MODEL_EXECUTION_PRECHECKED", "input.modelExecutionPrecheckReport.runtime.status");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.modelExecutionPrecheckReport.safetyInvariants");
+  for (const field of ["source0370FeedbackWorkerInputRequired", "internalServiceOnly", "approvalRequired", "modelExecutionQueueAdmissionOnly", "safeTextBlocksOnly", "inputHashRecorded"]) {
+    requireConst(invariants[field], true, `input.modelExecutionPrecheckReport.safetyInvariants.${field}`);
+  }
+  requireConst(invariants.learningActionSourceRequired, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK", "input.modelExecutionPrecheckReport.safetyInvariants.learningActionSourceRequired");
+  for (const field of ["promptConstructed", "modelInferenceAllowed", "tutorAnswerGenerated", "tutoringResultRecorded", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "swarmAllowed"]) {
+    requireConst(invariants[field], false, `input.modelExecutionPrecheckReport.safetyInvariants.${field}`);
+  }
+  return report;
+}
+
 function assertModelExecutionPrecheckResult(report) {
   const result = report.runtimeProbes?.studentAppAiTutorModelExecutionPrecheck?.result ??
-    report.runtimeProbes?.studentAppAiTutorResultArchiveModelExecutionPrecheck?.result;
+    report.runtimeProbes?.studentAppAiTutorResultArchiveModelExecutionPrecheck?.result ??
+    report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackModelExecutionPrecheck?.result;
   const sourceKind = report.workloadType === "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_MODEL_EXECUTION_PRECHECK"
     ? "AI_TUTOR_RESULT_ARCHIVE"
-    : "PUBLISHED_STUDY_PACKET";
+    : report.workloadType === "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_MODEL_EXECUTION_PRECHECK"
+      ? "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK"
+      : "PUBLISHED_STUDY_PACKET";
   rejectLeakedFields(result, "source.modelExecutionPrecheckResult");
   assertPlainObject(result, "source.modelExecutionPrecheckResult");
   requireConst(result.schemaVersion, sourcePrecheckSchemaVersion, "source.precheck.schemaVersion");
@@ -163,6 +186,14 @@ function assertModelExecutionPrecheckResult(report) {
     requireConst(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "source.precheck.resultArchiveStatus");
     requireConst(result.boundary?.sourceWorkerResultArchiveInputVerified, true, "source.precheck.boundary.sourceWorkerResultArchiveInputVerified");
     requireConst(result.boundary?.sourceWorkerStudyPacketInputVerified, false, "source.precheck.boundary.sourceWorkerStudyPacketInputVerified");
+  }
+  if (sourceKind === "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK") {
+    requireConst(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ", "source.precheck.feedbackStatus");
+    requireToken(result.feedbackSubmissionId, "source.precheck.feedbackSubmissionId", "qbank_ans_sub_");
+    requireToken(result.feedbackSourceArchiveItemId, "source.precheck.feedbackSourceArchiveItemId", "tarch_");
+    requireConst(result.boundary?.sourceWorkerQuestionBankFeedbackInputVerified, true, "source.precheck.boundary.sourceWorkerQuestionBankFeedbackInputVerified");
+    requireConst(result.boundary?.sourceWorkerStudyPacketInputVerified, false, "source.precheck.boundary.sourceWorkerStudyPacketInputVerified");
+    requireConst(result.boundary?.sourceWorkerResultArchiveInputVerified, false, "source.precheck.boundary.sourceWorkerResultArchiveInputVerified");
   }
   requireConst(result.boundary?.modelExecutionQueueAdmissionOnly, true, "source.precheck.boundary.modelExecutionQueueAdmissionOnly");
   requireConst(result.boundary?.safeTextBlockTextSentToPort, false, "source.precheck.boundary.safeTextBlockTextSentToPort");
@@ -317,6 +348,7 @@ function buildArtifactRecord(normalized, artifact, recordedAt) {
     queueRef: source.modelExecutionPrecheck.queueRef,
     learningActionSource: source.learningActionSource ?? "PUBLISHED_STUDY_PACKET",
     resultArchiveStatus: source.resultArchiveStatus,
+    feedbackStatus: source.feedbackStatus,
     controlledAnswerArtifact: artifact,
     evidenceRefs: normalized.evidenceRefs,
     boundary: {
