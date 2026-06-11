@@ -29,13 +29,61 @@ const STUDENT_APP_TEACHING_PATHS = [
   },
 ];
 
+const STUDENT_APP_SUMMARY_FAST_PATHS = [
+  {
+    path: "/v1/student-app/ai-tutor-requests/summary",
+    file: "teaching-archive.student-app-ai-tutor-request-progress-summary.path.yaml",
+    responseSchemaFile: "teaching-archive.student-app-ai-tutor-request-progress.schema.yaml",
+    responseSchema: "StudentAppAITutorRequestProgressSummaryOnlyResponse",
+    summarySchema: "StudentAppAITutorRequestProgressSummary",
+    countFields: ["totalCount", "autoRefreshCount", "actionReadyCount", "teacherReviewRequiredCount", "failedCount"],
+  },
+  {
+    path: "/v1/student-app/archive-items/summary",
+    file: "teaching-archive.student-app-archive-items-summary.path.yaml",
+    responseSchemaFile: "teaching-archive.student-app-archive-items-summary.schema.yaml",
+    responseSchema: "StudentAppArchiveItemSearchSummaryOnlyResponse",
+    summarySchema: "StudentAppArchiveItemSearchSummary",
+    countFields: ["totalCount", "quizCount", "paperCount", "handoutCount", "homeworkCount"],
+  },
+  {
+    path: "/v1/student-app/question-bank-drafts/summary",
+    file: "teaching-archive.student-app-question-bank-drafts-summary.path.yaml",
+    responseSchemaFile: "teaching-archive.student-app-question-bank-drafts-summary.schema.yaml",
+    responseSchema: "StudentAppQuestionBankDraftSummaryOnlyResponse",
+    summarySchema: "StudentAppQuestionBankDraftSummary",
+    countFields: ["totalCount", "quizCount", "paperCount", "handoutCount", "homeworkCount"],
+  },
+];
+
 const FORBIDDEN_PROFILE_FIELDS = ["scopes", "knowledgeAccess", "studentAccess"];
+const FORBIDDEN_SUMMARY_RESPONSE_FIELDS = [
+  "data",
+  "pageInfo",
+  "id",
+  "archiveItemId",
+  "requestId",
+  "tutoringRequestId",
+  "studentId",
+  "workerId",
+  "claimedByWorkerId",
+  "resultRef",
+  "questionBankDraftRef",
+  "contentRef",
+  "errorMessage",
+  "modelOutput",
+  "ocrChunks",
+  "ragChunks",
+  "swarmState",
+];
 
 export function auditStudentAppFlowContracts(inputs) {
   const findings = [];
   const identityOpenapiText = inputs.identityOpenapiText ?? "";
   const teachingOpenapiText = inputs.teachingOpenapiText ?? "";
   const teachingPathFiles = inputs.teachingPathFiles ?? {};
+  const teachingSummaryContractFiles = inputs.teachingSummaryContractFiles ?? {};
+  const teachingContractFiles = { ...teachingPathFiles, ...teachingSummaryContractFiles };
 
   addFinding(findings, {
     id: "identity.path.post./v1/identity/sessions/password",
@@ -89,13 +137,68 @@ export function auditStudentAppFlowContracts(inputs) {
       remediation: `Expose ${item.path} from the Teaching Archive Student App contract.`,
     });
 
-    const pathText = teachingPathFiles[item.file] ?? "";
+    const pathText = teachingContractFiles[item.file] ?? "";
     addFinding(findings, {
       id: `teaching.security.${item.file}`,
       passed: pathText.includes("AgentApiKey") && pathText.includes("PrincipalContextHeader"),
       actual: pathText ? summarizeSecurity(pathText) : "missing",
       expected: "AgentApiKey + PrincipalContextHeader",
       remediation: `${item.file} must require Agent API key and Principal Context.`,
+    });
+  }
+
+  for (const item of STUDENT_APP_SUMMARY_FAST_PATHS) {
+    addFinding(findings, {
+      id: `teaching.summary.path.${item.path}`,
+      passed: hasPath(teachingOpenapiText, item.path),
+      actual: hasPath(teachingOpenapiText, item.path) ? "path-present" : "missing",
+      expected: item.path,
+      remediation: `Expose ${item.path} as a Student App count-only summary fast path.`,
+    });
+
+    const pathText = teachingContractFiles[item.file] ?? "";
+    addFinding(findings, {
+      id: `teaching.summary.security.${item.file}`,
+      passed: pathText.includes("AgentApiKey") && pathText.includes("PrincipalContextHeader"),
+      actual: pathText ? summarizeSecurity(pathText) : "missing",
+      expected: "AgentApiKey + PrincipalContextHeader",
+      remediation: `${item.file} must require Agent API key and Principal Context.`,
+    });
+
+    addFinding(findings, {
+      id: `teaching.summary.private_cache.${item.path}`,
+      passed: hasPrivateConditionalCache(pathText),
+      actual: summarizePrivateConditionalCache(pathText),
+      expected: "If-None-Match + 304 + ETag + private no-cache + Vary",
+      remediation: `${item.file} must keep private conditional cache headers for repeated Student App badge reads.`,
+    });
+
+    const schemaText = teachingContractFiles[item.responseSchemaFile] ?? "";
+    const responseSchema = yamlSection(schemaText, item.responseSchema);
+    const summarySchema = yamlSection(schemaText, item.summarySchema);
+    const leakedResponseFields = FORBIDDEN_SUMMARY_RESPONSE_FIELDS.filter((field) => hasYamlProperty(responseSchema, field));
+    addFinding(findings, {
+      id: `teaching.summary.response_shape.${item.responseSchema}`,
+      passed: responseSchema.includes("additionalProperties: false")
+        && hasYamlProperty(responseSchema, "summary")
+        && leakedResponseFields.length === 0,
+      actual: responseSchema ? `summary=${hasYamlProperty(responseSchema, "summary")} leaks=${leakedResponseFields.join(",")}` : "missing",
+      expected: "summary-only response with additionalProperties=false",
+      remediation: `${item.responseSchema} must expose only summary and must not regress to a list-shaped response.`,
+    });
+
+    const missingCountFields = item.countFields.filter((field) => !hasYamlProperty(summarySchema, field));
+    const leakedSummaryFields = FORBIDDEN_SUMMARY_RESPONSE_FIELDS.filter((field) => hasYamlProperty(summarySchema, field));
+    addFinding(findings, {
+      id: `teaching.summary.count_fields.${item.summarySchema}`,
+      passed: summarySchema.includes("additionalProperties: false")
+        && missingCountFields.length === 0
+        && leakedSummaryFields.length === 0,
+      actual: summarySchema
+        ? `missing=${missingCountFields.join(",")} leaks=${leakedSummaryFields.join(",")}`
+        : "missing",
+      expected: `count fields only: ${item.countFields.join(",")}`,
+      remediation: `${item.summarySchema} must remain a count-only schema without row identifiers or internal state.`,
     });
   }
 
@@ -130,6 +233,12 @@ function loadCurrentInputs(root) {
       STUDENT_APP_TEACHING_PATHS.map((item) => [
         item.file,
         fs.readFileSync(path.join(openapiDir, item.file), "utf8"),
+      ]),
+    ),
+    teachingSummaryContractFiles: Object.fromEntries(
+      STUDENT_APP_SUMMARY_FAST_PATHS.flatMap((item) => [
+        [item.file, fs.readFileSync(path.join(openapiDir, item.file), "utf8")],
+        [item.responseSchemaFile, fs.readFileSync(path.join(openapiDir, item.responseSchemaFile), "utf8")],
       ]),
     ),
   };
@@ -178,6 +287,30 @@ function summarizeSecurity(pathText) {
   if (pathText.includes("AgentApiKey")) parts.push("AgentApiKey");
   if (pathText.includes("PrincipalContextHeader")) parts.push("PrincipalContextHeader");
   return parts.join(" + ");
+}
+
+function hasPrivateConditionalCache(pathText) {
+  return pathText.includes("If-None-Match")
+    && pathText.includes("'304':")
+    && pathText.includes("ETag:")
+    && pathText.includes("Cache-Control:")
+    && pathText.includes("private, no-cache")
+    && pathText.includes("Vary:");
+}
+
+function summarizePrivateConditionalCache(pathText) {
+  if (!pathText) return "missing";
+  const parts = [];
+  if (pathText.includes("If-None-Match")) parts.push("If-None-Match");
+  if (pathText.includes("'304':")) parts.push("304");
+  if (pathText.includes("ETag:")) parts.push("ETag");
+  if (pathText.includes("private, no-cache")) parts.push("private no-cache");
+  if (pathText.includes("Vary:")) parts.push("Vary");
+  return parts.join(" + ");
+}
+
+function hasYamlProperty(section, propertyName) {
+  return new RegExp(`^\\s{4}${escapeRegExp(propertyName)}:\\s*$`, "m").test(section);
 }
 
 function leadingSpaces(line) {

@@ -25,6 +25,17 @@ function loadCurrentInputs() {
       file,
       fs.readFileSync(path.join(root, "contracts/openapi", file), "utf8"),
     ])),
+    teachingSummaryContractFiles: Object.fromEntries([
+      "teaching-archive.student-app-ai-tutor-request-progress-summary.path.yaml",
+      "teaching-archive.student-app-ai-tutor-request-progress.schema.yaml",
+      "teaching-archive.student-app-archive-items-summary.path.yaml",
+      "teaching-archive.student-app-archive-items-summary.schema.yaml",
+      "teaching-archive.student-app-question-bank-drafts-summary.path.yaml",
+      "teaching-archive.student-app-question-bank-drafts-summary.schema.yaml",
+    ].map((file) => [
+      file,
+      fs.readFileSync(path.join(root, "contracts/openapi", file), "utf8"),
+    ])),
   };
 }
 
@@ -71,6 +82,62 @@ describe("student app flow audit", () => {
     assert.equal(report.readiness, "NEEDS_REMEDIATION");
     assert.equal(
       report.findings.find((finding) => finding.id === "teaching.path./v1/student-app/quiz-scan-submissions").passed,
+      false,
+    );
+  });
+
+  it("fails when a Student App summary fast path is missing", () => {
+    const inputs = loadCurrentInputs();
+    const report = auditStudentAppFlowContracts({
+      ...inputs,
+      teachingOpenapiText: inputs.teachingOpenapiText.replace(
+        "/v1/student-app/question-bank-drafts/summary:",
+        "/v1/student-app/question-bank-drafts/summary-missing:",
+      ),
+    });
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(
+      report.findings.find((finding) => finding.id === "teaching.summary.path./v1/student-app/question-bank-drafts/summary").passed,
+      false,
+    );
+  });
+
+  it("fails when a Student App summary fast path loses private conditional caching", () => {
+    const inputs = loadCurrentInputs();
+    const summaryPathFile = "teaching-archive.student-app-archive-items-summary.path.yaml";
+    const report = auditStudentAppFlowContracts({
+      ...inputs,
+      teachingSummaryContractFiles: {
+        ...inputs.teachingSummaryContractFiles,
+        [summaryPathFile]: inputs.teachingSummaryContractFiles[summaryPathFile].replace("    '304':", "    '305':"),
+      },
+    });
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(
+      report.findings.find((finding) => finding.id === "teaching.summary.private_cache./v1/student-app/archive-items/summary").passed,
+      false,
+    );
+  });
+
+  it("fails when a Student App summary-only response leaks list fields", () => {
+    const inputs = loadCurrentInputs();
+    const summarySchemaFile = "teaching-archive.student-app-question-bank-drafts-summary.schema.yaml";
+    const report = auditStudentAppFlowContracts({
+      ...inputs,
+      teachingSummaryContractFiles: {
+        ...inputs.teachingSummaryContractFiles,
+        [summarySchemaFile]: inputs.teachingSummaryContractFiles[summarySchemaFile].replace(
+          "    summary:",
+          "    data:\n      type: array\n    summary:",
+        ),
+      },
+    });
+
+    assert.equal(report.readiness, "NEEDS_REMEDIATION");
+    assert.equal(
+      report.findings.find((finding) => finding.id === "teaching.summary.response_shape.StudentAppQuestionBankDraftSummaryOnlyResponse").passed,
       false,
     );
   });
