@@ -12,13 +12,19 @@ const outputSchemaVersion = "2026-06-08.student-app.ai-tutor-result-student-visi
 const sourceRuntimeId = "student_app_ai_tutor_reviewed_result_persistence_bridge_runtime";
 const sourceResultArchiveReviewedResultPersistenceRuntimeId =
   "student_app_ai_tutor_result_archive_reviewed_result_persistence_bridge";
+const sourceQuestionBankFeedbackReviewedResultPersistenceRuntimeId =
+  "student_app_ai_tutor_question_bank_feedback_reviewed_result_persistence_bridge";
 const sourceCommandPort = "StudentAppAITutorResultPort.recordTutoringAnalysisResult";
 const sourceStatus = "STUDENT_APP_AI_TUTOR_REVIEWED_RESULT_PERSISTED";
 const sourceResultArchiveReviewedResultPersistenceStatus =
   "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_REVIEWED_RESULT_PERSISTED";
+const sourceQuestionBankFeedbackReviewedResultPersistenceStatus =
+  "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_REVIEWED_RESULT_PERSISTED";
 const sourceWorkloadType = "STUDENT_APP_AI_TUTOR_REVIEWED_RESULT_PERSISTENCE_BRIDGE";
 const sourceResultArchiveReviewedResultPersistenceWorkloadType =
   "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_REVIEWED_RESULT_PERSISTENCE_BRIDGE";
+const sourceQuestionBankFeedbackReviewedResultPersistenceWorkloadType =
+  "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_REVIEWED_RESULT_PERSISTENCE_BRIDGE";
 const recordedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_VISIBILITY_REVIEW_RECORDED";
 const defaultReviewLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-visibility-review.jsonl";
@@ -103,6 +109,7 @@ function normalizeInput(input) {
     guidanceSectionsHash: sourceResult.guidanceSectionsHash,
     learningActionSource: sourceResult.learningActionSource,
     resultArchiveStatus: sourceResult.resultArchiveStatus,
+    feedbackStatus: sourceResult.feedbackStatus,
     policy,
   });
   return { reviewInvocationId, sourceReport, sourceResult, principal, review, policy, evidenceRefs, idempotencyKey, inputHash };
@@ -112,11 +119,16 @@ function assertReviewedResultPersistenceReport(report) {
   assertPlainObject(report, "input.reviewedResultPersistenceBridgeReport");
   requireConst(report.readiness, "READY", "input.reviewedResultPersistenceBridgeReport.readiness");
   const isResultArchiveSource = report.workloadType === sourceResultArchiveReviewedResultPersistenceWorkloadType;
-  requireOneOf(report.workloadType, "input.reviewedResultPersistenceBridgeReport.workloadType", [sourceWorkloadType, sourceResultArchiveReviewedResultPersistenceWorkloadType]);
+  const isQuestionBankFeedbackSource = report.workloadType === sourceQuestionBankFeedbackReviewedResultPersistenceWorkloadType;
+  requireOneOf(report.workloadType, "input.reviewedResultPersistenceBridgeReport.workloadType", [sourceWorkloadType, sourceResultArchiveReviewedResultPersistenceWorkloadType, sourceQuestionBankFeedbackReviewedResultPersistenceWorkloadType]);
   if (isResultArchiveSource) {
     requireConst(report.runtime?.runtimeId, sourceResultArchiveReviewedResultPersistenceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.runtimeId");
     requireConst(report.runtime?.sharedRuntimeId, sourceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.sharedRuntimeId");
     requireConst(report.runtime?.status, sourceResultArchiveReviewedResultPersistenceStatus, "input.reviewedResultPersistenceBridgeReport.runtime.status");
+  } else if (isQuestionBankFeedbackSource) {
+    requireConst(report.runtime?.runtimeId, sourceQuestionBankFeedbackReviewedResultPersistenceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.runtimeId");
+    requireConst(report.runtime?.sharedRuntimeId, sourceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.sharedRuntimeId");
+    requireConst(report.runtime?.status, sourceQuestionBankFeedbackReviewedResultPersistenceStatus, "input.reviewedResultPersistenceBridgeReport.runtime.status");
   } else {
     requireConst(report.runtime?.runtimeId, sourceRuntimeId, "input.reviewedResultPersistenceBridgeReport.runtime.runtimeId");
     requireConst(report.runtime?.status, sourceStatus, "input.reviewedResultPersistenceBridgeReport.runtime.status");
@@ -124,13 +136,14 @@ function assertReviewedResultPersistenceReport(report) {
   requireConst(report.runtime?.commandPort, sourceCommandPort, "input.reviewedResultPersistenceBridgeReport.runtime.commandPort");
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.reviewedResultPersistenceBridgeReport.runtimeSlo.totalErrors");
   const invariants = assertPlainObject(report.safetyInvariants, "input.reviewedResultPersistenceBridgeReport.safetyInvariants");
-  const trueFields = isResultArchiveSource
+  const trueFields = isResultArchiveSource || isQuestionBankFeedbackSource
     ? ["source0339ResultArchiveAnswerReviewGateRequired", "resultPersistenceAllowed", "tutoringResultRecorded"]
     : ["answerReviewGateRequired", "approvedReviewRequired", "resultPersistenceCommitted", "tutoringResultRecorded"];
+  if (isQuestionBankFeedbackSource) trueFields[0] = "source0373QuestionBankFeedbackAnswerReviewGateRequired";
   for (const field of trueFields) {
     requireConst(invariants[field], true, `input.reviewedResultPersistenceBridgeReport.safetyInvariants.${field}`);
   }
-  const falseFields = isResultArchiveSource
+  const falseFields = isResultArchiveSource || isQuestionBankFeedbackSource
     ? ["guidanceTextSentToPort", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]
     : ["resultRefExposed", "guidanceTextSentToPort", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"];
   for (const field of falseFields) {
@@ -140,13 +153,19 @@ function assertReviewedResultPersistenceReport(report) {
     requireConst(invariants.learningActionSourceRequired, "AI_TUTOR_RESULT_ARCHIVE", "input.reviewedResultPersistenceBridgeReport.safetyInvariants.learningActionSourceRequired");
     requireConst(invariants.resultArchiveStatusRequired, "READY_FOR_STUDENT_APP_READ", "input.reviewedResultPersistenceBridgeReport.safetyInvariants.resultArchiveStatusRequired");
   }
+  if (isQuestionBankFeedbackSource) {
+    requireConst(invariants.learningActionSourceRequired, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK", "input.reviewedResultPersistenceBridgeReport.safetyInvariants.learningActionSourceRequired");
+    requireConst(invariants.feedbackStatusRequired, "READY_FOR_STUDENT_APP_READ", "input.reviewedResultPersistenceBridgeReport.safetyInvariants.feedbackStatusRequired");
+  }
   return report;
 }
 
 function assertReviewedResultPersistenceResult(report) {
   const result = report.runtimeProbes?.studentAppAiTutorReviewedResultPersistenceBridge?.result
-    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveReviewedResultPersistenceBridge?.result;
+    ?? report.runtimeProbes?.studentAppAiTutorResultArchiveReviewedResultPersistenceBridge?.result
+    ?? report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackReviewedResultPersistenceBridge?.result;
   const isResultArchiveSource = report.workloadType === sourceResultArchiveReviewedResultPersistenceWorkloadType;
+  const isQuestionBankFeedbackSource = report.workloadType === sourceQuestionBankFeedbackReviewedResultPersistenceWorkloadType;
   assertPlainObject(result, "source.reviewedResultPersistence.result");
   requireConst(result.runtimeId, sourceRuntimeId, "source.reviewedResultPersistence.runtimeId");
   requireConst(result.commandPort, sourceCommandPort, "source.reviewedResultPersistence.commandPort");
@@ -161,6 +180,8 @@ function assertReviewedResultPersistenceResult(report) {
   requireConst(reviewedResult.status, "SUCCEEDED", "source.reviewedResultPersistence.reviewedResult.status");
   const learningActionSource = isResultArchiveSource ? requireConst(result.learningActionSource, "AI_TUTOR_RESULT_ARCHIVE", "source.reviewedResultPersistence.learningActionSource") : undefined;
   const resultArchiveStatus = isResultArchiveSource ? requireConst(result.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "source.reviewedResultPersistence.resultArchiveStatus") : undefined;
+  const questionBankFeedbackLearningActionSource = isQuestionBankFeedbackSource ? requireConst(result.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK", "source.reviewedResultPersistence.learningActionSource") : undefined;
+  const feedbackStatus = isQuestionBankFeedbackSource ? requireConst(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ", "source.reviewedResultPersistence.feedbackStatus") : undefined;
   return {
     recordId: requireBoundedString(result.recordId, "source.reviewedResultPersistence.recordId", 1, 260),
     requestId: requireToken(reviewedResult.requestId, "source.reviewedResultPersistence.reviewedResult.requestId", "tutor_req_"),
@@ -171,8 +192,9 @@ function assertReviewedResultPersistenceResult(report) {
     guidanceSectionsHash: requireHex(reviewedResult.guidanceSectionsHash, "source.reviewedResultPersistence.reviewedResult.guidanceSectionsHash"),
     completedAt: requireIsoString(reviewedResult.completedAt, "source.reviewedResultPersistence.reviewedResult.completedAt"),
     resultRefHash: requireHex(reviewedResult.resultRefHash, "source.reviewedResultPersistence.reviewedResult.resultRefHash"),
-    learningActionSource,
+    learningActionSource: learningActionSource ?? questionBankFeedbackLearningActionSource,
     resultArchiveStatus,
+    feedbackStatus,
   };
 }
 
@@ -272,6 +294,7 @@ function buildPortRequest(normalized) {
     source: {
       learningActionSource: normalized.sourceResult.learningActionSource,
       resultArchiveStatus: normalized.sourceResult.resultArchiveStatus,
+      feedbackStatus: normalized.sourceResult.feedbackStatus,
     },
     checklist: normalized.review.reviewChecklist,
     evidenceRefs: uniq([...normalized.evidenceRefs, `evidence:reviewed-result-record:${normalized.sourceResult.recordId}`]),
@@ -323,6 +346,7 @@ function buildReviewRecord(normalized, portRequest, reviewResult, recordedAt) {
       resultRefHash: normalized.sourceResult.resultRefHash,
       learningActionSource: normalized.sourceResult.learningActionSource,
       resultArchiveStatus: normalized.sourceResult.resultArchiveStatus,
+      feedbackStatus: normalized.sourceResult.feedbackStatus,
     },
     portRequest: {
       operation: portRequest.operation,

@@ -58,6 +58,32 @@ describe("Student App AI Tutor result student visibility review runtime", () => 
     assert.equal(port.calls[0].safety.rawResultRefSentToPort, false);
   });
 
+  it("records a question-bank-feedback-sourced student visibility review through the same review port", async () => {
+    const input = baseInput("reports/student-app-ai-tutor-question-bank-feedback-reviewed-result-persistence-bridge.current.json");
+    input.reviewInvocationId = "ai_tutor_result_visibility_review_feedback_001";
+    input.studentVisibilityReview.reviewId = "ai_tutor_result_visibility_review_feedback_001";
+    input.idempotencyKey = "student-app-ai-tutor-question-bank-feedback-visibility-review:ai_tutor_answer_review_gate_feedback_001";
+    input.evidenceRefs = [
+      "evidence:reviewed-result-persistence:student-app-ai-tutor-question-bank-feedback-reviewed-result-persistence-bridge",
+      "evidence:student-visibility-review:teacher-question-bank-feedback-review",
+    ];
+    const port = reviewPort();
+    const result = await recordStudentAppAITutorResultStudentVisibilityReview(input, {
+      resultStudentVisibilityReviewPort: port,
+      reviewLogPath: tempLog(),
+      generatedAt: "2026-06-11T14:30:00.000Z",
+    });
+
+    assert.equal(result.sourceReviewedResult.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.sourceReviewedResult.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.boundary.studentVisiblePublished, false);
+    assert.equal(result.boundary.futureStudentDeliveryRequiresSeparateRuntime, true);
+    assert.equal(port.calls.length, 1);
+    assert.equal(port.calls[0].source.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(port.calls[0].source.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(port.calls[0].safety.rawResultRefSentToPort, false);
+  });
+
   it("rejects unsafe result-archive reviewed-result persistence source metadata", async () => {
     const unsafe = baseInput("reports/student-app-ai-tutor-result-archive-reviewed-result-persistence-bridge.current.json");
     unsafe.reviewInvocationId = "ai_tutor_result_visibility_review_archive_unsafe_001";
@@ -71,6 +97,22 @@ describe("Student App AI Tutor result student visibility review runtime", () => 
         reviewLogPath: tempLog(),
       }),
       /learningActionSourceRequired must be AI_TUTOR_RESULT_ARCHIVE/u,
+    );
+  });
+
+  it("rejects unsafe question-bank-feedback reviewed-result persistence source metadata", async () => {
+    const unsafe = baseInput("reports/student-app-ai-tutor-question-bank-feedback-reviewed-result-persistence-bridge.current.json");
+    unsafe.reviewInvocationId = "ai_tutor_result_visibility_review_feedback_unsafe_001";
+    unsafe.studentVisibilityReview.reviewId = "ai_tutor_result_visibility_review_feedback_unsafe_001";
+    unsafe.idempotencyKey = "student-app-ai-tutor-question-bank-feedback-visibility-review:unsafe";
+    unsafe.reviewedResultPersistenceBridgeReport.safetyInvariants.learningActionSourceRequired = "AI_TUTOR_RESULT_ARCHIVE";
+
+    await assert.rejects(
+      () => recordStudentAppAITutorResultStudentVisibilityReview(unsafe, {
+        resultStudentVisibilityReviewPort: reviewPort(),
+        reviewLogPath: tempLog(),
+      }),
+      /learningActionSourceRequired must be QUESTION_BANK_DRAFT_ANSWER_FEEDBACK/u,
     );
   });
 
@@ -198,7 +240,8 @@ function tempLog() {
 function baseInput(sourcePath = "reports/student-app-ai-tutor-reviewed-result-persistence-bridge.current.json") {
   const source = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
   const result = source.runtimeProbes.studentAppAiTutorReviewedResultPersistenceBridge?.result
-    ?? source.runtimeProbes.studentAppAiTutorResultArchiveReviewedResultPersistenceBridge?.result;
+    ?? source.runtimeProbes.studentAppAiTutorResultArchiveReviewedResultPersistenceBridge?.result
+    ?? source.runtimeProbes.studentAppAiTutorQuestionBankFeedbackReviewedResultPersistenceBridge?.result;
   return {
     schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-visibility-review.v1",
     reviewInvocationId: "ai_tutor_result_visibility_review_001",
