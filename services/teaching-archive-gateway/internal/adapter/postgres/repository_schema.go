@@ -498,4 +498,26 @@ var schemaFeatureStatements = []string{
 		ON teaching_question_bank_draft_answer_submissions (student_id, submitted_at DESC, id DESC)`,
 	`CREATE INDEX IF NOT EXISTS idx_teaching_question_bank_draft_answer_submissions_draft_submitted
 		ON teaching_question_bank_draft_answer_submissions (question_bank_draft_ref, submitted_at DESC, id DESC)`,
+	`CREATE TABLE IF NOT EXISTS teaching_question_bank_draft_answer_feedback_archive_snapshots (
+		feedback_archive_item_id TEXT PRIMARY KEY REFERENCES teaching_archive_items(id),
+		submission_id TEXT NOT NULL REFERENCES teaching_question_bank_draft_answer_submissions(id),
+		student_id TEXT NOT NULL,
+		request_id TEXT NOT NULL REFERENCES teaching_ai_grading_requests(id),
+		question_bank_draft_ref TEXT NOT NULL,
+		tutoring_analysis_request_id TEXT NOT NULL REFERENCES teaching_tutoring_analysis_requests(id),
+		source_archive_item_id TEXT NOT NULL REFERENCES teaching_archive_items(id),
+		score_summary TEXT NOT NULL,
+		learner_feedback JSONB NOT NULL,
+		safe_learner_feedback_only BOOLEAN NOT NULL,
+		reviewed_at TIMESTAMPTZ NOT NULL,
+		archived_at TIMESTAMPTZ NOT NULL,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_qbank_answer_feedback_snapshots_student_latest
+		ON teaching_question_bank_draft_answer_feedback_archive_snapshots (submission_id, student_id, archived_at DESC, feedback_archive_item_id)
+		WHERE safe_learner_feedback_only = TRUE`,
+	`CREATE INDEX IF NOT EXISTS idx_teaching_qbank_answer_feedback_snapshots_lineage
+		ON teaching_question_bank_draft_answer_feedback_archive_snapshots (request_id, source_archive_item_id, feedback_archive_item_id)
+		WHERE safe_learner_feedback_only = TRUE`,
 }

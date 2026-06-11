@@ -303,6 +303,102 @@ func TestReadStudentAppQuestionBankDraftAnswerScoringResultRejectsUnsupportedMet
 	}
 }
 
+func TestReadStudentAppQuestionBankDraftAnswerFeedbackReturnsSafeCard(t *testing.T) {
+	handler := newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/question-bank-draft-answer-submissions/qbank_ans_sub_http_answer/ai-feedback",
+		http.NoBody,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"submissionId":"qbank_ans_sub_http_answer"`),
+		[]byte(`"requestId":"grading_req_qbank_answer_feedback_http"`),
+		[]byte(`"archiveItemId":"tarch_http_3"`),
+		[]byte(`"feedbackArchiveItemId":"tarch_student_feedback_http"`),
+		[]byte(`"status":"READY_FOR_STUDENT_APP_READ"`),
+		[]byte(`"scoreSummary":"score 93"`),
+		[]byte(`"learnerFeedback"`),
+		[]byte(`"summary":"Your comparison is close; focus on matching denominators before judging size."`),
+		[]byte(`"nextSteps":["Rewrite both fractions with a common denominator.","Compare the numerators only after denominators match."]`),
+		[]byte(`"misconceptionTags":["denominator-mismatch"]`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"studentId"`),
+		[]byte(`"contentRef"`),
+		[]byte(`answerText`),
+		[]byte(`expectedAnswer`),
+		[]byte(`explanation`),
+		[]byte(`resultRef`),
+		[]byte(`rawModelOutput`),
+		[]byte(`workerId`),
+		[]byte(`claimedByWorkerId`),
+		[]byte(`3/4`),
+		[]byte(`Use a common denominator of 4.`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestReadStudentAppQuestionBankDraftAnswerFeedbackRejectsTeacherCrossStudentAndMethod(t *testing.T) {
+	tests := []struct {
+		name      string
+		principal domain.PrincipalContext
+		want      int
+	}{
+		{name: "teacher", principal: teacherPrincipal(), want: http.StatusForbidden},
+		{name: "cross student", principal: studentPrincipal("student_002"), want: http.StatusNotFound},
+		{name: "remote", principal: remotePrincipal(), want: http.StatusForbidden},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback()
+			request := httptest.NewRequest(
+				http.MethodGet,
+				"/v1/student-app/question-bank-draft-answer-submissions/qbank_ans_sub_http_answer/ai-feedback",
+				http.NoBody,
+			)
+			request.Header.Set("X-Agent-Api-Key", "ueacd")
+			setPrincipalHeader(t, request, tt.principal)
+
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != tt.want {
+				t.Fatalf("status = %d, want %d, body = %s", response.Code, tt.want, response.Body.String())
+			}
+		})
+	}
+
+	handler := newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback()
+	post := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/question-bank-draft-answer-submissions/qbank_ans_sub_http_answer/ai-feedback",
+		http.NoBody,
+	)
+	post.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, post, studentPrincipal("student_001"))
+	postResponse := httptest.NewRecorder()
+	handler.ServeHTTP(postResponse, post)
+	if postResponse.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("post status = %d, body = %s", postResponse.Code, postResponse.Body.String())
+	}
+}
+
 func newTestHandlerWithStudentAppQuestionBankDraftAnswerSubmission() http.Handler {
 	store := &fakeRepository{
 		questionBankDraftContents: []domain.QuestionBankDraftContent{
@@ -373,6 +469,26 @@ func newTestHandlerWithStudentAppQuestionBankDraftAnswerScoringResult() http.Han
 	}).Handler()
 }
 
+func newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback() http.Handler {
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			questionBankDraftAnswerFeedbackHTTPArchiveItem("tarch_student_feedback_http", "student_001"),
+			questionBankDraftAnswerFeedbackHTTPArchiveItem("tarch_student_feedback_other", "student_002"),
+		},
+		questionBankDraftAnswerSubmissions: []domain.QuestionBankDraftAnswerSubmission{
+			questionBankDraftHTTPAnswerSubmission(),
+		},
+		questionBankDraftAnswerFeedbackSnapshots: []domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{
+			questionBankDraftAnswerFeedbackHTTPSnapshot("tarch_student_feedback_http", "qbank_ans_sub_http_answer", "student_001"),
+			questionBankDraftAnswerFeedbackHTTPSnapshot("tarch_student_feedback_other", "qbank_ans_sub_http_answer", "student_002"),
+		},
+	}
+	return httpapi.NewServer(httpapi.ServerConfig{
+		ReadStudentAppQuestionBankDraftAnswerFeedback: usecase.NewReadStudentAppQuestionBankDraftAnswerFeedback(store),
+		AgentAPIKey: "ueacd",
+	}).Handler()
+}
+
 func questionBankDraftHTTPAnswerSubmission() domain.QuestionBankDraftAnswerSubmission {
 	return domain.QuestionBankDraftAnswerSubmission{
 		ID:                        "qbank_ans_sub_http_answer",
@@ -386,5 +502,49 @@ func questionBankDraftHTTPAnswerSubmission() domain.QuestionBankDraftAnswerSubmi
 			{ItemID: "q_001", AnswerText: "3/4"},
 		},
 		SubmittedAt: time.Date(2026, 6, 6, 9, 32, 0, 0, time.UTC),
+	}
+}
+
+func questionBankDraftAnswerFeedbackHTTPArchiveItem(id string, studentID string) domain.ArchiveItem {
+	return domain.ArchiveItem{
+		ID:              id,
+		OwnerType:       domain.OwnerTypeStudent,
+		StudentID:       studentID,
+		MaterialType:    domain.MaterialTypeHomework,
+		Title:           "Student AI Tutor feedback archive qbank_ans_sub_http_answer",
+		Source:          domain.SourceSystemImport,
+		ContentRef:      "student-ai-tutor-feedback-archive:feedback_archive_cmd_qbank_http:sha256_4249595968f7ea8d603e6620d8f4abb688e52629b10fe0d9244627287fe18463",
+		Tags:            []string{"student_app_ai_tutor", "feedback", "question_bank", "archive_commit"},
+		AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly, domain.AnalysisIntentTutoring},
+		OCRStatus:       domain.OCRStatusNotRequired,
+		CreatedAt:       time.Date(2026, 6, 6, 10, 30, 0, 0, time.UTC),
+	}
+}
+
+func questionBankDraftAnswerFeedbackHTTPSnapshot(
+	feedbackArchiveItemID string,
+	submissionID string,
+	studentID string,
+) domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot {
+	return domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{
+		FeedbackArchiveItemID:     feedbackArchiveItemID,
+		SubmissionID:              submissionID,
+		StudentID:                 studentID,
+		RequestID:                 "grading_req_qbank_answer_feedback_http",
+		QuestionBankDraftRef:      "local://question-bank-drafts/tutor_req_001.json",
+		TutoringAnalysisRequestID: "tutor_req_001",
+		SourceArchiveItemID:       "tarch_http_3",
+		ScoreSummary:              "score 93",
+		LearnerFeedback: domain.QuestionBankDraftAnswerLearnerFeedback{
+			Summary:             "Your comparison is close; focus on matching denominators before judging size.",
+			Encouragement:       "You identified the key numbers and can fix the reasoning with one more step.",
+			NextSteps:           []string{"Rewrite both fractions with a common denominator.", "Compare the numerators only after denominators match."},
+			MisconceptionTags:   []string{"denominator-mismatch"},
+			PracticeSuggestions: []string{"Try two more fraction comparison items with unlike denominators."},
+		},
+		SafeLearnerFeedbackOnly: true,
+		ReviewedAt:              time.Date(2026, 6, 6, 10, 20, 0, 0, time.UTC),
+		ArchivedAt:              time.Date(2026, 6, 6, 10, 30, 0, 0, time.UTC),
+		UpdatedAt:               time.Date(2026, 6, 6, 10, 31, 0, 0, time.UTC),
 	}
 }

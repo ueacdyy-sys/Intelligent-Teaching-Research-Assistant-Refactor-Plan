@@ -85,6 +85,9 @@ func main() {
 	readStudentAppQuestionBankDraftAnswerScoringResult := usecase.NewReadStudentAppQuestionBankDraftAnswerScoringResult(
 		archiveRepository,
 	)
+	readStudentAppQuestionBankDraftAnswerFeedback := usecase.NewReadStudentAppQuestionBankDraftAnswerFeedback(
+		archiveRepository,
+	)
 	createStudentAppAITutorRequest := usecase.NewCreateStudentAppAITutorRequest(
 		archiveRepository,
 		platform.TutoringRequestIDGenerator{},
@@ -205,6 +208,7 @@ func main() {
 			SubmitStudentAppQuestionBankDraftAnswer:               submitStudentAppQuestionBankDraftAnswer,
 			CreateStudentAppQuestionBankDraftAnswerScoringRequest: createStudentAppQuestionBankDraftAnswerScoringRequest,
 			ReadStudentAppQuestionBankDraftAnswerScoringResult:    readStudentAppQuestionBankDraftAnswerScoringResult,
+			ReadStudentAppQuestionBankDraftAnswerFeedback:         readStudentAppQuestionBankDraftAnswerFeedback,
 			CreateStudentAppAITutorRequest:                        createStudentAppAITutorRequest,
 			ListStudentAppAITutorRequests:                         listStudentAppAITutorRequests,
 			ReadStudentAppAITutorRequestProgress:                  readStudentAppAITutorRequestProgress,

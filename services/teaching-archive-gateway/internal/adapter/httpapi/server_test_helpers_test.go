@@ -206,20 +206,21 @@ func servicePrincipal() domain.PrincipalContext {
 }
 
 type fakeRepository struct {
-	items                              []domain.ArchiveItem
-	publishedArchiveItemIDs            map[string]bool
-	requests                           []domain.TutoringAnalysisRequest
-	gradingRequests                    []domain.AIGradingRequest
-	quizSubmissions                    []domain.QuizSubmission
-	contentPreviews                    []domain.PublishedArchiveMaterialContentPreview
-	aiTutorResultArchiveSnapshots      []domain.StudentAppAITutorResultArchiveSnapshot
-	questionBankDraftContents          []domain.QuestionBankDraftContent
-	questionBankDraftAnswerSubmissions []domain.QuestionBankDraftAnswerSubmission
-	quizDraftIntents                   []domain.TeachingQuizDraftIntent
-	archiveMaterialDraftIntents        []domain.TeachingArchiveMaterialDraftIntent
-	attendanceSessions                 []domain.AttendanceSession
-	attendanceRecords                  []domain.AttendanceRecord
-	attendanceStats                    domain.AttendanceStatistics
+	items                                    []domain.ArchiveItem
+	publishedArchiveItemIDs                  map[string]bool
+	requests                                 []domain.TutoringAnalysisRequest
+	gradingRequests                          []domain.AIGradingRequest
+	quizSubmissions                          []domain.QuizSubmission
+	contentPreviews                          []domain.PublishedArchiveMaterialContentPreview
+	aiTutorResultArchiveSnapshots            []domain.StudentAppAITutorResultArchiveSnapshot
+	questionBankDraftAnswerFeedbackSnapshots []domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot
+	questionBankDraftContents                []domain.QuestionBankDraftContent
+	questionBankDraftAnswerSubmissions       []domain.QuestionBankDraftAnswerSubmission
+	quizDraftIntents                         []domain.TeachingQuizDraftIntent
+	archiveMaterialDraftIntents              []domain.TeachingArchiveMaterialDraftIntent
+	attendanceSessions                       []domain.AttendanceSession
+	attendanceRecords                        []domain.AttendanceRecord
+	attendanceStats                          domain.AttendanceStatistics
 
 	lastAttendanceStatsQuery domain.AttendanceStatisticsQuery
 }

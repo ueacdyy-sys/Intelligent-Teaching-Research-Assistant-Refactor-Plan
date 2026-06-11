@@ -30,6 +30,7 @@ type ServerConfig struct {
 	SubmitStudentAppQuestionBankDraftAnswer               *usecase.SubmitStudentAppQuestionBankDraftAnswer
 	CreateStudentAppQuestionBankDraftAnswerScoringRequest *usecase.CreateStudentAppQuestionBankDraftAnswerScoringRequest
 	ReadStudentAppQuestionBankDraftAnswerScoringResult    *usecase.ReadStudentAppQuestionBankDraftAnswerScoringResult
+	ReadStudentAppQuestionBankDraftAnswerFeedback         *usecase.ReadStudentAppQuestionBankDraftAnswerFeedback
 	CreateQuizSubmission                                  *usecase.CreateQuizSubmission
 	ListQuizSubmissions                                   *usecase.ListQuizSubmissions
 	CreateAIGradingRequest                                *usecase.CreateAIGradingRequest

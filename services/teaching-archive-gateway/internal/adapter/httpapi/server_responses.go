@@ -426,6 +426,35 @@ type questionBankDraftAnswerScoringResultResponse struct {
 	UpdatedAt                 string                 `json:"updatedAt"`
 }
 
+type questionBankDraftAnswerFeedbackResponse struct {
+	SubmissionID              string                                                 `json:"submissionId"`
+	RequestID                 string                                                 `json:"requestId"`
+	QuestionBankDraftRef      string                                                 `json:"questionBankDraftRef"`
+	TutoringAnalysisRequestID string                                                 `json:"tutoringAnalysisRequestId"`
+	ArchiveItemID             string                                                 `json:"archiveItemId"`
+	FeedbackArchiveItemID     string                                                 `json:"feedbackArchiveItemId"`
+	Status                    domain.StudentAppQuestionBankDraftAnswerFeedbackStatus `json:"status"`
+	MaterialType              domain.MaterialType                                    `json:"materialType"`
+	Title                     string                                                 `json:"title"`
+	Source                    domain.Source                                          `json:"source"`
+	Tags                      []string                                               `json:"tags"`
+	AnalysisIntents           []domain.AnalysisIntent                                `json:"analysisIntents"`
+	OCRStatus                 domain.OCRStatus                                       `json:"ocrStatus"`
+	ScoreSummary              string                                                 `json:"scoreSummary"`
+	LearnerFeedback           questionBankDraftAnswerLearnerFeedback                 `json:"learnerFeedback"`
+	ReviewedAt                string                                                 `json:"reviewedAt"`
+	ArchivedAt                string                                                 `json:"archivedAt"`
+	UpdatedAt                 string                                                 `json:"updatedAt"`
+}
+
+type questionBankDraftAnswerLearnerFeedback struct {
+	Summary             string   `json:"summary"`
+	Encouragement       string   `json:"encouragement"`
+	NextSteps           []string `json:"nextSteps"`
+	MisconceptionTags   []string `json:"misconceptionTags"`
+	PracticeSuggestions []string `json:"practiceSuggestions"`
+}
+
 type aiGradingRequestResponse struct {
 	ID                                   string                 `json:"id"`
 	ArchiveItemID                        string                 `json:"archiveItemId"`

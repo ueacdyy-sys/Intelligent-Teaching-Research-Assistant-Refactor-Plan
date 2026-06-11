@@ -1,0 +1,149 @@
+get:
+  operationId: readStudentAppQuestionBankDraftAnswerAIFeedback
+  summary: Read a student's own reviewed and archived AI feedback for a question-bank draft answer submission.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: submissionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+  responses:
+    '200':
+      description: Student-visible reviewed feedback card. The response is allowlisted safe learner feedback and does not return answer text, answer keys, expected answers, explanations, contentRef, resultRef, raw model output, prompts, worker metadata, or database details.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - submissionId
+              - requestId
+              - questionBankDraftRef
+              - tutoringAnalysisRequestId
+              - archiveItemId
+              - feedbackArchiveItemId
+              - status
+              - materialType
+              - title
+              - source
+              - tags
+              - analysisIntents
+              - ocrStatus
+              - scoreSummary
+              - learnerFeedback
+              - reviewedAt
+              - archivedAt
+              - updatedAt
+            properties:
+              submissionId:
+                type: string
+                pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+              requestId:
+                type: string
+                pattern: '^grading_req_[A-Za-z0-9_-]+$'
+              questionBankDraftRef:
+                type: string
+                minLength: 1
+                maxLength: 1000
+              tutoringAnalysisRequestId:
+                type: string
+                pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              feedbackArchiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              status:
+                type: string
+                const: READY_FOR_STUDENT_APP_READ
+              materialType:
+                type: string
+                const: HOMEWORK
+              title:
+                type: string
+                minLength: 1
+                maxLength: 200
+              source:
+                type: string
+                const: SYSTEM_IMPORT
+              tags:
+                type: array
+                maxItems: 32
+                items:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+              analysisIntents:
+                type: array
+                items:
+                  $ref: './teaching-archive.yaml#/components/schemas/ArchiveAnalysisIntent'
+              ocrStatus:
+                type: string
+                const: NOT_REQUIRED
+              scoreSummary:
+                type: string
+                minLength: 1
+                maxLength: 1200
+              learnerFeedback:
+                type: object
+                additionalProperties: false
+                required:
+                  - summary
+                  - encouragement
+                  - nextSteps
+                  - misconceptionTags
+                  - practiceSuggestions
+                properties:
+                  summary:
+                    type: string
+                    minLength: 1
+                    maxLength: 1200
+                  encouragement:
+                    type: string
+                    minLength: 1
+                    maxLength: 1200
+                  nextSteps:
+                    type: array
+                    minItems: 1
+                    maxItems: 8
+                    items:
+                      type: string
+                      minLength: 1
+                      maxLength: 1200
+                  misconceptionTags:
+                    type: array
+                    maxItems: 12
+                    items:
+                      type: string
+                      minLength: 1
+                      maxLength: 80
+                  practiceSuggestions:
+                    type: array
+                    maxItems: 8
+                    items:
+                      type: string
+                      minLength: 1
+                      maxLength: 1200
+              reviewedAt:
+                type: string
+                format: date-time
+              archivedAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'
