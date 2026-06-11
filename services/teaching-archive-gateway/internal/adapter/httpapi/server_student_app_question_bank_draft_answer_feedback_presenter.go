@@ -32,3 +32,33 @@ func toStudentAppQuestionBankDraftAnswerFeedbackResponse(
 		UpdatedAt:  formatTime(feedback.UpdatedAt),
 	}
 }
+
+func toStudentAppQuestionBankDraftAnswerFeedbackRenderResponse(
+	rendered domain.QuestionBankDraftAnswerFeedbackRenderEnvelope,
+) questionBankDraftAnswerFeedbackRenderResponse {
+	blocks := make([]questionBankDraftAnswerFeedbackRenderBlock, 0, len(rendered.Blocks))
+	for _, block := range rendered.Blocks {
+		blocks = append(blocks, questionBankDraftAnswerFeedbackRenderBlock{
+			BlockID:   block.BlockID,
+			BlockType: block.BlockType,
+			Title:     block.Title,
+			Text:      block.Text,
+		})
+	}
+	return questionBankDraftAnswerFeedbackRenderResponse{
+		SubmissionID:              rendered.SubmissionID,
+		RequestID:                 rendered.RequestID,
+		QuestionBankDraftRef:      rendered.QuestionBankDraftRef,
+		TutoringAnalysisRequestID: rendered.TutoringAnalysisRequestID,
+		ArchiveItemID:             rendered.ArchiveItemID,
+		FeedbackArchiveItemID:     rendered.FeedbackArchiveItemID,
+		Status:                    rendered.Status,
+		MaterialType:              rendered.MaterialType,
+		Title:                     rendered.Title,
+		RenderFormat:              rendered.RenderFormat,
+		Blocks:                    blocks,
+		ReviewedAt:                formatTime(rendered.ReviewedAt),
+		ArchivedAt:                formatTime(rendered.ArchivedAt),
+		UpdatedAt:                 formatTime(rendered.UpdatedAt),
+	}
+}

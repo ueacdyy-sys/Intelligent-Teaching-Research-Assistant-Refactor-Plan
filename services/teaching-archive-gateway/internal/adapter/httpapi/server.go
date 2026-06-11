@@ -31,6 +31,7 @@ type Server struct {
 	createStudentAppQuestionBankDraftAnswerScoringRequest *usecase.CreateStudentAppQuestionBankDraftAnswerScoringRequest
 	readStudentAppQuestionBankDraftAnswerScoringResult    *usecase.ReadStudentAppQuestionBankDraftAnswerScoringResult
 	readStudentAppQuestionBankDraftAnswerFeedback         *usecase.ReadStudentAppQuestionBankDraftAnswerFeedback
+	renderStudentAppQuestionBankDraftAnswerFeedback       *usecase.RenderStudentAppQuestionBankDraftAnswerFeedback
 	createQuizSubmission                                  *usecase.CreateQuizSubmission
 	listQuizSubmissions                                   *usecase.ListQuizSubmissions
 	createAIGradingRequest                                *usecase.CreateAIGradingRequest
@@ -88,6 +89,7 @@ func NewServer(config ServerConfig) *Server {
 		createStudentAppQuestionBankDraftAnswerScoringRequest: config.CreateStudentAppQuestionBankDraftAnswerScoringRequest,
 		readStudentAppQuestionBankDraftAnswerScoringResult:    config.ReadStudentAppQuestionBankDraftAnswerScoringResult,
 		readStudentAppQuestionBankDraftAnswerFeedback:         config.ReadStudentAppQuestionBankDraftAnswerFeedback,
+		renderStudentAppQuestionBankDraftAnswerFeedback:       config.RenderStudentAppQuestionBankDraftAnswerFeedback,
 		createQuizSubmission:                                  config.CreateQuizSubmission,
 		listQuizSubmissions:                                   config.ListQuizSubmissions,
 		createAIGradingRequest:                                config.CreateAIGradingRequest,

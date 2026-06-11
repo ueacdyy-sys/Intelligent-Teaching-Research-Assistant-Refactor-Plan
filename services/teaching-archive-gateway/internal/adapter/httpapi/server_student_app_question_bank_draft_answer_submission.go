@@ -17,6 +17,15 @@ func (s *Server) studentAppQuestionBankDraftAnswerSubmissions(w http.ResponseWri
 }
 
 func (s *Server) studentAppQuestionBankDraftAnswerSubmissionSubresources(w http.ResponseWriter, r *http.Request) {
+	if submissionID, ok := parseStudentAppQuestionBankDraftAnswerSubmissionAIFeedbackRenderedPath(r.URL.Path); ok {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.renderStudentAppQuestionBankDraftAnswerFeedbackHTTP(w, r, submissionID)
+		return
+	}
+
 	if submissionID, ok := parseStudentAppQuestionBankDraftAnswerSubmissionAIFeedbackPath(r.URL.Path); ok {
 		if r.Method != http.MethodGet {
 			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -194,4 +203,36 @@ func (s *Server) readStudentAppQuestionBankDraftAnswerFeedbackMetadata(
 	}
 
 	writeJSON(w, http.StatusOK, toStudentAppQuestionBankDraftAnswerFeedbackResponse(feedback))
+}
+
+func (s *Server) renderStudentAppQuestionBankDraftAnswerFeedbackHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+	submissionID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.renderStudentAppQuestionBankDraftAnswerFeedback == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app question bank draft answer feedback renderer is not configured")
+		return
+	}
+
+	rendered, err := s.renderStudentAppQuestionBankDraftAnswerFeedback.Execute(
+		r.Context(),
+		domain.ReadStudentAppQuestionBankDraftAnswerFeedbackInput{
+			Principal:    principal,
+			SubmissionID: submissionID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to render question bank draft answer feedback") {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toStudentAppQuestionBankDraftAnswerFeedbackRenderResponse(rendered))
 }

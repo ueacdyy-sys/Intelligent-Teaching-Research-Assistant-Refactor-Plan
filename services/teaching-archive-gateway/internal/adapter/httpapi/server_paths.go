@@ -221,6 +221,19 @@ func parseStudentAppQuestionBankDraftAnswerSubmissionAIFeedbackPath(path string)
 	return submissionID, true
 }
 
+func parseStudentAppQuestionBankDraftAnswerSubmissionAIFeedbackRenderedPath(path string) (string, bool) {
+	const prefix = "/v1/student-app/question-bank-draft-answer-submissions/"
+	const suffix = "/ai-feedback/rendered"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return "", false
+	}
+	submissionID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if submissionID == "" || strings.Contains(submissionID, "/") {
+		return "", false
+	}
+	return submissionID, true
+}
+
 func parseAttendanceSessionRecordsPath(path string) (string, bool) {
 	const prefix = "/v1/teaching/attendance-sessions/"
 	const suffix = "/records"

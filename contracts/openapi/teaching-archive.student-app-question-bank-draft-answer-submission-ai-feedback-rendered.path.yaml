@@ -1,0 +1,111 @@
+get:
+  operationId: renderStudentAppQuestionBankDraftAnswerAIFeedback
+  summary: Render a student's own reviewed and archived AI feedback as safe text blocks.
+  tags: [teaching-archive]
+  security:
+    - AgentApiKey: []
+      PrincipalContextHeader: []
+  parameters:
+    - name: submissionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+  responses:
+    '200':
+      description: Safe rendered feedback envelope. This response does not include answer text, answer keys, expected answers, explanations, contentRef, resultRef, raw model output, prompts, worker metadata, rendered HTML, rendered Markdown, or database details.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - submissionId
+              - requestId
+              - questionBankDraftRef
+              - tutoringAnalysisRequestId
+              - archiveItemId
+              - feedbackArchiveItemId
+              - status
+              - materialType
+              - title
+              - renderFormat
+              - blocks
+              - reviewedAt
+              - archivedAt
+              - updatedAt
+            properties:
+              submissionId:
+                type: string
+                pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+              requestId:
+                type: string
+                pattern: '^grading_req_[A-Za-z0-9_-]+$'
+              questionBankDraftRef:
+                type: string
+                minLength: 1
+                maxLength: 1000
+              tutoringAnalysisRequestId:
+                type: string
+                pattern: '^tutor_req_[A-Za-z0-9_-]+$'
+              archiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              feedbackArchiveItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              status:
+                type: string
+                const: READY_FOR_STUDENT_APP_READ
+              materialType:
+                type: string
+                const: HOMEWORK
+              title:
+                type: string
+                minLength: 1
+                maxLength: 200
+              renderFormat:
+                type: string
+                const: SAFE_TEXT_BLOCKS
+              blocks:
+                type: array
+                minItems: 4
+                maxItems: 31
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [blockId, blockType, title, text]
+                  properties:
+                    blockId:
+                      type: string
+                      minLength: 1
+                      maxLength: 160
+                    blockType:
+                      type: string
+                      enum: [SCORE_SUMMARY, FEEDBACK_SUMMARY, ENCOURAGEMENT, NEXT_STEP, MISCONCEPTION_TAG, PRACTICE_SUGGESTION]
+                    title:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 1200
+              reviewedAt:
+                type: string
+                format: date-time
+              archivedAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+    '401':
+      $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
+    '403':
+      $ref: './teaching-archive.yaml#/components/responses/Forbidden'
+    '404':
+      $ref: './teaching-archive.yaml#/components/responses/NotFound'
+    '422':
+      $ref: './teaching-archive.yaml#/components/responses/ValidationError'

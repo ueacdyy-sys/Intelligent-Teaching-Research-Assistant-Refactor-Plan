@@ -399,6 +399,103 @@ func TestReadStudentAppQuestionBankDraftAnswerFeedbackRejectsTeacherCrossStudent
 	}
 }
 
+func TestRenderStudentAppQuestionBankDraftAnswerFeedbackReturnsSafeTextBlocks(t *testing.T) {
+	handler := newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/question-bank-draft-answer-submissions/qbank_ans_sub_http_answer/ai-feedback/rendered",
+		http.NoBody,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"submissionId":"qbank_ans_sub_http_answer"`),
+		[]byte(`"feedbackArchiveItemId":"tarch_student_feedback_http"`),
+		[]byte(`"renderFormat":"SAFE_TEXT_BLOCKS"`),
+		[]byte(`"blockType":"SCORE_SUMMARY"`),
+		[]byte(`"blockType":"FEEDBACK_SUMMARY"`),
+		[]byte(`"blockId":"next_step_001"`),
+		[]byte(`"blockType":"PRACTICE_SUGGESTION"`),
+		[]byte(`"text":"score 93"`),
+		[]byte(`"text":"Your comparison is close; focus on matching denominators before judging size."`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"studentId"`),
+		[]byte(`"contentRef"`),
+		[]byte(`"learnerFeedback"`),
+		[]byte(`answerText`),
+		[]byte(`expectedAnswer`),
+		[]byte(`explanation`),
+		[]byte(`resultRef`),
+		[]byte(`rawModelOutput`),
+		[]byte(`workerId`),
+		[]byte(`renderedHtml`),
+		[]byte(`renderedMarkdown`),
+		[]byte(`3/4`),
+		[]byte(`Use a common denominator of 4.`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestRenderStudentAppQuestionBankDraftAnswerFeedbackRejectsTeacherCrossStudentAndMethod(t *testing.T) {
+	tests := []struct {
+		name      string
+		principal domain.PrincipalContext
+		want      int
+	}{
+		{name: "teacher", principal: teacherPrincipal(), want: http.StatusForbidden},
+		{name: "cross student", principal: studentPrincipal("student_002"), want: http.StatusNotFound},
+		{name: "remote", principal: remotePrincipal(), want: http.StatusForbidden},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback()
+			request := httptest.NewRequest(
+				http.MethodGet,
+				"/v1/student-app/question-bank-draft-answer-submissions/qbank_ans_sub_http_answer/ai-feedback/rendered",
+				http.NoBody,
+			)
+			request.Header.Set("X-Agent-Api-Key", "ueacd")
+			setPrincipalHeader(t, request, tt.principal)
+
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != tt.want {
+				t.Fatalf("status = %d, want %d, body = %s", response.Code, tt.want, response.Body.String())
+			}
+		})
+	}
+
+	handler := newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback()
+	post := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/student-app/question-bank-draft-answer-submissions/qbank_ans_sub_http_answer/ai-feedback/rendered",
+		http.NoBody,
+	)
+	post.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, post, studentPrincipal("student_001"))
+	postResponse := httptest.NewRecorder()
+	handler.ServeHTTP(postResponse, post)
+	if postResponse.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("post status = %d, body = %s", postResponse.Code, postResponse.Body.String())
+	}
+}
+
 func newTestHandlerWithStudentAppQuestionBankDraftAnswerSubmission() http.Handler {
 	store := &fakeRepository{
 		questionBankDraftContents: []domain.QuestionBankDraftContent{
@@ -485,6 +582,9 @@ func newTestHandlerWithStudentAppQuestionBankDraftAnswerFeedback() http.Handler 
 	}
 	return httpapi.NewServer(httpapi.ServerConfig{
 		ReadStudentAppQuestionBankDraftAnswerFeedback: usecase.NewReadStudentAppQuestionBankDraftAnswerFeedback(store),
+		RenderStudentAppQuestionBankDraftAnswerFeedback: usecase.NewRenderStudentAppQuestionBankDraftAnswerFeedback(
+			usecase.NewReadStudentAppQuestionBankDraftAnswerFeedback(store),
+		),
 		AgentAPIKey: "ueacd",
 	}).Handler()
 }
