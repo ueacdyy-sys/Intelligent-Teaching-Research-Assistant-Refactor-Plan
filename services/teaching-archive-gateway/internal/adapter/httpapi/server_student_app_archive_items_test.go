@@ -94,6 +94,74 @@ func TestListStudentAppArchiveItemsReturns0305CommittedMaterialDraftRow(t *testi
 	}
 }
 
+func TestReadStudentAppArchiveItemsSearchSummaryReturnsCountOnlySafeResponse(t *testing.T) {
+	handler := newTestHandlerWithCommittedMaterialDraftSummary()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/summary?query=fractions",
+		nil,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"summary":{"totalCount":2,"quizCount":0,"paperCount":0,"handoutCount":1,"homeworkCount":1}`),
+		[]byte(`"ETag"`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) && string(fragment) != `"ETag"` {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	if response.Header().Get("ETag") == "" ||
+		response.Header().Get("Cache-Control") != "private, no-cache" {
+		t.Fatalf("headers = %#v", response.Header())
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"data"`),
+		[]byte(`"pageInfo"`),
+		[]byte(`"contentRef"`),
+		[]byte(`tarch_archive_material_other`),
+		[]byte(`tarch_archive_material_teaching`),
+		[]byte(`tarch_archive_material_unpublished`),
+		[]byte(`worker_internal_summary`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
+func TestReadStudentAppArchiveItemsSearchSummarySupportsPrivate304(t *testing.T) {
+	handler := newTestHandlerWithCommittedMaterialDraftSummary()
+	first := httptest.NewRequest(http.MethodGet, "/v1/student-app/archive-items/summary?materialType=HANDOUT&query=fractions", nil)
+	first.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, first, studentPrincipal("student_001"))
+	firstResponse := httptest.NewRecorder()
+	handler.ServeHTTP(firstResponse, first)
+	if firstResponse.Code != http.StatusOK {
+		t.Fatalf("first status = %d, body = %s", firstResponse.Code, firstResponse.Body.String())
+	}
+
+	second := httptest.NewRequest(http.MethodGet, "/v1/student-app/archive-items/summary?materialType=HANDOUT&query=fractions", nil)
+	second.Header.Set("X-Agent-Api-Key", "ueacd")
+	second.Header.Set("If-None-Match", firstResponse.Header().Get("ETag"))
+	setPrincipalHeader(t, second, studentPrincipal("student_001"))
+	secondResponse := httptest.NewRecorder()
+	handler.ServeHTTP(secondResponse, second)
+	if secondResponse.Code != http.StatusNotModified {
+		t.Fatalf("second status = %d, body = %s", secondResponse.Code, secondResponse.Body.String())
+	}
+	if secondResponse.Body.Len() != 0 {
+		t.Fatalf("304 body = %s", secondResponse.Body.String())
+	}
+}
+
 func TestListStudentAppArchiveItemsRejectsUnsupportedMethod(t *testing.T) {
 	handler := newTestHandlerWithStudentAppArchiveItems()
 	request := httptest.NewRequest(http.MethodPost, "/v1/student-app/archive-items", http.NoBody)
@@ -318,6 +386,51 @@ func newTestHandlerWithCommittedMaterialDraftRow() http.Handler {
 	return httpapi.NewServer(httpapi.ServerConfig{
 		ListStudentAppArchiveItems: usecase.NewListStudentAppArchiveItems(store),
 		AgentAPIKey:                "ueacd",
+	}).Handler()
+}
+
+func newTestHandlerWithCommittedMaterialDraftSummary() http.Handler {
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			committedMaterialDraftHTTPItem(),
+			{
+				ID:              "tarch_archive_material_homework",
+				OwnerType:       domain.OwnerTypeStudent,
+				StudentID:       "student_001",
+				MaterialType:    domain.MaterialTypeHomework,
+				Title:           "Fractions reflection homework",
+				Source:          domain.SourceSystemImport,
+				ContentRef:      "precommit://archive-material/student_001/fractions-homework",
+				Tags:            []string{"fractions"},
+				AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly},
+				OCRStatus:       domain.OCRStatusNotRequired,
+				CreatedAt:       time.Date(2026, 6, 7, 10, 0, 0, 0, time.UTC),
+			},
+			{
+				ID:              "tarch_archive_material_other",
+				OwnerType:       domain.OwnerTypeStudent,
+				StudentID:       "student_002",
+				MaterialType:    domain.MaterialTypeHandout,
+				Title:           "Other fractions packet",
+				Source:          domain.SourceSystemImport,
+				ContentRef:      "precommit://archive-material/student_002/fractions-packet",
+				Tags:            []string{"fractions"},
+				AnalysisIntents: []domain.AnalysisIntent{domain.AnalysisIntentArchiveOnly},
+				OCRStatus:       domain.OCRStatusNotRequired,
+				CreatedAt:       time.Date(2026, 6, 7, 8, 0, 0, 0, time.UTC),
+			},
+			teachingMaterialHTTPItem("tarch_archive_material_teaching", time.Date(2026, 6, 7, 7, 0, 0, 0, time.UTC)),
+			studentHandoutHTTPItem("tarch_archive_material_unpublished", "student_001", time.Date(2026, 6, 7, 6, 0, 0, 0, time.UTC)),
+		},
+		publishedArchiveItemIDs: map[string]bool{
+			"tarch_archive_material_001":      true,
+			"tarch_archive_material_homework": true,
+			"tarch_archive_material_other":    true,
+		},
+	}
+	return httpapi.NewServer(httpapi.ServerConfig{
+		ReadStudentAppArchiveItemSearchSummary: usecase.NewReadStudentAppArchiveItemSearchSummary(store),
+		AgentAPIKey:                            "ueacd",
 	}).Handler()
 }
 

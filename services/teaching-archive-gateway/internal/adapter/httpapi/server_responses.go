@@ -39,6 +39,18 @@ type studentAppArchiveItemMetadataResponse struct {
 	CreatedAt       string                  `json:"createdAt"`
 }
 
+type studentAppArchiveItemSearchSummaryOnlyResponse struct {
+	Summary studentAppArchiveItemSearchSummaryResponse `json:"summary"`
+}
+
+type studentAppArchiveItemSearchSummaryResponse struct {
+	TotalCount    int `json:"totalCount"`
+	QuizCount     int `json:"quizCount"`
+	PaperCount    int `json:"paperCount"`
+	HandoutCount  int `json:"handoutCount"`
+	HomeworkCount int `json:"homeworkCount"`
+}
+
 type studentAppArchiveItemContentPreviewResponse struct {
 	ArchiveItemID string                                              `json:"archiveItemId"`
 	MaterialType  domain.MaterialType                                 `json:"materialType"`

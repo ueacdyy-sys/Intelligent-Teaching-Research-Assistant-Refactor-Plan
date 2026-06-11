@@ -10,6 +10,7 @@ type Server struct {
 	listArchiveItems                                      *usecase.ListArchiveItems
 	listStudentAppTeachingMaterials                       *usecase.ListStudentAppTeachingMaterials
 	listStudentAppArchiveItems                            *usecase.ListStudentAppArchiveItems
+	readStudentAppArchiveItemSearchSummary                *usecase.ReadStudentAppArchiveItemSearchSummary
 	readStudentAppArchiveItem                             *usecase.ReadStudentAppArchiveItem
 	readStudentAppArchiveItemContentPreview               *usecase.ReadStudentAppArchiveItemContentPreview
 	renderStudentAppArchiveItemContentPreview             *usecase.RenderStudentAppArchiveItemContentPreview
@@ -64,6 +65,7 @@ func NewServer(config ServerConfig) *Server {
 		listArchiveItems:                                      config.ListArchiveItems,
 		listStudentAppTeachingMaterials:                       config.ListStudentAppTeachingMaterials,
 		listStudentAppArchiveItems:                            config.ListStudentAppArchiveItems,
+		readStudentAppArchiveItemSearchSummary:                config.ReadStudentAppArchiveItemSearchSummary,
 		readStudentAppArchiveItem:                             config.ReadStudentAppArchiveItem,
 		readStudentAppArchiveItemContentPreview:               config.ReadStudentAppArchiveItemContentPreview,
 		renderStudentAppArchiveItemContentPreview:             config.RenderStudentAppArchiveItemContentPreview,

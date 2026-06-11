@@ -149,11 +149,14 @@ func TestListArchiveItemsPreventsStudentReadingOtherArchive(t *testing.T) {
 type fakeReader struct {
 	query                     domain.ArchiveItemQuery
 	publishedQuery            domain.ArchiveItemQuery
+	materialTypeCountQuery    domain.ArchiveItemQuery
 	item                      domain.ArchiveItem
 	items                     []domain.ArchiveItem
+	materialTypeCounts        map[domain.MaterialType]int
 	ok                        bool
 	reads                     int
 	publishedReads            int
+	materialTypeCountReads    int
 	genericGetReads           int
 	publishedGetReads         int
 	contentPreview            domain.PublishedArchiveMaterialContentPreview
@@ -175,6 +178,15 @@ func (f *fakeReader) ListPublishedForStudentApp(_ context.Context, query domain.
 	f.publishedQuery = query
 	f.publishedReads++
 	return f.items, nil
+}
+
+func (f *fakeReader) CountPublishedArchiveMaterialsByType(
+	_ context.Context,
+	query domain.ArchiveItemQuery,
+) (map[domain.MaterialType]int, error) {
+	f.materialTypeCountQuery = query
+	f.materialTypeCountReads++
+	return f.materialTypeCounts, nil
 }
 
 func (f *fakeReader) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {

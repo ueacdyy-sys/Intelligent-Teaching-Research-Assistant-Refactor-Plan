@@ -66,6 +66,10 @@ func parseStudentAppArchiveItemLearningActionsPath(path string) (string, bool) {
 	return archiveItemID, true
 }
 
+func parseStudentAppArchiveItemSearchSummaryPath(path string) bool {
+	return path == "/v1/student-app/archive-items/summary"
+}
+
 func parseStudentAppArchiveItemAITutorResultPath(path string) (string, bool) {
 	const prefix = "/v1/student-app/archive-items/"
 	const suffix = "/ai-tutor-result"

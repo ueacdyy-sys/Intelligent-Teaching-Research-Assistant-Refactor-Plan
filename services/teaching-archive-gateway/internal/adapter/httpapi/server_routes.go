@@ -35,6 +35,14 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) studentAppArchiveItemSubresources(w http.ResponseWriter, r *http.Request) {
+	if parseStudentAppArchiveItemSearchSummaryPath(r.URL.Path) {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.readStudentAppArchiveItemSearchSummaryMetadata(w, r)
+		return
+	}
 	if archiveItemID, ok := parseStudentAppArchiveItemAITutorResultRenderedPath(r.URL.Path); ok {
 		if r.Method != http.MethodGet {
 			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")

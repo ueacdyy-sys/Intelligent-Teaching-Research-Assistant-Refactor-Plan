@@ -59,6 +59,7 @@ func main() {
 	listArchiveItems := usecase.NewListArchiveItems(archiveReader)
 	listStudentAppTeachingMaterials := usecase.NewListStudentAppTeachingMaterials(archiveReader)
 	listStudentAppArchiveItems := usecase.NewListStudentAppArchiveItems(archiveRepository)
+	readStudentAppArchiveItemSearchSummary := usecase.NewReadStudentAppArchiveItemSearchSummary(archiveRepository)
 	readStudentAppArchiveItem := usecase.NewReadStudentAppArchiveItem(archiveRepository)
 	readStudentAppArchiveItemContentPreview := usecase.NewReadStudentAppArchiveItemContentPreview(archiveRepository)
 	renderStudentAppArchiveItemContentPreview := usecase.NewRenderStudentAppArchiveItemContentPreview(archiveRepository)
@@ -187,6 +188,7 @@ func main() {
 			ListArchiveItems:                                      listArchiveItems,
 			ListStudentAppTeachingMaterials:                       listStudentAppTeachingMaterials,
 			ListStudentAppArchiveItems:                            listStudentAppArchiveItems,
+			ReadStudentAppArchiveItemSearchSummary:                readStudentAppArchiveItemSearchSummary,
 			ReadStudentAppArchiveItem:                             readStudentAppArchiveItem,
 			ReadStudentAppArchiveItemContentPreview:               readStudentAppArchiveItemContentPreview,
 			RenderStudentAppArchiveItemContentPreview:             renderStudentAppArchiveItemContentPreview,

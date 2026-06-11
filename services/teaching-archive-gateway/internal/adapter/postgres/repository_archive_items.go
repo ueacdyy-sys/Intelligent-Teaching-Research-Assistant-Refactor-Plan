@@ -249,6 +249,67 @@ func (r *ArchiveRepository) ListPublishedForStudentApp(ctx context.Context, quer
 	return items, nil
 }
 
+func (r *ArchiveRepository) CountPublishedArchiveMaterialsByType(
+	ctx context.Context,
+	query domain.ArchiveItemQuery,
+) (map[domain.MaterialType]int, error) {
+	args := make([]any, 0, 4)
+	clauses := []string{"item.owner_type = " + nextArg(&args, string(domain.OwnerTypeStudent))}
+
+	if query.StudentID != "" {
+		clauses = append(clauses, "item.student_id = "+nextArg(&args, query.StudentID))
+	}
+	if query.MaterialType != "" {
+		clauses = append(clauses, "item.material_type = "+nextArg(&args, string(query.MaterialType)))
+	}
+	if query.SearchText != "" {
+		searchArg := nextArg(&args, "%"+escapeLikePattern(query.SearchText)+"%")
+		clauses = append(clauses, "(item.title ILIKE "+searchArg+" ESCAPE '\\' OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(item.tags) AS tag(value) WHERE tag.value ILIKE "+searchArg+" ESCAPE '\\'))")
+	}
+
+	queryStart := time.Now()
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			item.material_type,
+			COUNT(*)
+		FROM teaching_archive_items AS item
+		WHERE `+strings.Join(clauses, " AND ")+`
+			AND EXISTS (
+				SELECT 1
+				FROM teaching_archive_publications AS publication
+				WHERE publication.archive_item_id = item.id
+					AND publication.student_id = item.student_id
+					AND publication.scope_type = 'STUDENT_OWN_ARCHIVE'
+					AND publication.publication_state = 'COMMITTED_TO_PUBLICATION_STORE'
+					AND publication.visibility_state = 'STUDENT_VISIBLE_ARCHIVE_MATERIAL_PUBLISHED'
+					AND publication.channel = 'STUDENT_APP'
+			)
+		GROUP BY item.material_type
+	`, args...)
+	if err != nil {
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
+		return nil, err
+	}
+	defer func() {
+		rows.Close()
+		recordDBQueryTiming(ctx, observableDuration(time.Since(queryStart)))
+	}()
+
+	counts := map[domain.MaterialType]int{}
+	for rows.Next() {
+		var materialType string
+		var count int64
+		if err := rows.Scan(&materialType, &count); err != nil {
+			return nil, err
+		}
+		counts[domain.MaterialType(materialType)] = int(count)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return counts, nil
+}
+
 func (r *ArchiveRepository) GetPublishedForStudentApp(
 	ctx context.Context,
 	archiveItemID string,

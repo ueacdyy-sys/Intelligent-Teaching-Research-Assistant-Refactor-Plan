@@ -45,6 +45,37 @@ func (s *Server) listStudentAppArchiveItemMetadata(w http.ResponseWriter, r *htt
 	writeJSON(w, http.StatusOK, toListResponse(page))
 }
 
+func (s *Server) readStudentAppArchiveItemSearchSummaryMetadata(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.readStudentAppArchiveItemSearchSummary == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app archive item search summary use case is not configured")
+		return
+	}
+
+	summary, err := s.readStudentAppArchiveItemSearchSummary.Execute(
+		r.Context(),
+		domain.ReadStudentAppArchiveItemSearchSummaryInput{
+			Principal:    principal,
+			MaterialType: domain.MaterialType(r.URL.Query().Get("materialType")),
+			Query:        r.URL.Query().Get("query"),
+		},
+	)
+	if handleArchiveError(w, err, "failed to read student app archive item search summary") {
+		return
+	}
+	etag := studentAppArchiveItemSearchSummaryETag(summary)
+	writePrivateConditionalJSONWithETag(w, r, http.StatusOK, etag, func() any {
+		return toStudentAppArchiveItemSearchSummaryOnlyResponse(summary)
+	})
+}
+
 func (s *Server) readStudentAppArchiveItemMetadata(
 	w http.ResponseWriter,
 	r *http.Request,

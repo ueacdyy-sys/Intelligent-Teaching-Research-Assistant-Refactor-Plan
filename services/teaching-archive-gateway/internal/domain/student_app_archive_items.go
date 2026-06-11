@@ -10,6 +10,20 @@ type ListStudentAppArchiveItemsInput struct {
 	Cursor       string
 }
 
+type ReadStudentAppArchiveItemSearchSummaryInput struct {
+	Principal    PrincipalContext
+	MaterialType MaterialType
+	Query        string
+}
+
+type StudentAppArchiveItemSearchSummary struct {
+	TotalCount    int
+	QuizCount     int
+	PaperCount    int
+	HandoutCount  int
+	HomeworkCount int
+}
+
 func NormalizeListStudentAppArchiveItemsInput(
 	input ListStudentAppArchiveItemsInput,
 ) (ArchiveItemQuery, error) {
@@ -38,6 +52,30 @@ func NormalizeListStudentAppArchiveItemsInput(
 	return query, nil
 }
 
+func NormalizeReadStudentAppArchiveItemSearchSummaryInput(
+	input ReadStudentAppArchiveItemSearchSummaryInput,
+) (ArchiveItemQuery, error) {
+	if err := AuthorizeListStudentAppArchiveItems(input.Principal); err != nil {
+		return ArchiveItemQuery{}, err
+	}
+	if input.MaterialType != "" && !validMaterialType(input.MaterialType) {
+		return ArchiveItemQuery{}, validationError("materialType is unsupported")
+	}
+	if input.MaterialType == MaterialTypeTeachingMaterial {
+		return ArchiveItemQuery{}, validationError("materialType is not a student archive material")
+	}
+	searchText, err := normalizeArchiveSearchText(input.Query)
+	if err != nil {
+		return ArchiveItemQuery{}, err
+	}
+	return ArchiveItemQuery{
+		OwnerType:    OwnerTypeStudent,
+		StudentID:    primaryOwnStudentID(input.Principal),
+		MaterialType: input.MaterialType,
+		SearchText:   searchText,
+	}, nil
+}
+
 func AuthorizeListStudentAppArchiveItems(principal PrincipalContext) error {
 	if err := ValidatePrincipalContext(principal); err != nil {
 		return err
@@ -53,6 +91,33 @@ func AuthorizeListStudentAppArchiveItems(principal PrincipalContext) error {
 		return ErrForbidden
 	}
 	return nil
+}
+
+func BuildStudentAppArchiveItemSearchSummary(
+	materialTypeCounts map[MaterialType]int,
+) (StudentAppArchiveItemSearchSummary, error) {
+	summary := StudentAppArchiveItemSearchSummary{}
+	for materialType, count := range materialTypeCounts {
+		if count < 0 {
+			return StudentAppArchiveItemSearchSummary{}, validationError("count must not be negative")
+		}
+		switch materialType {
+		case MaterialTypeQuiz:
+			summary.QuizCount += count
+		case MaterialTypePaper:
+			summary.PaperCount += count
+		case MaterialTypeHandout:
+			summary.HandoutCount += count
+		case MaterialTypeHomework:
+			summary.HomeworkCount += count
+		case MaterialTypeTeachingMaterial:
+			return StudentAppArchiveItemSearchSummary{}, ErrForbidden
+		default:
+			return StudentAppArchiveItemSearchSummary{}, validationError("materialType is unsupported")
+		}
+		summary.TotalCount += count
+	}
+	return summary, nil
 }
 
 type ReadStudentAppArchiveItemInput struct {

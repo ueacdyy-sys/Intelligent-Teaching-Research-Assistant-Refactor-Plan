@@ -297,6 +297,32 @@ func (f *fakeRepository) ListPublishedForStudentApp(ctx context.Context, query d
 	return items, nil
 }
 
+func (f *fakeRepository) CountPublishedArchiveMaterialsByType(
+	_ context.Context,
+	query domain.ArchiveItemQuery,
+) (map[domain.MaterialType]int, error) {
+	counts := map[domain.MaterialType]int{}
+	for _, item := range f.items {
+		if !f.publishedArchiveItemIDs[item.ID] {
+			continue
+		}
+		if query.OwnerType != "" && item.OwnerType != query.OwnerType {
+			continue
+		}
+		if query.StudentID != "" && item.StudentID != query.StudentID {
+			continue
+		}
+		if query.MaterialType != "" && item.MaterialType != query.MaterialType {
+			continue
+		}
+		if query.SearchText != "" && !archiveItemMatchesSearch(item, query.SearchText) {
+			continue
+		}
+		counts[item.MaterialType]++
+	}
+	return counts, nil
+}
+
 func (f *fakeRepository) GetByID(_ context.Context, id string) (domain.ArchiveItem, bool, error) {
 	for _, item := range f.items {
 		if item.ID == id {

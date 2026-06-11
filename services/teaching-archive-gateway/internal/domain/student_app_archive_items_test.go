@@ -63,6 +63,66 @@ func TestNormalizeListStudentAppArchiveItemsRejectsTeachingMaterialFilter(t *tes
 	}
 }
 
+func TestNormalizeReadStudentAppArchiveItemSearchSummaryScopesOwnStudent(t *testing.T) {
+	query, err := domain.NormalizeReadStudentAppArchiveItemSearchSummaryInput(
+		domain.ReadStudentAppArchiveItemSearchSummaryInput{
+			Principal:    studentPrincipal("student_001"),
+			MaterialType: domain.MaterialTypeHandout,
+			Query:        "  fractions   packet  ",
+		},
+	)
+	if err != nil {
+		t.Fatalf("NormalizeReadStudentAppArchiveItemSearchSummaryInput returned error: %v", err)
+	}
+	if query.OwnerType != domain.OwnerTypeStudent ||
+		query.StudentID != "student_001" ||
+		query.MaterialType != domain.MaterialTypeHandout ||
+		query.SearchText != "fractions packet" ||
+		query.FetchLimit != 0 {
+		t.Fatalf("query = %#v", query)
+	}
+}
+
+func TestNormalizeReadStudentAppArchiveItemSearchSummaryRejectsTeachingMaterial(t *testing.T) {
+	_, err := domain.NormalizeReadStudentAppArchiveItemSearchSummaryInput(
+		domain.ReadStudentAppArchiveItemSearchSummaryInput{
+			Principal:    studentPrincipal("student_001"),
+			MaterialType: domain.MaterialTypeTeachingMaterial,
+		},
+	)
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
+func TestBuildStudentAppArchiveItemSearchSummaryMapsMaterialCounts(t *testing.T) {
+	summary, err := domain.BuildStudentAppArchiveItemSearchSummary(map[domain.MaterialType]int{
+		domain.MaterialTypeQuiz:     2,
+		domain.MaterialTypePaper:    1,
+		domain.MaterialTypeHandout:  3,
+		domain.MaterialTypeHomework: 4,
+	})
+	if err != nil {
+		t.Fatalf("BuildStudentAppArchiveItemSearchSummary returned error: %v", err)
+	}
+	if summary.TotalCount != 10 ||
+		summary.QuizCount != 2 ||
+		summary.PaperCount != 1 ||
+		summary.HandoutCount != 3 ||
+		summary.HomeworkCount != 4 {
+		t.Fatalf("summary = %#v", summary)
+	}
+}
+
+func TestBuildStudentAppArchiveItemSearchSummaryRejectsTeachingMaterialCount(t *testing.T) {
+	_, err := domain.BuildStudentAppArchiveItemSearchSummary(map[domain.MaterialType]int{
+		domain.MaterialTypeTeachingMaterial: 1,
+	})
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}
+
 func TestNormalizeListStudentAppArchiveItemsRejectsNonStudentAppPrincipals(t *testing.T) {
 	studentWithoutOwnRead := studentPrincipal("student_001")
 	studentWithoutOwnRead.Scopes = []domain.Scope{domain.ScopeTeachingRead}
