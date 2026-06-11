@@ -34,7 +34,11 @@ export function auditStudentAppAITutorResultArchiveFollowUpWorkerContinuity(inpu
   const source0337 = parseJson(inputs.source0337Report, {});
   const workerClaim = parseJson(inputs.workerClaimReport, {});
   const packageJson = parseJson(inputs.packageJson, {});
-  const workerBranch = sliceBetween(inputs.workerInputUsecase ?? "", "func (uc *ReadAITutorWorkerStudyPacketInput) readResultArchiveInput", "func (uc *ReadAITutorWorkerStudyPacketInput) readPublishedStudyPacketInput");
+  const workerBranch = sliceGoMethod(inputs.workerInputUsecase ?? "", "readResultArchiveInput");
+  const resultArchiveBranchPresent = includesAny(inputs.workerInputUsecase ?? "", [
+    "domain.TutoringAnalysisRequestLearningActionSource(request) == domain.StudentAppAITutorLearningActionSourceResultArchive",
+    "case domain.StudentAppAITutorLearningActionSourceResultArchive:",
+  ]);
   const hooks = [inputs.qualityGate ?? "", inputs.rootWorkflowCoverage ?? "", inputs.verifyStructure ?? "", inputs.rootTrace ?? "", inputs.architectureBoard ?? "", inputs.sdd ?? ""].join("\n");
   const probe = runContinuityProbe(source0349, source0336, source0337, workerClaim, options);
   const findings = [];
@@ -67,7 +71,8 @@ export function auditStudentAppAITutorResultArchiveFollowUpWorkerContinuity(inpu
 
   addFinding(findings, {
     id: "go.worker_input_is_follow_up_archive_item_independent",
-    passed: includesAll(inputs.workerInputUsecase ?? "", ["domain.TutoringAnalysisRequestLearningActionSource(request) == domain.StudentAppAITutorLearningActionSourceResultArchive", "readResultArchiveInput(ctx", "GetByID(ctx, request.ArchiveItemID)", "GetStudentAppAITutorResultArchiveSnapshot", "BuildStudentAppAITutorResultArchiveRenderEnvelope", "BuildAITutorWorkerResultArchiveInput"]) &&
+    passed: resultArchiveBranchPresent &&
+      includesAll(inputs.workerInputUsecase ?? "", ["readResultArchiveInput(ctx", "GetByID(ctx, request.ArchiveItemID)", "GetStudentAppAITutorResultArchiveSnapshot", "BuildStudentAppAITutorResultArchiveRenderEnvelope", "BuildAITutorWorkerResultArchiveInput"]) &&
       includesAll(inputs.workerInputDomain ?? "", ["BuildAITutorWorkerResultArchiveInput", "aiTutorWorkerResultArchiveActionAvailable", "StudentAppAITutorLearningActionSourceResultArchive"]) &&
       includesAll(inputs.workerInputTest ?? "", ["TestReadAITutorWorkerStudyPacketInputUsesFollowUpResultArchiveItem", "aiTutorResultArchiveFollowUpItem", "aiTutorResultArchiveFollowUpSnapshot", "genericGetID", "snapshotArchiveItemID", "unexpected published reads"]) &&
       !includesAny(workerBranch, forbiddenWorkerShortcuts) &&
@@ -192,7 +197,12 @@ function parseJson(text, fallback) { try { return JSON.parse(text); } catch { re
 function includesAll(text, values) { return values.every((value) => text.includes(value)); }
 function includesAny(text, values) { return values.some((value) => text.includes(value)); }
 function summarizePresence(text, values) { return values.map((value) => `${value}=${text.includes(value)}`).join(";"); }
-function sliceBetween(text, start, end) { const startIndex = text.indexOf(start); if (startIndex < 0) return ""; const endIndex = text.indexOf(end, startIndex + start.length); return text.slice(startIndex, endIndex < 0 ? undefined : endIndex); }
+function sliceGoMethod(text, methodName) {
+  const start = text.indexOf(`func (uc *ReadAITutorWorkerStudyPacketInput) ${methodName}`);
+  if (start < 0) return "";
+  const next = text.indexOf("\nfunc (uc *ReadAITutorWorkerStudyPacketInput)", start + 1);
+  return text.slice(start, next < 0 ? undefined : next);
+}
 function collectKeys(value, keys = new Set()) { if (!value || typeof value !== "object") return keys; for (const [key, child] of Object.entries(value)) { keys.add(key); collectKeys(child, keys); } return keys; }
 function addFinding(findings, finding) { findings.push({ severity: finding.passed ? "info" : "error", ...finding, passed: Boolean(finding.passed) }); }
 function stringifyScalar(value) { if (Array.isArray(value)) return value.join(","); if (value && typeof value === "object") return JSON.stringify(value); return String(value); }

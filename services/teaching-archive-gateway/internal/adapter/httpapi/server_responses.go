@@ -565,22 +565,25 @@ type tutoringAnalysisWorkerClaimResponse struct {
 }
 
 type aiTutorWorkerStudyPacketInputResponse struct {
-	RequestID                 string                                           `json:"requestId"`
-	ArchiveItemID             string                                           `json:"archiveItemId"`
-	AnalysisGoal              string                                           `json:"analysisGoal"`
-	QuestionBankIntent        domain.QuestionBankIntent                        `json:"questionBankIntent"`
-	Status                    domain.TutoringAnalysisStatus                    `json:"status"`
-	LearningActionSource      domain.StudentAppAITutorLearningActionSourceType `json:"learningActionSource"`
-	FollowUpDepth             int                                              `json:"followUpDepth,omitempty"`
-	WorkerID                  string                                           `json:"workerId"`
-	ClaimExpiresAt            string                                           `json:"claimExpiresAt"`
-	SourceArchiveStudentID    string                                           `json:"sourceArchiveStudentId"`
-	SourceArchiveMaterial     domain.MaterialType                              `json:"sourceArchiveMaterial"`
-	PacketStatus              domain.StudentAppArchiveItemStudyPacketStatus    `json:"packetStatus,omitempty"`
-	ResultArchiveStatus       domain.StudentAppAITutorResultArchiveStatus      `json:"resultArchiveStatus,omitempty"`
-	ResultArchiveSourceItemID string                                           `json:"resultArchiveSourceItemId,omitempty"`
-	RenderFormat              domain.AITutorWorkerStudyPacketInputRenderFormat `json:"renderFormat"`
-	Blocks                    []aiTutorWorkerStudyPacketInputBlock             `json:"blocks"`
+	RequestID                   string                                                 `json:"requestId"`
+	ArchiveItemID               string                                                 `json:"archiveItemId"`
+	AnalysisGoal                string                                                 `json:"analysisGoal"`
+	QuestionBankIntent          domain.QuestionBankIntent                              `json:"questionBankIntent"`
+	Status                      domain.TutoringAnalysisStatus                          `json:"status"`
+	LearningActionSource        domain.StudentAppAITutorLearningActionSourceType       `json:"learningActionSource"`
+	FollowUpDepth               int                                                    `json:"followUpDepth,omitempty"`
+	WorkerID                    string                                                 `json:"workerId"`
+	ClaimExpiresAt              string                                                 `json:"claimExpiresAt"`
+	SourceArchiveStudentID      string                                                 `json:"sourceArchiveStudentId"`
+	SourceArchiveMaterial       domain.MaterialType                                    `json:"sourceArchiveMaterial"`
+	PacketStatus                domain.StudentAppArchiveItemStudyPacketStatus          `json:"packetStatus,omitempty"`
+	ResultArchiveStatus         domain.StudentAppAITutorResultArchiveStatus            `json:"resultArchiveStatus,omitempty"`
+	ResultArchiveSourceItemID   string                                                 `json:"resultArchiveSourceItemId,omitempty"`
+	FeedbackStatus              domain.StudentAppQuestionBankDraftAnswerFeedbackStatus `json:"feedbackStatus,omitempty"`
+	FeedbackSubmissionID        string                                                 `json:"feedbackSubmissionId,omitempty"`
+	FeedbackSourceArchiveItemID string                                                 `json:"feedbackSourceArchiveItemId,omitempty"`
+	RenderFormat                domain.AITutorWorkerStudyPacketInputRenderFormat       `json:"renderFormat"`
+	Blocks                      []aiTutorWorkerStudyPacketInputBlock                   `json:"blocks"`
 }
 
 type aiTutorWorkerStudyPacketInputBlock struct {

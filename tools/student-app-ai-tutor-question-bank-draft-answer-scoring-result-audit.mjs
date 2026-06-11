@@ -94,8 +94,9 @@ export function auditStudentAppAITutorQuestionBankDraftAnswerScoringResult(input
       "body leaked",
       "scoreSummary",
       "errorCode",
-      "ReadStudentAppQuestionBankDraftAnswerScoringResult:    readStudentAppQuestionBankDraftAnswerScoringResult",
-    ]) && !includesAny(safeSurface, [
+    ]) &&
+      hasGoKeyedValue(inputs.main ?? "", "ReadStudentAppQuestionBankDraftAnswerScoringResult", "readStudentAppQuestionBankDraftAnswerScoringResult") &&
+      !includesAny(safeSurface, [
       "answerText",
       "expectedAnswer",
       "explanation",
@@ -231,6 +232,10 @@ function includesAll(text, values) {
 
 function includesAny(text, values) {
   return values.some((value) => text.includes(value));
+}
+
+function hasGoKeyedValue(text, key, value) {
+  return new RegExp(`${key}:\\s*${value}`).test(text);
 }
 
 function summarizePresence(text, values) {

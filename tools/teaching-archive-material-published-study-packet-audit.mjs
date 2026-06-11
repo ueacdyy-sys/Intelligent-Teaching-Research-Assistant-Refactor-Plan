@@ -86,8 +86,8 @@ export function auditTeachingArchiveMaterialPublishedStudyPacket(inputs, options
       "contentPreview",
       "SAFE_TEXT_BLOCKS",
       "body leaked",
-      "ReadStudentAppArchiveItemStudyPacket:                  readStudentAppArchiveItemStudyPacket",
     ]) &&
+      hasGoKeyedValue(inputs.main ?? "", "ReadStudentAppArchiveItemStudyPacket", "readStudentAppArchiveItemStudyPacket") &&
       !responseType.includes("StudentID") &&
       !responseType.includes("ContentRef") &&
       !metadataType.includes("StudentID") &&
@@ -209,6 +209,10 @@ function extractTypeBody(text, typeName) {
 
 function includesAll(text, values) {
   return values.every((value) => text.includes(value));
+}
+
+function hasGoKeyedValue(text, key, value) {
+  return new RegExp(`${key}:\\s*${value}`).test(text);
 }
 
 function summarizePresence(text, values) {

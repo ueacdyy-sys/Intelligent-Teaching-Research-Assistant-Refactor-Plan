@@ -18,12 +18,15 @@ type NormalizedCreateStudentAppAITutorRequestInput struct {
 }
 
 type StudentAppAITutorLearningActionSource struct {
-	SourceType          StudentAppAITutorLearningActionSourceType
-	ActionType          StudentAppArchiveItemLearningActionType
-	PacketStatus        StudentAppArchiveItemStudyPacketStatus
-	ResultArchiveStatus StudentAppAITutorResultArchiveStatus
-	RenderFormat        StudentAppAITutorResultArchiveRenderFormat
-	FollowUpDepth       int
+	SourceType           StudentAppAITutorLearningActionSourceType
+	ActionType           StudentAppArchiveItemLearningActionType
+	PacketStatus         StudentAppArchiveItemStudyPacketStatus
+	ResultArchiveStatus  StudentAppAITutorResultArchiveStatus
+	RenderFormat         StudentAppAITutorResultArchiveRenderFormat
+	FollowUpDepth        int
+	SubmissionID         string
+	FeedbackStatus       StudentAppQuestionBankDraftAnswerFeedbackStatus
+	FeedbackRenderFormat QuestionBankDraftAnswerFeedbackRenderFormat
 }
 
 func (source StudentAppAITutorLearningActionSource) IsZero() bool {
@@ -32,7 +35,10 @@ func (source StudentAppAITutorLearningActionSource) IsZero() bool {
 		source.PacketStatus == "" &&
 		source.ResultArchiveStatus == "" &&
 		source.RenderFormat == "" &&
-		source.FollowUpDepth == 0
+		source.FollowUpDepth == 0 &&
+		source.SubmissionID == "" &&
+		source.FeedbackStatus == "" &&
+		source.FeedbackRenderFormat == ""
 }
 
 type StudentAppAITutorLearningActionSourceType string
@@ -40,11 +46,13 @@ type StudentAppAITutorLearningActionSourceType string
 const (
 	StudentAppAITutorLearningActionSourcePublishedStudyPacket StudentAppAITutorLearningActionSourceType = "PUBLISHED_STUDY_PACKET"
 	StudentAppAITutorLearningActionSourceResultArchive        StudentAppAITutorLearningActionSourceType = "AI_TUTOR_RESULT_ARCHIVE"
+	StudentAppAITutorLearningActionSourceQuestionBankFeedback StudentAppAITutorLearningActionSourceType = "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK"
 )
 
 func validStudentAppAITutorLearningActionSourceType(value StudentAppAITutorLearningActionSourceType) bool {
 	return value == StudentAppAITutorLearningActionSourcePublishedStudyPacket ||
-		value == StudentAppAITutorLearningActionSourceResultArchive
+		value == StudentAppAITutorLearningActionSourceResultArchive ||
+		value == StudentAppAITutorLearningActionSourceQuestionBankFeedback
 }
 
 func NormalizeCreateStudentAppAITutorRequestInput(
@@ -127,6 +135,9 @@ func normalizeStudentAppAITutorLearningActionSource(
 		if source.FollowUpDepth != 0 {
 			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.followUpDepth is unsupported for published study packet")
 		}
+		if source.SubmissionID != "" || source.FeedbackStatus != "" || source.FeedbackRenderFormat != "" {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource feedback fields are unsupported for published study packet")
+		}
 		return StudentAppAITutorLearningActionSource{
 			SourceType:   sourceType,
 			ActionType:   source.ActionType,
@@ -142,6 +153,9 @@ func normalizeStudentAppAITutorLearningActionSource(
 		if source.PacketStatus != "" {
 			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.packetStatus is unsupported for AI Tutor result archive")
 		}
+		if source.SubmissionID != "" || source.FeedbackStatus != "" || source.FeedbackRenderFormat != "" {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource feedback fields are unsupported for AI Tutor result archive")
+		}
 		followUpDepth, err := normalizeAITutorResultArchiveNextFollowUpDepth(source.FollowUpDepth)
 		if err != nil {
 			return StudentAppAITutorLearningActionSource{}, err
@@ -152,6 +166,30 @@ func normalizeStudentAppAITutorLearningActionSource(
 			ResultArchiveStatus: source.ResultArchiveStatus,
 			RenderFormat:        source.RenderFormat,
 			FollowUpDepth:       followUpDepth,
+		}, nil
+	case StudentAppAITutorLearningActionSourceQuestionBankFeedback:
+		submissionID, err := NormalizeQuestionBankDraftAnswerSubmissionID(source.SubmissionID)
+		if err != nil {
+			return StudentAppAITutorLearningActionSource{}, err
+		}
+		if source.FeedbackStatus != StudentAppQuestionBankDraftAnswerFeedbackStatusReady {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.feedbackStatus must be READY_FOR_STUDENT_APP_READ")
+		}
+		if source.FeedbackRenderFormat != QuestionBankDraftAnswerFeedbackRenderFormatSafeTextBlocks {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.feedbackRenderFormat must be SAFE_TEXT_BLOCKS")
+		}
+		if source.PacketStatus != "" || source.ResultArchiveStatus != "" || source.RenderFormat != "" {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource non-feedback status fields are unsupported for question bank feedback")
+		}
+		if source.FollowUpDepth != 0 {
+			return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.followUpDepth is unsupported for question bank feedback")
+		}
+		return StudentAppAITutorLearningActionSource{
+			SourceType:           sourceType,
+			ActionType:           source.ActionType,
+			SubmissionID:         submissionID,
+			FeedbackStatus:       source.FeedbackStatus,
+			FeedbackRenderFormat: source.FeedbackRenderFormat,
 		}, nil
 	default:
 		return StudentAppAITutorLearningActionSource{}, validationError("learningActionSource.sourceType is unsupported")

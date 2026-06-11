@@ -86,8 +86,8 @@ export function auditTeachingArchiveMaterialPublishedContentPreviewRenderEnvelop
       "blockType",
       "SECTION",
       "body leaked",
-      "RenderStudentAppArchiveItemContentPreview:             renderStudentAppArchiveItemContentPreview",
     ]) &&
+      hasGoKeyedValue(inputs.main ?? "", "RenderStudentAppArchiveItemContentPreview", "renderStudentAppArchiveItemContentPreview") &&
       !responseType.includes("StudentID") &&
       !responseType.includes("ContentRef") &&
       !responseType.includes("RenderedHTML") &&
@@ -206,6 +206,10 @@ function extractTypeBody(text, typeName) {
 
 function includesAll(text, values) {
   return values.every((value) => text.includes(value));
+}
+
+function hasGoKeyedValue(text, key, value) {
+  return new RegExp(`${key}:\\s*${value}`).test(text);
 }
 
 function summarizePresence(text, values) {

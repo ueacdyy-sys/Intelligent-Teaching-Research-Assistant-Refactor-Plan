@@ -102,6 +102,12 @@ type fakeTutoringRepository struct {
 	resultArchiveSnapshot             domain.StudentAppAITutorResultArchiveSnapshot
 	resultArchiveSnapshotOK           bool
 	resultArchiveSnapshotReads        int
+	questionBankFeedbackSnapshot      domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot
+	questionBankFeedbackSnapshotOK    bool
+	questionBankFeedbackSnapshotReads int
+	questionBankSubmission            domain.QuestionBankDraftAnswerSubmission
+	questionBankSubmissionOK          bool
+	questionBankSubmissionReads       int
 	pendingResultArchiveFollowUp      domain.TutoringAnalysisRequest
 	pendingResultArchiveFollowUpOK    bool
 	pendingResultArchiveFollowUpReads int
@@ -138,6 +144,24 @@ func (f *fakeTutoringRepository) GetStudentAppAITutorResultArchiveSnapshot(
 ) (domain.StudentAppAITutorResultArchiveSnapshot, bool, error) {
 	f.resultArchiveSnapshotReads++
 	return f.resultArchiveSnapshot, f.resultArchiveSnapshotOK, nil
+}
+
+func (f *fakeTutoringRepository) GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+) (domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot, bool, error) {
+	f.questionBankFeedbackSnapshotReads++
+	return f.questionBankFeedbackSnapshot, f.questionBankFeedbackSnapshotOK, nil
+}
+
+func (f *fakeTutoringRepository) GetQuestionBankDraftAnswerSubmissionForStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+) (domain.QuestionBankDraftAnswerSubmission, bool, error) {
+	f.questionBankSubmissionReads++
+	return f.questionBankSubmission, f.questionBankSubmissionOK, nil
 }
 
 func (f *fakeTutoringRepository) CreateTutoringAnalysisRequest(

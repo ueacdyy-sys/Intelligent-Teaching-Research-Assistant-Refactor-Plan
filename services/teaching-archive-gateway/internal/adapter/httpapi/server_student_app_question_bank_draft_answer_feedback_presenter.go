@@ -62,3 +62,35 @@ func toStudentAppQuestionBankDraftAnswerFeedbackRenderResponse(
 		UpdatedAt:                 formatTime(rendered.UpdatedAt),
 	}
 }
+
+func toStudentAppQuestionBankDraftAnswerFeedbackLearningActionsResponse(
+	actions domain.QuestionBankDraftAnswerFeedbackLearningActions,
+) questionBankDraftAnswerFeedbackLearningActionsResponse {
+	response := questionBankDraftAnswerFeedbackLearningActionsResponse{
+		SubmissionID:          actions.SubmissionID,
+		ArchiveItemID:         actions.ArchiveItemID,
+		FeedbackArchiveItemID: actions.FeedbackArchiveItemID,
+		Status:                actions.Status,
+		MaterialType:          actions.MaterialType,
+		RenderFormat:          actions.RenderFormat,
+		Actions:               make([]questionBankDraftAnswerFeedbackLearningAction, 0, len(actions.Actions)),
+	}
+	for _, action := range actions.Actions {
+		response.Actions = append(response.Actions, questionBankDraftAnswerFeedbackLearningAction{
+			ActionType:           action.ActionType,
+			State:                action.State,
+			TargetEndpoint:       action.TargetEndpoint,
+			Method:               action.Method,
+			QuestionBankIntent:   action.QuestionBankIntent,
+			RequiresTutorRequest: action.RequiresTutorRequest,
+			LearningActionSource: questionBankDraftAnswerFeedbackLearningActionSource{
+				SourceType:           action.SourceType,
+				ActionType:           action.ActionType,
+				SubmissionID:         actions.SubmissionID,
+				FeedbackStatus:       actions.Status,
+				FeedbackRenderFormat: actions.RenderFormat,
+			},
+		})
+	}
+	return response
+}

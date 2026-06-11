@@ -74,6 +74,44 @@ func TestBuildAITutorWorkerResultArchiveInputUsesSafeRenderEnvelope(t *testing.T
 	}
 }
 
+func TestBuildAITutorWorkerQuestionBankFeedbackInputUsesSafeRenderEnvelope(t *testing.T) {
+	now := time.Date(2026, 6, 8, 15, 0, 0, 0, time.UTC)
+	request := aiTutorWorkerStudyPacketRequest(now)
+	request.ArchiveItemID = "tarch_student_feedback_001"
+	request.SourceArchiveMaterial = domain.MaterialTypeHomework
+	request.LearningActionSource = domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback
+	rendered, err := domain.BuildQuestionBankDraftAnswerFeedbackRenderEnvelope(questionBankDraftAnswerFeedbackCardFixture())
+	if err != nil {
+		t.Fatalf("BuildQuestionBankDraftAnswerFeedbackRenderEnvelope returned error: %v", err)
+	}
+
+	input, err := domain.BuildAITutorWorkerQuestionBankFeedbackInput(
+		domain.NormalizedReadAITutorWorkerStudyPacketInputInput{
+			Principal: servicePrincipal(),
+			RequestID: "tutor_req_worker_input",
+			WorkerID:  "worker_student_tutor_01",
+		},
+		request,
+		rendered,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("BuildAITutorWorkerQuestionBankFeedbackInput returned error: %v", err)
+	}
+	if input.LearningActionSource != domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback ||
+		input.FeedbackStatus != domain.StudentAppQuestionBankDraftAnswerFeedbackStatusReady ||
+		input.FeedbackSubmissionID != "qbank_ans_sub_001" ||
+		input.FeedbackSourceArchiveItemID != "tarch_source_homework_001" ||
+		input.RenderFormat != domain.AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks ||
+		len(input.Blocks) < 4 {
+		t.Fatalf("input = %#v", input)
+	}
+	if input.Blocks[0].BlockType != domain.AITutorWorkerStudyPacketInputBlockTypeSummary ||
+		input.Blocks[1].BlockType != domain.AITutorWorkerStudyPacketInputBlockTypeGuidanceSection {
+		t.Fatalf("blocks = %#v", input.Blocks)
+	}
+}
+
 func TestBuildAITutorWorkerResultArchiveInputRejectsTamperedFollowUpDepth(t *testing.T) {
 	now := time.Date(2026, 6, 8, 14, 0, 0, 0, time.UTC)
 	request := aiTutorWorkerStudyPacketRequest(now)

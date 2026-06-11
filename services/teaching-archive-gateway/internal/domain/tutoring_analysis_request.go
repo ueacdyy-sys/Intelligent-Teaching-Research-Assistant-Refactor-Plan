@@ -166,7 +166,7 @@ func normalizeTutoringAnalysisFollowUpDepth(
 		return normalizeAITutorResultArchiveNextFollowUpDepth(depth)
 	}
 	if depth != 0 {
-		return 0, validationError("followUpDepth is unsupported for published study packet")
+		return 0, validationError("followUpDepth is unsupported for this learning action source")
 	}
 	return 0, nil
 }

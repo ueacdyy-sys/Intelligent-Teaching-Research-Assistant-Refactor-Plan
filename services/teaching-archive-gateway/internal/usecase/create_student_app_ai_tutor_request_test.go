@@ -149,6 +149,83 @@ func TestCreateStudentAppAITutorRequestUsesResultArchiveActionSource(t *testing.
 	}
 }
 
+func TestCreateStudentAppAITutorRequestUsesQuestionBankFeedbackActionSource(t *testing.T) {
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_feedback_001": questionBankDraftAnswerFeedbackReadArchiveItem("tarch_student_feedback_001", "student_001"),
+		},
+		questionBankFeedbackSnapshot:   questionBankDraftAnswerFeedbackReadSnapshot("tarch_student_feedback_001", "qbank_ans_sub_001", "student_001"),
+		questionBankFeedbackSnapshotOK: true,
+		questionBankSubmission:         questionBankDraftAnswerSubmissionForFeedbackRead("qbank_ans_sub_001", "student_001"),
+		questionBankSubmissionOK:       true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(
+		repo,
+		fixedIDs{id: "tutor_req_student_app_feedback"},
+		fixedClock{now: time.Date(2026, 6, 8, 15, 0, 0, 0, time.UTC)},
+	)
+
+	got, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_feedback_001",
+		AnalysisGoal:         "continue practice from reviewed feedback",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:           domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback,
+			ActionType:           domain.StudentAppArchiveItemLearningActionPersonalizedQuestionBank,
+			SubmissionID:         "qbank_ans_sub_001",
+			FeedbackStatus:       domain.StudentAppQuestionBankDraftAnswerFeedbackStatusReady,
+			FeedbackRenderFormat: domain.QuestionBankDraftAnswerFeedbackRenderFormatSafeTextBlocks,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if got.ID != "tutor_req_student_app_feedback" ||
+		got.ArchiveItemID != "tarch_student_feedback_001" ||
+		got.SourceArchiveMaterial != domain.MaterialTypeHomework ||
+		got.LearningActionSource != domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback {
+		t.Fatalf("request = %#v", got)
+	}
+	if repo.genericGetReads != 1 || repo.questionBankFeedbackSnapshotReads != 1 || repo.questionBankSubmissionReads != 1 {
+		t.Fatalf("reads get:%d feedback:%d submission:%d", repo.genericGetReads, repo.questionBankFeedbackSnapshotReads, repo.questionBankSubmissionReads)
+	}
+	if repo.creates != 1 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
+func TestCreateStudentAppAITutorRequestRejectsTamperedQuestionBankFeedbackSubmission(t *testing.T) {
+	repo := &fakeTutoringRepository{
+		items: map[string]domain.ArchiveItem{
+			"tarch_student_feedback_001": questionBankDraftAnswerFeedbackReadArchiveItem("tarch_student_feedback_001", "student_001"),
+		},
+		questionBankFeedbackSnapshot:   questionBankDraftAnswerFeedbackReadSnapshot("tarch_student_feedback_001", "qbank_ans_sub_001", "student_001"),
+		questionBankFeedbackSnapshotOK: true,
+	}
+	uc := usecase.NewCreateStudentAppAITutorRequest(repo, fixedIDs{id: "tutor_req_student_app_feedback"}, fixedClock{})
+
+	_, err := uc.Execute(context.Background(), domain.CreateStudentAppAITutorRequestInput{
+		Principal:            studentPrincipal("student_001"),
+		StudentArchiveItemID: "tarch_student_feedback_001",
+		AnalysisGoal:         "continue practice",
+		QuestionBankIntent:   domain.QuestionBankIntentGeneratePersonalizedCheck,
+		LearningActionSource: domain.StudentAppAITutorLearningActionSource{
+			SourceType:           domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback,
+			ActionType:           domain.StudentAppArchiveItemLearningActionAITutorRequest,
+			SubmissionID:         "qbank_ans_sub_other",
+			FeedbackStatus:       domain.StudentAppQuestionBankDraftAnswerFeedbackStatusReady,
+			FeedbackRenderFormat: domain.QuestionBankDraftAnswerFeedbackRenderFormatSafeTextBlocks,
+		},
+	})
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+	if repo.creates != 0 {
+		t.Fatalf("creates = %d", repo.creates)
+	}
+}
+
 func TestCreateStudentAppAITutorRequestReusesPendingResultArchiveFollowUp(t *testing.T) {
 	existing := domain.TutoringAnalysisRequest{
 		ID:                     "tutor_req_existing_follow_up",

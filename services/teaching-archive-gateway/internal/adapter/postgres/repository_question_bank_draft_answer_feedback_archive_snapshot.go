@@ -55,6 +55,53 @@ func (r *ArchiveRepository) GetLatestQuestionBankDraftAnswerFeedbackArchiveSnaps
 	return snapshot, true, nil
 }
 
+func (r *ArchiveRepository) GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+	ctx context.Context,
+	feedbackArchiveItemID string,
+	studentID string,
+) (domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot, bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			snapshot.feedback_archive_item_id,
+			snapshot.submission_id,
+			snapshot.student_id,
+			snapshot.request_id,
+			snapshot.question_bank_draft_ref,
+			snapshot.tutoring_analysis_request_id,
+			snapshot.source_archive_item_id,
+			snapshot.score_summary,
+			snapshot.learner_feedback,
+			snapshot.safe_learner_feedback_only,
+			snapshot.reviewed_at,
+			snapshot.archived_at,
+			snapshot.updated_at
+		FROM teaching_question_bank_draft_answer_feedback_archive_snapshots AS snapshot
+		WHERE snapshot.feedback_archive_item_id = $1
+			AND snapshot.student_id = $2
+			AND snapshot.safe_learner_feedback_only = TRUE
+		LIMIT 1
+	`, feedbackArchiveItemID, studentID)
+	if err != nil {
+		return domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{}, false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{}, false, err
+		}
+		return domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{}, false, nil
+	}
+	snapshot, err := scanQuestionBankDraftAnswerFeedbackArchiveSnapshot(rows)
+	if err != nil {
+		return domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{}, false, err
+	}
+	if err := rows.Err(); err != nil {
+		return domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{}, false, err
+	}
+	return snapshot, true, nil
+}
+
 func scanQuestionBankDraftAnswerFeedbackArchiveSnapshot(
 	rows Rows,
 ) (domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot, error) {

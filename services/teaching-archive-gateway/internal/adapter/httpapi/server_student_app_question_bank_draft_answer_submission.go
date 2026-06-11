@@ -17,6 +17,15 @@ func (s *Server) studentAppQuestionBankDraftAnswerSubmissions(w http.ResponseWri
 }
 
 func (s *Server) studentAppQuestionBankDraftAnswerSubmissionSubresources(w http.ResponseWriter, r *http.Request) {
+	if submissionID, ok := parseStudentAppQuestionBankDraftAnswerSubmissionAIFeedbackLearningActionsPath(r.URL.Path); ok {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		s.readStudentAppQuestionBankDraftAnswerFeedbackLearningActionsHTTP(w, r, submissionID)
+		return
+	}
+
 	if submissionID, ok := parseStudentAppQuestionBankDraftAnswerSubmissionAIFeedbackRenderedPath(r.URL.Path); ok {
 		if r.Method != http.MethodGet {
 			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -235,4 +244,36 @@ func (s *Server) renderStudentAppQuestionBankDraftAnswerFeedbackHTTP(
 	}
 
 	writeJSON(w, http.StatusOK, toStudentAppQuestionBankDraftAnswerFeedbackRenderResponse(rendered))
+}
+
+func (s *Server) readStudentAppQuestionBankDraftAnswerFeedbackLearningActionsHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+	submissionID string,
+) {
+	if !s.authorized(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid agent api key")
+		return
+	}
+	principal, ok := parsePrincipalContext(w, r)
+	if !ok {
+		return
+	}
+	if s.readStudentAppQuestionBankDraftAnswerFeedbackLearningActions == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "student app question bank draft answer feedback learning actions use case is not configured")
+		return
+	}
+
+	actions, err := s.readStudentAppQuestionBankDraftAnswerFeedbackLearningActions.Execute(
+		r.Context(),
+		domain.ReadStudentAppQuestionBankDraftAnswerFeedbackInput{
+			Principal:    principal,
+			SubmissionID: submissionID,
+		},
+	)
+	if handleArchiveError(w, err, "failed to read question bank draft answer feedback learning actions") {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toStudentAppQuestionBankDraftAnswerFeedbackLearningActionsResponse(actions))
 }

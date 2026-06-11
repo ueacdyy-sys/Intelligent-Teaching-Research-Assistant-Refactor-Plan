@@ -744,9 +744,7 @@ func toTutoringAnalysisWorkerClaimResponse(request domain.TutoringAnalysisReques
 	}
 }
 
-func toAITutorWorkerStudyPacketInputResponse(
-	input domain.AITutorWorkerStudyPacketInput,
-) aiTutorWorkerStudyPacketInputResponse {
+func toAITutorWorkerStudyPacketInputResponse(input domain.AITutorWorkerStudyPacketInput) aiTutorWorkerStudyPacketInputResponse {
 	blocks := make([]aiTutorWorkerStudyPacketInputBlock, 0, len(input.Blocks))
 	for _, block := range input.Blocks {
 		blocks = append(blocks, aiTutorWorkerStudyPacketInputBlock{
@@ -760,22 +758,25 @@ func toAITutorWorkerStudyPacketInputResponse(
 		})
 	}
 	return aiTutorWorkerStudyPacketInputResponse{
-		RequestID:                 input.RequestID,
-		ArchiveItemID:             input.ArchiveItemID,
-		AnalysisGoal:              input.AnalysisGoal,
-		QuestionBankIntent:        input.QuestionBankIntent,
-		Status:                    input.Status,
-		LearningActionSource:      input.LearningActionSource,
-		FollowUpDepth:             input.FollowUpDepth,
-		WorkerID:                  input.WorkerID,
-		ClaimExpiresAt:            formatTime(input.ClaimExpiresAt),
-		SourceArchiveStudentID:    input.SourceArchiveStudentID,
-		SourceArchiveMaterial:     input.SourceArchiveMaterial,
-		PacketStatus:              input.PacketStatus,
-		ResultArchiveStatus:       input.ResultArchiveStatus,
-		ResultArchiveSourceItemID: input.ResultArchiveSourceItemID,
-		RenderFormat:              input.RenderFormat,
-		Blocks:                    blocks,
+		RequestID:                   input.RequestID,
+		ArchiveItemID:               input.ArchiveItemID,
+		AnalysisGoal:                input.AnalysisGoal,
+		QuestionBankIntent:          input.QuestionBankIntent,
+		Status:                      input.Status,
+		LearningActionSource:        input.LearningActionSource,
+		FollowUpDepth:               input.FollowUpDepth,
+		WorkerID:                    input.WorkerID,
+		ClaimExpiresAt:              formatTime(input.ClaimExpiresAt),
+		SourceArchiveStudentID:      input.SourceArchiveStudentID,
+		SourceArchiveMaterial:       input.SourceArchiveMaterial,
+		PacketStatus:                input.PacketStatus,
+		ResultArchiveStatus:         input.ResultArchiveStatus,
+		ResultArchiveSourceItemID:   input.ResultArchiveSourceItemID,
+		FeedbackStatus:              input.FeedbackStatus,
+		FeedbackSubmissionID:        input.FeedbackSubmissionID,
+		FeedbackSourceArchiveItemID: input.FeedbackSourceArchiveItemID,
+		RenderFormat:                input.RenderFormat,
+		Blocks:                      blocks,
 	}
 }
 

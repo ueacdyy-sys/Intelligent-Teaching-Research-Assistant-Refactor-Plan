@@ -25,3 +25,31 @@ type questionBankDraftAnswerFeedbackRenderBlock struct {
 	Title     string                                          `json:"title"`
 	Text      string                                          `json:"text"`
 }
+
+type questionBankDraftAnswerFeedbackLearningActionsResponse struct {
+	SubmissionID          string                                                 `json:"submissionId"`
+	ArchiveItemID         string                                                 `json:"archiveItemId"`
+	FeedbackArchiveItemID string                                                 `json:"feedbackArchiveItemId"`
+	Status                domain.StudentAppQuestionBankDraftAnswerFeedbackStatus `json:"status"`
+	MaterialType          domain.MaterialType                                    `json:"materialType"`
+	RenderFormat          domain.QuestionBankDraftAnswerFeedbackRenderFormat     `json:"renderFormat"`
+	Actions               []questionBankDraftAnswerFeedbackLearningAction        `json:"actions"`
+}
+
+type questionBankDraftAnswerFeedbackLearningAction struct {
+	ActionType           domain.StudentAppArchiveItemLearningActionType      `json:"actionType"`
+	State                domain.StudentAppArchiveItemLearningActionState     `json:"state"`
+	TargetEndpoint       string                                              `json:"targetEndpoint"`
+	Method               string                                              `json:"method"`
+	QuestionBankIntent   domain.QuestionBankIntent                           `json:"questionBankIntent,omitempty"`
+	RequiresTutorRequest bool                                                `json:"requiresTutorRequest"`
+	LearningActionSource questionBankDraftAnswerFeedbackLearningActionSource `json:"learningActionSource"`
+}
+
+type questionBankDraftAnswerFeedbackLearningActionSource struct {
+	SourceType           domain.StudentAppAITutorLearningActionSourceType       `json:"sourceType"`
+	ActionType           domain.StudentAppArchiveItemLearningActionType         `json:"actionType"`
+	SubmissionID         string                                                 `json:"submissionId"`
+	FeedbackStatus       domain.StudentAppQuestionBankDraftAnswerFeedbackStatus `json:"feedbackStatus"`
+	FeedbackRenderFormat domain.QuestionBankDraftAnswerFeedbackRenderFormat     `json:"feedbackRenderFormat"`
+}

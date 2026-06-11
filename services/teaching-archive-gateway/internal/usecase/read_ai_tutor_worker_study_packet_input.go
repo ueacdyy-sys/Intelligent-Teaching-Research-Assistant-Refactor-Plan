@@ -11,6 +11,12 @@ type AITutorWorkerStudyPacketInputRepository interface {
 	GetTutoringAnalysisRequestByID(ctx context.Context, id string) (domain.TutoringAnalysisRequest, bool, error)
 	StudentAppArchiveItemStudyPacketReader
 	StudentAppAITutorResultArchiveReader
+	QuestionBankDraftAnswerFeedbackSnapshotByArchiveItemReader
+	GetQuestionBankDraftAnswerSubmissionForStudent(
+		ctx context.Context,
+		submissionID string,
+		studentID string,
+	) (domain.QuestionBankDraftAnswerSubmission, bool, error)
 }
 
 type ReadAITutorWorkerStudyPacketInput struct {
@@ -47,10 +53,14 @@ func (uc *ReadAITutorWorkerStudyPacketInput) Execute(
 	if err := domain.ValidateAITutorWorkerStudyPacketRequest(normalized, request, now); err != nil {
 		return domain.AITutorWorkerStudyPacketInput{}, err
 	}
-	if domain.TutoringAnalysisRequestLearningActionSource(request) == domain.StudentAppAITutorLearningActionSourceResultArchive {
+	switch domain.TutoringAnalysisRequestLearningActionSource(request) {
+	case domain.StudentAppAITutorLearningActionSourceResultArchive:
 		return uc.readResultArchiveInput(ctx, normalized, request, now)
+	case domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback:
+		return uc.readQuestionBankFeedbackInput(ctx, normalized, request, now)
+	default:
+		return uc.readPublishedStudyPacketInput(ctx, normalized, request, now)
 	}
-	return uc.readPublishedStudyPacketInput(ctx, normalized, request, now)
 }
 
 func (uc *ReadAITutorWorkerStudyPacketInput) readPublishedStudyPacketInput(
@@ -119,4 +129,55 @@ func (uc *ReadAITutorWorkerStudyPacketInput) readResultArchiveInput(
 		return domain.AITutorWorkerStudyPacketInput{}, err
 	}
 	return domain.BuildAITutorWorkerResultArchiveInput(normalized, request, rendered, now)
+}
+
+func (uc *ReadAITutorWorkerStudyPacketInput) readQuestionBankFeedbackInput(
+	ctx context.Context,
+	normalized domain.NormalizedReadAITutorWorkerStudyPacketInputInput,
+	request domain.TutoringAnalysisRequest,
+	now time.Time,
+) (domain.AITutorWorkerStudyPacketInput, error) {
+	item, ok, err := uc.repository.GetByID(ctx, request.ArchiveItemID)
+	if err != nil {
+		return domain.AITutorWorkerStudyPacketInput{}, err
+	}
+	if !ok {
+		return domain.AITutorWorkerStudyPacketInput{}, domain.ErrNotFound
+	}
+	snapshot, ok, err := uc.repository.GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+		ctx,
+		request.ArchiveItemID,
+		request.SourceArchiveStudentID,
+	)
+	if err != nil {
+		return domain.AITutorWorkerStudyPacketInput{}, err
+	}
+	if !ok {
+		return domain.AITutorWorkerStudyPacketInput{}, domain.ErrNotFound
+	}
+	submission, ok, err := uc.repository.GetQuestionBankDraftAnswerSubmissionForStudent(
+		ctx,
+		snapshot.SubmissionID,
+		request.SourceArchiveStudentID,
+	)
+	if err != nil {
+		return domain.AITutorWorkerStudyPacketInput{}, err
+	}
+	if !ok {
+		return domain.AITutorWorkerStudyPacketInput{}, domain.ErrNotFound
+	}
+	readInput := domain.NormalizedReadStudentAppQuestionBankDraftAnswerFeedbackInput{
+		Principal:    domain.BuildAITutorWorkerStudyPacketStudentReadInput(request).Principal,
+		SubmissionID: snapshot.SubmissionID,
+		StudentID:    request.SourceArchiveStudentID,
+	}
+	card, err := domain.BuildStudentAppQuestionBankDraftAnswerFeedbackCard(readInput, submission, item, snapshot)
+	if err != nil {
+		return domain.AITutorWorkerStudyPacketInput{}, err
+	}
+	rendered, err := domain.BuildQuestionBankDraftAnswerFeedbackRenderEnvelope(card)
+	if err != nil {
+		return domain.AITutorWorkerStudyPacketInput{}, err
+	}
+	return domain.BuildAITutorWorkerQuestionBankFeedbackInput(normalized, request, rendered, now)
 }

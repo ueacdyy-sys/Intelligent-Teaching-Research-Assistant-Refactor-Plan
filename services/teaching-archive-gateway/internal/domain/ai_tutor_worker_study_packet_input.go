@@ -30,6 +30,9 @@ type AITutorWorkerStudyPacketInput struct {
 	ResultArchiveStatus              StudentAppAITutorResultArchiveStatus
 	ResultArchiveSourceItemID        string
 	ResultArchiveSourceTutoringReqID string
+	FeedbackStatus                   StudentAppQuestionBankDraftAnswerFeedbackStatus
+	FeedbackSubmissionID             string
+	FeedbackSourceArchiveItemID      string
 	RenderFormat                     AITutorWorkerStudyPacketInputRenderFormat
 	Blocks                           []AITutorWorkerStudyPacketInputBlock
 }
@@ -203,6 +206,55 @@ func BuildAITutorWorkerResultArchiveInput(
 	}, nil
 }
 
+func BuildAITutorWorkerQuestionBankFeedbackInput(
+	input NormalizedReadAITutorWorkerStudyPacketInputInput,
+	request TutoringAnalysisRequest,
+	rendered QuestionBankDraftAnswerFeedbackRenderEnvelope,
+	now time.Time,
+) (AITutorWorkerStudyPacketInput, error) {
+	if err := ValidateAITutorWorkerStudyPacketRequest(input, request, now); err != nil {
+		return AITutorWorkerStudyPacketInput{}, err
+	}
+	if TutoringAnalysisRequestLearningActionSource(request) != StudentAppAITutorLearningActionSourceQuestionBankFeedback {
+		return AITutorWorkerStudyPacketInput{}, ErrForbidden
+	}
+	if rendered.FeedbackArchiveItemID != request.ArchiveItemID ||
+		rendered.Status != StudentAppQuestionBankDraftAnswerFeedbackStatusReady ||
+		rendered.MaterialType != request.SourceArchiveMaterial ||
+		rendered.RenderFormat != QuestionBankDraftAnswerFeedbackRenderFormatSafeTextBlocks {
+		return AITutorWorkerStudyPacketInput{}, ErrForbidden
+	}
+	studentReadInput := NormalizedReadStudentAppQuestionBankDraftAnswerFeedbackInput{
+		Principal:    studentAppPrincipalForAITutorWorkerInput(request.SourceArchiveStudentID),
+		SubmissionID: rendered.SubmissionID,
+		StudentID:    request.SourceArchiveStudentID,
+	}
+	actions, err := BuildQuestionBankDraftAnswerFeedbackLearningActions(studentReadInput, rendered)
+	if err != nil {
+		return AITutorWorkerStudyPacketInput{}, err
+	}
+	if !aiTutorWorkerQuestionBankFeedbackActionAvailable(actions, request.QuestionBankIntent) {
+		return AITutorWorkerStudyPacketInput{}, ErrForbidden
+	}
+	return AITutorWorkerStudyPacketInput{
+		RequestID:                   request.ID,
+		ArchiveItemID:               request.ArchiveItemID,
+		AnalysisGoal:                request.AnalysisGoal,
+		QuestionBankIntent:          request.QuestionBankIntent,
+		Status:                      request.Status,
+		LearningActionSource:        StudentAppAITutorLearningActionSourceQuestionBankFeedback,
+		WorkerID:                    input.WorkerID,
+		ClaimExpiresAt:              request.ClaimExpiresAt.UTC(),
+		SourceArchiveStudentID:      request.SourceArchiveStudentID,
+		SourceArchiveMaterial:       request.SourceArchiveMaterial,
+		FeedbackStatus:              rendered.Status,
+		FeedbackSubmissionID:        rendered.SubmissionID,
+		FeedbackSourceArchiveItemID: rendered.ArchiveItemID,
+		RenderFormat:                AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks,
+		Blocks:                      aiTutorWorkerQuestionBankFeedbackBlocks(rendered.Blocks),
+	}, nil
+}
+
 func aiTutorWorkerStudyPacketActionAvailable(
 	actions StudentAppArchiveItemLearningActions,
 	intent QuestionBankIntent,
@@ -245,6 +297,27 @@ func aiTutorWorkerResultArchiveActionAvailable(
 	return false
 }
 
+func aiTutorWorkerQuestionBankFeedbackActionAvailable(
+	actions QuestionBankDraftAnswerFeedbackLearningActions,
+	intent QuestionBankIntent,
+) bool {
+	if actions.Status != StudentAppQuestionBankDraftAnswerFeedbackStatusReady ||
+		actions.RenderFormat != QuestionBankDraftAnswerFeedbackRenderFormatSafeTextBlocks {
+		return false
+	}
+	for _, action := range actions.Actions {
+		if action.TargetEndpoint == "/v1/student-app/ai-tutor-requests" &&
+			action.Method == "POST" &&
+			action.QuestionBankIntent == intent &&
+			action.SourceType == StudentAppAITutorLearningActionSourceQuestionBankFeedback &&
+			(action.ActionType == StudentAppArchiveItemLearningActionAITutorRequest ||
+				action.ActionType == StudentAppArchiveItemLearningActionPersonalizedQuestionBank) {
+			return true
+		}
+	}
+	return false
+}
+
 func aiTutorWorkerPublishedBlocks(
 	blocks []PublishedArchiveMaterialContentPreviewBlock,
 ) []AITutorWorkerStudyPacketInputBlock {
@@ -277,6 +350,30 @@ func aiTutorWorkerResultArchiveBlocks(
 		})
 	}
 	return result
+}
+
+func aiTutorWorkerQuestionBankFeedbackBlocks(
+	blocks []QuestionBankDraftAnswerFeedbackRenderBlock,
+) []AITutorWorkerStudyPacketInputBlock {
+	result := make([]AITutorWorkerStudyPacketInputBlock, 0, len(blocks))
+	for _, block := range blocks {
+		result = append(result, AITutorWorkerStudyPacketInputBlock{
+			BlockID:   block.BlockID,
+			BlockType: aiTutorWorkerQuestionBankFeedbackBlockType(block.BlockType),
+			Title:     block.Title,
+			Text:      block.Text,
+		})
+	}
+	return result
+}
+
+func aiTutorWorkerQuestionBankFeedbackBlockType(
+	blockType QuestionBankDraftAnswerFeedbackBlockType,
+) AITutorWorkerStudyPacketInputBlockType {
+	if blockType == QuestionBankDraftAnswerFeedbackBlockTypeScoreSummary {
+		return AITutorWorkerStudyPacketInputBlockTypeSummary
+	}
+	return AITutorWorkerStudyPacketInputBlockTypeGuidanceSection
 }
 
 func aiTutorWorkerResultArchiveBlockType(

@@ -90,6 +90,51 @@ func TestGetLatestQuestionBankDraftAnswerFeedbackArchiveSnapshotForStudentReadsS
 	}
 }
 
+func TestGetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudentUsesScopedLookup(t *testing.T) {
+	db := &recordingDB{rows: &singleQuestionBankDraftAnswerFeedbackArchiveSnapshotRow{}}
+	repository := postgres.NewArchiveRepository(db)
+
+	snapshot, ok, err := repository.GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+		context.Background(),
+		"tarch_student_feedback_001",
+		"student_001",
+	)
+	if err != nil {
+		t.Fatalf("GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent returned error: %v", err)
+	}
+	if !ok || snapshot.FeedbackArchiveItemID != "tarch_student_feedback_001" || snapshot.SubmissionID != "qbank_ans_sub_001" {
+		t.Fatalf("snapshot = %#v, ok=%v", snapshot, ok)
+	}
+	for _, fragment := range []string{
+		"FROM teaching_question_bank_draft_answer_feedback_archive_snapshots AS snapshot",
+		"snapshot.feedback_archive_item_id = $1",
+		"snapshot.student_id = $2",
+		"snapshot.safe_learner_feedback_only = TRUE",
+		"LIMIT 1",
+	} {
+		if !strings.Contains(db.lastSQL, fragment) {
+			t.Fatalf("SQL missing %q in: %s", fragment, db.lastSQL)
+		}
+	}
+	for _, forbidden := range []string{
+		"SELECT *",
+		"answer_text",
+		"expected_answer",
+		"explanation",
+		"result_ref",
+		"content_ref",
+		"raw_model_output",
+		"worker_id",
+	} {
+		if strings.Contains(db.lastSQL, forbidden) {
+			t.Fatalf("snapshot SQL leaked forbidden fragment %q in: %s", forbidden, db.lastSQL)
+		}
+	}
+	if len(db.args) != 2 || db.args[0] != "tarch_student_feedback_001" || db.args[1] != "student_001" {
+		t.Fatalf("args = %#v", db.args)
+	}
+}
+
 type singleQuestionBankDraftAnswerFeedbackArchiveSnapshotRow struct {
 	advanced bool
 }

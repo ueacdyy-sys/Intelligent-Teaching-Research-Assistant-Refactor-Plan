@@ -64,7 +64,7 @@ post:
                 const: IN_PROGRESS
               learningActionSource:
                 type: string
-                enum: [PUBLISHED_STUDY_PACKET, AI_TUTOR_RESULT_ARCHIVE]
+                enum: [PUBLISHED_STUDY_PACKET, AI_TUTOR_RESULT_ARCHIVE, QUESTION_BANK_DRAFT_ANSWER_FEEDBACK]
               followUpDepth:
                 type: integer
                 minimum: 1
@@ -88,6 +88,15 @@ post:
                 type: string
                 const: READY_FOR_STUDENT_APP_READ
               resultArchiveSourceItemId:
+                type: string
+                pattern: '^tarch_[A-Za-z0-9_-]+$'
+              feedbackStatus:
+                type: string
+                const: READY_FOR_STUDENT_APP_READ
+              feedbackSubmissionId:
+                type: string
+                pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+              feedbackSourceArchiveItemId:
                 type: string
                 pattern: '^tarch_[A-Za-z0-9_-]+$'
               renderFormat:
@@ -128,6 +137,9 @@ post:
                   anyOf:
                     - required: [resultArchiveStatus]
                     - required: [followUpDepth]
+                    - required: [feedbackStatus]
+                    - required: [feedbackSubmissionId]
+                    - required: [feedbackSourceArchiveItemId]
               - required:
                   - resultArchiveStatus
                   - followUpDepth
@@ -137,7 +149,25 @@ post:
                     type: string
                     const: AI_TUTOR_RESULT_ARCHIVE
                 not:
-                  required: [packetStatus]
+                  anyOf:
+                    - required: [packetStatus]
+                    - required: [feedbackStatus]
+                    - required: [feedbackSubmissionId]
+                    - required: [feedbackSourceArchiveItemId]
+              - required:
+                  - feedbackStatus
+                  - feedbackSubmissionId
+                  - feedbackSourceArchiveItemId
+                properties:
+                  learningActionSource:
+                    type: string
+                    const: QUESTION_BANK_DRAFT_ANSWER_FEEDBACK
+                not:
+                  anyOf:
+                    - required: [packetStatus]
+                    - required: [resultArchiveStatus]
+                    - required: [followUpDepth]
+                    - required: [resultArchiveSourceItemId]
     '401':
       $ref: './teaching-archive.yaml#/components/responses/Unauthorized'
     '403':

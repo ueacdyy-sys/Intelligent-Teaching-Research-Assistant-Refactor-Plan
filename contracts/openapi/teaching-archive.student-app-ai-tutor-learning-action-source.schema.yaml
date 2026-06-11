@@ -3,7 +3,7 @@ additionalProperties: false
 properties:
   sourceType:
     type: string
-    enum: [PUBLISHED_STUDY_PACKET, AI_TUTOR_RESULT_ARCHIVE]
+    enum: [PUBLISHED_STUDY_PACKET, AI_TUTOR_RESULT_ARCHIVE, QUESTION_BANK_DRAFT_ANSWER_FEEDBACK]
     default: PUBLISHED_STUDY_PACKET
   actionType:
     type: string
@@ -21,6 +21,15 @@ properties:
     type: integer
     minimum: 1
     maximum: 2
+  submissionId:
+    type: string
+    pattern: '^qbank_ans_sub_[A-Za-z0-9_-]+$'
+  feedbackStatus:
+    type: string
+    const: READY_FOR_STUDENT_APP_READ
+  feedbackRenderFormat:
+    type: string
+    const: SAFE_TEXT_BLOCKS
 oneOf:
   - required:
       - actionType
@@ -35,6 +44,9 @@ oneOf:
         - required: [resultArchiveStatus]
         - required: [renderFormat]
         - required: [followUpDepth]
+        - required: [submissionId]
+        - required: [feedbackStatus]
+        - required: [feedbackRenderFormat]
   - required:
       - sourceType
       - actionType
@@ -46,4 +58,24 @@ oneOf:
         type: string
         const: AI_TUTOR_RESULT_ARCHIVE
     not:
-      required: [packetStatus]
+      anyOf:
+        - required: [packetStatus]
+        - required: [submissionId]
+        - required: [feedbackStatus]
+        - required: [feedbackRenderFormat]
+  - required:
+      - sourceType
+      - actionType
+      - submissionId
+      - feedbackStatus
+      - feedbackRenderFormat
+    properties:
+      sourceType:
+        type: string
+        const: QUESTION_BANK_DRAFT_ANSWER_FEEDBACK
+    not:
+      anyOf:
+        - required: [packetStatus]
+        - required: [resultArchiveStatus]
+        - required: [renderFormat]
+        - required: [followUpDepth]

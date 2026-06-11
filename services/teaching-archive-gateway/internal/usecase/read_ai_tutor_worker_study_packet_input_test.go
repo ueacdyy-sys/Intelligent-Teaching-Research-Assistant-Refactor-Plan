@@ -94,6 +94,48 @@ func TestReadAITutorWorkerStudyPacketInputUsesResultArchiveSafeRenderSource(t *t
 	}
 }
 
+func TestReadAITutorWorkerStudyPacketInputUsesQuestionBankFeedbackSafeRenderSource(t *testing.T) {
+	now := time.Date(2026, 6, 8, 15, 0, 0, 0, time.UTC)
+	request := claimedTutoringRequestForWorkerInput(now)
+	request.ArchiveItemID = "tarch_student_feedback_001"
+	request.SourceArchiveMaterial = domain.MaterialTypeHomework
+	request.LearningActionSource = domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback
+	repo := &fakeAITutorWorkerStudyPacketRepository{
+		request:                        request,
+		requestOK:                      true,
+		resultArchiveItem:              questionBankDraftAnswerFeedbackReadArchiveItem("tarch_student_feedback_001", "student_001"),
+		resultArchiveOK:                true,
+		questionBankFeedbackSnapshot:   questionBankDraftAnswerFeedbackReadSnapshot("tarch_student_feedback_001", "qbank_ans_sub_001", "student_001"),
+		questionBankFeedbackSnapshotOK: true,
+		questionBankSubmission:         questionBankDraftAnswerSubmissionForFeedbackRead("qbank_ans_sub_001", "student_001"),
+		questionBankSubmissionOK:       true,
+	}
+	uc := usecase.NewReadAITutorWorkerStudyPacketInput(repo, fixedClock{now: now})
+
+	input, err := uc.Execute(context.Background(), domain.ReadAITutorWorkerStudyPacketInputInput{
+		Principal: servicePrincipal(),
+		RequestID: "tutor_req_worker_input",
+		WorkerID:  "worker_student_tutor_01",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if input.LearningActionSource != domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback ||
+		input.FeedbackStatus != domain.StudentAppQuestionBankDraftAnswerFeedbackStatusReady ||
+		input.FeedbackSubmissionID != "qbank_ans_sub_001" ||
+		input.FeedbackSourceArchiveItemID != "tarch_source_homework_001" ||
+		input.RenderFormat != domain.AITutorWorkerStudyPacketInputRenderFormatSafeTextBlocks ||
+		len(input.Blocks) < 4 {
+		t.Fatalf("input = %#v", input)
+	}
+	if repo.requestReads != 1 || repo.genericGetReads != 1 || repo.questionBankFeedbackSnapshotReads != 1 || repo.questionBankSubmissionReads != 1 {
+		t.Fatalf("reads request:%d generic:%d feedback:%d submission:%d", repo.requestReads, repo.genericGetReads, repo.questionBankFeedbackSnapshotReads, repo.questionBankSubmissionReads)
+	}
+	if repo.publishedReads != 0 || repo.previewReads != 0 || repo.resultArchiveSnapshotReads != 0 {
+		t.Fatalf("unexpected reads published:%d preview:%d result:%d", repo.publishedReads, repo.previewReads, repo.resultArchiveSnapshotReads)
+	}
+}
+
 func TestReadAITutorWorkerStudyPacketInputUsesFollowUpResultArchiveItem(t *testing.T) {
 	now := time.Date(2026, 6, 9, 15, 0, 0, 0, time.UTC)
 	const followUpArchiveItemID = "tarch_student_ai_tutor_result_follow_up_002"
@@ -186,24 +228,30 @@ func TestReadAITutorWorkerStudyPacketInputRejectsExpiredLeaseBeforePublishedRead
 }
 
 type fakeAITutorWorkerStudyPacketRepository struct {
-	request                    domain.TutoringAnalysisRequest
-	requestOK                  bool
-	requestReads               int
-	publishedItem              domain.ArchiveItem
-	publishedOK                bool
-	publishedReads             int
-	contentPreview             domain.PublishedArchiveMaterialContentPreview
-	previewOK                  bool
-	previewReads               int
-	resultArchiveItem          domain.ArchiveItem
-	resultArchiveOK            bool
-	resultArchiveSnapshot      domain.StudentAppAITutorResultArchiveSnapshot
-	resultArchiveSnapshotOK    bool
-	resultArchiveSnapshotReads int
-	genericGetReads            int
-	genericGetID               string
-	snapshotArchiveItemID      string
-	snapshotStudentID          string
+	request                           domain.TutoringAnalysisRequest
+	requestOK                         bool
+	requestReads                      int
+	publishedItem                     domain.ArchiveItem
+	publishedOK                       bool
+	publishedReads                    int
+	contentPreview                    domain.PublishedArchiveMaterialContentPreview
+	previewOK                         bool
+	previewReads                      int
+	resultArchiveItem                 domain.ArchiveItem
+	resultArchiveOK                   bool
+	resultArchiveSnapshot             domain.StudentAppAITutorResultArchiveSnapshot
+	resultArchiveSnapshotOK           bool
+	resultArchiveSnapshotReads        int
+	questionBankFeedbackSnapshot      domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot
+	questionBankFeedbackSnapshotOK    bool
+	questionBankFeedbackSnapshotReads int
+	questionBankSubmission            domain.QuestionBankDraftAnswerSubmission
+	questionBankSubmissionOK          bool
+	questionBankSubmissionReads       int
+	genericGetReads                   int
+	genericGetID                      string
+	snapshotArchiveItemID             string
+	snapshotStudentID                 string
 }
 
 func (f *fakeAITutorWorkerStudyPacketRepository) GetTutoringAnalysisRequestByID(
@@ -250,6 +298,24 @@ func (f *fakeAITutorWorkerStudyPacketRepository) GetStudentAppAITutorResultArchi
 	f.snapshotArchiveItemID = archiveItemID
 	f.snapshotStudentID = studentID
 	return f.resultArchiveSnapshot, f.resultArchiveSnapshotOK, nil
+}
+
+func (f *fakeAITutorWorkerStudyPacketRepository) GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+) (domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot, bool, error) {
+	f.questionBankFeedbackSnapshotReads++
+	return f.questionBankFeedbackSnapshot, f.questionBankFeedbackSnapshotOK, nil
+}
+
+func (f *fakeAITutorWorkerStudyPacketRepository) GetQuestionBankDraftAnswerSubmissionForStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+) (domain.QuestionBankDraftAnswerSubmission, bool, error) {
+	f.questionBankSubmissionReads++
+	return f.questionBankSubmission, f.questionBankSubmissionOK, nil
 }
 
 func claimedTutoringRequestForWorkerInput(now time.Time) domain.TutoringAnalysisRequest {

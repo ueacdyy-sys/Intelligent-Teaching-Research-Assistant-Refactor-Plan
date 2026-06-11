@@ -91,8 +91,8 @@ export function auditStudentAppAITutorQuestionBankDraftContentRead(inputs, optio
       "body leaked",
       "TestReadStudentAppQuestionBankDraftContentRejectsCrossStudent",
       "readStudentAppQuestionBankDraftContent := usecase.NewReadStudentAppQuestionBankDraftContent",
-      "ReadStudentAppQuestionBankDraftContent:                readStudentAppQuestionBankDraftContent",
     ]) &&
+      hasGoKeyedValue(inputs.main ?? "", "ReadStudentAppQuestionBankDraftContent", "readStudentAppQuestionBankDraftContent") &&
       !responseType.includes("StudentID") &&
       !responseType.includes("Worker") &&
       !responseType.includes("Score") &&
@@ -193,6 +193,10 @@ function extractTypeBody(text, typeName) {
 
 function includesAll(text, values) {
   return values.every((value) => text.includes(value));
+}
+
+function hasGoKeyedValue(text, key, value) {
+  return new RegExp(`${key}:\\s*${value}`).test(text);
 }
 
 function summarizePresence(text, values) {

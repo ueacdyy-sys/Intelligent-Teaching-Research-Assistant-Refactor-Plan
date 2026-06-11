@@ -16,10 +16,24 @@ type StudentAppAITutorRequestRepository interface {
 	TutoringAnalysisRepository
 	StudentAppArchiveItemStudyPacketReader
 	StudentAppAITutorResultArchiveSnapshotReader
+	QuestionBankDraftAnswerFeedbackSnapshotByArchiveItemReader
+	GetQuestionBankDraftAnswerSubmissionForStudent(
+		ctx context.Context,
+		submissionID string,
+		studentID string,
+	) (domain.QuestionBankDraftAnswerSubmission, bool, error)
 	FindPendingStudentAppAITutorResultArchiveFollowUpRequest(
 		ctx context.Context,
 		query domain.StudentAppAITutorResultArchiveFollowUpPendingRequestQuery,
 	) (domain.TutoringAnalysisRequest, bool, error)
+}
+
+type QuestionBankDraftAnswerFeedbackSnapshotByArchiveItemReader interface {
+	GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+		ctx context.Context,
+		feedbackArchiveItemID string,
+		studentID string,
+	) (domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot, bool, error)
 }
 
 func NewCreateStudentAppAITutorRequest(
@@ -114,10 +128,14 @@ func (uc *CreateStudentAppAITutorRequest) readArchiveItemForStudentAppTutorReque
 	input domain.NormalizedCreateStudentAppAITutorRequestInput,
 ) (domain.ArchiveItem, error) {
 	if !input.LearningActionSource.IsZero() {
-		if input.LearningActionSource.SourceType == domain.StudentAppAITutorLearningActionSourceResultArchive {
+		switch input.LearningActionSource.SourceType {
+		case domain.StudentAppAITutorLearningActionSourceResultArchive:
 			return uc.readAITutorResultArchiveActionSource(ctx, input)
+		case domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback:
+			return uc.readQuestionBankDraftAnswerFeedbackActionSource(ctx, input)
+		default:
+			return uc.readPublishedStudyPacketActionSource(ctx, input)
 		}
-		return uc.readPublishedStudyPacketActionSource(ctx, input)
 	}
 	archiveItem, ok, err := uc.repository.GetByID(ctx, input.ArchiveItemID)
 	if err != nil {
@@ -179,6 +197,75 @@ func (uc *CreateStudentAppAITutorRequest) readAITutorResultArchiveActionSource(
 			action.Method == "POST" &&
 			action.SourceType == domain.StudentAppAITutorLearningActionSourceResultArchive &&
 			action.FollowUpDepth == input.LearningActionSource.FollowUpDepth {
+			return archiveItem, nil
+		}
+	}
+	return domain.ArchiveItem{}, domain.ErrForbidden
+}
+
+func (uc *CreateStudentAppAITutorRequest) readQuestionBankDraftAnswerFeedbackActionSource(
+	ctx context.Context,
+	input domain.NormalizedCreateStudentAppAITutorRequestInput,
+) (domain.ArchiveItem, error) {
+	archiveItem, ok, err := uc.repository.GetByID(ctx, input.ArchiveItemID)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	if !ok {
+		return domain.ArchiveItem{}, domain.ErrNotFound
+	}
+	source := input.LearningActionSource
+	snapshot, ok, err := uc.repository.GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+		ctx,
+		input.ArchiveItemID,
+		input.StudentID,
+	)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	if !ok {
+		return domain.ArchiveItem{}, domain.ErrNotFound
+	}
+	if snapshot.SubmissionID != source.SubmissionID {
+		return domain.ArchiveItem{}, domain.ErrForbidden
+	}
+	submission, ok, err := uc.repository.GetQuestionBankDraftAnswerSubmissionForStudent(
+		ctx,
+		source.SubmissionID,
+		input.StudentID,
+	)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	if !ok {
+		return domain.ArchiveItem{}, domain.ErrNotFound
+	}
+	readInput := domain.NormalizedReadStudentAppQuestionBankDraftAnswerFeedbackInput{
+		Principal:    input.Principal,
+		SubmissionID: source.SubmissionID,
+		StudentID:    input.StudentID,
+	}
+	card, err := domain.BuildStudentAppQuestionBankDraftAnswerFeedbackCard(readInput, submission, archiveItem, snapshot)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	rendered, err := domain.BuildQuestionBankDraftAnswerFeedbackRenderEnvelope(card)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	actions, err := domain.BuildQuestionBankDraftAnswerFeedbackLearningActions(readInput, rendered)
+	if err != nil {
+		return domain.ArchiveItem{}, err
+	}
+	if actions.Status != source.FeedbackStatus || actions.RenderFormat != source.FeedbackRenderFormat {
+		return domain.ArchiveItem{}, domain.ErrForbidden
+	}
+	for _, action := range actions.Actions {
+		if action.ActionType == source.ActionType &&
+			action.QuestionBankIntent == input.QuestionBankIntent &&
+			action.TargetEndpoint == "/v1/student-app/ai-tutor-requests" &&
+			action.Method == "POST" &&
+			action.SourceType == domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback {
 			return archiveItem, nil
 		}
 	}

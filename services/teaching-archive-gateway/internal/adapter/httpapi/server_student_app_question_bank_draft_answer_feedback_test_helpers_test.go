@@ -26,3 +26,18 @@ func (f *fakeRepository) GetLatestQuestionBankDraftAnswerFeedbackArchiveSnapshot
 	}
 	return latest, latest.SubmissionID != "", nil
 }
+
+func (f *fakeRepository) GetQuestionBankDraftAnswerFeedbackArchiveSnapshotByFeedbackArchiveItemForStudent(
+	_ context.Context,
+	feedbackArchiveItemID string,
+	studentID string,
+) (domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot, bool, error) {
+	for _, snapshot := range f.questionBankDraftAnswerFeedbackSnapshots {
+		if snapshot.FeedbackArchiveItemID == feedbackArchiveItemID &&
+			snapshot.StudentID == studentID &&
+			snapshot.SafeLearnerFeedbackOnly {
+			return snapshot, true, nil
+		}
+	}
+	return domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{}, false, nil
+}

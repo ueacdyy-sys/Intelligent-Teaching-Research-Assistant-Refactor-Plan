@@ -107,6 +107,53 @@ func TestReadAITutorWorkerStudyPacketInputReturnsResultArchiveSafeWorkerPackage(
 	}
 }
 
+func TestReadAITutorWorkerStudyPacketInputReturnsQuestionBankFeedbackSafeWorkerPackage(t *testing.T) {
+	handler := newTestHandlerWithAITutorWorkerQuestionBankFeedbackInput()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/teaching/tutoring-analysis-requests/tutor_req_http_worker_feedback_input/ai-tutor-study-packet-input",
+		bytes.NewBufferString(`{"workerId":" worker_student_tutor_01 "}`),
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, servicePrincipal())
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"requestId":"tutor_req_http_worker_feedback_input"`),
+		[]byte(`"archiveItemId":"tarch_student_feedback_http"`),
+		[]byte(`"learningActionSource":"QUESTION_BANK_DRAFT_ANSWER_FEEDBACK"`),
+		[]byte(`"feedbackStatus":"READY_FOR_STUDENT_APP_READ"`),
+		[]byte(`"feedbackSubmissionId":"qbank_ans_sub_http_answer"`),
+		[]byte(`"feedbackSourceArchiveItemId":"tarch_http_3"`),
+		[]byte(`"renderFormat":"SAFE_TEXT_BLOCKS"`),
+		[]byte(`"blockType":"SUMMARY"`),
+		[]byte(`"blockType":"GUIDANCE_SECTION"`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`contentRef`),
+		[]byte(`answerText`),
+		[]byte(`expectedAnswer`),
+		[]byte(`explanation`),
+		[]byte(`rawModelOutput`),
+		[]byte(`resultRef`),
+		[]byte(`answerKey`),
+		[]byte(`3/4`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
 func TestReadAITutorWorkerStudyPacketInputRejectsTeacherPrincipal(t *testing.T) {
 	handler := newTestHandlerWithAITutorWorkerStudyPacketInput()
 	request := httptest.NewRequest(
@@ -152,6 +199,41 @@ func newTestHandlerWithAITutorWorkerStudyPacketInput() http.Handler {
 		},
 		contentPreviews: []domain.PublishedArchiveMaterialContentPreview{
 			publishedArchiveItemContentPreviewHTTPFixture("tarch_archive_material_001", "student_001"),
+		},
+	}
+	return httpapi.NewServer(httpapi.ServerConfig{
+		ReadAITutorWorkerStudyPacketInput: usecase.NewReadAITutorWorkerStudyPacketInput(store, fixedClock{now: now}),
+		AgentAPIKey:                       "ueacd",
+	}).Handler()
+}
+
+func newTestHandlerWithAITutorWorkerQuestionBankFeedbackInput() http.Handler {
+	now := time.Date(2026, 6, 8, 10, 0, 0, 0, time.UTC)
+	tutoringRequest := tutoringAnalysisRequest(
+		"tutor_req_http_worker_feedback_input",
+		"tarch_student_feedback_http",
+		"student_001",
+		now.Add(-10*time.Minute),
+	)
+	tutoringRequest.AnalysisGoal = "continue from reviewed answer feedback"
+	tutoringRequest.QuestionBankIntent = domain.QuestionBankIntentGeneratePersonalizedCheck
+	tutoringRequest.Status = domain.TutoringAnalysisStatusInProgress
+	tutoringRequest.LearningActionSource = domain.StudentAppAITutorLearningActionSourceQuestionBankFeedback
+	tutoringRequest.SourceArchiveMaterial = domain.MaterialTypeHomework
+	tutoringRequest.ClaimedByWorkerID = "worker_student_tutor_01"
+	tutoringRequest.ClaimExpiresAt = now.Add(5 * time.Minute)
+	store := &fakeRepository{
+		items: []domain.ArchiveItem{
+			questionBankDraftAnswerFeedbackHTTPArchiveItem("tarch_student_feedback_http", "student_001"),
+		},
+		requests: []domain.TutoringAnalysisRequest{
+			tutoringRequest,
+		},
+		questionBankDraftAnswerSubmissions: []domain.QuestionBankDraftAnswerSubmission{
+			questionBankDraftHTTPAnswerSubmission(),
+		},
+		questionBankDraftAnswerFeedbackSnapshots: []domain.QuestionBankDraftAnswerFeedbackArchiveSnapshot{
+			questionBankDraftAnswerFeedbackHTTPSnapshot("tarch_student_feedback_http", "qbank_ans_sub_http_answer", "student_001"),
 		},
 	}
 	return httpapi.NewServer(httpapi.ServerConfig{

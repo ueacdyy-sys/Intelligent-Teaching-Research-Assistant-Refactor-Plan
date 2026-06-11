@@ -109,8 +109,8 @@ export function auditStudentAppAITutorQuestionBankDraftAnswerScoringInput(inputs
       "TestReadQuestionBankDraftAnswerScoringInputRejectsTeacherPrincipal",
       "body leaked",
       "readQuestionBankDraftAnswerScoringInput := usecase.NewReadQuestionBankDraftAnswerScoringInput",
-      "ReadQuestionBankDraftAnswerScoringInput:               readQuestionBankDraftAnswerScoringInput",
-    ]),
+    ]) &&
+      hasGoKeyedValue(inputs.main ?? "", "ReadQuestionBankDraftAnswerScoringInput", "readQuestionBankDraftAnswerScoringInput"),
     actual: summarizePresence(endpointContract + readHandler, ["operationId: readTeachingAIGradingQuestionBankAnswerScoringInput", "answerText", "expectedAnswer", "explanation", "scoreSummary", "resultRef"]),
     expected: "HTTP/OpenAPI expose the answer/key/explanation package only on the internal worker endpoint",
     remediation: "Keep answer package fields confined to the /v1/teaching internal worker input path.",
@@ -248,6 +248,10 @@ function includesAll(text, values) {
 
 function includesAny(text, values) {
   return values.some((value) => text.includes(value));
+}
+
+function hasGoKeyedValue(text, key, value) {
+  return new RegExp(`${key}:\\s*${value}`).test(text);
 }
 
 function summarizePresence(text, values) {
