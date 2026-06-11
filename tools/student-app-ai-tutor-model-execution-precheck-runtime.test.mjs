@@ -53,6 +53,29 @@ describe("Student App AI Tutor model execution precheck runtime", () => {
     assert.equal(JSON.stringify(calls[0]).includes("source_block_001"), false);
   });
 
+  it("records a question-bank-feedback-sourced model precheck without sending feedback text", async () => {
+    const calls = [];
+    const result = await recordStudentAppAITutorModelExecutionPrecheck(questionBankFeedbackInput(), {
+      generatedAt: "2026-06-11T09:00:00.000Z",
+      precheckLogPath: tempLog(),
+      modelExecutionPrecheckPort: port(calls),
+    });
+
+    assert.equal(result.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.feedbackSubmissionId, "qbank_ans_sub_feedback_001");
+    assert.equal(result.feedbackSourceArchiveItemId, "tarch_homework_feedback_source_001");
+    assert.equal(result.boundary.sourceWorkerQuestionBankFeedbackInputVerified, true);
+    assert.equal(result.boundary.sourceWorkerResultArchiveInputVerified, false);
+    assert.equal(result.boundary.sourceWorkerStudyPacketInputVerified, false);
+    assert.equal(result.boundary.modelInferenceStarted, false);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].safeInput.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(calls[0].safeInput.safeBlockCount, 2);
+    assert.equal(JSON.stringify(calls[0]).includes("Score improved after correcting denominator comparison"), false);
+    assert.equal(JSON.stringify(calls[0]).includes("qbank_ans_sub_feedback_001"), false);
+  });
+
   it("uses idempotency for safe replay and rejects conflicting prechecks", async () => {
     const precheckLogPath = tempLog();
     const first = await recordStudentAppAITutorModelExecutionPrecheck(baseInput(), {
@@ -134,6 +157,16 @@ describe("Student App AI Tutor model execution precheck runtime", () => {
         modelExecutionPrecheckPort: port(),
       }),
       /learningActionSource must be AI_TUTOR_RESULT_ARCHIVE/,
+    );
+
+    const mismatchedFeedbackSource = questionBankFeedbackInput();
+    mismatchedFeedbackSource.workerStudyPacketInputReport = workerStudyPacketInputReport();
+    await assert.rejects(
+      () => recordStudentAppAITutorModelExecutionPrecheck(mismatchedFeedbackSource, {
+        precheckLogPath: tempLog(),
+        modelExecutionPrecheckPort: port(),
+      }),
+      /learningActionSource must be QUESTION_BANK_DRAFT_ANSWER_FEEDBACK/,
     );
   });
 
@@ -319,6 +352,54 @@ function resultArchiveInput() {
   return input;
 }
 
+function questionBankFeedbackInput() {
+  const input = baseInput();
+  input.workerStudyPacketInputReport = workerQuestionBankFeedbackInputReport();
+  input.workerInput = {
+    requestId: "tutor_req_student_app_feedback_001",
+    archiveItemId: "tarch_student_feedback_001",
+    analysisGoal: "generate follow-up help from reviewed answer feedback",
+    questionBankIntent: "GENERATE_PERSONALIZED_CHECK",
+    status: "IN_PROGRESS",
+    learningActionSource: "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK",
+    workerId: "worker_student_tutor_03",
+    claimExpiresAt: "2026-06-11T09:10:00.000Z",
+    sourceArchiveStudentId: "student_001",
+    sourceArchiveMaterial: "HOMEWORK",
+    feedbackStatus: "READY_FOR_STUDENT_APP_READ",
+    feedbackSubmissionId: "qbank_ans_sub_feedback_001",
+    feedbackSourceArchiveItemId: "tarch_homework_feedback_source_001",
+    renderFormat: "SAFE_TEXT_BLOCKS",
+    blocks: [
+      {
+        blockId: "block_score_summary",
+        blockType: "SUMMARY",
+        title: "Score summary",
+        text: "Score improved after correcting denominator comparison.",
+      },
+      {
+        blockId: "block_next_step",
+        blockType: "GUIDANCE_SECTION",
+        sectionId: "next_step",
+        title: "Next step",
+        text: "Try one similar fraction comparison and explain the denominator choice.",
+      },
+    ],
+  };
+  input.approval = {
+    ...input.approval,
+    approvalId: "ai_tutor_model_approval_feedback_001",
+    requestId: "tutor_req_student_app_feedback_001",
+    workerId: "worker_student_tutor_03",
+  };
+  input.evidenceRefs = [
+    "evidence:worker-question-bank-feedback-input:student-app-ai-tutor-worker-question-bank-feedback-input",
+    "evidence:model-execution-approval:ai_tutor_model_approval_feedback_001",
+  ];
+  input.idempotencyKey = "student-app-ai-tutor-model-precheck:tutor_req_student_app_feedback_001:worker_student_tutor_03";
+  return input;
+}
+
 function workerStudyPacketInputReport() {
   return {
     readiness: "READY",
@@ -368,6 +449,35 @@ function workerResultArchiveInputReport() {
       rawModelOutputDisclosureAllowed: false,
       promptDisclosureAllowed: false,
       answerKeyDisclosureAllowed: false,
+      modelInferenceAllowed: false,
+      ocrRagAllowed: false,
+      swarmAllowed: false,
+    },
+  };
+}
+
+function workerQuestionBankFeedbackInputReport() {
+  return {
+    readiness: "READY",
+    workloadType: "STUDENT_APP_AI_TUTOR_WORKER_QUESTION_BANK_FEEDBACK_INPUT",
+    runtime: {
+      runtimeId: "student_app_ai_tutor_worker_question_bank_feedback_input",
+      status: "STUDENT_APP_AI_TUTOR_WORKER_QUESTION_BANK_FEEDBACK_INPUT_READY",
+    },
+    runtimeSlo: { p99Ms: 4, totalErrors: 0 },
+    safetyInvariants: {
+      serviceAgentInternalOnly: true,
+      claimedWorkerLeaseRequired: true,
+      persistedLearningActionSourceRequired: true,
+      feedbackSnapshotRequired: true,
+      feedbackSafeRenderRequired: true,
+      learningActionBoundaryRequired: true,
+      safeTextBlocksOnly: true,
+      answerTextDisclosureAllowed: false,
+      answerKeyDisclosureAllowed: false,
+      contentRefDisclosureAllowed: false,
+      rawModelOutputDisclosureAllowed: false,
+      promptDisclosureAllowed: false,
       modelInferenceAllowed: false,
       ocrRagAllowed: false,
       swarmAllowed: false,

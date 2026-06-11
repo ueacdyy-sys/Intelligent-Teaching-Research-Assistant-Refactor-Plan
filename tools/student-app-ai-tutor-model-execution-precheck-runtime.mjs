@@ -16,8 +16,10 @@ const defaultPrecheckLogPath = "reports/student-command-log/student-app-ai-tutor
 const leakedFieldNames = new Set([
   "answerkey",
   "answertemplate",
+  "answertext",
   "expectedanswer",
   "correctanswer",
+  "submittedanswer",
   "contentref",
   "contentpreview",
   "rawcontent",
@@ -101,6 +103,9 @@ function normalizeInput(input) {
     workerId: workerInput.workerId,
     learningActionSource: workerInput.learningActionSource,
     resultArchiveStatus: workerInput.resultArchiveStatus,
+    feedbackStatus: workerInput.feedbackStatus,
+    feedbackSubmissionId: workerInput.feedbackSubmissionId,
+    feedbackSourceArchiveItemId: workerInput.feedbackSourceArchiveItemId,
     approvalId: approval.approvalId,
     modelExecutionPolicy,
     blockDigests,
@@ -125,6 +130,9 @@ function assertWorkerStudyPacketInputReport(report) {
   requireConst(report.runtimeSlo?.totalErrors, 0, "input.workerStudyPacketInputReport.runtimeSlo.totalErrors");
   if (report.workloadType === "STUDENT_APP_AI_TUTOR_WORKER_RESULT_ARCHIVE_INPUT") {
     return assertWorkerResultArchiveInputReport(report);
+  }
+  if (report.workloadType === "STUDENT_APP_AI_TUTOR_WORKER_QUESTION_BANK_FEEDBACK_INPUT") {
+    return assertWorkerQuestionBankFeedbackInputReport(report);
   }
   return assertPublishedWorkerStudyPacketInputReport(report);
 }
@@ -182,13 +190,43 @@ function assertWorkerResultArchiveInputReport(report) {
   return { ...report, learningActionSource: "AI_TUTOR_RESULT_ARCHIVE" };
 }
 
+function assertWorkerQuestionBankFeedbackInputReport(report) {
+  requireConst(report.runtime?.runtimeId, "student_app_ai_tutor_worker_question_bank_feedback_input", "input.workerStudyPacketInputReport.runtime.runtimeId");
+  requireConst(report.runtime?.status, "STUDENT_APP_AI_TUTOR_WORKER_QUESTION_BANK_FEEDBACK_INPUT_READY", "input.workerStudyPacketInputReport.runtime.status");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.workerStudyPacketInputReport.safetyInvariants");
+  for (const field of [
+    "serviceAgentInternalOnly",
+    "claimedWorkerLeaseRequired",
+    "persistedLearningActionSourceRequired",
+    "feedbackSnapshotRequired",
+    "feedbackSafeRenderRequired",
+    "learningActionBoundaryRequired",
+    "safeTextBlocksOnly",
+  ]) {
+    requireConst(invariants[field], true, `input.workerStudyPacketInputReport.safetyInvariants.${field}`);
+  }
+  for (const field of [
+    "answerTextDisclosureAllowed",
+    "answerKeyDisclosureAllowed",
+    "contentRefDisclosureAllowed",
+    "rawModelOutputDisclosureAllowed",
+    "promptDisclosureAllowed",
+    "modelInferenceAllowed",
+    "ocrRagAllowed",
+    "swarmAllowed",
+  ]) {
+    requireConst(invariants[field], false, `input.workerStudyPacketInputReport.safetyInvariants.${field}`);
+  }
+  return { ...report, learningActionSource: "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK" };
+}
+
 function assertWorkerInput(workerInput) {
   rejectLeakedFields(workerInput, "input.workerInput");
   assertPlainObject(workerInput, "input.workerInput");
   const learningActionSource = requireOneOf(
     workerInput.learningActionSource ?? "PUBLISHED_STUDY_PACKET",
     "input.workerInput.learningActionSource",
-    ["PUBLISHED_STUDY_PACKET", "AI_TUTOR_RESULT_ARCHIVE"],
+    ["PUBLISHED_STUDY_PACKET", "AI_TUTOR_RESULT_ARCHIVE", "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK"],
   );
   const blocks = assertBlocks(workerInput.blocks, learningActionSource);
   const packetStatus = learningActionSource === "PUBLISHED_STUDY_PACKET"
@@ -197,6 +235,15 @@ function assertWorkerInput(workerInput) {
   const resultArchiveStatus = learningActionSource === "AI_TUTOR_RESULT_ARCHIVE"
     ? requireConst(workerInput.resultArchiveStatus, "READY_FOR_STUDENT_APP_READ", "input.workerInput.resultArchiveStatus")
     : requireAbsent(workerInput.resultArchiveStatus, "input.workerInput.resultArchiveStatus");
+  const feedbackStatus = learningActionSource === "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK"
+    ? requireConst(workerInput.feedbackStatus, "READY_FOR_STUDENT_APP_READ", "input.workerInput.feedbackStatus")
+    : requireAbsent(workerInput.feedbackStatus, "input.workerInput.feedbackStatus");
+  const feedbackSubmissionId = learningActionSource === "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK"
+    ? requireBoundedString(workerInput.feedbackSubmissionId, "input.workerInput.feedbackSubmissionId", 1, 128)
+    : requireAbsent(workerInput.feedbackSubmissionId, "input.workerInput.feedbackSubmissionId");
+  const feedbackSourceArchiveItemId = learningActionSource === "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK"
+    ? requireToken(workerInput.feedbackSourceArchiveItemId, "input.workerInput.feedbackSourceArchiveItemId", "tarch_")
+    : requireAbsent(workerInput.feedbackSourceArchiveItemId, "input.workerInput.feedbackSourceArchiveItemId");
   return {
     requestId: requireToken(workerInput.requestId, "input.workerInput.requestId", "tutor_req_"),
     archiveItemId: requireToken(workerInput.archiveItemId, "input.workerInput.archiveItemId", "tarch_"),
@@ -210,6 +257,9 @@ function assertWorkerInput(workerInput) {
     learningActionSource,
     packetStatus,
     resultArchiveStatus,
+    feedbackStatus,
+    feedbackSubmissionId,
+    feedbackSourceArchiveItemId,
     renderFormat: requireConst(workerInput.renderFormat, "SAFE_TEXT_BLOCKS", "input.workerInput.renderFormat"),
     blocks,
   };
@@ -348,12 +398,16 @@ function buildPrecheckRecord(normalized, recordedPrecheck, precheckedAt) {
     approvalId: normalized.approval.approvalId,
     learningActionSource: normalized.workerInput.learningActionSource,
     resultArchiveStatus: normalized.workerInput.resultArchiveStatus,
+    feedbackStatus: normalized.workerInput.feedbackStatus,
+    feedbackSubmissionId: normalized.workerInput.feedbackSubmissionId,
+    feedbackSourceArchiveItemId: normalized.workerInput.feedbackSourceArchiveItemId,
     modelExecutionPrecheck: recordedPrecheck,
     evidenceRefs: normalized.evidenceRefs,
     boundary: {
       sourceWorkerInputVerified: true,
       sourceWorkerStudyPacketInputVerified: normalized.workerInput.learningActionSource === "PUBLISHED_STUDY_PACKET",
       sourceWorkerResultArchiveInputVerified: normalized.workerInput.learningActionSource === "AI_TUTOR_RESULT_ARCHIVE",
+      sourceWorkerQuestionBankFeedbackInputVerified: normalized.workerInput.learningActionSource === "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK",
       serviceAgentInternalOnly: true,
       approvalVerified: true,
       modelExecutionQueueAdmissionOnly: true,
@@ -378,9 +432,11 @@ function buildPrecheckRecord(normalized, recordedPrecheck, precheckedAt) {
 }
 
 function hasWorkerInputEvidence(evidenceRefs, learningActionSource) {
-  const requiredFragment = learningActionSource === "AI_TUTOR_RESULT_ARCHIVE"
-    ? "worker-result-archive-input"
-    : "worker-study-packet-input";
+  const requiredFragment = {
+    AI_TUTOR_RESULT_ARCHIVE: "worker-result-archive-input",
+    PUBLISHED_STUDY_PACKET: "worker-study-packet-input",
+    QUESTION_BANK_DRAFT_ANSWER_FEEDBACK: "worker-question-bank-feedback-input",
+  }[learningActionSource];
   return evidenceRefs.some((ref) => ref.includes(requiredFragment));
 }
 
