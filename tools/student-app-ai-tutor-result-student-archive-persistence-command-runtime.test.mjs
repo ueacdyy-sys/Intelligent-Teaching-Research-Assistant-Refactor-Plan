@@ -139,6 +139,42 @@ describe("Student App AI Tutor result student archive persistence command runtim
       /resultArchiveStatus/u,
     );
   });
+
+  it("records a question-bank-feedback-sourced student archive persistence command without committing it", () => {
+    const result = recordStudentAppAITutorResultStudentArchivePersistenceCommand(questionBankFeedbackInput(), {
+      commandLogPath: tempLog(),
+      generatedAt: "2026-06-11T16:20:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED");
+    assert.equal(result.sourceStudentDeliveryEnvelope.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.sourceStudentDeliveryEnvelope.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.sourceControlledAnswerArtifact.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.sourceControlledAnswerArtifact.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.studentArchivePersistenceCommand.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.studentArchivePersistenceCommand.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.studentArchivePersistenceCommand.commitState, "NOT_COMMITTED_TO_STUDENT_ARCHIVE");
+    assert.equal(result.boundary.studentArchivePersistenceCommandRecorded, true);
+    assert.equal(result.boundary.durableStudentArchivePersistenceStarted, false);
+    assert.equal(result.boundary.durableStudentArchiveCommitStarted, false);
+    assert.equal(result.boundary.studentArchivePersisted, false);
+  });
+
+  it("rejects unsafe question-bank-feedback delivery and artifact source metadata", () => {
+    const unsafeDelivery = questionBankFeedbackInput();
+    unsafeDelivery.studentResultDeliveryEnvelopeReport.runtimeProbes.studentAppAiTutorQuestionBankFeedbackStudentDeliveryEnvelope.result.sourceStudentVisibilityReview.feedbackStatus = "PENDING_TEACHER_REVIEW";
+    assert.throws(
+      () => recordStudentAppAITutorResultStudentArchivePersistenceCommand(unsafeDelivery, { commandLogPath: tempLog() }),
+      /feedbackStatus/u,
+    );
+
+    const unsafeArtifact = questionBankFeedbackInput();
+    unsafeArtifact.controlledAnswerArtifactReport.runtimeProbes.studentAppAiTutorQuestionBankFeedbackControlledAnswerArtifact.result.learningActionSource = "AI_TUTOR_RESULT_ARCHIVE";
+    assert.throws(
+      () => recordStudentAppAITutorResultStudentArchivePersistenceCommand(unsafeArtifact, { commandLogPath: tempLog() }),
+      /learningActionSource/u,
+    );
+  });
 });
 
 function tempLog() {
@@ -272,5 +308,70 @@ function resultArchiveInput() {
       "evidence:result-archive-controlled-answer-artifact:student-app-ai-tutor-result-archive-controlled-answer-artifact",
     ],
     idempotencyKey: "student-app-ai-tutor-result-archive-persistence:ai_tutor_result_delivery_env_result_archive_001",
+  };
+}
+
+function questionBankFeedbackInput() {
+  const delivery = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-student-delivery-envelope.current.json", "utf8"));
+  const artifact = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-controlled-answer-artifact.current.json", "utf8"));
+  const result = delivery.runtimeProbes.studentAppAiTutorQuestionBankFeedbackStudentDeliveryEnvelope.result;
+  const envelope = result.studentResultDeliveryEnvelope;
+  return {
+    schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-archive-persistence-command.v1",
+    persistenceInvocationId: "ai_tutor_result_archive_persist_feedback_001",
+    studentResultDeliveryEnvelopeReport: delivery,
+    controlledAnswerArtifactReport: artifact,
+    principal: {
+      principalId: "student_archive_persistence_runtime_feedback_001",
+      subjectType: "SERVICE",
+      role: "SERVICE",
+      entryPoint: "STUDENT_ARCHIVE_PERSISTENCE_RUNTIME",
+      sessionId: "session_student_archive_persistence_feedback_001",
+      scopes: ["TEACHING_READ", "STUDENT_ARCHIVE_WRITE", "STUDENT_APP_DELIVERY"],
+    },
+    studentArchivePersistenceRequest: {
+      commandId: "ai_tutor_result_archive_cmd_feedback_001",
+      persistenceMode: "APPEND_ONLY_STUDENT_ARCHIVE_COMMAND",
+      targetArchiveKind: "STUDENT_AI_TUTOR_RESULT_ARCHIVE",
+      desiredArchiveState: "PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED",
+      scopeRef: envelope.scopeRef,
+      deliveryEnvelopeRecordId: result.recordId,
+      deliveryEnvelopeId: envelope.envelopeId,
+      studentVisibilityReviewRecordId: envelope.studentVisibilityReviewRecordId,
+      studentVisibilityReviewId: envelope.studentVisibilityReviewId,
+      artifactId: envelope.artifactId,
+      requestId: envelope.requestId,
+      archiveItemId: envelope.archiveItemId,
+      guidanceSectionsHash: envelope.guidanceSectionsHash,
+    },
+    studentArchivePersistencePolicy: {
+      resultStudentDeliveryEnvelopeRequired: true,
+      controlledAnswerArtifactRequired: true,
+      guidanceHashMatchRequired: true,
+      appendOnlyCommandLogRequired: true,
+      safeGuidanceOnlyRequired: true,
+      studentOwnScopeRequired: true,
+      futureDurableArchiveCommitReviewRequired: true,
+      directDatabaseAccessAllowed: false,
+      mainDatabaseWriteAllowed: false,
+      studentArchiveWriteAllowed: false,
+      durableArchiveCommitAllowed: false,
+      executeHttpRequestAllowed: false,
+      modelInferenceAllowed: false,
+      retrievalAllowed: false,
+      answerKeyDisclosureAllowed: false,
+      rawModelOutputDisclosureAllowed: false,
+      resultRefDisclosureAllowed: false,
+      promptDisclosureAllowed: false,
+      contentRefDisclosureAllowed: false,
+      remoteDeviceControlAllowed: false,
+      localToolMutationAllowed: false,
+      swarmAllowed: false,
+    },
+    evidenceRefs: [
+      "evidence:question-bank-feedback-student-delivery-envelope:student-app-ai-tutor-question-bank-feedback-student-delivery-envelope",
+      "evidence:question-bank-feedback-controlled-answer-artifact:student-app-ai-tutor-question-bank-feedback-controlled-answer-artifact",
+    ],
+    idempotencyKey: "student-app-ai-tutor-question-bank-feedback-persistence:ai_tutor_result_delivery_env_feedback_001",
   };
 }

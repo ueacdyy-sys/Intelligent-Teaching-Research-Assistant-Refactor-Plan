@@ -16,13 +16,21 @@ const deliveryWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_DELIVERY_ENVEL
 const resultArchiveDeliveryWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_DELIVERY_ENVELOPE";
 const resultArchiveDeliveryRuntimeId = "student_app_ai_tutor_result_archive_student_delivery_envelope";
 const resultArchiveDeliveryStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED";
+const questionBankFeedbackDeliveryWorkloadType = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_DELIVERY_ENVELOPE";
+const questionBankFeedbackDeliveryRuntimeId = "student_app_ai_tutor_question_bank_feedback_student_delivery_envelope";
+const questionBankFeedbackDeliveryStatus = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_DELIVERY_ENVELOPE_READY_NOT_PERSISTED";
 const controlledArtifactRuntimeId = "student_app_ai_tutor_controlled_answer_artifact_runtime";
 const controlledArtifactPort = "StudentAppAITutorControlledAnswerArtifactPort.recordControlledAnswerArtifact";
 const resultArchiveControlledArtifactRuntimeId = "student_app_ai_tutor_result_archive_controlled_answer_artifact";
 const resultArchiveControlledArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT";
 const resultArchiveControlledArtifactStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_CONTROLLED_ANSWER_ARTIFACT_RECORDED";
+const questionBankFeedbackControlledArtifactRuntimeId = "student_app_ai_tutor_question_bank_feedback_controlled_answer_artifact";
+const questionBankFeedbackControlledArtifactWorkloadType = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_CONTROLLED_ANSWER_ARTIFACT";
+const questionBankFeedbackControlledArtifactStatus = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_CONTROLLED_ANSWER_ARTIFACT_RECORDED";
 const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
 const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
+const questionBankFeedbackSource = "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK";
+const questionBankFeedbackReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const commandStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED";
 const defaultCommandLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-archive-persistence-command.jsonl";
@@ -49,6 +57,9 @@ const leakedFieldNames = new Set([
   "databasewriteresult",
   "archivecommitresult",
   "studentarchivepersistenceresult",
+  "feedbacksubmissionid",
+  "feedbackid",
+  "sourcearchiveid",
 ]);
 const unsafeTextPattern = /(raw model|prompt|answer key|correct answer|expected answer|contentref|resultref|internal error|标准答案|参考答案|正确答案|原始模型|提示词)/iu;
 
@@ -130,6 +141,7 @@ function assertDeliveryEnvelopeReport(report) {
   assertPlainObject(report, "input.studentResultDeliveryEnvelopeReport");
   requireConst(report.readiness, "READY", "input.studentResultDeliveryEnvelopeReport.readiness");
   if (report.workloadType === resultArchiveDeliveryWorkloadType) return assertResultArchiveDeliveryEnvelopeReport(report);
+  if (report.workloadType === questionBankFeedbackDeliveryWorkloadType) return assertQuestionBankFeedbackDeliveryEnvelopeReport(report);
   requireConst(report.workloadType, deliveryWorkloadType, "input.studentResultDeliveryEnvelopeReport.workloadType"); requireConst(report.runtime?.runtimeId, deliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, deliveryPort, "input.studentResultDeliveryEnvelopeReport.runtime.commandPort");
   requireConst(report.runtime?.status, deliveryStatus, "input.studentResultDeliveryEnvelopeReport.runtime.status");
@@ -158,9 +170,28 @@ function assertResultArchiveDeliveryEnvelopeReport(report) {
   return report;
 }
 
+function assertQuestionBankFeedbackDeliveryEnvelopeReport(report) {
+  requireConst(report.runtime?.runtimeId, questionBankFeedbackDeliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, deliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, deliveryPort, "input.studentResultDeliveryEnvelopeReport.runtime.commandPort");
+  requireConst(report.runtime?.status, questionBankFeedbackDeliveryStatus, "input.studentResultDeliveryEnvelopeReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentResultDeliveryEnvelopeReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.studentResultDeliveryEnvelopeReport.safetyInvariants");
+  for (const field of ["source0375QuestionBankFeedbackStudentVisibilityReviewRequired", "source0372QuestionBankFeedbackControlledAnswerArtifactRequired", "guidanceHashMatchRequired", "studentDeliveryEnvelopeCreated", "studentVisibleEnvelopeAllowed"]) requireConst(invariants[field], true, `input.studentResultDeliveryEnvelopeReport.safetyInvariants.${field}`);
+  requireConst(invariants.learningActionSourceRequired, questionBankFeedbackSource, "input.studentResultDeliveryEnvelopeReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.feedbackStatusRequired, questionBankFeedbackReadyStatus, "input.studentResultDeliveryEnvelopeReport.safetyInvariants.feedbackStatusRequired");
+  for (const field of ["durableStudentArchivePersistenceStarted", "mainDatabaseWriteStarted", "studentArchiveWriteStarted", "resultRefDisclosed", "feedbackIdsDisclosed", "answerKeyDisclosed", "rawModelOutputDisclosed", "promptDisclosed", "contentRefDisclosed", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "modelInferenceAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]) requireConst(invariants[field], false, `input.studentResultDeliveryEnvelopeReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertDeliveryEnvelopeRecord(report) {
   const isResultArchive = report.workloadType === resultArchiveDeliveryWorkloadType;
-  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentDeliveryEnvelope : report.runtimeProbes?.studentAppAiTutorResultStudentDeliveryEnvelope)?.result;
+  const isQuestionBankFeedback = report.workloadType === questionBankFeedbackDeliveryWorkloadType;
+  const result = (isResultArchive
+    ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentDeliveryEnvelope
+    : isQuestionBankFeedback
+      ? report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackStudentDeliveryEnvelope
+      : report.runtimeProbes?.studentAppAiTutorResultStudentDeliveryEnvelope)?.result;
   rejectLeakedFields(result, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result");
   assertPlainObject(result, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result");
   requireConst(result.runtimeId, deliveryRuntimeId, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.runtimeId");
@@ -183,6 +214,12 @@ function assertDeliveryEnvelopeRecord(report) {
     requireConst(sourceArtifact.learningActionSource, resultArchiveSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.learningActionSource");
     requireConst(sourceArtifact.resultArchiveStatus, resultArchiveReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.resultArchiveStatus");
   }
+  if (isQuestionBankFeedback) {
+    requireConst(result.sourceStudentVisibilityReview?.learningActionSource, questionBankFeedbackSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceStudentVisibilityReview.learningActionSource");
+    requireConst(result.sourceStudentVisibilityReview?.feedbackStatus, questionBankFeedbackReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceStudentVisibilityReview.feedbackStatus");
+    requireConst(sourceArtifact.learningActionSource, questionBankFeedbackSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.learningActionSource");
+    requireConst(sourceArtifact.feedbackStatus, questionBankFeedbackReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.feedbackStatus");
+  }
   return {
     recordId: requireBoundedString(result.recordId, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.recordId", 1, 260),
     deliveryInvocationId: requireToken(result.deliveryInvocationId, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.deliveryInvocationId", "ai_tutor_result_student_delivery_"),
@@ -195,10 +232,12 @@ function assertDeliveryEnvelopeRecord(report) {
       guidanceSectionCount: requireIntegerBetween(sourceArtifact.guidanceSectionCount, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.sourceControlledAnswerArtifact.guidanceSectionCount", 1, 5),
       learningActionSource: sourceArtifact.learningActionSource,
       resultArchiveStatus: sourceArtifact.resultArchiveStatus,
+      feedbackStatus: sourceArtifact.feedbackStatus,
     },
     studentResultDeliveryEnvelope: envelope,
     learningActionSource: result.sourceStudentVisibilityReview?.learningActionSource,
     resultArchiveStatus: result.sourceStudentVisibilityReview?.resultArchiveStatus,
+    feedbackStatus: result.sourceStudentVisibilityReview?.feedbackStatus,
     evidenceRefs: uniqueStringArray(result.evidenceRefs, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.evidenceRefs", 1, 24, 8, 360),
   };
 }
@@ -233,6 +272,7 @@ function assertControlledAnswerArtifactReport(report) {
   assertPlainObject(report, "input.controlledAnswerArtifactReport");
   requireConst(report.readiness, "READY", "input.controlledAnswerArtifactReport.readiness");
   if (report.workloadType === resultArchiveControlledArtifactWorkloadType) return assertResultArchiveControlledAnswerArtifactReport(report);
+  if (report.workloadType === questionBankFeedbackControlledArtifactWorkloadType) return assertQuestionBankFeedbackControlledAnswerArtifactReport(report);
   requireConst(report.workloadType, "STUDENT_APP_AI_TUTOR_CONTROLLED_ANSWER_ARTIFACT", "input.controlledAnswerArtifactReport.workloadType");
   requireConst(report.runtime?.runtimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, controlledArtifactPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
@@ -254,9 +294,27 @@ function assertResultArchiveControlledAnswerArtifactReport(report) {
   return report;
 }
 
+function assertQuestionBankFeedbackControlledAnswerArtifactReport(report) {
+  requireConst(report.runtime?.runtimeId, questionBankFeedbackControlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, controlledArtifactPort, "input.controlledAnswerArtifactReport.runtime.commandPort");
+  requireConst(report.runtime?.status, questionBankFeedbackControlledArtifactStatus, "input.controlledAnswerArtifactReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.controlledAnswerArtifactReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.controlledAnswerArtifactReport.safetyInvariants");
+  requireConst(invariants.learningActionSourceRequired, questionBankFeedbackSource, "input.controlledAnswerArtifactReport.safetyInvariants.learningActionSourceRequired");
+  for (const field of ["source0371QuestionBankFeedbackModelPrecheckRequired", "internalServiceOnly", "controlledAnswerArtifactRecorded", "humanReviewRequiredBeforeResult", "rawModelOutputExcluded", "promptExcluded", "answerKeyExcluded"]) requireConst(invariants[field], true, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  for (const field of ["tutoringResultRecorded", "resultPersistenceAllowed", "studentVisiblePublished", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "externalToolUseAllowed", "retrievalAllowed", "swarmAllowed"]) requireConst(invariants[field], false, `input.controlledAnswerArtifactReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertControlledAnswerArtifact(report, deliveryRecord) {
   const isResultArchive = report.workloadType === resultArchiveControlledArtifactWorkloadType;
-  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact : report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact)?.result;
+  const isQuestionBankFeedback = report.workloadType === questionBankFeedbackControlledArtifactWorkloadType;
+  const result = (isResultArchive
+    ? report.runtimeProbes?.studentAppAiTutorResultArchiveControlledAnswerArtifact
+    : isQuestionBankFeedback
+      ? report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackControlledAnswerArtifact
+      : report.runtimeProbes?.studentAppAiTutorControlledAnswerArtifact)?.result;
   assertPlainObject(result, "input.controlledAnswerArtifactReport.runtimeProbes.result");
   requireConst(result.runtimeId, controlledArtifactRuntimeId, "input.controlledAnswerArtifactReport.runtimeProbes.result.runtimeId");
   requireConst(result.requestId, deliveryRecord.studentResultDeliveryEnvelope.requestId, "input.controlledAnswerArtifactReport.runtimeProbes.result.requestId");
@@ -266,6 +324,12 @@ function assertControlledAnswerArtifact(report, deliveryRecord) {
     requireConst(result.resultArchiveStatus, resultArchiveReadyStatus, "input.controlledAnswerArtifactReport.runtimeProbes.result.resultArchiveStatus");
     requireConst(deliveryRecord.learningActionSource, resultArchiveSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.learningActionSource");
     requireConst(deliveryRecord.resultArchiveStatus, resultArchiveReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.resultArchiveStatus");
+  }
+  if (isQuestionBankFeedback) {
+    requireConst(result.learningActionSource, questionBankFeedbackSource, "input.controlledAnswerArtifactReport.runtimeProbes.result.learningActionSource");
+    requireConst(result.feedbackStatus, questionBankFeedbackReadyStatus, "input.controlledAnswerArtifactReport.runtimeProbes.result.feedbackStatus");
+    requireConst(deliveryRecord.learningActionSource, questionBankFeedbackSource, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.learningActionSource");
+    requireConst(deliveryRecord.feedbackStatus, questionBankFeedbackReadyStatus, "input.studentResultDeliveryEnvelopeReport.runtimeProbes.result.feedbackStatus");
   }
   const artifact = assertPlainObject(result.controlledAnswerArtifact, "input.controlledAnswerArtifactReport.runtimeProbes.result.controlledAnswerArtifact");
   requireConst(artifact.artifactId, deliveryRecord.studentResultDeliveryEnvelope.artifactId, "input.controlledAnswerArtifactReport.controlledAnswerArtifact.artifactId");
@@ -280,6 +344,7 @@ function assertControlledAnswerArtifact(report, deliveryRecord) {
     safetyLabels: uniqueStringArray(artifact.safetyLabels, "input.controlledAnswerArtifactReport.controlledAnswerArtifact.safetyLabels", 1, 8, 3, 80),
     learningActionSource: result.learningActionSource,
     resultArchiveStatus: result.resultArchiveStatus,
+    feedbackStatus: result.feedbackStatus,
   };
 }
 
@@ -366,6 +431,7 @@ function buildRecord(normalized, recordedAt) {
       guidanceSectionsHash: normalized.deliveryRecord.studentResultDeliveryEnvelope.guidanceSectionsHash,
       learningActionSource: normalized.deliveryRecord.learningActionSource,
       resultArchiveStatus: normalized.deliveryRecord.resultArchiveStatus,
+      feedbackStatus: normalized.deliveryRecord.feedbackStatus,
     },
     sourceControlledAnswerArtifact: {
       artifactId: normalized.controlledArtifact.artifactId,
@@ -375,6 +441,7 @@ function buildRecord(normalized, recordedAt) {
       guidanceSectionCount: normalized.controlledArtifact.guidanceSections.length,
       learningActionSource: normalized.controlledArtifact.learningActionSource,
       resultArchiveStatus: normalized.controlledArtifact.resultArchiveStatus,
+      feedbackStatus: normalized.controlledArtifact.feedbackStatus,
     },
     studentArchivePersistenceCommand: buildCommand(normalized),
     boundary: {
@@ -434,6 +501,7 @@ function buildCommand(normalized) {
     guidanceSectionsHash: request.guidanceSectionsHash,
     learningActionSource: normalized.deliveryRecord.learningActionSource,
     resultArchiveStatus: normalized.deliveryRecord.resultArchiveStatus,
+    feedbackStatus: normalized.deliveryRecord.feedbackStatus,
     safeGuidance: {
       summary: normalized.controlledArtifact.summary,
       guidanceSections: normalized.controlledArtifact.guidanceSections,
