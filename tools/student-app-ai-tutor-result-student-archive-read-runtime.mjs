@@ -21,6 +21,11 @@ const resultArchiveRowVerificationRuntimeId = "student_app_ai_tutor_result_archi
 const resultArchiveRowVerificationStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED";
 const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
 const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
+const questionBankFeedbackRowVerificationWorkload = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_ARCHIVE_ROW_VERIFICATION";
+const questionBankFeedbackRowVerificationRuntimeId = "student_app_ai_tutor_question_bank_feedback_student_archive_row_verification";
+const questionBankFeedbackRowVerificationStatus = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED";
+const questionBankFeedbackSource = "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK";
+const questionBankFeedbackReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const verifiedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ_VERIFIED";
 const targetEndpoint = "GET /v1/student-app/archive-items/{archiveItemId}/ai-tutor-result";
 const targetUseCase = "ReadStudentAppAITutorResultArchive.Execute";
@@ -89,7 +94,7 @@ function normalizeInput(input) {
   if (!evidenceRefs.some((ref) => ref.includes("student-archive-row-verification"))) {
     throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_READ_MISSING_ROW_EVIDENCE", "row verification evidence ref is required");
   }
-  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-archive-read") || ref.includes("student-app-ai-tutor-result-archive-student-archive-read"))) {
+  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-archive-read") || ref.includes("student-app-ai-tutor-result-archive-student-archive-read") || ref.includes("student-app-ai-tutor-question-bank-feedback-student-archive-read"))) {
     throw verificationError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_READ_MISSING_PRODUCT_EVIDENCE", "student archive read evidence ref is required");
   }
   const idempotencyKey = requireBoundedString(input.idempotencyKey, "input.idempotencyKey", 8, 360);
@@ -123,6 +128,7 @@ function assertRowVerificationReport(report) {
   assertPlainObject(report, "input.studentArchiveRowVerificationReport");
   requireConst(report.readiness, "READY", "input.studentArchiveRowVerificationReport.readiness");
   if (report.workloadType === resultArchiveRowVerificationWorkload) return assertResultArchiveRowVerificationReport(report);
+  if (report.workloadType === questionBankFeedbackRowVerificationWorkload) return assertQuestionBankFeedbackRowVerificationReport(report);
   requireConst(report.workloadType, rowVerificationWorkload, "input.studentArchiveRowVerificationReport.workloadType");
   requireConst(report.runtime?.runtimeId, rowVerificationRuntimeId, "input.studentArchiveRowVerificationReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, rowVerificationCommandPort, "input.studentArchiveRowVerificationReport.runtime.commandPort");
@@ -147,9 +153,28 @@ function assertResultArchiveRowVerificationReport(report) {
   return report;
 }
 
+function assertQuestionBankFeedbackRowVerificationReport(report) {
+  requireConst(report.runtime?.runtimeId, questionBankFeedbackRowVerificationRuntimeId, "input.studentArchiveRowVerificationReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, rowVerificationRuntimeId, "input.studentArchiveRowVerificationReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, rowVerificationCommandPort, "input.studentArchiveRowVerificationReport.runtime.commandPort");
+  requireConst(report.runtime?.status, questionBankFeedbackRowVerificationStatus, "input.studentArchiveRowVerificationReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentArchiveRowVerificationReport.runtimeSlo.totalErrors");
+  const invariants = report.safetyInvariants ?? {};
+  for (const field of ["source0378QuestionBankFeedbackStudentArchiveStorageCommitRequired", "injectedTeachingArchiveRowReadPortRequired", "teachingArchiveRepositoryGetByIDUsed", "physicalDatabaseRowVerified", "committedArchiveItemMatchedPhysicalRow", "studentArchivePersisted"]) requireConst(invariants[field], true, `input.studentArchiveRowVerificationReport.safetyInvariants.${field}`);
+  requireConst(invariants.learningActionSourceRequired, questionBankFeedbackSource, "input.studentArchiveRowVerificationReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.feedbackStatusRequired, questionBankFeedbackReadyStatus, "input.studentArchiveRowVerificationReport.safetyInvariants.feedbackStatusRequired");
+  for (const field of ["directDatabaseAccessAllowed", "executeHttpRequestAllowed", "modelInferenceAllowed", "swarmAllowed", "contentRefDisclosureAllowed", "rawModelOutputDisclosureAllowed", "answerKeyDisclosureAllowed", "promptDisclosureAllowed", "resultRefDisclosureAllowed", "feedbackIdsDisclosed"]) requireConst(invariants[field], false, `input.studentArchiveRowVerificationReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertRowVerificationResult(report) {
   const isResultArchive = report.workloadType === resultArchiveRowVerificationWorkload;
-  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentArchiveRowVerification : report.runtimeProbes?.studentAppAiTutorResultStudentArchiveRowVerification)?.result;
+  const isQuestionBankFeedback = report.workloadType === questionBankFeedbackRowVerificationWorkload;
+  const result = (isQuestionBankFeedback
+    ? report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackStudentArchiveRowVerification
+    : isResultArchive
+      ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentArchiveRowVerification
+      : report.runtimeProbes?.studentAppAiTutorResultStudentArchiveRowVerification)?.result;
   assertPlainObject(result, "input.studentArchiveRowVerificationReport.runtimeProbes.result");
   requireConst(result.schemaVersion, "2026-06-08.student-app.ai-tutor-result-student-archive-row-verified.v1", "row.source.schemaVersion");
   requireConst(result.runtimeId, rowVerificationRuntimeId, "row.source.runtimeId");
@@ -162,6 +187,12 @@ function assertRowVerificationResult(report) {
     requireConst(result.sourceStorageCommit?.resultArchiveStatus, resultArchiveReadyStatus, "row.source.sourceStorageCommit.resultArchiveStatus");
     requireConst(result.safeGuidanceSnapshot?.learningActionSource, resultArchiveSource, "row.source.safeGuidanceSnapshot.learningActionSource");
     requireConst(result.safeGuidanceSnapshot?.resultArchiveStatus, resultArchiveReadyStatus, "row.source.safeGuidanceSnapshot.resultArchiveStatus");
+  }
+  if (isQuestionBankFeedback) {
+    requireConst(result.sourceStorageCommit?.learningActionSource, questionBankFeedbackSource, "row.source.sourceStorageCommit.learningActionSource");
+    requireConst(result.sourceStorageCommit?.feedbackStatus, questionBankFeedbackReadyStatus, "row.source.sourceStorageCommit.feedbackStatus");
+    requireConst(result.safeGuidanceSnapshot?.learningActionSource, questionBankFeedbackSource, "row.source.safeGuidanceSnapshot.learningActionSource");
+    requireConst(result.safeGuidanceSnapshot?.feedbackStatus, questionBankFeedbackReadyStatus, "row.source.safeGuidanceSnapshot.feedbackStatus");
   }
   const row = assertArchiveItem(result.teachingArchivePhysicalRow?.archiveItem, "row.source.teachingArchivePhysicalRow.archiveItem");
   return { ...result, recordId: requireBoundedString(result.recordId, "row.source.recordId", 1, 520), teachingArchivePhysicalRow: { archiveItem: row }, evidenceRefs: uniqueStringArray(result.evidenceRefs ?? [], "row.source.evidenceRefs", 1, 1800) };
@@ -272,6 +303,7 @@ function buildVerificationRecord(normalized, verified, verifiedAt) {
       targetSnapshotRepository,
       learningActionSource: normalized.rowVerificationResult.sourceStorageCommit?.learningActionSource,
       resultArchiveStatus: normalized.rowVerificationResult.sourceStorageCommit?.resultArchiveStatus,
+      feedbackStatus: normalized.rowVerificationResult.sourceStorageCommit?.feedbackStatus,
     },
     principal: normalized.principal,
     studentResultReadSource: verified.source,

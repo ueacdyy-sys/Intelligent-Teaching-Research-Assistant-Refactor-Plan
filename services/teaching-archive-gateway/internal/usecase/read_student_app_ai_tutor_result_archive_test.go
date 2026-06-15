@@ -70,6 +70,33 @@ func TestReadStudentAppAITutorResultArchiveReturnsResultArchiveSourceSafeGuidanc
 	}
 }
 
+func TestReadStudentAppAITutorResultArchiveReturnsQuestionBankFeedbackSourceSafeGuidanceCard(t *testing.T) {
+	reader := &fakeAITutorResultArchiveReader{
+		item:     aiTutorResultArchiveQuestionBankFeedbackItem("tarch_student_feedback_001", "student_001"),
+		ok:       true,
+		snapshot: aiTutorResultArchiveQuestionBankFeedbackSnapshot("tarch_student_feedback_001", "student_001"),
+		snapOK:   true,
+	}
+	uc := usecase.NewReadStudentAppAITutorResultArchive(reader)
+
+	card, err := uc.Execute(context.Background(), domain.ReadStudentAppArchiveItemInput{
+		Principal:     studentPrincipal("student_001"),
+		ArchiveItemID: "tarch_student_feedback_001",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if card.Status != domain.StudentAppAITutorResultArchiveStatusReady ||
+		card.SourceArchiveItemID != "tarch_question_bank_feedback_source_001" ||
+		card.SourceTutoringRequestID != "tutor_req_student_app_feedback_001" ||
+		card.Summary != "Follow-up help based on reviewed answer feedback." ||
+		len(card.GuidanceSections) != 1 ||
+		reader.getByIDReads != 1 ||
+		reader.snapshotReads != 1 {
+		t.Fatalf("card = %#v reads get:%d snapshot:%d", card, reader.getByIDReads, reader.snapshotReads)
+	}
+}
+
 func TestReadStudentAppAITutorResultArchiveRejectsForbiddenBeforeReads(t *testing.T) {
 	reader := &fakeAITutorResultArchiveReader{}
 	uc := usecase.NewReadStudentAppAITutorResultArchive(reader)
@@ -217,6 +244,14 @@ func aiTutorResultArchiveFollowUpItem(id string, studentID string) domain.Archiv
 	return item
 }
 
+func aiTutorResultArchiveQuestionBankFeedbackItem(id string, studentID string) domain.ArchiveItem {
+	item := aiTutorResultArchiveItem(id, studentID)
+	item.Title = "Student AI Tutor result archive tutor_req_student_app_feedback_001"
+	item.ContentRef = "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_feedback_001:sha256_f97cfa0b6ecd497dcea78e01bb830006e80ce81847ba325378cabbd2ba49fba2"
+	item.CreatedAt = time.Date(2026, 6, 11, 16, 45, 0, 0, time.UTC)
+	return item
+}
+
 func aiTutorResultArchiveSnapshot(
 	archiveItemID string,
 	studentID string,
@@ -271,6 +306,30 @@ func aiTutorResultArchiveFollowUpSnapshot(
 				Title:           "Review the previous correction",
 				Text:            "Restate the corrected reasoning before attempting a similar practice item.",
 				SourceBlockRefs: []string{"source_block_001"},
+			},
+		},
+	}
+}
+
+func aiTutorResultArchiveQuestionBankFeedbackSnapshot(
+	archiveItemID string,
+	studentID string,
+) domain.StudentAppAITutorResultArchiveSnapshot {
+	return domain.StudentAppAITutorResultArchiveSnapshot{
+		ArchiveItemID:           archiveItemID,
+		StudentID:               studentID,
+		SourceArchiveItemID:     "tarch_question_bank_feedback_source_001",
+		SourceTutoringRequestID: "tutor_req_student_app_feedback_001",
+		Summary:                 "Follow-up help based on reviewed answer feedback.",
+		GuidanceSectionsHash:    "daa9efe1e3ee402648dca1919e2c43851b7445d0fdf79d26d7073af39060caab",
+		SafetyLabels:            []string{"STUDY_GUIDANCE_ONLY", "FOLLOW_UP_REVIEW"},
+		SafeGuidanceOnly:        true,
+		GuidanceSections: []domain.StudentAppAITutorResultArchiveGuidanceSection{
+			{
+				SectionID:       "ai_tutor_answer_section_feedback_001",
+				Title:           "Practice from feedback",
+				Text:            "Restate the feedback in your own words, then solve one similar item.",
+				SourceBlockRefs: []string{"block_score_summary", "block_next_step"},
 			},
 		},
 	}

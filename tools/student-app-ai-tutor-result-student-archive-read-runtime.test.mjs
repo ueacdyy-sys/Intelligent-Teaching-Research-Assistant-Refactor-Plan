@@ -48,6 +48,23 @@ describe("Student App AI Tutor result student archive read runtime", () => {
     assert.equal(port.calls.length, 1);
   });
 
+  it("reads a question-bank-feedback-sourced safe student-visible result card through the same product read port", async () => {
+    const port = recordingReadPort({ card: safeQuestionBankFeedbackCard() });
+    const result = await verifyStudentAppAITutorResultStudentArchiveRead(baseQuestionBankFeedbackInput(), {
+      studentAppAITutorResultArchiveReadPort: port,
+      verificationLogPath: tempLogPath(),
+      generatedAt: "2026-06-11T17:20:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_READ_VERIFIED");
+    assert.equal(result.sourceRowVerification.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.sourceRowVerification.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.resultArchiveCard.archiveItemId, "tarch_student_feedback_001");
+    assert.equal(result.resultArchiveCard.summary, "Follow-up help based on reviewed answer feedback.");
+    assert.equal(result.boundary.contentRefDisclosed, false);
+    assert.equal(port.calls.length, 1);
+  });
+
   it("uses idempotency for replay and rejects conflicting result-card reads", async () => {
     const verificationLogPath = tempLogPath();
     const port = recordingReadPort();
@@ -130,6 +147,16 @@ describe("Student App AI Tutor result student archive read runtime", () => {
       /learningActionSource must be AI_TUTOR_RESULT_ARCHIVE/u,
     );
   });
+
+  it("rejects unsafe question-bank-feedback read source metadata", async () => {
+    const input = baseQuestionBankFeedbackInput();
+    input.studentArchiveRowVerificationReport.runtimeProbes.studentAppAiTutorQuestionBankFeedbackStudentArchiveRowVerification.result.sourceStorageCommit.feedbackStatus = "DRAFT_ONLY";
+
+    await assert.rejects(
+      () => verifyStudentAppAITutorResultStudentArchiveRead(input, { studentAppAITutorResultArchiveReadPort: recordingReadPort({ card: safeQuestionBankFeedbackCard() }), verificationLogPath: tempLogPath() }),
+      /feedbackStatus must be READY_FOR_STUDENT_APP_READ/u,
+    );
+  });
 });
 
 function tempLogPath() {
@@ -161,6 +188,19 @@ function baseResultArchiveInput() {
       "evidence:student-app-ai-tutor-result-archive-student-archive-read:http",
     ],
     idempotencyKey: "student-app-ai-tutor-result-archive-student-archive-read:student_001:tutor_req_student_app_result_archive_001",
+  };
+}
+
+function baseQuestionBankFeedbackInput() {
+  return {
+    ...baseInput(),
+    readInvocationId: "ai_tutor_result_archive_read_question_bank_feedback_001",
+    studentArchiveRowVerificationReport: JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-student-archive-row-verification.current.json", "utf8")),
+    evidenceRefs: [
+      "evidence:student-app-ai-tutor-question-bank-feedback-student-archive-row-verification:tutor_req_student_app_feedback_001",
+      "evidence:student-app-ai-tutor-question-bank-feedback-student-archive-read:http",
+    ],
+    idempotencyKey: "student-app-ai-tutor-question-bank-feedback-student-archive-read:student_001:tutor_req_student_app_feedback_001",
   };
 }
 
@@ -251,6 +291,33 @@ function safeCard() {
 function safeResultArchiveCard() {
   const source = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-archive-row-verification.current.json", "utf8"))
     .runtimeProbes.studentAppAiTutorResultArchiveStudentArchiveRowVerification.result;
+  const item = source.teachingArchivePhysicalRow.archiveItem;
+  const snapshot = source.safeGuidanceSnapshot;
+  return {
+    archiveItemId: item.id,
+    status: "READY_FOR_STUDENT_APP_READ",
+    materialType: item.materialType,
+    title: item.title,
+    source: item.source,
+    tags: item.tags,
+    analysisIntents: item.analysisIntents,
+    ocrStatus: item.ocrStatus,
+    summary: snapshot.summary,
+    guidanceSections: snapshot.guidanceSections.map((section) => ({
+      sectionId: section.sectionId ?? section.sectionID,
+      title: section.title,
+      text: section.text,
+      sourceBlockRefs: section.sourceBlockRefs,
+    })),
+    guidanceSectionsHash: snapshot.guidanceSectionsHash,
+    safetyLabels: snapshot.safetyLabels,
+    createdAt: item.createdAt,
+  };
+}
+
+function safeQuestionBankFeedbackCard() {
+  const source = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-student-archive-row-verification.current.json", "utf8"))
+    .runtimeProbes.studentAppAiTutorQuestionBankFeedbackStudentArchiveRowVerification.result;
   const item = source.teachingArchivePhysicalRow.archiveItem;
   const snapshot = source.safeGuidanceSnapshot;
   return {

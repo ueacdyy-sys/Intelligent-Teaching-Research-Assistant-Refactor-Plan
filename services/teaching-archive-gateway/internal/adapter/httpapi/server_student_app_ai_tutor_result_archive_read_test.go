@@ -104,6 +104,51 @@ func TestReadStudentAppAITutorResultArchiveReturnsResultArchiveSourceSafeCard(t 
 	}
 }
 
+func TestReadStudentAppAITutorResultArchiveReturnsQuestionBankFeedbackSourceSafeCard(t *testing.T) {
+	handler := newTestHandlerWithAITutorResultArchive()
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/student-app/archive-items/tarch_student_feedback_001/ai-tutor-result",
+		nil,
+	)
+	request.Header.Set("X-Agent-Api-Key", "ueacd")
+	setPrincipalHeader(t, request, studentPrincipal("student_001"))
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	for _, fragment := range [][]byte{
+		[]byte(`"archiveItemId":"tarch_student_feedback_001"`),
+		[]byte(`"sourceArchiveItemId":"tarch_question_bank_feedback_source_001"`),
+		[]byte(`"status":"READY_FOR_STUDENT_APP_READ"`),
+		[]byte(`"summary":"Follow-up help based on reviewed answer feedback."`),
+		[]byte(`"sectionId":"ai_tutor_answer_section_feedback_001"`),
+		[]byte(`"guidanceSectionsHash":"daa9efe1e3ee402648dca1919e2c43851b7445d0fdf79d26d7073af39060caab"`),
+		[]byte(`"safetyLabels":["STUDY_GUIDANCE_ONLY","FOLLOW_UP_REVIEW"]`),
+	} {
+		if !bytes.Contains(response.Body.Bytes(), fragment) {
+			t.Fatalf("body missing %s in %s", fragment, response.Body.String())
+		}
+	}
+	for _, leaked := range [][]byte{
+		[]byte(`"studentId"`),
+		[]byte(`"contentRef"`),
+		[]byte(`resultRef`),
+		[]byte(`sourceTutoringRequestId`),
+		[]byte(`rawModelOutput`),
+		[]byte(`answerKey`),
+		[]byte(`prompt`),
+		[]byte(`workerId`),
+	} {
+		if bytes.Contains(response.Body.Bytes(), leaked) {
+			t.Fatalf("body leaked %s in %s", leaked, response.Body.String())
+		}
+	}
+}
+
 func TestReadStudentAppAITutorResultArchiveRejectsCrossStudentTeacherAndMethod(t *testing.T) {
 	handler := newTestHandlerWithAITutorResultArchive()
 
@@ -436,11 +481,13 @@ func newTestHandlerWithAITutorResultArchive() http.Handler {
 		items: []domain.ArchiveItem{
 			aiTutorResultArchiveHTTPItem("tarch_student_ai_tutor_result_001", "student_001"),
 			aiTutorResultArchiveHTTPFollowUpItem("tarch_student_ai_tutor_result_archive_001", "student_001"),
+			aiTutorResultArchiveHTTPQuestionBankFeedbackItem("tarch_student_feedback_001", "student_001"),
 			aiTutorResultArchiveHTTPItem("tarch_student_ai_tutor_result_other", "student_002"),
 		},
 		aiTutorResultArchiveSnapshots: []domain.StudentAppAITutorResultArchiveSnapshot{
 			aiTutorResultArchiveHTTPSnapshot("tarch_student_ai_tutor_result_001", "student_001"),
 			aiTutorResultArchiveHTTPFollowUpSnapshot("tarch_student_ai_tutor_result_archive_001", "student_001"),
+			aiTutorResultArchiveHTTPQuestionBankFeedbackSnapshot("tarch_student_feedback_001", "student_001"),
 			aiTutorResultArchiveHTTPSnapshot("tarch_student_ai_tutor_result_other", "student_002"),
 		},
 	}
@@ -475,6 +522,14 @@ func aiTutorResultArchiveHTTPFollowUpItem(id string, studentID string) domain.Ar
 	item.Title = "Student AI Tutor result archive tutor_req_student_app_result_archive_001"
 	item.ContentRef = "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_result_archive_001:sha256_fca56f06fe276b7f151662647a31ff0dde640358f3fdad476a813738dbd569b5"
 	item.CreatedAt = time.Date(2026, 6, 9, 13, 40, 0, 0, time.UTC)
+	return item
+}
+
+func aiTutorResultArchiveHTTPQuestionBankFeedbackItem(id string, studentID string) domain.ArchiveItem {
+	item := aiTutorResultArchiveHTTPItem(id, studentID)
+	item.Title = "Student AI Tutor result archive tutor_req_student_app_feedback_001"
+	item.ContentRef = "student-ai-tutor-result-archive:ai_tutor_result_archive_cmd_feedback_001:sha256_f97cfa0b6ecd497dcea78e01bb830006e80ce81847ba325378cabbd2ba49fba2"
+	item.CreatedAt = time.Date(2026, 6, 11, 16, 45, 0, 0, time.UTC)
 	return item
 }
 
@@ -522,6 +577,27 @@ func aiTutorResultArchiveHTTPFollowUpSnapshot(id string, studentID string) domai
 				Title:           "Review the previous correction",
 				Text:            "Restate the corrected reasoning before attempting a similar practice item.",
 				SourceBlockRefs: []string{"source_block_001"},
+			},
+		},
+	}
+}
+
+func aiTutorResultArchiveHTTPQuestionBankFeedbackSnapshot(id string, studentID string) domain.StudentAppAITutorResultArchiveSnapshot {
+	return domain.StudentAppAITutorResultArchiveSnapshot{
+		ArchiveItemID:           id,
+		StudentID:               studentID,
+		SourceArchiveItemID:     "tarch_question_bank_feedback_source_001",
+		SourceTutoringRequestID: "tutor_req_student_app_feedback_001",
+		Summary:                 "Follow-up help based on reviewed answer feedback.",
+		GuidanceSectionsHash:    "daa9efe1e3ee402648dca1919e2c43851b7445d0fdf79d26d7073af39060caab",
+		SafetyLabels:            []string{"STUDY_GUIDANCE_ONLY", "FOLLOW_UP_REVIEW"},
+		SafeGuidanceOnly:        true,
+		GuidanceSections: []domain.StudentAppAITutorResultArchiveGuidanceSection{
+			{
+				SectionID:       "ai_tutor_answer_section_feedback_001",
+				Title:           "Practice from feedback",
+				Text:            "Restate the feedback in your own words, then solve one similar item.",
+				SourceBlockRefs: []string{"block_score_summary", "block_next_step"},
 			},
 		},
 	}
