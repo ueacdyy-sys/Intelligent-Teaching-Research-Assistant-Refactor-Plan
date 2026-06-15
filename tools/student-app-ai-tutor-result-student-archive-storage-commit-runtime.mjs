@@ -20,6 +20,11 @@ const resultArchiveSourceRuntimeId = "student_app_ai_tutor_result_archive_studen
 const resultArchiveSourceStatus = "STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED";
 const resultArchiveSource = "AI_TUTOR_RESULT_ARCHIVE";
 const resultArchiveReadyStatus = "READY_FOR_STUDENT_APP_READ";
+const questionBankFeedbackSourceWorkloadType = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_ARCHIVE_PERSISTENCE_COMMAND";
+const questionBankFeedbackSourceRuntimeId = "student_app_ai_tutor_question_bank_feedback_student_archive_persistence_command";
+const questionBankFeedbackSourceStatus = "STUDENT_APP_AI_TUTOR_QUESTION_BANK_FEEDBACK_STUDENT_ARCHIVE_PERSISTENCE_COMMAND_RECORDED_NOT_COMMITTED";
+const questionBankFeedbackSource = "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK";
+const questionBankFeedbackReadyStatus = "READY_FOR_STUDENT_APP_READ";
 const committedStatus = "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMITTED";
 const defaultCommitLogPath =
   "reports/student-command-log/student-app-ai-tutor-result-student-archive-storage-commit.jsonl";
@@ -46,6 +51,9 @@ const leakedFieldNames = new Set([
   "databasewriteresult",
   "archivecommitresult",
   "studentarchivepersistenceresult",
+  "feedbacksubmissionid",
+  "feedbackid",
+  "sourcearchiveid",
 ]);
 const unsafeTextPattern = /(raw model|prompt|answer key|correct answer|expected answer|contentref|resultref|internal error|标准答案|参考答案|正确答案|原始模型|提示词)/iu;
 
@@ -90,7 +98,7 @@ function normalizeInput(input) {
   const persistenceCommandRecord = assertPersistenceCommandRecord(persistenceCommandReport);
   const commitPolicy = assertCommitPolicy(input.studentArchiveStorageCommitPolicy);
   const evidenceRefs = uniqueStringArray(input.evidenceRefs, "input.evidenceRefs", 1, 32, 8, 420);
-  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-student-archive-persistence-command") || ref.includes("student-app-ai-tutor-result-archive-student-archive-persistence-command"))) {
+  if (!evidenceRefs.some((ref) => ref.includes("student-app-ai-tutor-result-student-archive-persistence-command") || ref.includes("student-app-ai-tutor-result-archive-student-archive-persistence-command") || ref.includes("student-app-ai-tutor-question-bank-feedback-student-archive-persistence-command"))) {
     throw commitError("STUDENT_APP_AI_TUTOR_RESULT_ARCHIVE_STORAGE_COMMIT_MISSING_COMMAND_EVIDENCE", "archive persistence command evidence ref is required");
   }
   const idempotencyKey = requireBoundedString(input.idempotencyKey, "input.idempotencyKey", 8, 420);
@@ -122,6 +130,7 @@ function assertPersistenceCommandReport(report) {
   assertPlainObject(report, "input.studentArchivePersistenceCommandReport");
   requireConst(report.readiness, "READY", "input.studentArchivePersistenceCommandReport.readiness");
   if (report.workloadType === resultArchiveSourceWorkloadType) return assertResultArchivePersistenceCommandReport(report);
+  if (report.workloadType === questionBankFeedbackSourceWorkloadType) return assertQuestionBankFeedbackPersistenceCommandReport(report);
   requireConst(report.workloadType, sourceWorkloadType, "input.studentArchivePersistenceCommandReport.workloadType");
   requireConst(report.runtime?.runtimeId, sourceRuntimeId, "input.studentArchivePersistenceCommandReport.runtime.runtimeId");
   requireConst(report.runtime?.commandPort, sourceCommandPort, "input.studentArchivePersistenceCommandReport.runtime.commandPort");
@@ -175,9 +184,28 @@ function assertResultArchivePersistenceCommandReport(report) {
   return report;
 }
 
+function assertQuestionBankFeedbackPersistenceCommandReport(report) {
+  requireConst(report.runtime?.runtimeId, questionBankFeedbackSourceRuntimeId, "input.studentArchivePersistenceCommandReport.runtime.runtimeId");
+  requireConst(report.runtime?.sharedRuntimeId, sourceRuntimeId, "input.studentArchivePersistenceCommandReport.runtime.sharedRuntimeId");
+  requireConst(report.runtime?.commandPort, sourceCommandPort, "input.studentArchivePersistenceCommandReport.runtime.commandPort");
+  requireConst(report.runtime?.status, questionBankFeedbackSourceStatus, "input.studentArchivePersistenceCommandReport.runtime.status");
+  requireConst(report.runtimeSlo?.totalErrors, 0, "input.studentArchivePersistenceCommandReport.runtimeSlo.totalErrors");
+  const invariants = assertPlainObject(report.safetyInvariants, "input.studentArchivePersistenceCommandReport.safetyInvariants");
+  for (const field of ["source0376QuestionBankFeedbackStudentDeliveryEnvelopeRequired", "source0372QuestionBankFeedbackControlledAnswerArtifactRequired", "guidanceHashMatchRequired", "appendOnlyCommandLogRequired", "studentArchivePersistenceCommandRecorded"]) requireConst(invariants[field], true, `input.studentArchivePersistenceCommandReport.safetyInvariants.${field}`);
+  requireConst(invariants.learningActionSourceRequired, questionBankFeedbackSource, "input.studentArchivePersistenceCommandReport.safetyInvariants.learningActionSourceRequired");
+  requireConst(invariants.feedbackStatusRequired, questionBankFeedbackReadyStatus, "input.studentArchivePersistenceCommandReport.safetyInvariants.feedbackStatusRequired");
+  for (const field of ["durableStudentArchivePersistenceStarted", "durableStudentArchiveCommitStarted", "studentArchivePersisted", "mainDatabaseWriteStarted", "studentArchiveWriteStarted", "resultRefDisclosed", "feedbackIdsDisclosed", "answerKeyDisclosed", "rawModelOutputDisclosed", "promptDisclosed", "contentRefDisclosed", "directDatabaseAccessAllowed", "executeHttpRequestAllowed", "modelInferenceAllowed", "retrievalAllowed", "localToolMutationAllowed", "swarmAllowed"]) requireConst(invariants[field], false, `input.studentArchivePersistenceCommandReport.safetyInvariants.${field}`);
+  return report;
+}
+
 function assertPersistenceCommandRecord(report) {
   const isResultArchive = report.workloadType === resultArchiveSourceWorkloadType;
-  const result = (isResultArchive ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentArchivePersistenceCommand : report.runtimeProbes?.studentAppAiTutorResultStudentArchivePersistenceCommand)?.result;
+  const isQuestionBankFeedback = report.workloadType === questionBankFeedbackSourceWorkloadType;
+  const result = (isQuestionBankFeedback
+    ? report.runtimeProbes?.studentAppAiTutorQuestionBankFeedbackStudentArchivePersistenceCommand
+    : isResultArchive
+      ? report.runtimeProbes?.studentAppAiTutorResultArchiveStudentArchivePersistenceCommand
+      : report.runtimeProbes?.studentAppAiTutorResultStudentArchivePersistenceCommand)?.result;
   rejectLeakedFields(result, "input.studentArchivePersistenceCommandReport.runtimeProbes.result");
   assertPlainObject(result, "input.studentArchivePersistenceCommandReport.runtimeProbes.result");
   requireConst(result.schemaVersion, "2026-06-08.student-app.ai-tutor-result-student-archive-persistence-command-recorded.v1", "source.schemaVersion");
@@ -197,6 +225,13 @@ function assertPersistenceCommandRecord(report) {
     requireConst(command.resultArchiveStatus, resultArchiveReadyStatus, "source.studentArchivePersistenceCommand.resultArchiveStatus");
     requireConst(result.sourceStudentDeliveryEnvelope?.learningActionSource, resultArchiveSource, "source.sourceStudentDeliveryEnvelope.learningActionSource");
     requireConst(result.sourceControlledAnswerArtifact?.resultArchiveStatus, resultArchiveReadyStatus, "source.sourceControlledAnswerArtifact.resultArchiveStatus");
+  }
+  if (isQuestionBankFeedback) {
+    requireConst(command.learningActionSource, questionBankFeedbackSource, "source.studentArchivePersistenceCommand.learningActionSource");
+    requireConst(command.feedbackStatus, questionBankFeedbackReadyStatus, "source.studentArchivePersistenceCommand.feedbackStatus");
+    requireConst(result.sourceStudentDeliveryEnvelope?.learningActionSource, questionBankFeedbackSource, "source.sourceStudentDeliveryEnvelope.learningActionSource");
+    requireConst(result.sourceStudentDeliveryEnvelope?.feedbackStatus, questionBankFeedbackReadyStatus, "source.sourceStudentDeliveryEnvelope.feedbackStatus");
+    requireConst(result.sourceControlledAnswerArtifact?.feedbackStatus, questionBankFeedbackReadyStatus, "source.sourceControlledAnswerArtifact.feedbackStatus");
   }
   return {
     ...result,
@@ -247,6 +282,7 @@ function assertPersistenceCommand(command) {
     guidanceSectionsHash: requireHex(command.guidanceSectionsHash, "source.guidanceSectionsHash"),
     learningActionSource: command.learningActionSource,
     resultArchiveStatus: command.resultArchiveStatus,
+    feedbackStatus: command.feedbackStatus,
     safeGuidance: assertSafeGuidance(command.safeGuidance),
   };
 }
@@ -326,6 +362,9 @@ function buildTeachingArchiveCreateCommand(record) {
     artifactId: command.artifactId,
     requestId: command.requestId,
     guidanceSectionsHash: command.guidanceSectionsHash,
+    learningActionSource: command.learningActionSource,
+    resultArchiveStatus: command.resultArchiveStatus,
+    feedbackStatus: command.feedbackStatus,
     safeGuidance: command.safeGuidance,
   }).replace("sha256:", "sha256_");
   return {
@@ -499,6 +538,7 @@ function buildCommitRecord(normalized, committed, committedAt) {
       commitState: "COMMITTED_TO_STUDENT_ARCHIVE",
       learningActionSource: sourceCommand.learningActionSource,
       resultArchiveStatus: sourceCommand.resultArchiveStatus,
+      feedbackStatus: sourceCommand.feedbackStatus,
     },
     teachingArchiveCommit: {
       operationId: "createTeachingArchiveItem",
@@ -515,6 +555,7 @@ function buildCommitRecord(normalized, committed, committedAt) {
       safetyLabels: sourceCommand.safeGuidance.safetyLabels,
       learningActionSource: sourceCommand.learningActionSource,
       resultArchiveStatus: sourceCommand.resultArchiveStatus,
+      feedbackStatus: sourceCommand.feedbackStatus,
       safeGuidanceOnly: true,
     },
     evidence: {

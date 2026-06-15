@@ -165,6 +165,53 @@ describe("Student App AI Tutor result student archive storage commit runtime", (
       /resultArchiveStatusRequired/u,
     );
   });
+
+  it("commits a question-bank-feedback-sourced student archive command through the same storage port", async () => {
+    const port = recordingPort();
+    const result = await commitStudentAppAITutorResultStudentArchiveStorage(questionBankFeedbackInput(), {
+      teachingArchiveCreateItemPort: port,
+      commitLogPath: tempCommitLogPath(),
+      generatedAt: "2026-06-11T16:45:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_STORAGE_COMMITTED");
+    assert.equal(result.sourcePersistenceCommand.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.sourcePersistenceCommand.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.safeGuidanceSnapshot.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.safeGuidanceSnapshot.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.teachingArchiveCommit.targetUseCase, "CreateArchiveItem.ExecuteWithPersistence");
+    assert.equal(result.boundary.teachingArchiveUseCasePortInvoked, true);
+    assert.equal(result.boundary.mainDatabaseWriteCommitted, true);
+    assert.equal(result.boundary.directDatabaseAccessAllowed, false);
+    assert.equal(result.boundary.executeHttpRequestAllowed, false);
+    assert.equal(result.boundary.modelInferenceStarted, false);
+    assert.equal(result.boundary.retrievalStarted, false);
+    assert.equal(result.boundary.swarmAllowed, false);
+    assert.equal(port.calls.length, 1);
+    assert.equal(port.calls[0].command.requestBody.studentId, "student_001");
+  });
+
+  it("rejects unsafe question-bank-feedback storage commit source metadata", async () => {
+    const unsafeCommand = questionBankFeedbackInput();
+    unsafeCommand.studentArchivePersistenceCommandReport.runtimeProbes.studentAppAiTutorQuestionBankFeedbackStudentArchivePersistenceCommand.result.studentArchivePersistenceCommand.feedbackStatus = "STALE_FEEDBACK";
+    await assert.rejects(
+      () => commitStudentAppAITutorResultStudentArchiveStorage(unsafeCommand, {
+        teachingArchiveCreateItemPort: recordingPort(),
+        commitLogPath: tempCommitLogPath(),
+      }),
+      /feedbackStatus/u,
+    );
+
+    const unsafeReport = questionBankFeedbackInput();
+    unsafeReport.studentArchivePersistenceCommandReport.safetyInvariants.learningActionSourceRequired = "AI_TUTOR_RESULT_ARCHIVE";
+    await assert.rejects(
+      () => commitStudentAppAITutorResultStudentArchiveStorage(unsafeReport, {
+        teachingArchiveCreateItemPort: recordingPort(),
+        commitLogPath: tempCommitLogPath(),
+      }),
+      /learningActionSourceRequired/u,
+    );
+  });
 });
 
 function tempCommitLogPath() {
@@ -190,6 +237,17 @@ function resultArchiveInput() {
     studentArchiveStorageCommitPolicy: commitPolicy(),
     evidenceRefs: ["evidence:student-app-ai-tutor-result-archive-student-archive-persistence-command:ai_tutor_result_archive_cmd_result_archive_001"],
     idempotencyKey: "student-app-ai-tutor-result-archive-storage-commit:student_001:tutor_req_student_app_result_archive_001",
+  };
+}
+
+function questionBankFeedbackInput() {
+  return {
+    schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-archive-storage-commit.v1",
+    commitInvocationId: "ai_tutor_result_archive_storage_commit_feedback_001",
+    studentArchivePersistenceCommandReport: JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-student-archive-persistence-command.current.json", "utf8")),
+    studentArchiveStorageCommitPolicy: commitPolicy(),
+    evidenceRefs: ["evidence:student-app-ai-tutor-question-bank-feedback-student-archive-persistence-command:ai_tutor_result_archive_cmd_feedback_001"],
+    idempotencyKey: "student-app-ai-tutor-question-bank-feedback-storage-commit:student_001:tutor_req_student_app_feedback_001",
   };
 }
 
