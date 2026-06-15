@@ -152,6 +152,47 @@ describe("Student App AI Tutor result student archive row verification runtime",
       /resultArchiveStatusRequired/u,
     );
   });
+
+  it("verifies a question-bank-feedback-sourced committed row through the same row read port", async () => {
+    const port = recordingRowReadPort({ row: questionBankFeedbackCommittedArchiveItem() });
+    const result = await verifyStudentAppAITutorResultStudentArchivePhysicalRow(questionBankFeedbackInput(), {
+      teachingArchiveRowReadPort: port,
+      verificationLogPath: tempVerificationLogPath(),
+      generatedAt: "2026-06-11T17:05:00.000Z",
+    });
+
+    assert.equal(result.status, "STUDENT_APP_AI_TUTOR_RESULT_STUDENT_ARCHIVE_PHYSICAL_ROW_VERIFIED");
+    assert.equal(result.sourceStorageCommit.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.sourceStorageCommit.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.safeGuidanceSnapshot.learningActionSource, "QUESTION_BANK_DRAFT_ANSWER_FEEDBACK");
+    assert.equal(result.safeGuidanceSnapshot.feedbackStatus, "READY_FOR_STUDENT_APP_READ");
+    assert.equal(result.teachingArchivePhysicalRow.archiveItem.id, "tarch_student_feedback_001");
+    assert.equal(result.teachingArchivePhysicalRow.archiveItem.contentRef, questionBankFeedbackCommittedArchiveItem().contentRef);
+    assert.equal(result.boundary.physicalDatabaseRowVerified, true);
+    assert.equal(port.calls.length, 1);
+  });
+
+  it("rejects unsafe question-bank-feedback row verification source metadata", async () => {
+    const unsafeSource = questionBankFeedbackInput();
+    unsafeSource.studentArchiveStorageCommitReport.runtimeProbes.studentAppAiTutorQuestionBankFeedbackStudentArchiveStorageCommit.result.sourcePersistenceCommand.learningActionSource = "AI_TUTOR_RESULT_ARCHIVE";
+    await assert.rejects(
+      () => verifyStudentAppAITutorResultStudentArchivePhysicalRow(unsafeSource, {
+        teachingArchiveRowReadPort: recordingRowReadPort({ row: questionBankFeedbackCommittedArchiveItem() }),
+        verificationLogPath: tempVerificationLogPath(),
+      }),
+      /learningActionSource/u,
+    );
+
+    const unsafeReport = questionBankFeedbackInput();
+    unsafeReport.studentArchiveStorageCommitReport.safetyInvariants.feedbackStatusRequired = "DRAFT_ONLY";
+    await assert.rejects(
+      () => verifyStudentAppAITutorResultStudentArchivePhysicalRow(unsafeReport, {
+        teachingArchiveRowReadPort: recordingRowReadPort({ row: questionBankFeedbackCommittedArchiveItem() }),
+        verificationLogPath: tempVerificationLogPath(),
+      }),
+      /feedbackStatusRequired/u,
+    );
+  });
 });
 
 function tempVerificationLogPath() {
@@ -177,6 +218,17 @@ function resultArchiveInput() {
     studentArchiveRowVerificationPolicy: rowVerificationPolicy(),
     evidenceRefs: ["evidence:student-app-ai-tutor-result-archive-student-archive-storage-commit:tutor_req_student_app_result_archive_001"],
     idempotencyKey: "student-app-ai-tutor-result-archive-row-verification:student_001:tutor_req_student_app_result_archive_001",
+  };
+}
+
+function questionBankFeedbackInput() {
+  return {
+    schemaVersion: "2026-06-08.student-app.ai-tutor-result-student-archive-row-verification.v1",
+    verificationInvocationId: "ai_tutor_result_archive_row_verification_feedback_001",
+    studentArchiveStorageCommitReport: JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-student-archive-storage-commit.current.json", "utf8")),
+    studentArchiveRowVerificationPolicy: rowVerificationPolicy(),
+    evidenceRefs: ["evidence:student-app-ai-tutor-question-bank-feedback-student-archive-storage-commit:tutor_req_student_app_feedback_001"],
+    idempotencyKey: "student-app-ai-tutor-question-bank-feedback-row-verification:student_001:tutor_req_student_app_feedback_001",
   };
 }
 
@@ -229,4 +281,9 @@ function committedArchiveItem() {
 function resultArchiveCommittedArchiveItem() {
   const report = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-result-archive-student-archive-storage-commit.current.json", "utf8"));
   return report.runtimeProbes.studentAppAiTutorResultArchiveStudentArchiveStorageCommit.result.teachingArchiveCommit.archiveItem;
+}
+
+function questionBankFeedbackCommittedArchiveItem() {
+  const report = JSON.parse(fs.readFileSync("reports/student-app-ai-tutor-question-bank-feedback-student-archive-storage-commit.current.json", "utf8"));
+  return report.runtimeProbes.studentAppAiTutorQuestionBankFeedbackStudentArchiveStorageCommit.result.teachingArchiveCommit.archiveItem;
 }

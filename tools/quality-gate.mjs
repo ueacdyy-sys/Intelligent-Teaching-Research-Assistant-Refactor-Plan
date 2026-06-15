@@ -130,6 +130,7 @@ export function buildQualityCommandPlan() {
     { name: "Student App AI Tutor question-bank-feedback student delivery envelope audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-feedback-student-delivery-envelope"] },
     { name: "Student App AI Tutor question-bank-feedback student archive persistence command audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-feedback-student-archive-persistence-command"] },
     { name: "Student App AI Tutor question-bank-feedback student archive storage commit audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-feedback-student-archive-storage-commit"] },
+    { name: "Student App AI Tutor question-bank-feedback student archive row verification audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-question-bank-feedback-student-archive-row-verification"] },
     { name: "Student App AI Tutor result-archive controlled answer artifact audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-archive-controlled-answer-artifact"] },
     { name: "Student App AI Tutor result-archive answer review gate audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-archive-answer-review-gate"] },
     { name: "Student App AI Tutor result-archive reviewed result persistence bridge audit", command: npmCommand(), args: ["run", "audit:student-app-ai-tutor-result-archive-reviewed-result-persistence-bridge"] },

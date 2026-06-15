@@ -91,6 +91,7 @@ import (
       "Student App AI Tutor question-bank-feedback student delivery envelope audit",
       "Student App AI Tutor question-bank-feedback student archive persistence command audit",
       "Student App AI Tutor question-bank-feedback student archive storage commit audit",
+      "Student App AI Tutor question-bank-feedback student archive row verification audit",
       "Student App AI Tutor result-archive controlled answer artifact audit",
       "Student App AI Tutor result-archive answer review gate audit",
       "Student App AI Tutor result-archive reviewed result persistence bridge audit",
